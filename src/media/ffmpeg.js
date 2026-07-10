@@ -2,7 +2,8 @@
 import { spawn } from 'node:child_process';
 import { PATHS } from '../config/paths.js';
 
-export function run(bin, args, { onLog } = {}) {
+// internal spawn wrapper — callers use ffmpeg()/ffmpegAss() below.
+function run(bin, args, { onLog } = {}) {
   return new Promise((resolvePromise, reject) => {
     const ps = spawn(bin, args, { stdio: ['ignore', 'pipe', 'pipe'] });
     let err = '';

@@ -4,7 +4,7 @@ import multer from 'multer';
 import { existsSync, statSync, mkdirSync, unlinkSync, renameSync } from 'node:fs';
 import { join, resolve, extname, basename, sep } from 'node:path';
 import * as DB from '../db/index.js';
-import { DIRS, PATHS, depStatus, projectDir } from '../config/paths.js';
+import { DIRS, PATHS, depStatus } from '../config/paths.js';
 import { logger } from '../util/log.js';
 import { hub } from '../ws/hub.js';
 import { detectInputType, newId, ratioToSize, wordCount } from '../util/util.js';
