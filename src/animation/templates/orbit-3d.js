@@ -1,5 +1,5 @@
-// Quỹ đạo 3D: hub neon pop, ellipse quỹ đạo vẽ nét (DrawSVG), chip khái niệm bay từ tâm
-// ra vị trí quỹ đạo (back.out) rồi trôi nhẹ so le — ảo giác orbit, không phải orbit thật.
+// 3D orbit: neon hub pop, orbit ellipse drawn on (DrawSVG), concept chips fly from the center
+// out to their orbit positions (back.out) then drift gently in staggered phase — an orbit illusion, not a real orbit.
 import { esc, icon, hudLabel, base, headingStyle, fx } from './_shared.js';
 
 export default {

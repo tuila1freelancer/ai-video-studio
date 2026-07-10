@@ -1,5 +1,5 @@
-// Chat demo: bubbles pop theo nhịp GSAP, typing indicator 3 chấm trước mỗi tin AI,
-// tin AI cuối gõ chữ dần bằng TextPlugin. Natural state = hội thoại hoàn chỉnh.
+// Chat demo: bubbles pop on the GSAP beat, 3-dot typing indicator before each AI message,
+// last AI message types out gradually via TextPlugin. Natural state = full conversation.
 import { esc, icon, hudLabel, base, headingStyle, fx } from './_shared.js';
 
 export default {
@@ -20,8 +20,8 @@ export default {
         : bubble;
     }).join('');
 
-    // GSAP sequence: giữ nhịp gốc (bubble i vào tại 0.5 + i*0.55); trước mỗi bubble AI
-    // hiện typing indicator (3 chấm nhấp nháy) rồi ẩn đi ngay trước khi bubble pop.
+    // GSAP sequence: keep the original beat (bubble i enters at 0.5 + i*0.55); before each AI bubble
+    // show the typing indicator (3 blinking dots) then hide it right before the bubble pops.
     const seq = msgs.map((m, i) => {
       const at = 0.5 + i * 0.55;
       const parts = [];
@@ -32,7 +32,7 @@ export default {
       }
       parts.push(`tl.from('#m${i}', { y: ${u(3)}, opacity: 0, duration: 0.55, ease: 'back.out(1.7)' }, ${at.toFixed(2)});`);
       if (i === lastAi) {
-        // TextPlugin type-on: html chứa FULL text (natural = final); tween thay thế dần từ rỗng.
+        // TextPlugin type-on: html holds the FULL text (natural = final); tween replaces it gradually starting from empty.
         const full = String(m.text == null ? '' : m.text);
         const dur = Math.min(1.6, full.length * 0.03);
         parts.push(`tl.fromTo('#m${i} .btx', { text: '' }, { text: { value: ${JSON.stringify(full)} }, duration: ${dur.toFixed(2)}, ease: 'none' }, ${(at + 0.1).toFixed(2)});`);

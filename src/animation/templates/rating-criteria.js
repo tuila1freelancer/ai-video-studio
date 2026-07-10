@@ -1,4 +1,4 @@
-// Tiêu chí đánh giá: tiêu đề chữ bay 3D (SplitText), hàng sao rơi nảy (bounce) + wiggle.
+// Rating criteria: heading with 3D flying chars (SplitText), row of stars dropping with bounce + wiggle.
 import { esc, icon, hudLabel, base, headingStyle, EASE, fx } from './_shared.js';
 
 export default {

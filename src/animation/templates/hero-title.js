@@ -1,4 +1,4 @@
-// Chương mở đầu: ring neon pop-in, icon vẽ nét (DrawSVG), tiêu đề chữ bay 3D (SplitText).
+// Opening chapter: neon ring pops in, icon draws on (DrawSVG), title with 3D flying chars (SplitText).
 import { esc, icon, base, headingStyle, hudLabel, fx } from './_shared.js';
 
 export default {

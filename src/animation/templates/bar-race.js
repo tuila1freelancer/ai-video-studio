@@ -1,6 +1,6 @@
-// Biểu đồ cột đua nhau: tiêu đề chữ bay 3D (SplitText), thanh glass fill scaleX đua
-// theo giá trị + số đếm đồng bộ (FX.count), cột thắng wiggle + vòng glow pulse.
-// Natural (no-script) state = fills ở đúng độ rộng cuối → script hỏng vẫn đọc được.
+// Bar race chart: title with 3D flying chars (SplitText), glass bars fill via scaleX
+// racing toward their values + synced count-up (FX.count), winning bar wiggles + glow pulse ring.
+// Natural (no-script) state = fills at their final width -> stays readable even if the script breaks.
 import { esc, hudLabel, base, headingStyle, fx } from './_shared.js';
 
 export default {

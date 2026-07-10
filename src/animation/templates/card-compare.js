@@ -1,4 +1,4 @@
-// So sánh 2–3 thẻ glass: thẻ bay vào 3D (rotationY xen kẽ), icon pop, tiêu đề chữ cascade (SplitText).
+// Compare 2-3 glass cards: cards fly in with 3D (alternating rotationY), icon pop, title chars cascade (SplitText).
 import { esc, icon, ICON_NAMES, hudLabel, base, headingStyle, fx } from './_shared.js';
 
 export default {
