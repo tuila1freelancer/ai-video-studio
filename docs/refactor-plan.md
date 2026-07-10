@@ -1,126 +1,126 @@
-# Kế hoạch refactor — AI Video Studio
+# Refactor plan — AI Video Studio
 
-> GĐ2. Dựa trên [architecture.md](architecture.md). Thực thi tuần tự R1→R12, **rủi ro thấp trước**. Mỗi bước = 1 commit Conventional Commits + qua verify gate mới sang bước kế. Bước hỏng: sửa tối đa 3 lần, không xong → `git revert`, ghi lý do vào [refactor-report.md](refactor-report.md).
+> Phase 2. Based on [architecture.md](architecture.md). Execute sequentially R1→R12, **lowest risk first**. Each step = 1 Conventional Commits commit + must pass the verify gate before moving to the next step. If a step breaks: fix at most 3 times; if still not resolved → `git revert` and record the reason in [refactor-report.md](refactor-report.md).
 
-## Nguyên tắc bất biến (nhắc lại từ architecture.md §7)
-- **Behavior-preserving 100%**: không đổi REST endpoint/shape, WS message, schema DB, format config/video. Project cũ trong `data/` phải resume được.
-- **8 nhóm + P1–P15 hành-vi-được-bảo-vệ**: chỉ di chuyển, cấm đổi logic/hằng số/thứ tự.
-- Môi trường: `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"` trước mọi lệnh node.
+## Invariants (restated from architecture.md §7)
+- **100% behavior-preserving**: do not change REST endpoint/shape, WS message, DB schema, config/video format. Old projects in `data/` must still be resumable.
+- **8 groups + P1–P15 protected behaviors**: move only; changing logic/constants/ordering is forbidden.
+- Environment: `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"` before any node command.
 
-## Chuẩn code áp dụng cho mọi file mới/sửa
-- File ≤ **300 dòng** (mục tiêu), **400 dòng** (trần cứng — vượt phải ghi lý do trong report).
-- 1 module = 1 trách nhiệm. Không side-effect lúc import (trừ `server.js`, `db/index.js` connection).
-- Mọi export công khai có JSDoc `@param`/`@returns`.
-- File `kebab-case`, hàm `camelCase`, hằng số `UPPER_SNAKE`.
-- Error message có ngữ cảnh (`projectId`, `scene idx`).
-- Không magic number rải rác → gom về `config/constants.js` với tên có nghĩa.
-- Xoá file/export nào cũng phải kèm **grep proof** không còn ai import.
+## Coding standard applied to every new/modified file
+- File ≤ **300 lines** (target), **400 lines** (hard cap — exceeding it requires a documented reason in the report).
+- 1 module = 1 responsibility. No side effects at import time (except `server.js` and the `db/index.js` connection).
+- Every public export has JSDoc `@param`/`@returns`.
+- Files `kebab-case`, functions `camelCase`, constants `UPPER_SNAKE`.
+- Error messages carry context (`projectId`, `scene idx`).
+- No magic numbers scattered around → consolidate them into `config/constants.js` with meaningful names.
+- Deleting any file/export must come with **grep proof** that no one imports it anymore.
 
-## Verify gate (định nghĩa 1 lần, tham chiếu ở mỗi bước)
-- **G1 (nhẹ)**: `node --check` file đổi + import-smoke từng entry (`node -e "await import('./src/...')"`); `node scripts/tpl-smoke.mjs`.
-- **G2 (server)**: boot server, `GET /api/projects` trả JSON; với bước DB/routes: gọi thêm vài endpoint liên quan.
-- **G3 (e2e)**: `node scripts/test-drive.mjs 'Chủ đề test refactor' 45 '9:16' 1800000 edge` → PASS + `qc_report.json` ok. **tts=edge bắt buộc** (LarVoice trả phí).
-- **G4 (resume-compat)**: mở 1 project cũ trong DB qua API/`scripts/resume.mjs`, xác nhận đọc scenes + status không lỗi.
+## Verify gate (defined once, referenced at each step)
+- **G1 (light)**: `node --check` on changed files + import-smoke for each entry (`node -e "await import('./src/...')"`); `node scripts/tpl-smoke.mjs`.
+- **G2 (server)**: boot the server, `GET /api/projects` returns JSON; for DB/routes steps: also call a few related endpoints.
+- **G3 (e2e)**: `node scripts/test-drive.mjs 'Chủ đề test refactor' 45 '9:16' 1800000 edge` → PASS + `qc_report.json` ok. **tts=edge is mandatory** (LarVoice is paid).
+- **G4 (resume-compat)**: open an old project in the DB via API/`scripts/resume.mjs`, confirm it reads scenes + status without error.
 
 ---
 
-## Các bước
+## The steps
 
-### PHA A — Dọn dẹp (rủi ro THẤP)
+### PHASE A — Cleanup (LOW risk)
 
-**R1 — Xoá dead code & file rác.** *(rủi ro: thấp · ~40 dòng giảm · G1)*
-- Bỏ import `estimateSpeechSeconds` (`providers/llm.js:4`) và `projectDir` (`api/routes.js:7`, `pipeline/runner.js:7`).
-- Xoá `sleep` trùng ở `util/util.js:10` (giữ bản `util/retry.js`); xoá export `clamp` (`util/util.js:12`).
-- Hạ `export function run`→`function run` (`media/ffmpeg.js:5`).
-- Xoá file `test-beats.mjs`, `test_overshoot_logic.js`, mọi `.DS_Store` (đã grep 0 importer — architecture.md §4).
-- Verify: G1. (Lưu ý: `test-beats.mjs` import `extractBeats` — không ai import ngược lại nó, an toàn.)
+**R1 — Remove dead code & junk files.** *(risk: low · ~40 lines removed · G1)*
+- Drop the import of `estimateSpeechSeconds` (`providers/llm.js:4`) and `projectDir` (`api/routes.js:7`, `pipeline/runner.js:7`).
+- Remove the duplicate `sleep` in `util/util.js:10` (keep the `util/retry.js` version); remove the `clamp` export (`util/util.js:12`).
+- Downgrade `export function run`→`function run` (`media/ffmpeg.js:5`).
+- Delete `test-beats.mjs`, `test_overshoot_logic.js`, and every `.DS_Store` (already grepped 0 importers — architecture.md §4).
+- Verify: G1. (Note: `test-beats.mjs` imports `extractBeats` — nothing imports it back, so it is safe.)
 
-**R2 — Gom trùng lặp helper/hằng số. → ĐÃ ĐÁNH GIÁ, BỎ QUA (không phải trùng lặp thật).**
-Khi soi kỹ, các "trùng lặp" agent khảo sát nêu ra hoá ra là hàm KHÁC nhau, gộp sẽ đổi hành vi (vi phạm mandate) hoặc là abstraction non:
-- `escapeHtml`: bản `harness.js` escape 4 ký tự (`& < > "`), bản `util.js` escape 5 (thêm `'`→`&#39;`). Khác nhau; harness nằm trên đường render nhạy → giữ nguyên.
-- `clamp`: `branding.js` là hàm **4 tham-số có default** `(v,lo,hi,dflt)`, chỉ dùng trong branding, đã là local const sạch → gộp lên util là abstraction non.
-- `PALETTES` (`imagesearch.js`, mảng `['0x..','0x..']`) vs `THEMES` (`visuals.js`, object `{a:'#..',b:'#..',…}`) — **khác cấu trúc**, không phải cùng dữ liệu.
-Kết luận: không có bản-sao thật nào để gộp an toàn. Bỏ R2, các bước sau giữ nguyên số.
+**R2 — Consolidate duplicated helpers/constants. → EVALUATED, SKIPPED (not real duplication).**
+On close inspection, the "duplicates" flagged by the survey agent turned out to be DIFFERENT functions; merging them would change behavior (violating the mandate) or would be a premature abstraction:
+- `escapeHtml`: the `harness.js` version escapes 4 characters (`& < > "`), the `util.js` version escapes 5 (adds `'`→`&#39;`). They differ; harness sits on a sensitive render path → leave as is.
+- `clamp`: the `branding.js` one is a **4-parameter function with a default** `(v,lo,hi,dflt)`, used only in branding, and is already a clean local const → hoisting it into util would be a premature abstraction.
+- `PALETTES` (`imagesearch.js`, an array `['0x..','0x..']`) vs `THEMES` (`visuals.js`, an object `{a:'#..',b:'#..',…}`) — **different structures**, not the same data.
+Conclusion: there is no genuine duplicate that can be merged safely. Drop R2; the following steps keep their numbers.
 
-### PHA B — Tầng thuần & config (rủi ro THẤP–VỪA)
+### PHASE B — Pure layer & config (LOW–MEDIUM risk)
 
-**R3 — magic number → hằng đặt tên. → LỒNG VÀO R9.**
-Các hằng tuned (`padMs`, `pix_th=0.04`, `PSNR=70`) là giá-trị-một-chỗ kèm comment giải thích "vì sao" NGAY tại call site — tách ra file trung tâm làm "why" xa "what", giảm rõ ràng và đụng ngưỡng render/QC (rủi ro thừa). Thay vào đó, khi tách module (R9) sẽ khai báo hằng đặt tên cục bộ (vd `PAD_MS` trong `stages/tts.js`). Đạt chuẩn "no magic number" mà không cần bước sweep rủi ro.
+**R3 — magic number → named constant. → FOLDED INTO R9.**
+The tuned constants (`padMs`, `pix_th=0.04`, `PSNR=70`) are single-site values with a comment explaining "why" RIGHT at the call site — pulling them into a central file separates the "why" from the "what", reduces clarity, and touches render/QC thresholds (unnecessary risk). Instead, when splitting modules (R9) we will declare local named constants (e.g. `PAD_MS` in `stages/tts.js`). This meets the "no magic number" standard without a risky sweep step.
 
-**R4 — Tách domain kịch bản khỏi `providers/llm.js`. → HOÃN (dưới trần 400).**
-`llm.js` 382 dòng, dưới trần cứng; tổ chức theo section đã khá rõ. Ưu tiên context cho các file VƯỢT trần (runner 723, routes 464, db 452) và cắt vòng lặp. Làm R4 nếu còn ngân sách sau R10.
+**R4 — Extract the script domain out of `providers/llm.js`. → DEFERRED (under the 400 cap).**
+`llm.js` is 382 lines, under the hard cap; its section-based organization is already fairly clear. Prioritize context for files that EXCEED the cap (runner 723, routes 464, db 452) and cutting the cycle. Do R4 if there is budget left after R10.
 
-### PHA C — Cắt vòng lặp visual (rủi ro VỪA — mấu chốt kiến trúc)
+### PHASE C — Cut the visual cycle (MEDIUM risk — architectural crux)
 
-**R5 — Tạo `src/styleguide/` dùng chung, cắt vòng lặp animation↔hyperframe.** *(rủi ro: vừa · ~260 dòng di chuyển · G1+G3)*
-- Chuyển vào `styleguide/`:
-  - từ `animation/templates/hyperframe.js`: `normalizeGuide`, `HF_DEFAULT_GUIDE`, `SAMPLE_SPEC`;
-  - từ `hyperframe/styleguide.js`: `themeFromGuide`, `resolveGuide`, `HF_PRESETS`, `generateStyleGuide`.
-- `animation/templates/hyperframe.js` chỉ còn **renderer template "hyperframe"** (buildTemplate case), import guide từ `styleguide/`.
-- Cập nhật mọi importer (grep sẵn): `animation/index.js`, `hyperframe/{prompt,codegen,validate,styleguide,icons}.js`, `pipeline/{runner,visuals}.js`, `api/routes.js`, `scripts/{tpl-smoke,determinism,hf-qa}.mjs`.
-- Kết quả: `styleguide/` không import lên ai; `hyperframe/`→`animation/`+`styleguide/` một chiều; vòng lặp biến mất.
-- Verify: G1 (import-smoke phải hết cảnh báo circular) + **G3** + `node scripts/hf-qa.mjs`.
+**R5 — Create a shared `src/styleguide/`, cutting the animation↔hyperframe cycle.** *(risk: medium · ~260 lines moved · G1+G3)*
+- Move into `styleguide/`:
+  - from `animation/templates/hyperframe.js`: `normalizeGuide`, `HF_DEFAULT_GUIDE`, `SAMPLE_SPEC`;
+  - from `hyperframe/styleguide.js`: `themeFromGuide`, `resolveGuide`, `HF_PRESETS`, `generateStyleGuide`.
+- `animation/templates/hyperframe.js` keeps only the **"hyperframe" template renderer** (the buildTemplate case), importing the guide from `styleguide/`.
+- Update every importer (already grepped): `animation/index.js`, `hyperframe/{prompt,codegen,validate,styleguide,icons}.js`, `pipeline/{runner,visuals}.js`, `api/routes.js`, `scripts/{tpl-smoke,determinism,hf-qa}.mjs`.
+- Result: `styleguide/` imports nobody upward; `hyperframe/`→`animation/`+`styleguide/` is one-directional; the cycle disappears.
+- Verify: G1 (import-smoke must have no circular warnings) + **G3** + `node scripts/hf-qa.mjs`.
 
-### PHA D — Persistence (rủi ro VỪA)
+### PHASE D — Persistence (MEDIUM risk)
 
-**R6 — Tách `db/index.js` thành connection + repositories.** *(rủi ro: vừa · ~450 dòng tổ chức lại · G1+G2+G4)*
-- `db/index.js`: giữ connection, `db.exec` schema, migrations, seed, **re-export toàn bộ** để `import * as DB from '../db/index.js'` không đổi (bảo toàn mọi call site).
-- `db/repositories/`: `projects.js`, `scenes.js`, `channels.js`, `presets.js`, `styles.js`, `library.js`, `voices.js`, `settings.js`. Prepared statement gom theo domain.
-- **Không đổi 1 ký tự SQL/schema** (resume-compat). Giữ P13 (recover zombie).
+**R6 — Split `db/index.js` into connection + repositories.** *(risk: medium · ~450 lines reorganized · G1+G2+G4)*
+- `db/index.js`: keep the connection, `db.exec` schema, migrations, seed, and **re-export everything** so that `import * as DB from '../db/index.js'` is unchanged (preserving every call site).
+- `db/repositories/`: `projects.js`, `scenes.js`, `channels.js`, `presets.js`, `styles.js`, `library.js`, `voices.js`, `settings.js`. Prepared statements grouped by domain.
+- **Do not change a single character of SQL/schema** (resume-compat). Keep P13 (recover zombie).
 - Verify: G1 + G2 (`/api/projects`, `/api/channels`) + **G4**.
 
-### PHA E — API (rủi ro VỪA)
+### PHASE E — API (MEDIUM risk)
 
-**R7 — Tách `api/routes.js` thành router theo domain + services.** *(rủi ro: vừa · ~464 dòng tổ chức lại · G1+G2)*
-- `api/index.js`: `mountRoutes` chỉ wiring các router.
+**R7 — Split `api/routes.js` into domain routers + services.** *(risk: medium · ~464 lines reorganized · G1+G2)*
+- `api/index.js`: `mountRoutes` only wires the routers together.
 - `api/routes/`: `projects.js`, `channels.js`, `scenes.js`, `voices.js`, `styles.js`, `library.js`, `media.js` (file-serving + edit-cut), `hyperframe.js`, `misc.js` (health/settings/estimate).
-- `api/services/`: business logic rút khỏi route — `voice-preview.js`, `batch.js`, `srt-export.js`, `file-guard.js` (allowlist P15). Route chỉ validate→gọi service→JSON.
-- Giữ nguyên path, method, shape, mã lỗi. Giữ P14/P15.
-- Verify: G1 + G2 (hit ≥1 endpoint mỗi router: projects, channels, voices, styles, library, file, hyperframe/presets).
+- `api/services/`: business logic pulled out of the routes — `voice-preview.js`, `batch.js`, `srt-export.js`, `file-guard.js` (allowlist P15). Routes only validate→call service→JSON.
+- Keep the path, method, shape, and error codes intact. Keep P14/P15.
+- Verify: G1 + G2 (hit ≥1 endpoint per router: projects, channels, voices, styles, library, file, hyperframe/presets).
 
-### PHA F — Pipeline runner (rủi ro CAO — làm cuối, verify nặng nhất)
+### PHASE F — Pipeline runner (HIGH risk — do last, heaviest verify)
 
-**R8 — Rút helper điều phối khỏi `runner.js`.** *(rủi ro: vừa · ~90 dòng · G1+G3)*
+**R8 — Extract orchestration helpers out of `runner.js`.** *(risk: medium · ~90 lines · G1+G3)*
 - `pipeline/progress.js`: `progressPlan`, `step`, `op`, `retryHook`.
 - `pipeline/util.js`: `mapPool`, `resolveOutputDir`, `visualOpts`, `styleNameOf`, `subtitleStyleFrom`.
-- `runner.js` import lại. Không đổi hành vi.
+- `runner.js` imports them back. No behavior change.
 - Verify: G1 + G3.
 
-**R9 — Tách các stage B2..B8 thành `pipeline/stages/*`.** *(rủi ro: CAO · ~400 dòng tách · G1+G3)*
-- `stages/script.js` (B2), `stages/tts.js` (B34 + `ttsOne` + voice-lock heal P7/P9), `stages/visuals.js` (B5 animation/hyperframe/image, giữ P8), `stages/render.js` (B6), `stages/concat.js` (B7 finalize), `stages/qc-gate.js` (B8, giữ P6/P10 repair), `stages/metadata.js`.
-- `runner.js` → `pipeline/orchestrator.js`: `runPipeline` mỏng gọi stage theo thứ tự + phát WS + bắt lỗi/auto-resume (P10 `_auto<1`).
-- **Bảo toàn từng nhánh self-heal & guard.** Đây là bước dễ vỡ nhất.
-- Verify: G1 + **G3 bắt buộc** + so `qc_report.json` với baseline.
+**R9 — Split stages B2..B8 into `pipeline/stages/*`.** *(risk: HIGH · ~400 lines split · G1+G3)*
+- `stages/script.js` (B2), `stages/tts.js` (B34 + `ttsOne` + voice-lock heal P7/P9), `stages/visuals.js` (B5 animation/hyperframe/image, keep P8), `stages/render.js` (B6), `stages/concat.js` (B7 finalize), `stages/qc-gate.js` (B8, keep P6/P10 repair), `stages/metadata.js`.
+- `runner.js` → `pipeline/orchestrator.js`: a thin `runPipeline` that calls the stages in order + emits WS + catches errors/auto-resume (P10 `_auto<1`).
+- **Preserve every self-heal & guard branch.** This is the most fragile step.
+- Verify: G1 + **G3 mandatory** + diff `qc_report.json` against the baseline.
 
-**R10 — Tách `renderOnly`/`regenOne`/`brandGenImpl` + `heal.js`.** *(rủi ro: cao · ~180 dòng · G1+G3+G4)*
-- `pipeline/render-only.js`, `pipeline/regen.js`, `pipeline/brandgen.js`, `pipeline/heal.js` (gom `renderHealed`, voice-lock heal, auto-resume policy).
-- `pipeline/index.js` (nguyên `queue.js`) cập nhật import.
-- Verify: G1 + G3 + **G4** (resume + regen 1 cảnh của project cũ).
+**R10 — Extract `renderOnly`/`regenOne`/`brandGenImpl` + `heal.js`.** *(risk: high · ~180 lines · G1+G3+G4)*
+- `pipeline/render-only.js`, `pipeline/regen.js`, `pipeline/brandgen.js`, `pipeline/heal.js` (consolidating `renderHealed`, voice-lock heal, auto-resume policy).
+- `pipeline/index.js` (formerly `queue.js`) updates its imports.
+- Verify: G1 + G3 + **G4** (resume + regen one scene of an old project).
 
-### PHA G — Frontend (rủi ro THẤP — CHỈ dead code + naming, KHÔNG redesign)
+### PHASE G — Frontend (LOW risk — dead code + naming ONLY, NO redesign)
 
-**R11 — Dọn `public/js/` + gom trích xuất path.** *(rủi ro: thấp · ~60 dòng · G2 + tải trang)*
-- Rút hàm parse `?path=` (lặp 4 chỗ) về `public/js/api.js`.
-- Tách state HyperFrame/subtitle khỏi `views/config.js` (400 dòng) sang `features/` nếu giảm rõ; xoá dead/nhất quán naming. KHÔNG đổi hành vi UI, KHÔNG đổi giao diện.
-- Verify: G2 + tải SPA (preview) kiểm không lỗi console, tạo thử 1 project.
+**R11 — Clean up `public/js/` + consolidate path extraction.** *(risk: low · ~60 lines · G2 + page load)*
+- Pull the `?path=` parse function (repeated in 4 places) into `public/js/api.js`.
+- Split HyperFrame/subtitle state out of `views/config.js` (400 lines) into `features/` if it yields a clear reduction; remove dead code and make naming consistent. Do NOT change UI behavior, do NOT change the interface.
+- Verify: G2 + load the SPA (preview), check for no console errors, try creating one project.
 
-### PHA H — Tài liệu & JSDoc (rủi ro THẤP)
+### PHASE H — Documentation & JSDoc (LOW risk)
 
-**R12 — JSDoc public export + cập nhật README + architecture.md.** *(rủi ro: thấp · G3 lần cuối)*
-- JSDoc mọi export công khai còn thiếu (ưu tiên module vừa tách).
-- `README.md` khớp cấu trúc mới; `architecture.md` cập nhật sơ đồ + bảng "sửa X→Y" theo path mới.
+**R12 — JSDoc public exports + update README + architecture.md.** *(risk: low · final G3)*
+- JSDoc every public export still missing one (prioritize the newly split modules).
+- `README.md` matches the new structure; `architecture.md` updates the diagram + the "to change X→Y" table to the new paths.
 - Verify: **full gate G1+G2+G3+G4**.
 
 ---
 
-## Thứ tự & lý do rút gọn
-1. **A,B** trước vì rủi ro thấp, dọn nền sạch để các bước sau đọc dễ.
-2. **C** (cắt vòng lặp) trước D/E/F vì nó gỡ nút thắt phụ thuộc, giúp các bước sau import gọn.
-3. **D,E** (DB, API) là med, độc lập tương đối với pipeline.
-4. **F** (mổ runner) rủi ro cao nhất → làm sau cùng khi nền đã vững, verify e2e nặng.
-5. **G,H** khép lại: FE + tài liệu.
+## Ordering & condensed rationale
+1. **A, B** first because they are low risk and clean the ground so later steps are easier to read.
+2. **C** (cut the cycle) before D/E/F because it unties the dependency knot, letting later steps import cleanly.
+3. **D, E** (DB, API) are medium and relatively independent of the pipeline.
+4. **F** (dissecting the runner) is the highest risk → do it last once the ground is solid, with heavy e2e verification.
+5. **G, H** close it out: FE + documentation.
 
-## Ước lượng
-- ~12 commit, ròng **giảm** tổng dòng (xoá dead + gom trùng) dù thêm file (tách nhỏ).
-- File >400 dòng sau refactor: mục tiêu **0**.
-- Mỗi bước PHA F chạy G3 (~e2e vài phút giọng edge) — tốn thời gian nhất nhưng bắt buộc.
+## Estimate
+- ~12 commits, net **reduction** in total lines (removing dead code + consolidating duplicates) despite adding files (finer splits).
+- Files >400 lines after refactor: target **0**.
+- Every PHASE F step runs G3 (~e2e, a few minutes on the edge voice) — the most time-consuming but mandatory.

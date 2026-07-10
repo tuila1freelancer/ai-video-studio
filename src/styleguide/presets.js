@@ -1,4 +1,4 @@
-// Built-in style presets ("Phong cách video") + resolution from a project config.
+// Built-in style presets ("Video style") + resolution from a project config.
 // Depends only on ./guide.js — no animation/ or hyperframe/ deps (keeps the graph acyclic).
 import { HF_DEFAULT_GUIDE, normalizeGuide } from './guide.js';
 

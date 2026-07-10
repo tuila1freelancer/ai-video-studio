@@ -1,4 +1,4 @@
-// Mindmap toả tia: hub pop (GSAP), nhánh SVG vẽ nét (DrawSVG), leaf pop stagger, h1 chữ bay 3D.
+// Radial mindmap: hub pop (GSAP), SVG branches drawn on (DrawSVG), leaf pop stagger, h1 3D flying chars.
 import { esc, icon, hudLabel, base, headingStyle, fx } from './_shared.js';
 
 export default {

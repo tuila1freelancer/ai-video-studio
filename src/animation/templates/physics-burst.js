@@ -1,8 +1,8 @@
-// Physics Burst — vụ nổ hạt năng lượng (Physics2DPlugin) + từ khoá lớn bật lên (back.out),
-// heading chữ bay 3D (SplitText) phía dưới, sub rise. Dùng cho khoảnh khắc impact/kết quả.
-// Hạt + shock-ring là trang trí thuần: trạng thái tự nhiên ẩn (opacity:0) — đó CŨNG là
-// trạng thái cuối của hiệu ứng (bay ra rồi tắt), nên script hỏng thì cảnh vẫn đầy đủ:
-// keyword + heading + sub hiển thị tĩnh, đọc được ngay. Mọi vận tốc/góc lấy từ rng (seeded).
+// Physics Burst — energy particle explosion (Physics2DPlugin) + big keyword popping up (back.out),
+// heading with 3D flying chars (SplitText) below, sub rise. Used for impact/result moments.
+// Particles + shock-ring are pure decoration: natural state is hidden (opacity:0) — which is ALSO
+// the effect's final state (fly out then fade), so if the script breaks the scene is still complete:
+// keyword + heading + sub render statically and are immediately readable. All velocities/angles come from rng (seeded).
 import { esc, hudLabel, base, headingStyle, fx } from './_shared.js';
 
 const N_PARTICLES = 26;

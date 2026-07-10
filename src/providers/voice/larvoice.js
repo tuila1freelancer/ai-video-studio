@@ -1,8 +1,8 @@
 // LarVoice — official API surface (https://larvoice.com/docs):
 //   base https://larvoice.com/api/v1, auth 'Authorization: Bearer lv_...'
-//   (key tạo tại https://larvoice.com/app/api — KHÔNG phải key Telegram bot của
-//   hệ cũ api.larvoice.com/x-api-key; hai hệ này không dùng chung key).
-// Voice id nội bộ: '<voice_type>:<voice_id>' (vd 'public:123', 'personal:ab-cd').
+//   (key created at https://larvoice.com/app/api — NOT the Telegram-bot key from the
+//   legacy api.larvoice.com/x-api-key system; the two systems don't share keys).
+// Internal voice id: '<voice_type>:<voice_id>' (e.g. 'public:123', 'personal:ab-cd').
 import { writeFileSync } from 'node:fs';
 import { probeDuration } from '../../media/ffmpeg.js';
 import { detectLang } from '../../util/lang.js';
@@ -19,7 +19,7 @@ function headersOf(cfg) {
   return { 'Content-Type': 'application/json', Authorization: `Bearer ${String(cfg.apiKey || '').trim()}` };
 }
 
-// '<type>:<id>' → body fields; legacy ids (demo:*, id:<uuid>) và 'auto:<lang>' → resolve qua catalog.
+// '<type>:<id>' → body fields; legacy ids (demo:*, id:<uuid>) and 'auto:<lang>' → resolve via catalog.
 function parseVoice(voiceId) {
   const v = String(voiceId || '');
   const m = /^(public|personal):(.+)$/.exec(v);
@@ -27,8 +27,8 @@ function parseVoice(voiceId) {
   return null; // legacy/auto → caller picks from catalog
 }
 
-// Catalog nhỏ, cache 10 phút THEO TỪNG API KEY (catalog chứa giọng 'personal' riêng
-// từng tài khoản — key khác nhau qua per-channel override không được dùng chung cache).
+// Small catalog, cached 10 minutes PER API KEY (the catalog holds account-specific 'personal'
+// voices — different keys via per-channel override must not share the cache).
 const catCaches = new Map(); // apiKey → { at, voices }
 async function fetchCatalog(cfg) {
   const key = String(cfg?.apiKey || '').trim();
@@ -58,7 +58,7 @@ async function fetchCatalog(cfg) {
 async function resolveVoice(voiceId, cfg, text) {
   const parsed = parseVoice(voiceId);
   if (parsed) return parsed;
-  // legacy ('demo:*'/'id:*'/uuid) hoặc 'auto' → giọng public đầu tiên khớp ngôn ngữ
+  // legacy ('demo:*'/'id:*'/uuid) or 'auto' → first public voice matching the language
   const lang = /^auto:/.test(String(voiceId)) ? String(voiceId).slice(5) : langOf(text || '');
   const voices = await fetchCatalog(cfg);
   const pick = voices.find((v) => v.voice_type === 'public' && v.language === lang)
@@ -87,10 +87,10 @@ async function runTtsJob(text, voiceId, cfg, outPath, maxChars) {
     gen_text: String(text).slice(0, maxChars),
     language: langOf(text),
     format: 'mp3',
-    return_srt: false, // app tự làm phụ đề — đỡ tốn payload
+    return_srt: false, // app builds subtitles itself — saves payload
     ...speedOf(cfg),
   };
-  // POST /tts thường trả completed ngay (200 {data:{job_id,status,output_url,cost}})
+  // POST /tts usually returns completed right away (200 {data:{job_id,status,output_url,cost}})
   const job = await withRetry(async () => {
     const r = await fetch(`${BASE}/tts`, {
       method: 'POST', headers: headersOf(cfg), body: JSON.stringify(body), signal: AbortSignal.timeout(120000),
@@ -100,7 +100,7 @@ async function runTtsJob(text, voiceId, cfg, outPath, maxChars) {
   }, { tries: 2, label: 'larvoice submit' });
 
   let { status, output_url } = { status: String(job.status || '').toLowerCase(), output_url: job.output_url };
-  // chưa xong → poll GET /jobs/:id mỗi 2s, cap 5 phút
+  // not done yet → poll GET /jobs/:id every 2s, capped at 5 minutes
   for (let i = 0; i < 150 && status !== 'completed'; i++) {
     if (status === 'failed') throw new Error(`LarVoice job failed: ${job.error || 'không rõ nguyên nhân'}`);
     await sleep(2000);
@@ -125,11 +125,11 @@ export default {
     { key: 'apiKey', label: 'API Key (Bearer)', type: 'password', required: true, placeholder: 'lv_… — tạo tại larvoice.com/app/api' },
     { key: 'speed', label: 'Tốc độ (0.5–2.0)', type: 'text', required: false, placeholder: '1.0' },
   ],
-  // resolve thật ở synthesize (catalog theo ngôn ngữ) — sentinel giữ contract sync
+  // actual resolution happens in synthesize (catalog by language) — sentinel keeps the contract in sync
   autoVoiceFor: (lang) => (LANGS.has(lang) ? `auto:${lang}` : null),
 
   async listVoices(cfg) {
-    if (!cfg?.apiKey) return []; // official API bắt buộc key — không có demo offline
+    if (!cfg?.apiKey) return []; // official API requires a key — no offline demo
     try {
       const voices = await fetchCatalog(cfg);
       return voices.map((v) => ({
@@ -139,7 +139,7 @@ export default {
         locale: localeOf(v.language),
         gender: v.gender === 'female' ? 'f' : v.gender === 'male' ? 'm' : (v.gender || 'u'),
         tags: v.voice_type === 'personal' ? ['của tôi'] : ['public'],
-        previewUrl: v.preview_url || null, // sample có sẵn — nghe thử không tốn credit
+        previewUrl: v.preview_url || null, // ready-made sample — previewing costs no credit
         provider: 'larvoice',
       }));
     } catch { return []; }
@@ -149,8 +149,8 @@ export default {
     return runTtsJob(text, voiceId, cfg, outPath, 50000);
   },
 
-  // Không có endpoint preview riêng trên hệ chính thức:
-  // text=null → tải preview_url có sẵn của giọng (0 credit); có text → job TTS ngắn.
+  // No dedicated preview endpoint on the official system:
+  // text=null → download the voice's ready-made preview_url (0 credit); with text → short TTS job.
   async previewSynthesize(text, voiceId, cfg, outPath) {
     if (!cfg?.apiKey) throw new Error('LarVoice: chưa cấu hình API Key');
     if (!text) {

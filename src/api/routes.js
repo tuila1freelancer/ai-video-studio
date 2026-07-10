@@ -202,7 +202,7 @@ export function mountRoutes(app, { version }) {
     res.send(buildSrt(all));
   });
 
-  // ---- batch queue: nhiều chủ đề → tự chạy tuần tự ----
+  // ---- batch queue: multiple topics → run sequentially on their own ----
   r.post('/batch', (req, res) => {
     try {
       const { projects, count } = startBatch(req.body || {});

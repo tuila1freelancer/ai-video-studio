@@ -1,72 +1,72 @@
-# Gap Analysis 3 chiều — Kênh @TuiLa1Freelancer (chuẩn) · AI VIDEO Tool (tham chiếu) · AI Video Studio (hiện tại)
+# 3-Way Gap Analysis — @TuiLa1Freelancer channel (standard) · AI VIDEO Tool (reference) · AI Video Studio (current)
 
-> Đầu vào: [quality-bar.md](quality-bar.md) (chuẩn kênh), [reference-app-analysis.md](reference-app-analysis.md) (app đối thủ), bản đồ codebase hiện tại. Danh sách nâng cấp xếp theo impact tới chất lượng video đầu ra.
+> Inputs: [quality-bar.md](quality-bar.md) (channel standard), [reference-app-analysis.md](reference-app-analysis.md) (competitor app), current codebase map. The upgrade list is ordered by impact on output video quality.
 
-## 1. Bảng so sánh 5 khâu
+## 1. Comparison table across the 5 stages
 
-### Khâu 1 — Kịch bản
+### Stage 1 — Script
 
-| | Kênh (chuẩn) | App tham chiếu | App hiện tại |
+| | Channel (standard) | Reference app | Current app |
 |---|---|---|---|
-| Hook | Cold-open pain→promise trong 35–60s, promise có con số | Dặn "mở đầu thu hút" chung | Outline có "hook 2-3 câu gây tò mò" — chưa có công thức pain→promise |
-| Cấu trúc | Chương đánh số, số đọc = số hiển thị; CTA giữa video ~50%; mồi comment cuối | Structure guide theo độ dài | 2 giai đoạn outline→chương (≥180s); **không CTA giữa, không mồi comment** |
-| Lượng chữ | ~260–280 âm tiết/phút, cảnh 6–12s | Bảng từ/cảnh {5s:24, 6:29, 7:34, 8:38, 10:48} + khoảng an toàn ±3-4 từ + dặn "TTS đọc nhanh hơn — viết ĐỦ chữ" | `wordsPerScene` ước từ 2.6 từ/s, không khoảng an toàn, không lời dặn → nguy cơ cảnh hụt |
-| Nối mạch video dài | — | Batch 25 cảnh + tóm tắt 3 cảnh trước | Chương viết tuần tự nhưng **không thấy lời thoại chương trước** → nguy cơ lặp ý |
-| Ngôn ngữ | vi (+ video en) | `outputLanguage` đa ngữ + wordsPerSecond/lang | **Không có tham số** — prompt nghiêng tiếng Việt |
+| Hook | Cold-open pain→promise within 35–60s, promise includes a number | Generic "make the opening engaging" instruction | Outline has "hook 2-3 sentences that spark curiosity" — no pain→promise formula yet |
+| Structure | Numbered chapters, spoken number = displayed number; mid-video CTA at ~50%; comment bait at the end | Structure guide by length | 2-stage outline→chapter (≥180s); **no mid-video CTA, no comment bait** |
+| Word count | ~260–280 syllables/minute, scenes of 6–12s | Words-per-scene table {5s:24, 6:29, 7:34, 8:38, 10:48} + safety margin ±3-4 words + instruction "TTS reads faster — write ENOUGH words" | `wordsPerScene` estimated at 2.6 words/s, no safety margin, no instruction → risk of scenes falling short |
+| Long-video continuity | — | Batch of 25 scenes + summary of the previous 3 scenes | Chapters written sequentially but **the previous chapter's dialogue is not visible** → risk of repeating ideas |
+| Language | vi (+ en video) | `outputLanguage` multilingual + wordsPerSecond/lang | **No parameter** — prompt leans toward Vietnamese |
 
-### Khâu 2 — Visual từng cảnh
+### Stage 2 — Per-scene visuals
 
-| | Kênh (chuẩn) | App tham chiếu | App hiện tại |
+| | Channel (standard) | Reference app | Current app |
 |---|---|---|---|
-| Chỉ đạo cảnh | Mỗi cảnh 1 focal element, 7 layout pattern, 12 loại cảnh | **B2 sinh `[ENVIRONMENT]/[MAIN FOCUS]/[CAMERA]/[MOTION FLOW]/[LIGHTING & FX]/[TEXT STYLE]/[MOOD]` cho TỪNG cảnh** | Video ngắn: brief `[MAIN OBJECT]/[ON-SCREEN TEXT]/[MOTION]/[MOOD]`; **video dài (≥180s): `visualPrompt = voice.slice(0,90)` — KHÔNG có chỉ đạo thật** ← gap chí mạng |
-| Style guide | Palette semantic (cyan=AI, hồng=rủi ro, lá=đúng, vàng=tiền), HUD language, kicker mono | 7 section: màu khoá + font size px + quy tắc dấu vi + text-effect CSS + icon SVG + ambient + **MAPPING CONCEPT→VISUAL** | Guide chỉ có palette/fonts/motif/treatment/personality — **thiếu concept-map, text-effects, semantic colors, HUD vocabulary** |
-| Codegen | — | HTML GSAP 1 file, zone layout px, visual callback (beat cuối nhắc lại beat đầu +25%) | CODEGEN_SYSTEM đã rất tốt (beats thật, FX vocab, contract) — thiếu visual callback, semantic color, layout taxonomy |
-| Kiểm định | — | AutoFix tĩnh | **2 tầng lint + renderValidate (hơn hẳn — GIỮ)** |
+| Scene direction | Each scene has 1 focal element, 7 layout patterns, 12 scene types | **B2 generates `[ENVIRONMENT]/[MAIN FOCUS]/[CAMERA]/[MOTION FLOW]/[LIGHTING & FX]/[TEXT STYLE]/[MOOD]` for EACH scene** | Short video: brief `[MAIN OBJECT]/[ON-SCREEN TEXT]/[MOTION]/[MOOD]`; **long video (≥180s): `visualPrompt = voice.slice(0,90)` — NO real direction** ← critical gap |
+| Style guide | Semantic palette (cyan=AI, pink=risk, green=correct, yellow=money), HUD language, mono kicker | 7 sections: locked colors + font size px + Vietnamese diacritics rules + text-effect CSS + SVG icons + ambient + **CONCEPT→VISUAL MAPPING** | Guide only has palette/fonts/motif/treatment/personality — **missing concept-map, text-effects, semantic colors, HUD vocabulary** |
+| Codegen | — | Single-file HTML GSAP, zone layout px, visual callback (last beat echoes the first beat +25%) | CODEGEN_SYSTEM is already very good (real beats, FX vocab, contract) — missing visual callback, semantic color, layout taxonomy |
+| Validation | — | Static AutoFix | **2-tier lint + renderValidate (clearly superior — KEEP)** |
 
-### Khâu 3 — Đồng nhất xuyên video
+### Stage 3 — Cross-video consistency
 
-| | Kênh | App tham chiếu | App hiện tại |
+| | Channel | Reference app | Current app |
 |---|---|---|---|
-| Cơ chế | Palette + motion khoá cứng cả video | style_guide chung + PALETTE_LOCK cưỡng chế + 8 preset mood + visual callback | Guide nhúng mọi prompt + theme harness ngoài LLM (mạnh) — NHƯNG: **cảnh fallback template dùng theme classic ≠ guide**; **title card/intro/outro/thumbnail hardcode màu xanh `#1e3a8a` bỏ qua guide**; chapter-break không nhận guide |
+| Mechanism | Palette + motion hard-locked across the whole video | Shared style_guide + enforced PALETTE_LOCK + 8 mood presets + visual callback | Guide embedded in every prompt + theme harness outside the LLM (strong) — BUT: **fallback template scenes use the classic theme ≠ guide**; **title card/intro/outro/thumbnail hardcode blue `#1e3a8a`, ignoring the guide**; chapter-break does not receive the guide |
 
-### Khâu 4 — Voice
+### Stage 4 — Voice
 
-| | Kênh | App tham chiếu | App hiện tại |
+| | Channel | Reference app | Current app |
 |---|---|---|---|
-| Giọng | 1 giọng chủ đạo cả video, đều | LarVoice 1 voice, pad silence 650ms/400ms cuối cảnh | Per-lang default tốt; **fallback chain edge→say có thể ĐỔI GIỌNG giữa video khi 1 cảnh lỗi**; không pad silence; **không loudnorm per-scene** (chỉ loudnorm cả video ở B7) |
+| Voice | 1 dominant voice across the whole video, consistent | LarVoice single voice, pad silence 650ms/400ms at the end of each scene | Good per-lang default; **fallback chain edge→say can CHANGE THE VOICE mid-video when a single scene fails**; no silence padding; **no per-scene loudnorm** (only whole-video loudnorm at B7) |
 
-### Khâu 5 — Retry / QC
+### Stage 5 — Retry / QC
 
-| | App tham chiếu | App hiện tại |
+| | Reference app | Current app |
 |---|---|---|
-| LLM | Nhiều key xoay vòng, 6 lần/key backoff tuyến tính, phân loại 401/403/quota bỏ key | 1 key, withRetry ×2-3 — **không key rotation, không model fallback, không phân loại lỗi** |
-| Scene render | Validate concat | ffprobe từng mp4 + render bù + deferred pass (hơn) |
-| QC cuối | Duration check | Duration check — **cả hai cùng thiếu: black-frame, audio-silence, A/V sync** |
-| Nhạc/SFX | Music plan AI: BGM + ~20 SFX whoosh/glitch đặt đúng timestamp chuyển section | BGM đều + fade — **không SFX chuyển cảnh** |
+| LLM | Multiple rotating keys, 6 attempts/key linear backoff, classifies 401/403/quota to drop the key | 1 key, withRetry ×2-3 — **no key rotation, no model fallback, no error classification** |
+| Scene render | Validate concat | ffprobe per mp4 + re-render + deferred pass (superior) |
+| Final QC | Duration check | Duration check — **both are missing: black-frame, audio-silence, A/V sync** |
+| Music/SFX | AI music plan: BGM + ~20 whoosh/glitch SFX placed at exact section-transition timestamps | Steady BGM + fade — **no scene-transition SFX** |
 
-## 2. Danh sách nâng cấp (impact-first)
+## 2. Upgrade list (impact-first)
 
-| # | Việc | Impact | File chính |
+| # | Task | Impact | Main file |
 |---|---|---|---|
-| **U1** | **Visual Direction per-scene**: sinh chỉ đạo cinematic `[ENVIRONMENT]/[MAIN FOCUS]/[CAMERA]/[MOTION FLOW]/[LIGHTING & FX]/[MOOD]` + loại cảnh (taxonomy S1-S12) cho TỪNG cảnh ở cả 2 nhánh script (ngắn + dài ≥180s); pass riêng theo batch để không phình prompt kịch bản | ★★★★★ | `src/providers/llm.js`, mới: `src/pipeline/direction.js` |
-| **U2** | **Style Guide v2**: mở rộng schema guide (semanticColors, conceptMap, textEffects, hud{kickers, statusTexts}, sceneRules); preset mới **"TuiLa1 HUD Cyber"** khớp chữ ký kênh (bg #0A0E1A, cyan #22D3EE / magenta #FF2E88 / tím #8B5CF6 / lá #34D399 / vàng #FBBF24 semantic); nâng `generateStyleGuide` sinh đủ section | ★★★★★ | `src/hyperframe/styleguide.js`, `src/animation/templates/hyperframe.js` |
-| **U3** | **CODEGEN v2**: nhúng guide v2 (concept-map + semantic colors + HUD vocab) vào prompt; thêm visual-callback (cảnh climax nhắc lại motif hook); layout taxonomy hints theo direction; giữ nguyên contract + validate | ★★★★☆ | `src/hyperframe/prompt.js` |
-| **U4** | **Script v2**: công thức hook pain→promise (promise có con số); CTA giữa video + mồi comment cuối; bảng từ/cảnh theo giây + khoảng an toàn + lời dặn "viết ĐỦ chữ"; chương sau thấy tóm tắt chương trước; `outputLanguage` config | ★★★★☆ | `src/providers/llm.js` |
-| **U5** | **Đồng nhất triệt để**: title card / cta-outro / chapter-break / thumbnail / poster nhận guide (bỏ hardcode #1e3a8a); cảnh HyperFrame fallback dùng `themeFromGuide` thay classic theme | ★★★★☆ | `src/pipeline/visuals.js`, `src/pipeline/runner.js`, `src/animation/index.js` |
-| **U6** | **Voice v2**: loudnorm per-scene (`loudnorm I=-16` ngay sau TTS); pad silence 650ms vi / 400ms en; **voice-lock**: retry cùng giọng ×3 trước khi fallback, cảnh nào phải đổi giọng → đánh dấu `voice_fallback` + tự re-TTS ở cuối pipeline khi provider hồi phục; không bao giờ render cảnh câm (audio rỗng = lỗi cứng, retry) | ★★★★☆ | `src/providers/tts.js`, `src/pipeline/runner.js` |
-| **U7** | **Quality gate cuối (B8)**: sau concat — ffprobe từng cảnh + video cuối: black-frame detect (`blackdetect`), audio silence detect (`silencedetect` > 2.5s), A/V duration lệch >300ms/cảnh, tổng thời lượng ±5% kịch bản; fail → render bù đúng cảnh hỏng rồi ghép lại; báo cáo QC lưu `qc_report.json` | ★★★★☆ | mới: `src/pipeline/qc.js`, `src/pipeline/runner.js` |
-| **U8** | **LLM retry v2**: nhiều API key xoay vòng; phân loại lỗi (401/403/quota → bỏ key; transient → backoff); model fallback (`llm.modelFallback`); giữ nguyên withRetry hiện có phía trên | ★★★☆☆ | `src/providers/llm.js` (`chatRaw`) |
-| **U9** | **SFX chuyển cảnh**: whoosh/riser tại chapter-break + climax (thư viện SFX offline sẵn có), volume 0.7-0.8, đặt theo timestamp thật | ★★★☆☆ | `src/pipeline/render.js` hoặc runner B7 |
-| **U10** | Whisper retry ×2; metadata/thumbnail retry ×2 (đang nuốt lỗi im lặng) | ★★☆☆☆ | `src/providers/subtitle.js`, `runner.js` |
+| **U1** | **Per-scene Visual Direction**: generate cinematic direction `[ENVIRONMENT]/[MAIN FOCUS]/[CAMERA]/[MOTION FLOW]/[LIGHTING & FX]/[MOOD]` + scene type (taxonomy S1-S12) for EACH scene in both script branches (short + long ≥180s); a separate pass per batch to avoid bloating the script prompt | ★★★★★ | `src/providers/llm.js`, new: `src/pipeline/direction.js` |
+| **U2** | **Style Guide v2**: extend the guide schema (semanticColors, conceptMap, textEffects, hud{kickers, statusTexts}, sceneRules); new preset **"TuiLa1 HUD Cyber"** matching the channel signature (bg #0A0E1A, cyan #22D3EE / magenta #FF2E88 / purple #8B5CF6 / green #34D399 / yellow #FBBF24 semantic); upgrade `generateStyleGuide` to produce all sections | ★★★★★ | `src/hyperframe/styleguide.js`, `src/animation/templates/hyperframe.js` |
+| **U3** | **CODEGEN v2**: embed guide v2 (concept-map + semantic colors + HUD vocab) into the prompt; add visual-callback (climax scene echoes the hook motif); layout taxonomy hints based on direction; keep the contract + validate unchanged | ★★★★☆ | `src/hyperframe/prompt.js` |
+| **U4** | **Script v2**: pain→promise hook formula (promise includes a number); mid-video CTA + comment bait at the end; words-per-scene table by seconds + safety margin + instruction "write ENOUGH words"; later chapters see a summary of previous chapters; `outputLanguage` config | ★★★★☆ | `src/providers/llm.js` |
+| **U5** | **Full consistency**: title card / cta-outro / chapter-break / thumbnail / poster receive the guide (drop the hardcoded #1e3a8a); HyperFrame fallback scenes use `themeFromGuide` instead of the classic theme | ★★★★☆ | `src/pipeline/visuals.js`, `src/pipeline/runner.js`, `src/animation/index.js` |
+| **U6** | **Voice v2**: per-scene loudnorm (`loudnorm I=-16` right after TTS); pad silence 650ms vi / 400ms en; **voice-lock**: retry with the same voice ×3 before falling back, mark any scene that had to switch voice as `voice_fallback` + auto re-TTS at the end of the pipeline once the provider recovers; never render a silent scene (empty audio = hard error, retry) | ★★★★☆ | `src/providers/tts.js`, `src/pipeline/runner.js` |
+| **U7** | **Final quality gate (B8)**: after concat — ffprobe per scene + final video: black-frame detect (`blackdetect`), audio silence detect (`silencedetect` > 2.5s), A/V duration mismatch >300ms/scene, total duration ±5% of the script; on fail → re-render exactly the broken scene then re-stitch; save the QC report to `qc_report.json` | ★★★★☆ | new: `src/pipeline/qc.js`, `src/pipeline/runner.js` |
+| **U8** | **LLM retry v2**: multiple rotating API keys; error classification (401/403/quota → drop key; transient → backoff); model fallback (`llm.modelFallback`); keep the existing withRetry above it | ★★★☆☆ | `src/providers/llm.js` (`chatRaw`) |
+| **U9** | **Scene-transition SFX**: whoosh/riser at chapter-break + climax (using the available offline SFX library), volume 0.7-0.8, placed at real timestamps | ★★★☆☆ | `src/pipeline/render.js` or runner B7 |
+| **U10** | Whisper retry ×2; metadata/thumbnail retry ×2 (currently swallowing errors silently) | ★★☆☆☆ | `src/providers/subtitle.js`, `runner.js` |
 
-## 3. Quyết định cho các mâu thuẫn M1–M10 của quality-bar (áp mặc định, user đổi được qua config)
+## 3. Decisions for the M1–M10 conflicts in quality-bar (applied as defaults, user can change via config)
 
-- M1 phụ đề: **bật karaoke** mặc định (app đã có sẵn, video mới của kênh có), màu theo accent guide.
-- M2 watermark: **trên-phải** (3/4 video + tránh vùng phụ đề).
-- M3 bar đáy: **progress bar thật** (app đã có sẵn progress bar — giữ).
-- M4 nhịp cảnh: theo thời lượng video (dài → 8-14s, ngắn → 5-10s) — map vào `sceneDuration` config hiện có.
-- M5 xưng hô: "mình – các bạn" (đưa vào prompt script v2).
-- M6 accent: cảnh hero khoá 1 accent; cảnh list/grid xoay màu theo số (đưa vào sceneRules của guide v2).
-- M7 punch-scene nền sáng: không đưa vào mặc định (cấm nền sáng trong preset TuiLa1).
-- M8 icon: line-art stroke (hệ icon offline hiện có), 3D glossy để sau.
-- M10 token màu: cyan `#22D3EE`, lá `#34D399` (chuẩn hoá trong preset).
+- M1 subtitles: **karaoke on** by default (the app already has it, the channel's newer videos use it), color follows the guide accent.
+- M2 watermark: **top-right** (3/4 of the video + avoiding the subtitle area).
+- M3 bottom bar: **real progress bar** (the app already has a progress bar — keep it).
+- M4 scene pacing: by video length (long → 8-14s, short → 5-10s) — mapped to the existing `sceneDuration` config.
+- M5 form of address: "mình – các bạn" (fed into the script v2 prompt).
+- M6 accent: hero scene locks 1 accent; list/grid scenes rotate color by index (fed into sceneRules of guide v2).
+- M7 punch-scene on a light background: not applied by default (light backgrounds are forbidden in the TuiLa1 preset).
+- M8 icons: line-art stroke (using the existing offline icon set), 3D glossy deferred for later.
+- M10 color tokens: cyan `#22D3EE`, green `#34D399` (standardized in the preset).

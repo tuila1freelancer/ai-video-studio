@@ -1,5 +1,5 @@
-// Danh sách đánh số: tiêu đề chữ bay 3D (SplitText), rows rise CSS, thanh selector neon
-// trượt giữa các hàng theo đúng nhịp active-highlight (actn/actt) của CSS.
+// Numbered list: heading with 3D flying chars (SplitText), rows rise via CSS, neon selector bar
+// glides between rows in sync with the CSS active-highlight timing (actn/actt).
 import { esc, pad2, hudLabel, base, headingStyle, EASE, fx } from './_shared.js';
 
 export default {

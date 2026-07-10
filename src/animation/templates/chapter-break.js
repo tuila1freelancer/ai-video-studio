@@ -1,4 +1,4 @@
-// Ngăn chương: nhãn PHẦN N scramble-in (glitch), rule vẽ ngang, tiêu đề chữ bay từ hai mép, chấm pop.
+// Chapter divider: PHẦN N label scrambles in (glitch), rule draws horizontally, title chars fly in from both edges, dots pop.
 import { esc, base, headingStyle, fx } from './_shared.js';
 
 export default {
