@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import * as DB from '../db/index.js';
 import { hub } from '../ws/hub.js';
 import { logger } from '../util/log.js';
-import { projectDir, DIRS } from '../config/paths.js';
+import { DIRS } from '../config/paths.js';
 import { ratioToSize } from '../util/util.js';
 import { generateScript, generateMetadata, llmEnabled } from '../providers/llm.js';
 import { generateDirections, generateSceneDirection, hasDirection } from './direction.js';

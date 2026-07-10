@@ -7,10 +7,6 @@ export function newId(prefix = '') {
   return `${prefix}${t}${r}`;
 }
 
-export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
-export function clamp(n, lo, hi) { return Math.max(lo, Math.min(hi, n)); }
-
 export function safeJson(v, fallback) {
   if (v == null) return fallback;
   if (typeof v === 'object') return v;
@@ -31,11 +27,6 @@ export function detectInputType(raw) {
 // crude word counter that works for Vietnamese + Latin
 export function wordCount(s) {
   return (s || '').trim().split(/\s+/).filter(Boolean).length;
-}
-
-// estimate seconds to speak `text` at ~2.6 words/sec (Vietnamese narration pace)
-export function estimateSpeechSeconds(text, wps = 2.6) {
-  return Math.max(1.2, wordCount(text) / wps);
 }
 
 export function ratioToSize(aspect) {
