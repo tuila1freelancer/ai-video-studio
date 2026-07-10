@@ -14,7 +14,7 @@ import { fetchLink } from '../providers/fetchlink.js';
 import { imageGenEnabled } from '../providers/imagegen.js';
 import { planScenes, planScene, renderAnimationScene, renderOutroScene, previewSceneFrame, resolveBrandKit, animSize } from '../animation/index.js';
 import { generateSceneSpec } from '../hyperframe/codegen.js';
-import { resolveGuide } from '../hyperframe/styleguide.js';
+import { resolveGuide } from '../styleguide/index.js';
 import { headline } from '../animation/planner.js';
 import { buildSceneBackground, buildThumbnail } from './visuals.js';
 import { renderScene, concatScenes, renderCard } from './render.js';

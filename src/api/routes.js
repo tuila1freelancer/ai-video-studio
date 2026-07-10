@@ -304,12 +304,12 @@ export function mountRoutes(app, { version }) {
 
   // ---- HyperFrame: style presets + AI-designed style guide ----
   r.get('/hyperframe/presets', async (req, res) => {
-    const { HF_PRESETS } = await import('../hyperframe/styleguide.js');
+    const { HF_PRESETS } = await import('../styleguide/index.js');
     res.json({ presets: HF_PRESETS });
   });
   r.post('/hyperframe/styleguide', async (req, res) => {
     try {
-      const { generateStyleGuide } = await import('../hyperframe/styleguide.js');
+      const { generateStyleGuide } = await import('../styleguide/index.js');
       const { aiSettingsFor } = await import('../core/config.js');
       const ai = aiSettingsFor(DB.getChannel(DB.activeChannelId()));
       const out = await generateStyleGuide({
