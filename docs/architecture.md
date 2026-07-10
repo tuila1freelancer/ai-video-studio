@@ -1,7 +1,6 @@
 # AI Video Studio Architecture — current-state map & target architecture
 
-> Phase 1 of the refactor effort. This document is a **living map** for both humans and AI coding agents: read it to know "which file do I go to if I want to change X", where responsibility boundaries lie, and which parts must absolutely not be touched.
-> Document chain: architecture.md (current state) → [refactor-plan.md](refactor-plan.md) (steps R1..Rn) → [refactor-report.md](refactor-report.md) (results).
+> A **living map** for both humans and AI coding agents: read it to know "which file do I go to if I want to change X", where responsibility boundaries lie, and which parts must absolutely not be touched.
 
 ---
 
@@ -214,7 +213,7 @@ Rationale for each layer:
 
 ## 7. "PROTECTED BEHAVIOR" registry (movable; DELETE/SIMPLIFY = broken)
 
-Distilled from `docs/upgrade-report.md` + code survey. The refactor is allowed to **relocate**, but forbidden to change logic/constants/ordering.
+Hard-won fixes proven by real testing. Refactors may **relocate** these, but must never change their logic/constants/ordering.
 
 | # | Behavior | Current location |
 |---|---|---|
