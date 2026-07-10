@@ -2,18 +2,20 @@
 import express from 'express';
 import multer from 'multer';
 import { existsSync, statSync, mkdirSync, unlinkSync, renameSync } from 'node:fs';
-import { join, resolve, extname, basename, sep } from 'node:path';
+import { join, resolve, extname, basename } from 'node:path';
 import * as DB from '../db/index.js';
 import { DIRS, PATHS, depStatus } from '../config/paths.js';
 import { logger } from '../util/log.js';
-import { hub } from '../ws/hub.js';
 import { detectInputType, newId, ratioToSize, wordCount } from '../util/util.js';
-import { listVoices } from '../media/say.js';
 import { fetchLink } from '../providers/fetchlink.js';
 import { imageSearch } from '../providers/imagesearch.js';
 import { generateMetadata } from '../providers/llm.js';
 import * as Pipeline from '../pipeline/queue.js';
 import { resolveProjectConfig, maskSecrets, applyMaskedUpdate } from '../core/config.js';
+import { inAllowedRoots } from './services/file-access.js';
+import { synthPreview } from './services/voice-preview.js';
+import { startBatch } from './services/batch.js';
+import { getVoiceCatalog } from './services/voice-catalog.js';
 
 const upload = multer({ dest: DIRS.uploads, limits: { fileSize: 512 * 1024 * 1024 } });
 
@@ -41,62 +43,15 @@ export function mountRoutes(app, { version }) {
   // ---- voice catalog (normalized, cached) ----
   r.get('/voices', async (req, res) => {
     try {
-      const { listProviders, getProvider, providerConfig } = await import('../providers/voice/index.js');
-      const providers = listProviders();
-      const pid = req.query.provider;
-      let voices = [];
-      const wanted = pid ? [pid] : ['edge', 'say', 'vbee', 'larvoice']; // keyless/offline catalogs by default
-      for (const p of wanted) {
-        const prov = getProvider(p);
-        try {
-          if (DB.voicesCacheAge(p) > 24 * 3600 * 1000 || req.query.refresh) {
-            const cfg = providerConfig(DB.aiSettings().tts, p);
-            DB.cacheVoices(p, await prov.listVoices(cfg));
-          }
-          voices.push(...DB.cachedVoices(p));
-        } catch (e) { logger.warn(`listVoices ${p}: ${e.message}`); }
-      }
-      if (req.query.lang) voices = voices.filter((v) => v.lang === req.query.lang || v.lang === 'multi');
-      if (req.query.q) { const q = String(req.query.q).toLowerCase(); voices = voices.filter((v) => v.name.toLowerCase().includes(q) || v.id.toLowerCase().includes(q)); }
-      // legacy shape for the old settings dropdown
-      res.json({ voices, providers, say: await listVoices() });
+      res.json(await getVoiceCatalog(req.query || {}));
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
   // ---- voice preview (synth once, cache forever) ----
   r.post('/voices/preview', async (req, res) => {
     try {
-      const { provider: pid = 'edge', voiceId, text } = req.body || {};
-      if (!voiceId) return res.status(400).json({ error: 'thiếu voiceId' });
-      const { getProvider, providerConfig } = await import('../providers/voice/index.js');
-      const prov = getProvider(pid);
-      // ElevenLabs voices ship their own sample — no credits burned
-      if (!text) {
-        const cached = DB.cachedVoices(pid).find((v) => v.id === voiceId);
-        if (cached && cached.preview_url) return res.json({ url: cached.preview_url, external: true });
-      }
-      const SAMPLES = {
-        vi: 'Xin chào, tôi là giọng đọc cho video của bạn.', en: 'Hello, I will narrate your videos.',
-        ja: 'こんにちは、あなたの動画のナレーターです。', ko: '안녕하세요, 영상 내레이터입니다.',
-        zh: '你好，我是你的视频配音员。', ru: 'Привет, я озвучу ваши видео.',
-      };
-      const meta = DB.cachedVoices(pid).find((v) => v.id === voiceId);
-      const custom = (text || '').trim().slice(0, 200);
-      const sample = custom || SAMPLES[meta?.lang] || SAMPLES.en;
-      const { createHash } = await import('node:crypto');
-      const hash = createHash('md5').update(pid + voiceId + (custom || '__preview__')).digest('hex').slice(0, 10);
-      const dir = join(DIRS.data, 'voice-previews');
-      mkdirSync(dir, { recursive: true });
-      const out = join(dir, `${pid}_${voiceId.replace(/[^\w.-]/g, '_')}_${hash}.mp3`);
-      if (!existsSync(out)) {
-        const cfg = providerConfig(DB.aiSettings().tts, pid);
-        // Providers with previewSynthesize decide themselves: null text → tải preview_url
-        // có sẵn của giọng (0 credit, kèm auth/origin đúng); chỉ text riêng mới chạy job trả phí.
-        if (typeof prov.previewSynthesize === 'function') await prov.previewSynthesize(custom || null, voiceId, cfg, out);
-        else await prov.synthesize(sample, voiceId, cfg, out);
-      }
-      res.json({ url: `/api/file?path=${encodeURIComponent(out)}` });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+      res.json(await synthPreview(req.body || {}));
+    } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
   });
 
   // ---- subtitle preset catalog for the UI gallery ----
@@ -248,33 +203,11 @@ export function mountRoutes(app, { version }) {
   });
 
   // ---- batch queue: nhiều chủ đề → tự chạy tuần tự ----
-  r.post('/batch', async (req, res) => {
-    const { topics = [], config = {} } = req.body || {};
-    const clean = topics.map((t) => String(t || '').trim()).filter((t) => t.length > 3);
-    if (!clean.length) return res.status(400).json({ error: 'không có chủ đề hợp lệ' });
-    const batchChannel = DB.getChannel(DB.activeChannelId());
-    const batchConfig = resolveProjectConfig({
-      channel: batchChannel, preset: DB.defaultPresetFor(batchChannel?.id), request: config,
-    });
-    const created = clean.map((topic) => {
-      const p = DB.createProject({
-        title: (topic.split(/[.!?…\n]/)[0] || topic).slice(0, 64),
-        topic, inputType: detectInputType(topic),
-        aspectRatio: batchConfig.aspectRatio || '9:16',
-        config: batchConfig, channelId: batchChannel?.id,
-      });
-      DB.projectDirFor(p.id);
-      return p;
-    });
-    // sequential background run — one video at a time
-    (async () => {
-      for (const p of created) {
-        try { await Pipeline.startProject(p.id); }
-        catch (e) { logger.error(`batch item failed: ${e.message}`, { projectId: p.id }); }
-      }
-      hub.broadcast({ type: 'batch-done', count: created.length });
-    })();
-    res.json({ ok: true, projects: created.map((p) => p.id), count: created.length });
+  r.post('/batch', (req, res) => {
+    try {
+      const { projects, count } = startBatch(req.body || {});
+      res.json({ ok: true, projects, count });
+    } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
   });
 
   // ---- pipeline control ----
@@ -422,12 +355,7 @@ export function mountRoutes(app, { version }) {
     catch (e) { res.status(500).json({ error: e.message }); }
   });
 
-  // ---- internal media file serving (data/ + every registered channel root) ----
-  const inAllowedRoots = (p) => {
-    const roots = [resolve(DIRS.data), '/Applications/AI VIDEO Tool.app',
-      ...DB.listChannels().map((c) => resolve(c.root_dir))];
-    return roots.some((root) => p === root || p.startsWith(root + sep));
-  };
+  // ---- internal media file serving (data/ + every registered channel root; guard in services/file-access) ----
   r.get('/file', (req, res) => {
     const p = resolve(req.query.path || '');
     if (!inAllowedRoots(p)) return res.status(403).json({ error: 'forbidden' });
