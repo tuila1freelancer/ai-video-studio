@@ -1,4 +1,4 @@
-// Icon lớn tự vẽ nét (DrawSVG) rồi trôi nổi, heading chữ bay 3D (SplitText), chips pop + số wiggle.
+// Large icon draws itself on (DrawSVG) then floats, heading with 3D flying chars (SplitText), chips pop + numbers wiggle.
 import { esc, icon, pad2, hudLabel, base, headingStyle, fx } from './_shared.js';
 
 export default {

@@ -36,7 +36,7 @@ export async function runTts(ctx) {
       voiceFallbacks.push(sc.id);
       op(projectId, `⚠️ Cảnh ${sc.idx + 1}: dùng giọng dự phòng (${r.provider}) — sẽ thử lại giọng chính sau`);
     }
-    // per-scene loudnorm + trailing breath pad → mọi cảnh cùng mức âm lượng, mọi provider
+    // per-scene loudnorm + trailing breath pad → every scene at the same loudness, across all providers
     const lang = detectLang(sc.voice_text || '');
     const padMs = padMsFor(lang);
     const { path, duration } = await normalizeVoice(r.path, join(dir, 'audio', `scene_${sc.idx}_n.m4a`), { padMs });

@@ -1,5 +1,5 @@
-// Kết video: tiêu đề chữ bay 3D (SplitText), pill CTA pop (back.out) + confetti burst
-// sau pill (22 mảnh màu accent, quỹ đạo tính sẵn bằng rng seeded — deterministic).
+// Video outro: title with 3D flying chars (SplitText), CTA pill pop (back.out) + confetti burst
+// behind the pill (22 accent-colored pieces, trajectories precomputed via seeded rng — deterministic).
 import { esc, hudLabel, base, headingStyle, fx } from './_shared.js';
 
 export default {
@@ -7,7 +7,7 @@ export default {
   build(p, ctx) {
     const { u, theme, accent } = ctx;
     const NC = 22;
-    // Confetti: decorative — natural state là opacity:0 inline (scene vẫn hoàn chỉnh nếu script fail).
+    // Confetti: decorative — natural state is opacity:0 inline (scene stays complete if the script fails).
     const confetti = Array.from({ length: NC }, (_, i) => {
       const sz = u(0.5 + (i % 5) * 0.1); // u(0.5)..u(0.9) cycle — deterministic per aspect
       const col = theme.accents[i % theme.accents.length];

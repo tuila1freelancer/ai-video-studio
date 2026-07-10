@@ -48,7 +48,7 @@ export const SUBTITLE_PRESETS = [
     position: { preset: 'bot', marginV: 0.12 }, textCase: 'original', perLang: perLangDefaults(),
   },
   {
-    // shadow nhẹ hơn shadow-cinema — consumer nên giảm blur/offset cho preset này
+    // lighter shadow than shadow-cinema — the consumer should reduce blur/offset for this preset
     id: 'clean-minimal', name: 'Tối Giản',
     fontStack: "'Lexend', -apple-system, sans-serif", assFont: 'Lexend', weight: 700,
     activeColor: '#FFFFFF', baseColor: '#C9D2E3', effect: 'shadow',

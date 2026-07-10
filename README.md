@@ -1,145 +1,145 @@
 # 🎬 AI Video Studio
 
-App desktop **macOS** tạo video tự động từ **chủ đề / kịch bản JSON / link bài viết** — dài tuỳ ý
-(từ 30 giây tới 30+ phút). Bản dựng lại tối ưu của `AI VIDEO Tool.app`: bỏ Chromium nặng làm vỏ UI,
-thay bằng **WKWebView native**; backend **Node.js 22** gọn nhẹ; chạy được **hoàn toàn offline**.
+A **macOS** desktop app that automatically generates videos from a **topic / JSON script / article link** — any length you want
+(from 30 seconds to 30+ minutes). An optimized rebuild of `AI VIDEO Tool.app`: it drops the heavy Chromium UI shell
+in favor of a **native WKWebView**; a lightweight **Node.js 22** backend; runs **fully offline**.
 
-> Pipeline: **B2 Kịch bản → B3+4 TTS+Phụ đề → B5 Dựng cảnh → B6 Render → B7 Ghép & Mix**.
+> Pipeline: **B2 Script → B3+4 TTS+Subtitles → B5 Scene build → B6 Render → B7 Concat & Mix**.
 
 ---
 
-## ✨ Tính năng
+## ✨ Features
 
-- **1 chạm, không thao tác gì thêm**: ở Trang chủ nhập chủ đề → **✨ Tạo video tự động** → ra video MP4 hoàn chỉnh.
-- 💎 **Giao diện "Studio Pro"** — design system dark nhiều lớp (glass + hairline + spring motion), font **Lexend** (subset tiếng Việt, tự host), icon SVG stroke toàn app, titlebar trong suốt kiểu Linear/Arc trên bản native, **⌘K command palette** (điều hướng / tạo video / áp preset / mở dự án gần đây, tìm không cần gõ dấu), dialog + toast custom (không còn confirm/prompt hệ thống), skeleton loading, View Transitions khi chuyển trang.
-- ⚡ **Frontend 60fps với dự án 200+ cảnh** — scene grid dùng event delegation (4 listener cho cả grid), WS update gộp 80ms + patch từng card (không rebuild), video preview chỉ gắn `src` khi hover, ảnh lazy-load, `content-visibility` bỏ layout/paint ngoài màn hình; render lần đầu 191 cảnh ~48ms. Code tách 20+ module ESM native (`public/js/{ui,views,features}`), không bundler.
-- 🚀 **HYPERFRAME MODE** — AI **đạo diễn đồ hoạ riêng cho từng cảnh, bám theo từng chữ của lời thoại**: server trích **beats** từ word-timestamps thật (Whisper) → LLM viết `{css, html, script}` GSAP cho mỗi cảnh (keyword/số liệu/icon xuất hiện đúng giây voice nhắc tới rồi rút đi trước beat kế — màn hình mở đầu chỉ có ambient); **Phong cách video** khoá xuyên suốt (7 preset: **TuiLa1 HUD Cyber** (chưng cất từ kênh tham chiếu — semantic colors, concept→visual map, HUD kickers) · Chrome Kinetic · Neon Tech · Minimal Editorial · Glass Aurora · Bold Poster · Cinematic Dark, hoặc để AI tự thiết kế theo mô tả); thư viện ~125 icon offline + 20+ FX chuyên nghiệp (carrier-in, chrome sweep, whip-out, glitch, counter-roll, beam sweep, parallax, camera push…). Bật trong Config đầu ra → Chế độ hình ảnh → ✨ HyperFrame.
-  - 🎬 **Art-director pass**: trước khi viết code, AI viết **chỉ đạo hình ảnh điện ảnh cho TỪNG cảnh** ([LAYOUT]/[ENVIRONMENT]/[MAIN FOCUS]/[CAMERA]/[MOTION FLOW]/[LIGHTING & FX]/[MOOD]) theo batch nhìn toàn cục — layout đa dạng giữa cảnh liền kề, cảnh kết **nhắc lại motif cảnh hook** (visual rhyme), khái niệm khớp concept-map thì dùng đúng công thức visual của phong cách. Video dài giờ có chỉ đạo thật cho mọi cảnh (trước đây chỉ video ngắn có).
-  - 🛡 **Kiểm định 2 tầng chống lỗi**: mỗi cảnh do AI viết được **render thật rồi soi tự động** (lỗi runtime, tràn khung, đè phụ đề, kết cảnh rỗng, chữ bịa/sai ngôn ngữ) → phản hồi lại cho AI sửa; đạt mới nhận, không thì rơi về template dự phòng — pipeline **không bao giờ chết**, vẫn **deterministic từng frame**. Định dạng xuất **fenced (không JSON)** để model yếu không vỡ code.
-  - 🎛 **Tuỳ chỉnh AI cho video**: **Mật độ chuyển động** (Tối giản/Cân bằng/Dày) · **Định hướng sáng tạo** (ghi chú áp cho mọi cảnh) · **Model AI riêng cho HyperFrame** (dùng model mạnh riêng cho khâu dựng cảnh — đòn bẩy chất lượng lớn nhất). On-screen text luôn lấy nguyên văn từ lời thoại, đúng ngôn ngữ.
-- 🎬 **ANIMATION MODE (mặc định)** — video **motion graphics thuần code** (HTML/CSS/JS render từng frame, mượt 30/60fps) theo phong cách neon-tech: kinetic typography glow, HUD labels, icon line-art, thẻ glass, timeline, mindmap, chat demo, terminal scan… **20 template** tự chọn theo nội dung từng cảnh + caption karaoke tích hợp + progress bar + watermark. 3 theme (Neon Tech / Gradient Soft / Minimal Light), 1080p hoặc 4K.
-- ✨ **GSAP 3.13 tích hợp sâu (toàn bộ plugin premium, miễn phí)** — mọi template đều có hiệu ứng cao cấp *và vẫn deterministic từng frame*: chữ bay 3D từng ký tự (SplitText), icon tự vẽ nét (DrawSVG), số đếm + vòng cung gauge, chữ giải mã kiểu hacker (ScrambleText), sao rơi bounce, confetti vật lý (Physics2D), thẻ 3D perspective, thanh bar đua nhau, rung lắc CustomWiggle. 6 template showcase mới: `split-cascade` · `counter-stat` · `orbit-3d` · `physics-burst` · `draw-diagram` · `bar-race`.
-- 🩹 **Tự phục hồi, không cần trông máy** — mọi bước đều tự retry có backoff; LLM hỗ trợ **nhiều API key xoay vòng** (dán nhiều key cách nhau dấu phẩy/xuống dòng — key hết quota tự bị bỏ qua) + **model dự phòng** (`modelFallback`); cảnh render lỗi tự đổi template dự phòng rồi thử lại; sau render còn bước **soi từng file mp4** (ffprobe: thời lượng + đủ cả 2 stream + A/V khớp voice — cảnh câm là lỗi, không bao giờ xuất) và render bù cảnh hỏng; pipeline gặp lỗi bất ngờ tự resume sau 8 giây; server crash → mở lại là bấm Resume chạy tiếp. UI hiển thị rõ "🩹 đang tự thử lại".
-- 🔬 **Quality gate cuối (B8)** — video ghép xong được **decode và soi thật**: black-frame (blackdetect), khoảng câm >3s (silencedetect), thiếu stream, thời lượng lệch >8%; lỗi quy được về cảnh nào thì **tự render lại đúng cảnh đó và ghép lại** (1 chu kỳ); kết quả lưu `qc_report.json` trong thư mục dự án — không bao giờ báo "xong" khi còn lỗi mà không ghi nhận. Tắt bằng `qcGate:false`.
-- 🎙️ **Voice đồng nhất xuyên video** — giọng đã chọn được "khoá": lỗi TTS thử lại cùng giọng 3 lần rồi mới rơi fallback, cảnh phải dùng giọng dự phòng được **tự thử lại giọng chính** cuối bước; mọi cảnh qua **loudnorm chuẩn EBU R128 per-scene** (đều âm lượng bất kể provider) + đệm 650ms (vi)/400ms (en) hơi thở cuối cảnh.
-- 🔊 **SFX chuyển chương tự động** — whoosh tổng hợp offline (deterministic) đặt đúng timestamp mỗi cảnh chuyển chương, mix dưới voice. Tắt bằng `autoSfx:false`.
-- 📖 **Kịch bản 2 giai đoạn cho video dài** (khi cắm LLM): hook theo công thức **nỗi đau → lời hứa có con số**, dàn ý chương, **CTA giữa video** + CTA cuối kèm **câu hỏi mồi comment**; mỗi chương thấy phần kết chương trước nên không lặp ý; lượng chữ mỗi cảnh **tính theo tốc độ đọc của từng ngôn ngữ** (vi ≈ 4.4 từ/s) kèm khoảng an toàn — cảnh không còn hụt thời lượng; offline vẫn tự chia chương từ đoạn văn + cảnh chuyển chương + CTA cuối video.
-- 🖼️ **Image mode (tuỳ chọn)** — ảnh AI điện ảnh mỗi cảnh (Pollinations, miễn phí không cần key) + Ken Burns.
-- **Tự động đầy đủ (mặc định bật)**: 🎙️ **giọng neural tự khớp ngôn ngữ từng cảnh** (vi/en/ja/ko/zh/ru — không bao giờ đọc sai thứ tiếng) · phụ đề karaoke · 🎵 nhạc nền tự động · 🎬 intro + outro · chuẩn hoá âm lượng + fade · 📊 metadata **kèm YouTube Chapters** · thumbnail đẹp.
-- 🎙️ **Kho giọng đa provider**: Edge Neural (322 giọng, miễn phí) · macOS say (offline) · **Vbee** (giọng Việt Bắc/Trung/Nam) · **LarVoice** (API chính thức larvoice.com — key Bearer tạo tại `larvoice.com/app/api`, ~300 giọng vi/en/zh/ja/ko, **nghe thử 0 credit** từ sample có sẵn) · ElevenLabs · OpenAI — search/lọc theo ngôn ngữ + giới tính, **▶ nghe thử mọi giọng** (cache), ⭐ ghim, đặt **giọng mặc định theo từng ngôn ngữ**; mỗi provider có form cấu hình riêng + nút 🔌 Test kết nối. API key mask `••` ở mọi lối ra.
-- 📺 **Đa kênh (Channels)**: mỗi kênh 1 thư mục riêng (`~/Movies/AI Video Studio/<kênh>/` — projects, library, output, channel.json), config riêng (giọng, theme, watermark, tỉ lệ…) tự kế thừa vào mọi video mới; chuyển kênh 1 chạm ngay sidebar; video xong đổ về `output/` của kênh.
-- 🏷 **Brand Kit theo kênh**: logo + tên kênh + sticker tự chèn vào **từng cảnh** — chế độ 🧠 *thông minh* tự né nội dung template & vùng phụ đề, hoặc 📌 cố định theo vị trí **kéo-thả tự do** trong Brand Editor (nền = cảnh thật của kênh); 3 kiểu logo (thường/glass/glow), 3 kiểu tên kênh (chữ/pill/gạch neon); tên kênh tự vào label cảnh mở đầu + CTA outro "Đăng ký <kênh>". Config phân tầng: kênh → preset mặc định → panel (1 điểm merge duy nhất `src/core/config.js`).
-- 🎛 **Presets theo kênh**: lưu nguyên panel config thành preset đặt tên (vd "Short 4K", "Long 16:9"), đặt ⭐ mặc định — video mới của kênh (kể cả gọi qua API/batch) tự nhận. AI settings (LLM/giọng/phụ đề) **đè riêng từng kênh**, API key mask `••` ở mọi lối ra.
-- 💬 **10 preset phụ đề đẹp sẵn** (gallery bấm chọn, render font thật): Karaoke Vàng, Impact Đậm, Neon Rực, Bản Tin (box), Điện Ảnh, Tối Giản, Pop Tròn, Thể Thao, Punch, Terminal — 8 font Việt vendor offline (build lại bằng `npm run fonts:build`) + tự đổi font hệ thống cho tiếng Nhật/Hàn/Trung; áp cho cả animation captions lẫn phụ đề burn image-mode (TTF cho libass đi kèm).
-- 👁️ **Live preview từng cảnh** — bấm ▶ trên scene card: animation chạy thật + tiếng ngay trong app, không cần render.
-- ✏️ **Sửa chữ trên cảnh** (heading/sub/label/props) + đổi template từng cảnh + tạo lại preview tức thì.
-- 📦 **Chạy hàng loạt** — dán nhiều chủ đề (mỗi dòng 1 video), app tự làm lần lượt qua đêm.
-- 📑 **Xuất file .SRT toàn video** (đúng timeline) để upload phụ đề YouTube.
-- **Đầu vào linh hoạt**: văn bản · JSON kịch bản · link bài viết (tự lấy nội dung + ảnh).
-- **Tỉ lệ**: 9:16 (TikTok/Reels), 16:9 (YouTube), 1:1, 4:5.
-- **Video dài thoải mái**: xử lý theo từng cảnh + ghép dần → RAM không phình theo độ dài.
-- **Phụ đề karaoke** đầy đủ tuỳ biến: font, cỡ, kiểu chữ, màu (bảng + custom), vị trí.
-- **Scene grid**: xem/tạo lại giọng · tạo lại cảnh · render lại từng cảnh.
-- **Thư viện** Brand / BGM / SFX, **Brand Asset Gen**, **Edit Video** (cắt), **Metadata** (title/desc/hashtag), **SRT editor**.
-- **Tiến độ real-time** qua WebSocket, **dừng / tiếp tục**, **render song song**.
-- **AI cắm được, có fallback offline**:
-  | Khâu | Online (cắm key) | Offline mặc định |
+- **One tap, nothing else to do**: on the Home screen enter a topic → **✨ Tạo video tự động** → out comes a complete MP4 video.
+- 💎 **"Studio Pro" interface** — a multi-layered dark design system (glass + hairline + spring motion), **Lexend** font (Vietnamese subset, self-hosted), stroke SVG icons throughout the app, a transparent titlebar in Linear/Arc style on the native build, a **⌘K command palette** (navigate / create video / apply preset / open recent projects, searchable without typing diacritics), custom dialogs + toasts (no more system confirm/prompt), skeleton loading, View Transitions when switching pages.
+- ⚡ **60fps frontend with 200+ scene projects** — the scene grid uses event delegation (4 listeners for the whole grid), WS updates batched over 80ms + per-card patching (no rebuild), video previews only attach `src` on hover, images lazy-load, `content-visibility` skips off-screen layout/paint; first render of 191 scenes ~48ms. The code is split into 20+ native ESM modules (`public/js/{ui,views,features}`), no bundler.
+- 🚀 **HYPERFRAME MODE** — the AI **art-directs graphics individually for every scene, following the narration word by word**: the server extracts **beats** from real word-timestamps (Whisper) → an LLM writes `{css, html, script}` GSAP for each scene (keywords/figures/icons appear exactly when the voice mentions them, then withdraw before the next beat — the opening frame has only ambient); the **video Style** is locked throughout (7 presets: **TuiLa1 HUD Cyber** (distilled from the reference channel — semantic colors, concept→visual map, HUD kickers) · Chrome Kinetic · Neon Tech · Minimal Editorial · Glass Aurora · Bold Poster · Cinematic Dark, or let the AI design its own from a description); a library of ~125 offline icons + 20+ professional FX (carrier-in, chrome sweep, whip-out, glitch, counter-roll, beam sweep, parallax, camera push…). Enable it under Output config → Image mode → ✨ HyperFrame.
+  - 🎬 **Art-director pass**: before writing code, the AI writes **cinematic visual direction for EVERY scene** ([LAYOUT]/[ENVIRONMENT]/[MAIN FOCUS]/[CAMERA]/[MOTION FLOW]/[LIGHTING & FX]/[MOOD]) in batches with a global view — layouts vary between adjacent scenes, the closing scene **echoes the hook scene's motif** (visual rhyme), and concepts matching the concept-map use the style's exact visual formula. Hours-long videos now get real direction for every scene (previously only short videos did).
+  - 🛡 **Two-tier error-proof validation**: each AI-written scene is **actually rendered and then inspected automatically** (runtime errors, frame overflow, subtitle overlap, empty scene ending, fabricated/wrong-language text) → fed back to the AI to fix; only passing scenes are accepted, otherwise it falls back to a backup template — the pipeline **never dies** and stays **deterministic frame by frame**. The output format is **fenced (not JSON)** so weaker models don't break the code.
+  - 🎛 **AI tuning per video**: **Motion density** (Minimal/Balanced/Dense) · **Creative direction** (notes applied to every scene) · **Separate AI model for HyperFrame** (use a dedicated strong model for the scene-build step — the single biggest quality lever). On-screen text is always taken verbatim from the narration, in the correct language.
+- 🎬 **ANIMATION MODE (default)** — **pure-code motion-graphics** videos (HTML/CSS/JS rendered frame by frame, smooth at 30/60fps) in a neon-tech style: kinetic-typography glow, HUD labels, line-art icons, glass cards, timelines, mindmaps, chat demos, terminal scans… **20 templates** auto-selected per scene content + integrated karaoke captions + progress bar + watermark. 3 themes (Neon Tech / Gradient Soft / Minimal Light), 1080p or 4K.
+- ✨ **GSAP 3.13 deeply integrated (all premium plugins, free)** — every template gets high-end effects *while staying deterministic frame by frame*: 3D per-character flying text (SplitText), self-drawing icon strokes (DrawSVG), counters + gauge arcs, hacker-style decoding text (ScrambleText), bouncing falling stars, physics confetti (Physics2D), 3D perspective cards, racing bars, CustomWiggle shakes. 6 new showcase templates: `split-cascade` · `counter-stat` · `orbit-3d` · `physics-burst` · `draw-diagram` · `bar-race`.
+- 🩹 **Self-healing, no babysitting needed** — every step auto-retries with backoff; the LLM supports **multiple rotating API keys** (paste several keys separated by commas/newlines — a key that hits its quota is skipped automatically) + a **fallback model** (`modelFallback`); a failed scene render auto-switches to a backup template and retries; after render there's a step that **inspects each mp4 file** (ffprobe: duration + both streams present + A/V matches the voice — a silent scene is an error and is never shipped) and re-renders broken scenes; a pipeline that hits an unexpected error auto-resumes after 8 seconds; if the server crashes → reopen and hit Resume to continue. The UI clearly shows "🩹 đang tự thử lại".
+- 🔬 **Final quality gate (B8)** — the assembled video is **actually decoded and inspected**: black frames (blackdetect), silence gaps >3s (silencedetect), missing streams, duration off by >8%; errors traceable to a specific scene **auto-re-render that exact scene and re-concat** (one cycle); results are saved to `qc_report.json` in the project folder — it never reports "done" while unrecorded errors remain. Disable with `qcGate:false`.
+- 🎙️ **Consistent voice across the video** — the chosen voice is "locked": a TTS failure retries the same voice 3 times before falling back, and any scene that had to use the fallback voice is **auto-retried with the primary voice** at the end of the step; every scene passes through **per-scene EBU R128 loudnorm** (uniform volume regardless of provider) + a 650ms (vi) / 400ms (en) breath-pad at the end of each scene.
+- 🔊 **Automatic chapter-transition SFX** — an offline-synthesized whoosh (deterministic) placed at the exact timestamp of each chapter change, mixed under the voice. Disable with `autoSfx:false`.
+- 📖 **Two-stage scripting for long videos** (when an LLM is plugged in): a hook following the **pain → promise with a number** formula, a chapter outline, a **mid-video CTA** + an end CTA with a **comment-baiting question**; each chapter sees the previous chapter's ending so ideas don't repeat; the word count per scene is **computed from each language's reading speed** (vi ≈ 4.4 words/s) with a safety margin — scenes no longer come up short on duration; offline, it still auto-splits chapters from paragraphs + adds chapter transitions + an end-of-video CTA.
+- 🖼️ **Image mode (optional)** — cinematic AI images per scene (Pollinations, free, no key) + Ken Burns.
+- **Full automation (on by default)**: 🎙️ **neural voice auto-matched to each scene's language** (vi/en/ja/ko/zh/ru — never reads the wrong language) · karaoke subtitles · 🎵 automatic background music · 🎬 intro + outro · volume normalization + fade · 📊 metadata **including YouTube Chapters** · a nice thumbnail.
+- 🎙️ **Multi-provider voice library**: Edge Neural (322 voices, free) · macOS say (offline) · **Vbee** (Northern/Central/Southern Vietnamese voices) · **LarVoice** (official larvoice.com API — Bearer key created at `larvoice.com/app/api`, ~300 vi/en/zh/ja/ko voices, **0-credit previews** from bundled samples) · ElevenLabs · OpenAI — search/filter by language + gender, **▶ preview every voice** (cached), ⭐ pin, set a **default voice per language**; each provider has its own config form + a 🔌 Test-connection button. API keys are masked with `••` at every exit point.
+- 📺 **Multi-channel (Channels)**: each channel gets its own folder (`~/Movies/AI Video Studio/<channel>/` — projects, library, output, channel.json) and its own config (voice, theme, watermark, aspect ratio…) that is inherited into every new video; switch channels with one tap in the sidebar; finished videos land in the channel's `output/`.
+- 🏷 **Per-channel Brand Kit**: logo + channel name + stickers auto-inserted into **each scene** — a 🧠 *smart* mode that automatically avoids template content & subtitle areas, or a 📌 fixed **free drag-and-drop** placement in the Brand Editor (background = a real scene from the channel); 3 logo styles (plain/glass/glow), 3 channel-name styles (text/pill/neon underline); the channel name auto-fills the opening scene label + outro CTA "Đăng ký <channel>". Layered config: channel → default preset → panel (a single merge point, `src/core/config.js`).
+- 🎛 **Per-channel Presets**: save an entire panel config as a named preset (e.g. "Short 4K", "Long 16:9"), set a ⭐ default — new videos on the channel (including those triggered via API/batch) pick it up automatically. AI settings (LLM/voice/subtitles) **override per channel individually**, API keys masked with `••` at every exit point.
+- 💬 **10 ready-made beautiful subtitle presets** (click to pick from the gallery, rendered with real fonts): Karaoke Vàng, Impact Đậm, Neon Rực, Bản Tin (box), Điện Ảnh, Tối Giản, Pop Tròn, Thể Thao, Punch, Terminal — 8 offline vendor Vietnamese fonts (rebuild with `npm run fonts:build`) + auto-switch to a system font for Japanese/Korean/Chinese; applied to both animation captions and image-mode burned-in subtitles (bundled TTF for libass).
+- 👁️ **Live per-scene preview** — click ▶ on a scene card: the animation actually plays with sound right inside the app, no render needed.
+- ✏️ **Edit text on a scene** (heading/sub/label/props) + change a scene's template + regenerate the preview instantly.
+- 📦 **Batch run** — paste multiple topics (one video per line), the app processes them one by one overnight.
+- 📑 **Export a whole-video .SRT file** (on the correct timeline) to upload YouTube subtitles.
+- **Flexible input**: text · JSON script · article link (auto-fetches content + images).
+- **Aspect ratios**: 9:16 (TikTok/Reels), 16:9 (YouTube), 1:1, 4:5.
+- **Long videos, no problem**: processed scene by scene + concatenated incrementally → RAM doesn't grow with length.
+- **Fully customizable karaoke subtitles**: font, size, weight, color (palette + custom), position.
+- **Scene grid**: view/regenerate voice · regenerate scene · re-render individual scenes.
+- **Library** for Brand / BGM / SFX, **Brand Asset Gen**, **Edit Video** (trim), **Metadata** (title/desc/hashtag), **SRT editor**.
+- **Real-time progress** over WebSocket, **stop / resume**, **parallel render**.
+- **Pluggable AI, with an offline fallback**:
+  | Step | Online (plug in a key) | Offline default |
   |------|------------------|------------------|
-  | Kịch bản / Metadata | OpenAI-compatible (GPT/Gemini/Claude…) | Tách câu thông minh |
-  | Giọng đọc (TTS) | OpenAI / ElevenLabs | **macOS `say`** (có giọng Việt) |
-  | Phụ đề | — | **estimate** (chữ chuẩn từ kịch bản) hoặc **whisper.cpp** |
-  | Dựng cảnh | (ảnh AI) | **Poster HTML** (Chrome headless) |
-  | Tìm ảnh | Tavily | Placeholder gradient |
-  | Ghép/Render | — | **ffmpeg** (kèm libass) |
+  | Script / Metadata | OpenAI-compatible (GPT/Gemini/Claude…) | Smart sentence splitting |
+  | Narration (TTS) | OpenAI / ElevenLabs | **macOS `say`** (has a Vietnamese voice) |
+  | Subtitles | — | **estimate** (accurate text from the script) or **whisper.cpp** |
+  | Scene build | (AI images) | **HTML poster** (headless Chrome) |
+  | Image search | Tavily | Gradient placeholder |
+  | Concat/Render | — | **ffmpeg** (with libass) |
 
 ---
 
-## 🚀 Chạy
+## 🚀 Run
 
-**Cách 1 — Trình duyệt (đơn giản nhất):**
+**Option 1 — Browser (simplest):**
 ```bash
-./run.command            # hoặc double-click trong Finder
+./run.command            # or double-click in Finder
 ```
-Mở trình duyệt tại `http://127.0.0.1:8123`.
+Opens the browser at `http://127.0.0.1:8123`.
 
-**Cách 2 — App native macOS (WKWebView):**
+**Option 2 — Native macOS app (WKWebView):**
 ```bash
 npm run shell:build      # build "AI Video Studio.app"
 open "AI Video Studio.app"
 ```
-App tự khởi động backend rồi hiện cửa sổ native.
+The app auto-starts the backend, then shows the native window.
 
 **Dev:**
 ```bash
-npm install              # cần Node 22 (vd: /opt/homebrew/opt/node@22/bin)
-npm start                # server tự chọn cổng, in "AVS_READY <url>"
-npm run test:e2e         # test tạo video end-to-end
-npm run fonts:build:ui   # tải lại Lexend/JetBrains Mono cho UI (public/fonts) — KHÔNG đụng fonts scene
-npm run fonts:build      # ⚠ fonts cho SCENE render (vendor/fonts) — đổi là ảnh hưởng byte-compat video
-npm run icon:build       # render shell/icon.svg → shell/AppIcon.icns (Chrome headless + sips + iconutil)
+npm install              # needs Node 22 (e.g.: /opt/homebrew/opt/node@22/bin)
+npm start                # server picks a port, prints "AVS_READY <url>"
+npm run test:e2e         # end-to-end video-creation test
+npm run fonts:build:ui   # re-download Lexend/JetBrains Mono for the UI (public/fonts) — does NOT touch scene fonts
+npm run fonts:build      # ⚠ fonts for SCENE render (vendor/fonts) — changing this affects video byte-compat
+npm run icon:build       # render shell/icon.svg → shell/AppIcon.icns (headless Chrome + sips + iconutil)
 ```
 
 ---
 
-## 🧱 Kiến trúc
+## 🧱 Architecture
 
 ```
-AI Video Studio.app   ← vỏ Swift + WKWebView (shell/main.swift)
-   └─ spawn Node 22 backend (src/server.js) → chờ /api/health → load localhost
+AI Video Studio.app   ← Swift shell + WKWebView (shell/main.swift)
+   └─ spawn Node 22 backend (src/server.js) → wait for /api/health → load localhost
 src/
   server.js            Express + WebSocket + static SPA
-  config/paths.js      resolve ffmpeg/whisper/chrome/say (vendor → app gốc → system)
+  config/paths.js      resolve ffmpeg/whisper/chrome/say (vendor → app root → system)
   core/config.js       config layering (channel → preset → request) + AI settings + mask secret
   db/
     connection.js        handle + schema + migrations (better-sqlite3)
-    repositories/        query theo domain: settings · projects · scenes · channels · catalogs
-    index.js             barrel: re-export mọi repo + seed/backfill + export default db
+    repositories/        queries by domain: settings · projects · scenes · channels · catalogs
+    index.js             barrel: re-export every repo + seed/backfill + export default db
   api/
-    routes.js            REST API — handler mỏng: validate → gọi service → JSON
+    routes.js            REST API — thin handlers: validate → call service → JSON
     services/            business logic: file-access (allowlist) · voice-preview · voice-catalog · batch
-  pipeline/            runner B2→B8 · render (ffmpeg) · visuals (poster) · srt (ASS karaoke) · qc (gate)
-  styleguide/          🎨 hợp đồng phong cách DÙNG CHUNG (cắt vòng lặp animation↔hyperframe):
-    guide.js             schema + normalizeGuide + HF_DEFAULT_GUIDE + SAMPLE_SPEC (thuần)
-    theme.js             themeFromGuide (guide → theme render)
-    presets.js           7 preset (chrome-kinetic, tuila1-hud-cyber…) + resolveGuide
-    generate.js          generateStyleGuide (AI thiết kế guide từ mô tả)
-  animation/           🎬 engine motion-graphics deterministic:
-    harness.js           trang scene tự chứa + runtime __seek(t) (pause & seek CSS animation + scrub GSAP timeline)
-    gsap.js              bundle GSAP 3.13 + 12 plugin premium (vendor, offline, nhúng inline)
-    renderer.js          frame-loop Puppeteer → JPEG → ffmpeg image2pipe → mp4 (RAM phẳng)
-    templates/           21 template neon-tech, mỗi template 1 file + _shared.js (FX runtime GSAP)
-    planner.js           chọn template + props theo nội dung (heuristic VN + LLM 1 call)
+  pipeline/            B2→B8 runner · render (ffmpeg) · visuals (poster) · srt (ASS karaoke) · qc (gate)
+  styleguide/          🎨 SHARED style contract (breaks the animation↔hyperframe loop):
+    guide.js             schema + normalizeGuide + HF_DEFAULT_GUIDE + SAMPLE_SPEC (pure)
+    theme.js             themeFromGuide (guide → render theme)
+    presets.js           7 presets (chrome-kinetic, tuila1-hud-cyber…) + resolveGuide
+    generate.js          generateStyleGuide (AI designs a guide from a description)
+  animation/           🎬 deterministic motion-graphics engine:
+    harness.js           self-contained scene page + runtime __seek(t) (pause & seek CSS animation + scrub GSAP timeline)
+    gsap.js              bundle GSAP 3.13 + 12 premium plugins (vendor, offline, inlined)
+    renderer.js          frame-loop Puppeteer → JPEG → ffmpeg image2pipe → mp4 (flat RAM)
+    templates/           21 neon-tech templates, one file each + _shared.js (GSAP FX runtime)
+    planner.js           picks template + props by content (VN heuristic + 1 LLM call)
     themes.js            design tokens (neon-tech / gradient-soft / minimal-light)
-  hyperframe/          ✨ hệ LLM-viết-GSAP: codegen · validate · prompt · beats · icons · lint
-  providers/           llm · tts · subtitle · imagesearch · fetchlink (đều có fallback)
-  media/               ffmpeg · say · whisper · puppeteer (Chrome headless)
-public/                SPA "Studio Pro": index.html + css/(app,fonts).css + fonts/*.woff2 (Lexend UI)
+  hyperframe/          ✨ LLM-writes-GSAP system: codegen · validate · prompt · beats · icons · lint
+  providers/           llm · tts · subtitle · imagesearch · fetchlink (all with fallbacks)
+  media/               ffmpeg · say · whisper · puppeteer (headless Chrome)
+public/                "Studio Pro" SPA: index.html + css/(app,fonts).css + fonts/*.woff2 (Lexend UI)
   js/                  ESM modules: main.js · state.js · api.js
     ui/                  dom · icons (SVG set) · toast · dialog · modals · palette (⌘K)
     views/               nav · home · studio · scenes (grid+patch) · progress · config · library…
     features/            settings · voicepicker · channels · brandkit · srt · batch
-vendor/ffmpeg/         ffmpeg/ffprobe static (có libass — bản Homebrew thiếu)
-vendor/fonts/          fonts.css cho SCENE render (data-URI, offline — đừng nhầm với UI fonts)
+vendor/ffmpeg/         static ffmpeg/ffprobe (with libass — the Homebrew build lacks it)
+vendor/fonts/          fonts.css for SCENE render (data-URI, offline — don't confuse with UI fonts)
 vendor/gsap/           GSAP 3.13.0 + SplitText/DrawSVG/MorphSVG/MotionPath/Physics2D/ScrambleText/CustomEase…
 ```
 
-**Phụ thuộc hệ thống** (tự dò, ưu tiên `vendor/` rồi app gốc rồi system):
-ffmpeg (libass), whisper.cpp + model `ggml-small.bin`, Chrome for Testing, `say` (macOS).
+**System dependencies** (auto-detected, preferring `vendor/`, then the app root, then system):
+ffmpeg (libass), whisper.cpp + the `ggml-small.bin` model, Chrome for Testing, `say` (macOS).
 
 ---
 
-## ⚙️ Cấu hình AI (tuỳ chọn)
+## ⚙️ AI configuration (optional)
 
-Vào **⚙️ AI Setting** trong app để cắm:
-- **LLM**: Base URL + API Key + model (OpenAI-compatible — dùng được proxy rẻ).
-- **TTS**: chọn `say` (offline) / OpenAI / ElevenLabs + voice.
-- **Phụ đề**: `estimate` (khuyên dùng — chữ đúng 100% từ kịch bản) hoặc `whisper`.
+Go to **⚙️ AI Setting** in the app to plug in:
+- **LLM**: Base URL + API Key + model (OpenAI-compatible — cheap proxies work).
+- **TTS**: choose `say` (offline) / OpenAI / ElevenLabs + voice.
+- **Subtitles**: `estimate` (recommended — text is 100% accurate from the script) or `whisper`.
 
-Không cắm gì vẫn chạy đầy đủ bằng giọng macOS + ffmpeg.
+With nothing plugged in it still runs fully using the macOS voice + ffmpeg.
 
 ---
 
-## 📂 Dữ liệu
+## 📂 Data
 
-Mọi dự án, media, DB nằm trong `data/` (gitignored). Mỗi dự án có thư mục riêng:
+All projects, media, and the DB live in `data/` (gitignored). Each project has its own folder:
 `data/projects/<id>/{audio,srt,html,render,output}`.

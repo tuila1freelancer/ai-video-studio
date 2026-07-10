@@ -1,10 +1,10 @@
-// Sơ đồ blueprint vẽ nét: icon trung tâm draw-on (DrawSVG), nhánh elbow nét đứt hiện dần
-// qua mask (DrawSVG trên bản trắng của mask — giữ nguyên nét đứt ở trạng thái cuối),
-// node dot pop, nhãn chip mono trượt vào, khung rect nét đứt vẽ sau cùng.
-// Trạng thái tự nhiên (không script) = trạng thái hoàn chỉnh: mask trắng phủ kín sẵn.
+// Blueprint diagram that draws on: central icon draws on (DrawSVG), dashed elbow branches reveal gradually
+// through a mask (DrawSVG on the mask's white copy — preserves the dashed pattern in the final state),
+// node dots pop, mono chip labels slide in, dashed rect frame drawn last.
+// Natural (no-script) state = complete state: the white mask already covers everything.
 import { esc, IC, icon, hudLabel, base, headingStyle, fx } from './_shared.js';
 
-// [side (-1 trái / +1 phải), hệ số lệch dọc] cho 1–4 nhánh
+// [side (-1 left / +1 right), vertical offset factor] for 1-4 branches
 const SLOTS = {
   1: [[1, 0]],
   2: [[-1, -0.85], [1, 0.85]],
@@ -20,19 +20,19 @@ export default {
     const items = (p.items || []).slice(0, 4);
     const slots = SLOTS[items.length] || [];
 
-    // Canvas blueprint: mọi toạ độ tính sẵn theo u() lúc build (khớp cả 16:9 lẫn 9:16).
+    // Blueprint canvas: all coordinates precomputed via u() at build time (fits both 16:9 and 9:16).
     const W = u(60), H = u(vertical ? 30 : 26);
     const cx = W / 2, cy = H / 2;
-    const iconS = u(9);                                   // icon trung tâm
+    const iconS = u(9);                                   // central icon
     const chipW = u(vertical ? 13.5 : 15), chipH = u(4.6);
-    const inset = u(2);                                   // chip cách mép svg
-    const axL = inset + chipW + u(1.2);                   // anchor trái (mép chip + gap)
-    const sOff = u(5.8);                                  // nhánh bắt đầu sát mép icon
+    const inset = u(2);                                   // chip inset from svg edge
+    const axL = inset + chipW + u(1.2);                   // left anchor (chip edge + gap)
+    const sOff = u(5.8);                                  // branch starts right at the icon edge
     const offY = u(vertical ? 9.5 : 7.5);
     const dotS = u(1.5);
     const connSw = Math.max(2, u(0.22));
 
-    // Nhánh elbow: M tâm → L ngang → L anchor nhãn (chéo ~45° khi đủ chỗ).
+    // Elbow branch: M center -> L horizontal -> L label anchor (diagonal ~45° when there is room).
     const geo = items.map((it, i) => {
       const [side, kf] = slots[i];
       const acc = theme.accents[(ctx.idx + i) % theme.accents.length];
@@ -48,7 +48,7 @@ export default {
       };
     });
 
-    // Mask trắng cho từng nhánh + khung: DrawSVG vẽ bản trắng, nét đứt thật giữ nguyên.
+    // White mask for each branch + frame: DrawSVG draws the white copy, the real dashed stroke stays intact.
     const masks = geo.map(({ i, d }) =>
       `<mask id="dgm${i}" maskUnits="userSpaceOnUse"><path class="mkc" d="${d}" stroke="#fff" stroke-width="${f(u(1.3))}" stroke-linecap="round" fill="none"/></mask>`).join('');
     const conns = geo.map(({ i, d, acc }) =>
@@ -58,7 +58,7 @@ export default {
     const maskF = `<mask id="dgmf" maskUnits="userSpaceOnUse"><path class="mkf" d="${dFrame}" stroke="#fff" stroke-width="${f(u(0.8))}" fill="none"/></mask>`;
     const frame = `<g mask="url(#dgmf)"><path class="fr" d="${dFrame}" stroke-dasharray="${f(u(1.4))} ${f(u(1))}"/></g>`;
 
-    // Icon trung tâm: line-art IC nhúng thẳng vào svg, scale từ hộp 24×24.
+    // Central icon: line-art IC embedded directly into the svg, scaled from a 24×24 box.
     const gIcon = `<g class="dgi" transform="translate(${f(cx - iconS / 2)} ${f(cy - iconS / 2)}) scale(${f(iconS / 24)})" fill="none" stroke="${accent}" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="color:${accent}">${IC[p.icon] || IC.gear}</g>`;
 
     const dots = geo.map(({ ax, ay, acc }) =>

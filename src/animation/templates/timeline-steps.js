@@ -1,5 +1,5 @@
-// Timeline quy trình: rail SVG vẽ nét (DrawSVG) + đốm sáng chạy dọc rail, dot pop stagger,
-// tiêu đề chữ bay 3D (SplitText), text rise theo nhịp node.
+// Process timeline: SVG rail drawn on (DrawSVG) + a spark running along the rail, dot pop stagger,
+// heading with 3D flying chars (SplitText), text rises in sync with each node.
 import { esc, icon, hudLabel, base, headingStyle, fx } from './_shared.js';
 
 export default {
