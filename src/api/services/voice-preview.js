@@ -35,8 +35,8 @@ export async function synthPreview({ provider: pid = 'edge', voiceId, text } = {
   const out = join(dir, `${pid}_${voiceId.replace(/[^\w.-]/g, '_')}_${hash}.mp3`);
   if (!existsSync(out)) {
     const cfg = providerConfig(DB.aiSettings().tts, pid);
-    // Providers with previewSynthesize decide themselves: null text → tải preview_url
-    // có sẵn của giọng (0 credit, kèm auth/origin đúng); chỉ text riêng mới chạy job trả phí.
+    // Providers with previewSynthesize decide themselves: null text → fetch the voice's
+    // hosted preview_url (0 credits, with correct auth/origin); only custom text runs a paid job.
     if (typeof prov.previewSynthesize === 'function') await prov.previewSynthesize(custom || null, voiceId, cfg, out);
     else await prov.synthesize(sample, voiceId, cfg, out);
   }
