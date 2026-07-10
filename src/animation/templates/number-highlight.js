@@ -1,5 +1,5 @@
-// Con số neon khổng lồ: GSAP count-up (đếm số thật) + CustomWiggle settle,
-// tiêu đề chữ bay 3D (SplitText), tick gạch chân vẽ ngang bằng GSAP.
+// Giant neon number: GSAP count-up (real numeric counting) + CustomWiggle settle,
+// heading with 3D flying chars (SplitText), underline tick drawn horizontally with GSAP.
 import { esc, pad2, base, headingStyle, fx } from './_shared.js';
 
 export default {

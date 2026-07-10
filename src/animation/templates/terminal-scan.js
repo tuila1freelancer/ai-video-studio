@@ -1,5 +1,5 @@
-// Terminal giải mã: panel pop-in, từng dòng scramble-decode (ScrambleText), tag đóng dấu
-// power3.in + rung CustomWiggle, tiêu đề chữ bay 3D (SplitText). Scan line CSS loop giữ ambience.
+// Decoding terminal: panel pop-in, each line scramble-decodes (ScrambleText), stamped tag with
+// power3.in + CustomWiggle shake, heading with 3D flying chars (SplitText). CSS scan-line loop keeps the ambience.
 import { esc, pad2, hudLabel, base, headingStyle, fx } from './_shared.js';
 
 export default {

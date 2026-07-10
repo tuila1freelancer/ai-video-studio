@@ -1,5 +1,5 @@
-// Chỉ số thống kê: vòng cung gauge 270° vẽ nét (DrawSVG) theo giá trị, số đếm
-// GSAP count-up đồng bộ với nét vẽ, đơn vị pop, tiêu đề chữ bay 3D (SplitText).
+// Stat metric: 270° gauge arc draws on (DrawSVG) proportional to the value, GSAP count-up
+// synced with the stroke drawing, unit pops, title with 3D flying chars (SplitText).
 import { esc, base, headingStyle, hudLabel, fx } from './_shared.js';
 
 export default {

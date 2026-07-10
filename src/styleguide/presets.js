@@ -1,4 +1,4 @@
-// Built-in style presets ("Phong cách video") + resolution from a project config.
+// Built-in style presets ("Video style") + resolution from a project config.
 // Depends only on ./guide.js — no animation/ or hyperframe/ deps (keeps the graph acyclic).
 import { HF_DEFAULT_GUIDE, normalizeGuide } from './guide.js';
 
@@ -14,8 +14,8 @@ export const MONO_FONT = `'JetBrains Mono', ui-monospace, monospace`;
 export const HF_PRESETS = [
   HF_DEFAULT_GUIDE, // chrome-kinetic — HyperFrames-style chrome kinetic typography
   {
-    // Distilled from the @TuiLa1Freelancer channel (docs/quality-bar.md): dark HUD "system
-    // screen" language — deep-navy space, semantic neon accents, mono kickers, corner statuses.
+    // Distilled from the @TuiLa1Freelancer channel: dark HUD "system screen" language —
+    // deep-navy space, semantic neon accents, mono kickers, corner statuses.
     id: 'tuila1-hud-cyber', name: 'TuiLa1 HUD Cyber',
     palette: { bg: '#0A0E1A', bg2: '#111731', ink: '#EAF2FF', muted: '#8B93B0', accents: ['#22D3EE', '#FF2E88', '#8B5CF6'] },
     fonts: { display: DISPLAY_FONTS['be vietnam pro'], body: BODY_FONT, mono: MONO_FONT },

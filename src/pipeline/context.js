@@ -34,7 +34,7 @@ export function buildContext(projectId, { resume = false } = {}) {
     projectId, project, config,
     size: ratioToSize(project.aspect_ratio),
     dir, channel,
-    ai: aiSettingsFor(channel), // per-channel AI overrides (llm/tts/subtitle/imageGen)
+    ai: aiSettingsFor(channel),
     resume,
   };
 }

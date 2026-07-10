@@ -1,5 +1,5 @@
-// 2 từ khoá neon đối lập: chữ trượt ngược chiều theo từng ký tự (SplitText),
-// vạch giữa scaleX, icon pop + wiggle. Ambient glowpulse giữ bằng CSS.
+// 2 opposing neon keywords: chars slide in opposite directions per character (SplitText),
+// center rule scaleX, icon pop + wiggle. Ambient glowpulse kept in CSS.
 import { esc, icon, hudLabel, base, headingStyle, fx } from './_shared.js';
 
 export default {

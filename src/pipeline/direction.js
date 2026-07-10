@@ -14,7 +14,7 @@ import { chatJson, llmEnabled } from '../providers/llm.js';
 const DIRECTED = /\[MAIN FOCUS\]/i;
 export function hasDirection(scene) { return DIRECTED.test(scene?.visual_prompt || ''); }
 
-// Scene layout taxonomy distilled from the reference channel (docs/quality-bar.md §2.4).
+// Scene layout taxonomy distilled from the @TuiLa1Freelancer reference channel.
 export const HF_LAYOUTS = [
   'hero-center',   // 1 keyword/số khổng lồ giữa màn + kicker + label
   'split-lr',      // chữ một bên, prop/diagram/icon bên kia

@@ -25,7 +25,7 @@ export const HF_DEFAULT_GUIDE = {
 // v2 "art direction" fields — optional per guide, embedded into the codegen prompt so the
 // LLM designs every scene inside one locked visual language (reference-app parity):
 //   semantics:   fixed meaning → color map (good/bad/warn/money…) — accents stay decorative
-//   conceptMap:  "concept → visual" recipes ("so sánh → SPLIT 2 cột", "quy trình → stepper…")
+//   conceptMap:  "concept → visual" recipes ("comparison → SPLIT 2 columns", "process → stepper…")
 //   hud:         decorative HUD vocabulary (mono kickers like "// SECTION", corner statuses)
 //   sceneRules:  short hard rules applied to every scene of the video
 const HEX_RE = /^#[0-9A-Fa-f]{6}$/;

@@ -1,11 +1,11 @@
-// Split Cascade — câu punch full-bleed: SplitText chars nổ 3D từ tâm ra (stagger from:'center'),
-// keyword neon được wrap sẵn ở build time (accent + glow), underline scaleX vẽ ngay sau cascade,
-// heading thở nhẹ bằng FX.loop. Natural state = final state (mọi motion là from-tween);
-// script hỏng thì scene vẫn render đủ chữ, đủ màu. Ambient: glowpulse CSS trên keyword (WAAPI seek).
+// Split Cascade — full-bleed punch line: SplitText chars burst in 3D from the center out (stagger from:'center'),
+// neon keyword pre-wrapped at build time (accent + glow), underline scaleX drawn right after the cascade,
+// heading breathes gently via FX.loop. Natural state = final state (all motion is from-tweens);
+// if the script breaks the scene still renders all text and colors. Ambient: glowpulse CSS on the keyword (WAAPI seek).
 import { esc, hudLabel, base, headingStyle, fx } from './_shared.js';
 
-// tách heading thành [trước, keyword, sau] theo accentWord (so khớp bỏ dấu câu,
-// không phân biệt hoa thường, hỗ trợ cụm nhiều từ); mặc định: từ cuối.
+// split heading into [before, keyword, after] by accentWord (matching strips punctuation,
+// case-insensitive, supports multi-word phrases); defaults to the last word.
 function splitAccent(heading, accentWord) {
   const ws = String(heading || '').trim().split(/\s+/).filter(Boolean);
   if (!ws.length) return null;
