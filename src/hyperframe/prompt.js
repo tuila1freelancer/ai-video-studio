@@ -3,7 +3,7 @@
 // the beat timeline (real word-timestamp seconds), the component/FX vocabulary, hard rules,
 // and one worked example. English instructions (models code better in English); on-screen
 // text stays in the narration's language.
-import { SAMPLE_SPEC } from '../animation/templates/hyperframe.js';
+import { SAMPLE_SPEC } from '../styleguide/index.js';
 import { HF_ICON_NAMES } from './icons.js';
 import { directionBlock, beatsBlock } from './beats.js';
 

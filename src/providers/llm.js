@@ -1,7 +1,7 @@
 // LLM provider: OpenAI-compatible chat + script/metadata/keyword generation.
 // Always degrades gracefully to a deterministic offline generator when no key is set.
 import { aiSettings } from '../db/index.js';
-import { wordCount, estimateSpeechSeconds, safeJson } from '../util/util.js';
+import { wordCount, safeJson } from '../util/util.js';
 import { detectLang } from '../util/lang.js';
 
 // llm param (optional) = a resolved settings.llm object (e.g. per-channel override);

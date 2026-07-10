@@ -5,8 +5,7 @@
 // No screenshots → fast (~1-2s), safe to run per-scene inside codegen's re-prompt loop.
 import { buildTemplate, makeCtx } from '../animation/templates.js';
 import { buildScenePage } from '../animation/harness.js';
-import { themeFromGuide } from './styleguide.js';
-import { normalizeGuide } from '../animation/templates/hyperframe.js';
+import { themeFromGuide, normalizeGuide } from '../styleguide/index.js';
 import { fold } from './beats.js';
 import { getBrowser, chromeAvailable } from '../media/puppeteer.js';
 
