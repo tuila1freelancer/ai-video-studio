@@ -1,0 +1,8 @@
+node_modules/
+data/
+vendor/
+*.log
+.DS_Store
+dist/
+AI Video Studio.app/
+shell/build/
