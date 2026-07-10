@@ -6,7 +6,7 @@ import { writeFileSync, rmSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { getBrowser, closeBrowser } from '../src/media/puppeteer.js';
 import { TEMPLATES, buildTemplate, makeCtx } from '../src/animation/templates.js';
-import { SAMPLE_SPEC } from '../src/animation/templates/hyperframe.js';
+import { SAMPLE_SPEC } from '../src/styleguide/index.js';
 import { buildScenePage } from '../src/animation/harness.js';
 import { getTheme } from '../src/animation/themes.js';
 import { PATHS, DIRS } from '../src/config/paths.js';

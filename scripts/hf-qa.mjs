@@ -15,9 +15,9 @@ import { readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
 import { buildTemplate, makeCtx } from '../src/animation/templates.js';
-import { SAMPLE_SPEC, normalizeGuide } from '../src/animation/templates/hyperframe.js';
+import { SAMPLE_SPEC, normalizeGuide } from '../src/styleguide/index.js';
 import { buildScenePage } from '../src/animation/harness.js';
-import { themeFromGuide } from '../src/hyperframe/styleguide.js';
+import { themeFromGuide } from '../src/styleguide/index.js';
 import { getBrowser, closeBrowser } from '../src/media/puppeteer.js';
 import { PATHS, DIRS } from '../src/config/paths.js';
 

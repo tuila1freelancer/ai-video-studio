@@ -89,16 +89,28 @@ AI Video Studio.app   ← vỏ Swift + WKWebView (shell/main.swift)
 src/
   server.js            Express + WebSocket + static SPA
   config/paths.js      resolve ffmpeg/whisper/chrome/say (vendor → app gốc → system)
-  db/                  better-sqlite3 (projects, scenes, library, styles, settings)
-  api/routes.js        REST API
-  pipeline/            runner B2→B7 · render (ffmpeg) · visuals (poster) · srt (ASS karaoke)
+  core/config.js       config layering (channel → preset → request) + AI settings + mask secret
+  db/
+    connection.js        handle + schema + migrations (better-sqlite3)
+    repositories/        query theo domain: settings · projects · scenes · channels · catalogs
+    index.js             barrel: re-export mọi repo + seed/backfill + export default db
+  api/
+    routes.js            REST API — handler mỏng: validate → gọi service → JSON
+    services/            business logic: file-access (allowlist) · voice-preview · voice-catalog · batch
+  pipeline/            runner B2→B8 · render (ffmpeg) · visuals (poster) · srt (ASS karaoke) · qc (gate)
+  styleguide/          🎨 hợp đồng phong cách DÙNG CHUNG (cắt vòng lặp animation↔hyperframe):
+    guide.js             schema + normalizeGuide + HF_DEFAULT_GUIDE + SAMPLE_SPEC (thuần)
+    theme.js             themeFromGuide (guide → theme render)
+    presets.js           7 preset (chrome-kinetic, tuila1-hud-cyber…) + resolveGuide
+    generate.js          generateStyleGuide (AI thiết kế guide từ mô tả)
   animation/           🎬 engine motion-graphics deterministic:
     harness.js           trang scene tự chứa + runtime __seek(t) (pause & seek CSS animation + scrub GSAP timeline)
     gsap.js              bundle GSAP 3.13 + 12 plugin premium (vendor, offline, nhúng inline)
     renderer.js          frame-loop Puppeteer → JPEG → ffmpeg image2pipe → mp4 (RAM phẳng)
-    templates/           20 template neon-tech, mỗi template 1 file + _shared.js (FX runtime GSAP)
+    templates/           21 template neon-tech, mỗi template 1 file + _shared.js (FX runtime GSAP)
     planner.js           chọn template + props theo nội dung (heuristic VN + LLM 1 call)
     themes.js            design tokens (neon-tech / gradient-soft / minimal-light)
+  hyperframe/          ✨ hệ LLM-viết-GSAP: codegen · validate · prompt · beats · icons · lint
   providers/           llm · tts · subtitle · imagesearch · fetchlink (đều có fallback)
   media/               ffmpeg · say · whisper · puppeteer (Chrome headless)
 public/                SPA "Studio Pro": index.html + css/(app,fonts).css + fonts/*.woff2 (Lexend UI)
