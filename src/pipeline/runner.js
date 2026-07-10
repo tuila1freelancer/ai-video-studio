@@ -1,5 +1,5 @@
 // Pipeline orchestration: B2 script → B3+4 TTS/SRT → B5 visuals → B6 render → B7 concat/mix.
-import { writeFileSync, existsSync, copyFileSync, mkdirSync } from 'node:fs';
+import { writeFileSync, existsSync, copyFileSync } from 'node:fs';
 import { join } from 'node:path';
 import * as DB from '../db/index.js';
 import { hub } from '../ws/hub.js';
@@ -23,71 +23,13 @@ import { makeAmbientBed, probeDuration, normalizeVoice, makeWhoosh, makeSfxBed }
 import { detectLang } from '../util/lang.js';
 import { buildSrt } from './srt.js';
 import { withRetry, sleep } from '../util/retry.js';
-import { assStyleFrom } from '../subtitles/presets.js';
 import { aiSettingsFor, ttsOverrideFor } from '../core/config.js';
+import { requestStop, clearStop, checkStop, notStopped, isStopped } from './stop.js';
+import { step, op, retryHook, progressPlan } from './progress.js';
+import { mapPool, resolveOutputDir, visualOpts, subtitleStyleFrom } from './helpers.js';
 
-const stopped = new Set();
-export function requestStop(id) { stopped.add(id); }
-export function clearStop(id) { stopped.delete(id); }
-function checkStop(id) { if (stopped.has(id)) { const e = new Error('stopped'); e.stopped = true; throw e; } }
-
-async function mapPool(items, concurrency, fn) {
-  const ret = new Array(items.length);
-  let i = 0;
-  const workers = Array.from({ length: Math.max(1, concurrency) }, async () => {
-    while (i < items.length) { const idx = i++; ret[idx] = await fn(items[idx], idx); }
-  });
-  await Promise.all(workers);
-  return ret;
-}
-
-// Final videos land in the channel's output/ folder (easy to find in Finder),
-// unless the user picked an explicit outputFolder.
-function resolveOutputDir(projectId, config, dir) {
-  if (config.outputFolder && existsSync(config.outputFolder)) return config.outputFolder;
-  try {
-    const out = join(DB.channelOf(projectId).root_dir, 'output');
-    mkdirSync(out, { recursive: true });
-    return out;
-  } catch { return join(dir, 'output'); }
-}
-
-function step(id, step, state, detail) { hub.toProject(id, { type: 'step', step, state, detail }); }
-function op(id, text) { hub.toProject(id, { type: 'op', text }); }
-// UI hook: 'đang tự thử lại (n/max)' — consumed by the SPA retry badges
-function retryHook(id, stepName, idx) {
-  return (attempt, err) => {
-    hub.toProject(id, { type: 'retry', scope: idx == null ? 'step' : 'scene', step: stepName, idx, attempt, msg: err.message });
-    op(id, `🩹 ${idx != null ? `Cảnh ${idx + 1}: ` : ''}lỗi "${err.message.slice(0, 80)}" — đang tự thử lại (${attempt + 1})…`);
-  };
-}
-const notStopped = (e) => !!e.stopped;
-
-// cumulative time offsets so the burned-in progress bar is continuous across the whole video
-function progressPlan(scenes, config) {
-  const durs = scenes.map((s) => Math.max(1.5, s.duration || config.sceneDuration || 6));
-  const offsets = []; let acc = 0;
-  for (const d of durs) { offsets.push(acc); acc += d; }
-  const outro = config.outro !== false ? 2.6 : 0;
-  return { offsets, total: acc + outro, outroStart: acc };
-}
-
-function styleNameOf(id) {
-  const s = DB.listStyles('scene').find((x) => x.id === id);
-  return s ? s.name : 'Cinematic';
-}
-function visualOpts(config, dir) {
-  return {
-    dir: join(dir, 'html'),
-    mode: config.richAnimation === false ? 'graphic' : undefined,
-    styleName: styleNameOf(config.styleId),
-    consistent: !!config.consistentScenes,
-  };
-}
-
-// ASS style now resolves through the shared subtitle-preset catalog (same source as
-// the animation captions) — identical output to the old inline object when no preset.
-function subtitleStyleFrom(config) { return assStyleFrom(config); }
+// re-exported so pipeline/queue.js keeps its stable import surface
+export { requestStop, clearStop };
 
 export async function runPipeline(projectId, { resume = false, _auto = 0 } = {}) {
   clearStop(projectId);
@@ -419,7 +361,7 @@ export async function runPipeline(projectId, { resume = false, _auto = 0 } = {})
       hub.toProject(projectId, { type: 'retry', scope: 'pipeline', attempt: 1, msg: e.message, delayMs: 8000 });
       op(projectId, `🩹 Gặp lỗi "${e.message.slice(0, 100)}" — tự động chạy tiếp sau 8 giây…`);
       await sleep(8000);
-      if (!stopped.has(projectId)) return runPipeline(projectId, { resume: true, _auto: _auto + 1 });
+      if (!isStopped(projectId)) return runPipeline(projectId, { resume: true, _auto: _auto + 1 });
       DB.updateProject(projectId, { status: 'paused' });
       hub.toProject(projectId, { type: 'status', status: 'paused' });
     } else {
