@@ -1,0 +1,27 @@
+{
+  "name": "ai-video-studio",
+  "version": "1.0.0",
+  "description": "AI Video Studio — tạo video tự động (dài tuỳ ý) cho macOS. Node 22 backend + native WKWebView shell.",
+  "type": "module",
+  "main": "src/server.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test:e2e": "node scripts/e2e.mjs",
+    "fonts:build": "node scripts/build-fonts.mjs",
+    "fonts:build:ui": "node scripts/build-fonts.mjs --ui",
+    "icon:build": "node scripts/build-icon.mjs",
+    "shell:build": "bash shell/build-app.sh"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.4.1",
+    "express": "^4.21.2",
+    "msedge-tts": "^2.0.6",
+    "multer": "^1.4.5-lts.1",
+    "puppeteer-core": "^23.11.1",
+    "ws": "^8.18.0"
+  }
+}

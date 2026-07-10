@@ -1,0 +1,136 @@
+// AI Video Studio — native macOS shell.
+// Boots the Node backend as a child process, waits for /api/health, then loads it in a
+// native WKWebView (Safari engine) — lightweight, no bundled Chromium for the UI.
+import Cocoa
+import WebKit
+
+final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate {
+  var window: NSWindow!
+  var webView: WKWebView!
+  var backend: Process?
+  let baseURL = "http://127.0.0.1:\(AVS_PORT)"
+
+  func applicationDidFinishLaunching(_ note: Notification) {
+    buildMenu()
+    setupWindow()
+    startBackend()
+    waitForHealthThenLoad(attempt: 0)
+    NSApp.activate(ignoringOtherApps: true)
+  }
+
+  func setupWindow() {
+    let frame = NSRect(x: 0, y: 0, width: 1280, height: 840)
+    // fullSizeContentView + transparent titlebar: the web sidebar runs under the traffic
+    // lights (Linear/Arc-style chrome). The overlaid titlebar strip stays natively
+    // draggable; the web UI reserves its top 40px via html.is-shell → --pad-titlebar.
+    window = NSWindow(contentRect: frame,
+      styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
+      backing: .buffered, defer: false)
+    window.title = "AI Video Studio"
+    window.titleVisibility = .hidden
+    window.titlebarAppearsTransparent = true
+    window.backgroundColor = NSColor(red: 0.027, green: 0.027, blue: 0.043, alpha: 1) // #07070b — no white flash on resize
+    window.center()
+    window.setFrameAutosaveName("AVSMainWindow")
+    window.minSize = NSSize(width: 960, height: 640)
+
+    let cfg = WKWebViewConfiguration()
+    cfg.preferences.setValue(true, forKey: "developerExtrasEnabled")
+    // Tag the document so CSS can reserve titlebar space only inside the native shell.
+    let shellFlag = WKUserScript(
+      source: "document.documentElement.classList.add('is-shell');",
+      injectionTime: .atDocumentStart, forMainFrameOnly: true)
+    cfg.userContentController.addUserScript(shellFlag)
+    webView = WKWebView(frame: frame, configuration: cfg)
+    webView.autoresizingMask = [.width, .height]
+    webView.navigationDelegate = self
+    window.contentView = webView
+    window.makeKeyAndOrderFront(nil)
+    loadSplash("Đang khởi động AI Video Studio…")
+  }
+
+  func loadSplash(_ msg: String) {
+    let html = """
+    <html><head><meta charset='utf-8'><style>
+    html,body{margin:0;height:100%;background:#07070b;color:#f4f4fa;font-family:-apple-system,Helvetica,sans-serif;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px}
+    .l{filter:drop-shadow(0 6px 26px rgba(109,92,255,.45))}
+    .by{font-size:11px;color:#62687a;letter-spacing:.06em}
+    .s{width:26px;height:26px;border:3px solid rgba(255,255,255,.12);border-top-color:#6d5cff;border-radius:50%;animation:r 1s linear infinite}
+    @keyframes r{to{transform:rotate(360deg)}}</style></head>
+    <body>
+    <div class='l'><svg width='76' height='76' viewBox='0 0 48 48' fill='none'>
+      <defs>
+        <linearGradient id='bg' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#282854'/><stop offset='.5' stop-color='#141430'/><stop offset='1' stop-color='#0b0b18'/></linearGradient>
+        <linearGradient id='br' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#8b7cff'/><stop offset='1' stop-color='#b04df7'/></linearGradient>
+        <linearGradient id='arc' x1='0' y1='1' x2='1' y2='0'><stop offset='0' stop-color='#6d5cff'/><stop offset='1' stop-color='#22d3ee'/></linearGradient>
+      </defs>
+      <rect x='1' y='1' width='46' height='46' rx='11.5' fill='url(#bg)'/>
+      <rect x='1.5' y='1.5' width='45' height='45' rx='11' stroke='#ffffff' stroke-opacity='.12'/>
+      <path d='M 13.7 13.7 A 14.6 14.6 0 0 1 38.1 27.8' stroke='url(#arc)' stroke-width='2.6' stroke-linecap='round' opacity='.95'/>
+      <circle cx='38.1' cy='27.8' r='2' fill='#8ff4ff'/>
+      <path d='M20.6 17.6 L32.2 24 L20.6 30.4 Z' fill='url(#br)' stroke='url(#br)' stroke-width='4.4' stroke-linejoin='round'/>
+    </svg></div>
+    <div>\(msg)</div><div class='by'>by TuiLa1Freelancer</div><div class='s'></div></body></html>
+    """
+    webView.loadHTMLString(html, baseURL: nil)
+  }
+
+  func startBackend() {
+    let p = Process()
+    p.executableURL = URL(fileURLWithPath: NODE_PATH)
+    p.arguments = ["src/server.js"]
+    p.currentDirectoryURL = URL(fileURLWithPath: PROJECT_ROOT)
+    var env = ProcessInfo.processInfo.environment
+    env["AVS_PORT"] = AVS_PORT
+    p.environment = env
+    do { try p.run(); backend = p }
+    catch { loadSplash("Không khởi động được backend: \(error.localizedDescription)") }
+  }
+
+  func waitForHealthThenLoad(attempt: Int) {
+    if attempt > 120 { loadSplash("Backend không phản hồi. Kiểm tra Node tại \(NODE_PATH)"); return }
+    guard let url = URL(string: baseURL + "/api/health") else { return }
+    var req = URLRequest(url: url); req.timeoutInterval = 2
+    URLSession.shared.dataTask(with: req) { data, resp, _ in
+      let ok = (resp as? HTTPURLResponse)?.statusCode == 200
+      DispatchQueue.main.async {
+        if ok { self.webView.load(URLRequest(url: URL(string: self.baseURL)!)) }
+        else { DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { self.waitForHealthThenLoad(attempt: attempt + 1) } }
+      }
+    }.resume()
+  }
+
+  func buildMenu() {
+    let main = NSMenu()
+    let appItem = NSMenuItem(); main.addItem(appItem)
+    let appMenu = NSMenu()
+    appMenu.addItem(withTitle: "Về AI Video Studio",
+      action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
+    appMenu.addItem(NSMenuItem.separator())
+    appMenu.addItem(withTitle: "Ẩn", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
+    appMenu.addItem(withTitle: "Thoát", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+    appItem.submenu = appMenu
+    // Edit menu (so copy/paste/select-all work in inputs)
+    let editItem = NSMenuItem(); main.addItem(editItem)
+    let edit = NSMenu(title: "Edit")
+    edit.addItem(withTitle: "Undo", action: Selector(("undo:")), keyEquivalent: "z")
+    edit.addItem(withTitle: "Redo", action: Selector(("redo:")), keyEquivalent: "Z")
+    edit.addItem(NSMenuItem.separator())
+    edit.addItem(withTitle: "Cut", action: #selector(NSText.cut(_:)), keyEquivalent: "x")
+    edit.addItem(withTitle: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
+    edit.addItem(withTitle: "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
+    edit.addItem(withTitle: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
+    editItem.submenu = edit
+    NSApp.mainMenu = main
+  }
+
+  func applicationShouldTerminateAfterLastWindowClosed(_ s: NSApplication) -> Bool { true }
+  func applicationWillTerminate(_ note: Notification) { backend?.terminate() }
+}
+
+let app = NSApplication.shared
+app.setActivationPolicy(.regular)
+let delegate = AppDelegate()
+app.delegate = delegate
+app.run()

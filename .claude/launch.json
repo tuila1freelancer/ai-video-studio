@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "avs",
+      "runtimeExecutable": "/bin/sh",
+      "runtimeArgs": ["-c", "AVS_PORT=5050 exec /opt/homebrew/opt/node@22/bin/node src/server.js"],
+      "port": 5050
+    }
+  ]
+}

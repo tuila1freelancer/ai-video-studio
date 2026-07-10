@@ -1,0 +1,614 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>AI Video Studio</title>
+<link rel="preload" href="/fonts/Lexend-400-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/Lexend-400-vietnamese.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="css/fonts.css">
+<link rel="stylesheet" href="css/app.css">
+<link rel="modulepreload" href="js/main.js">
+<link rel="modulepreload" href="js/api.js">
+<link rel="modulepreload" href="js/state.js">
+<link rel="modulepreload" href="js/ui/dom.js">
+<link rel="modulepreload" href="js/ui/toast.js">
+<link rel="modulepreload" href="js/ui/icons.js">
+<link rel="modulepreload" href="js/ui/dialog.js">
+<link rel="modulepreload" href="js/ui/palette.js">
+<link rel="modulepreload" href="js/ui/modals.js">
+<link rel="modulepreload" href="js/views/nav.js">
+<link rel="modulepreload" href="js/views/progress.js">
+<link rel="modulepreload" href="js/views/home.js">
+<link rel="modulepreload" href="js/views/studio.js">
+<link rel="modulepreload" href="js/views/scenes.js">
+<link rel="modulepreload" href="js/views/config.js">
+<link rel="modulepreload" href="js/views/library.js">
+<link rel="modulepreload" href="js/views/brandgen.js">
+<link rel="modulepreload" href="js/views/editvideo.js">
+<link rel="modulepreload" href="js/features/settings.js">
+<link rel="modulepreload" href="js/features/voicepicker.js">
+<link rel="modulepreload" href="js/features/channels.js">
+<link rel="modulepreload" href="js/features/brandkit.js">
+<link rel="modulepreload" href="js/features/srt.js">
+<link rel="modulepreload" href="js/features/batch.js">
+</head>
+<body>
+<div class="app">
+  <!-- NAV -->
+  <nav class="nav">
+    <div class="nav-brand">
+      <span class="logo">🎬</span>
+      <div class="nav-label">AI Video Studio<small>by TuiLa1Freelancer</small></div>
+      <button class="btn sm ghost" id="btnNavToggle" title="Thu gọn sidebar (⌘B)"></button>
+    </div>
+    <div class="row nav-channel" style="padding:0 4px 12px;gap:6px">
+      <select class="input" id="channelSelect" title="Kênh đang làm việc" style="flex:1;font-size:12px"></select>
+      <button class="btn sm" id="btnManageChannels" title="Quản lý kênh">⚙</button>
+    </div>
+    <button class="nav-item active" data-page="home"><span class="ic">🏠</span><span class="nav-label">Trang chủ</span></button>
+    <button class="nav-item" data-page="studio"><span class="ic">🎬</span><span class="nav-label">Tạo Video</span></button>
+    <button class="nav-item" data-page="library"><span class="ic">📚</span><span class="nav-label">Thư viện</span></button>
+    <button class="nav-item" data-page="brandgen"><span class="ic">🎨</span><span class="nav-label">Brand Asset</span></button>
+    <button class="nav-item" data-page="editvideo"><span class="ic">✂️</span><span class="nav-label">Edit Video</span></button>
+    <button class="nav-item" data-page="tutorials"><span class="ic">📖</span><span class="nav-label">Hướng dẫn</span></button>
+    <div class="nav-spacer"></div>
+    <button class="btn block sm" id="navSettings">⚙️ AI Setting</button>
+    <div class="nav-foot" id="depFoot"></div>
+  </nav>
+
+  <!-- CONTENT -->
+  <div class="content">
+
+    <!-- HOME / GALLERY -->
+    <section class="page active" id="page-home">
+      <div class="home-mesh" aria-hidden="true"><i class="m1"></i><i class="m2"></i><i class="m3"></i></div>
+      <div class="gallery">
+        <div class="home-hero">
+          <h1 class="home-title">Biến ý tưởng thành video<span class="grad-text"> trong một chạm</span></h1>
+          <div class="sub">Kịch bản · giọng đọc · phụ đề karaoke · nhạc nền · dựng cảnh motion-graphics — tất cả tự động.</div>
+          <div class="hero cmdbar">
+            <textarea id="heroTopic" class="input" rows="3" placeholder="Nhập chủ đề video... vd: 5 thói quen buổi sáng của người thành công"></textarea>
+            <div class="cmdbar-row">
+              <select id="heroAr" class="input">
+                <option value="9:16">9:16 — TikTok / Reels / Shorts</option>
+                <option value="16:9">16:9 — YouTube</option>
+                <option value="1:1">1:1 — Vuông</option>
+                <option value="4:5">4:5 — Instagram</option>
+              </select>
+              <span class="flex-spacer"></span>
+              <button class="btn big" id="heroBatch" title="Nhiều chủ đề — tự chạy lần lượt">Hàng loạt</button>
+              <button class="btn primary big" id="heroGo">Tạo video tự động</button>
+            </div>
+            <div class="hint">Tự động: dựng cảnh GSAP · giọng đọc neural · phụ đề karaoke · nhạc nền · intro/outro · metadata.</div>
+          </div>
+        </div>
+        <div class="home-sec-head">
+          <div class="row"><h2 class="home-sec-title">Video của bạn</h2><span class="badge" id="galleryCount"></span></div>
+          <div class="gtabs">
+            <button class="gtab active" data-cat="short">Short (dọc)</button>
+            <button class="gtab" data-cat="landscape">Landscape</button>
+          </div>
+        </div>
+        <div class="ggrid" id="galleryGrid"></div>
+      </div>
+    </section>
+
+    <!-- STUDIO -->
+    <section class="page" id="page-studio">
+      <div class="studio">
+        <!-- left -->
+        <aside class="s-side">
+          <div class="scroll">
+            <div class="field">
+              <label class="label">Chủ đề / JSON kịch bản / Link</label>
+              <textarea class="input" id="topic" rows="7" placeholder="Nhập chủ đề video, dán JSON kịch bản, hoặc dán link bài viết (https://...)"></textarea>
+              <div class="hint" id="inputTypeHint">Tự nhận diện: văn bản / JSON / link.</div>
+              <div class="row wrap" style="margin-top:8px">
+                <button class="btn sm" id="btnFetch">🔗 Lấy thông tin</button>
+                <button class="btn sm" id="btnImgSearch">🖼 Tìm ảnh AI</button>
+              </div>
+              <div id="imgResults" class="row wrap" style="margin-top:8px"></div>
+            </div>
+
+            <div class="field">
+              <label class="label">File ảnh / video (tuỳ chọn)</label>
+              <div id="assetList" class="row wrap"></div>
+              <label class="btn sm block" style="margin-top:6px">+ Thêm file
+                <input type="file" id="assetInput" accept="image/*,video/mp4" multiple hidden>
+              </label>
+            </div>
+
+            <button class="btn primary block big" id="btnStart">▶ Bắt đầu</button>
+
+            <div class="sec-label">Dự án
+              <button class="btn sm danger" id="btnDelAll" title="Xoá tất cả">Xoá tất cả</button>
+            </div>
+            <div class="plist" id="projList"><div class="empty">Chưa có dự án</div></div>
+          </div>
+        </aside>
+
+        <!-- main -->
+        <main class="s-main" id="sMain">
+          <div class="welcome" id="welcome">
+            <div class="big" id="welcomeLogo">🎬</div>
+            <h1>SẴN SÀNG TẠO VIDEO</h1>
+            <p>Điền chủ đề bên trái rồi nhấn <strong>▶ Bắt đầu</strong></p>
+          </div>
+
+          <div id="projView" class="hidden">
+            <div class="proj-head">
+              <div>
+                <h2 id="pvTitle"></h2>
+                <div class="badges">
+                  <span class="badge" id="pvStatus"></span>
+                  <span class="badge ar" id="pvAr"></span>
+                  <span class="ws-dot" id="wsDot">● offline</span>
+                  <span class="ws-dot" id="pvDate"></span>
+                </div>
+              </div>
+              <div class="proj-actions">
+                <button class="btn" id="btnRender">🎬 Render lại</button>
+                <button class="btn danger hidden" id="btnStop">⏹ Dừng</button>
+                <button class="btn warn hidden" id="btnResume">▶ Tiếp tục</button>
+                <button class="btn" id="btnSrt">📝 SRT</button>
+                <button class="btn" id="btnMeta">📊 Metadata</button>
+              </div>
+            </div>
+
+            <div class="pipe">
+              <div class="prog"><div class="prog-bar" id="progBar"></div><span class="prog-pct" id="progPct">0%</span></div>
+              <div class="pipe-steps" id="pipeSteps"></div>
+              <div class="curop hidden" id="curOp"><span class="spin">⟳</span> <span id="curOpText"></span></div>
+            </div>
+
+            <div class="logp">
+              <div class="logp-h" id="logToggle"><span>📋 Nhật ký xử lý</span><span id="logCaret">▾</span></div>
+              <div class="logp-b" id="logBody"></div>
+            </div>
+
+            <div class="scene-toolbar hidden" id="sceneToolbar">
+              <label class="switch-row"><input type="checkbox" id="checkAll"> <span>Chọn tất cả</span> <span id="selCount" style="color:var(--muted2)"></span></label>
+              <div class="row wrap">
+                <button class="btn sm" id="btnRegenVoiceSel" disabled>🎙 Voice đã chọn</button>
+                <button class="btn sm" id="btnRegenHtmlSel" disabled>🔄 HTML đã chọn</button>
+                <button class="btn sm warn" id="btnRenderSel" disabled>🎬 Render đã chọn</button>
+                <button class="btn sm success" id="btnRenderAll">🎬 Render + Ghép</button>
+              </div>
+            </div>
+
+            <div class="scenes" id="sceneGrid"></div>
+
+            <div class="final hidden" id="finalView">
+              <h3>✓ Video hoàn thành</h3>
+              <video id="finalVideo" controls playsinline></video>
+              <div class="fa">
+                <a class="btn success" id="btnDownload" download>⬇ Tải video</a>
+                <a class="btn" id="btnDownloadSrt" download>📑 Tải .SRT</a>
+                <button class="btn" id="btnOpenFolder">📂 Mở thư mục</button>
+              </div>
+              <div id="metaCard"></div>
+            </div>
+          </div>
+        </main>
+
+        <!-- right config: grouped accordion, preset bar on top -->
+        <aside class="s-config" id="sConfig">
+          <div class="sec-label">⚙ Config đầu ra</div>
+
+          <div class="cfg-preset-bar">
+            <select class="input" id="cfgPresetSelect" title="Preset của kênh"><option value="">— Config gốc kênh —</option></select>
+            <button class="btn sm" id="btnPresetSave" title="Lưu panel hiện tại thành preset">💾</button>
+            <button class="btn sm" id="btnPresetMenu" title="Đặt mặc định / xoá preset">⋯</button>
+          </div>
+
+          <div class="cfg-group open" id="grpFormat">
+            <button class="cfg-head" type="button"><span class="cfg-ic">🎞</span><span class="cfg-meta"><span class="cfg-title">Định dạng & chất lượng</span><span class="cfg-chip" data-chip="format"></span></span><span class="cfg-arr">▾</span></button>
+            <div class="cfg-body">
+              <div class="field">
+                <label class="label">Chế độ hình ảnh</label>
+                <select class="input" id="cfgVisualMode">
+                  <option value="animation">🎬 Animation (motion graphics)</option>
+                  <option value="hyperframe">✨ HyperFrame (AI đạo diễn theo lời thoại)</option>
+                  <option value="image">🖼️ Ảnh AI + Ken Burns</option>
+                </select>
+              </div>
+              <div class="field" id="hfOpts" style="display:none">
+                <label class="label">Phong cách video</label>
+                <button class="hf-style-btn" id="btnHfStyle" type="button">
+                  <span class="hfsb-sw" id="hfStyleSw"></span>
+                  <span class="hfsb-name" id="hfStyleName">Chrome Kinetic</span>
+                  <span class="hfsb-hint">đổi ▸</span>
+                </button>
+                <div class="hint">AI viết đồ hoạ + hoạt ảnh riêng cho từng cảnh, keyword hiện đúng lúc voice nhắc tới.</div>
+                <label class="label" style="margin-top:10px">Mật độ chuyển động</label>
+                <select class="input hidden" id="cfgHfDensity"><option value="minimal">Tối giản</option><option value="balanced" selected>Cân bằng</option><option value="rich">Dày đặc</option></select>
+                <div class="seg block" data-target="cfgHfDensity"><button type="button" data-v="minimal">Tối giản</button><button type="button" data-v="balanced">Cân bằng</button><button type="button" data-v="rich">Dày đặc</button></div>
+                <label class="label" style="margin-top:10px">Định hướng sáng tạo (tuỳ chọn)</label>
+                <input class="input" id="cfgHfDirection" placeholder="vd: trẻ trung năng động · nghiêm túc tối giản · nhiều icon minh hoạ…">
+                <div class="hint">Ghi chú áp cho MỌI cảnh — AI sẽ theo tinh thần này khi dàn dựng.</div>
+                <label class="label" style="margin-top:10px">Model AI riêng cho HyperFrame (tuỳ chọn)</label>
+                <input class="input" id="cfgHfModel" placeholder="để trống = dùng model chung ở AI Setting">
+                <div class="hint">💡 HyperFrame đẹp &amp; ổn định nhất với model mạnh (vd gpt-4o, claude, gemini-pro). Nhập tên model để dùng riêng cho khâu AI dựng cảnh.</div>
+              </div>
+              <div class="field" id="animOpts">
+                <label class="label">Theme animation</label>
+                <select class="input" id="cfgTheme">
+                  <option value="neon-tech">Neon Tech (mặc định)</option>
+                  <option value="gradient-soft">Gradient Soft</option>
+                  <option value="minimal-light">Minimal Light</option>
+                </select>
+                <div class="grid2" style="margin-top:8px">
+                  <div><label class="label">FPS</label>
+                    <select class="input hidden" id="cfgFps"><option value="30" selected>30</option><option value="60">60</option></select>
+                    <div class="seg block" data-target="cfgFps"><button type="button" data-v="30">30</button><button type="button" data-v="60">60</button></div></div>
+                  <div><label class="label">Chất lượng</label>
+                    <select class="input hidden" id="cfgRes"><option value="1" selected>1080p</option><option value="2">4K</option></select>
+                    <div class="seg block" data-target="cfgRes"><button type="button" data-v="1">1080p</button><button type="button" data-v="2">4K</button></div></div>
+                </div>
+              </div>
+              <div class="field">
+                <label class="label">Tỉ lệ khung hình</label>
+                <select class="input hidden" id="cfgAr">
+                  <option value="9:16">9:16 — TikTok / Reels</option>
+                  <option value="16:9">16:9 — YouTube</option>
+                  <option value="1:1">1:1 — Vuông</option>
+                  <option value="4:5">4:5 — Instagram</option>
+                </select>
+                <div class="seg block" data-target="cfgAr"><button type="button" data-v="9:16">9:16</button><button type="button" data-v="16:9">16:9</button><button type="button" data-v="1:1">1:1</button><button type="button" data-v="4:5">4:5</button></div>
+              </div>
+              <div class="field">
+                <label class="label">Thời lượng video: <strong id="cfgVdL">1 phút</strong></label>
+                <input type="range" class="range" id="cfgVd" min="15" max="1800" step="15" value="60">
+                <label class="label" style="margin-top:8px">Thời lượng cảnh: <strong id="cfgSdL">7 giây</strong></label>
+                <input type="range" class="range" id="cfgSd" min="4" max="12" step="1" value="7">
+                <div class="hint" id="cfgEst"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="cfg-group" id="grpBrand">
+            <button class="cfg-head" type="button"><span class="cfg-ic">🏷</span><span class="cfg-meta"><span class="cfg-title">Thương hiệu kênh</span><span class="cfg-chip" data-chip="brand"></span></span><span class="cfg-arr">▾</span></button>
+            <div class="cfg-body">
+              <div class="brand-summary" id="brandSummary">
+                <div class="bs-thumb" id="bsThumb">🏷</div>
+                <div class="bs-info"><div class="bs-name" id="bsName">Chưa cấu hình brand</div><div class="hint" id="bsMeta">Logo + tên kênh sẽ tự chèn vào từng cảnh</div></div>
+              </div>
+              <button class="btn block" id="btnBrandEditor">🎨 Chỉnh Brand Kit của kênh…</button>
+              <div class="field" id="legacyWatermark" style="margin-top:10px">
+                <label class="label">Watermark chữ (khi chưa có Brand Kit)</label>
+                <input class="input" id="cfgWatermark" placeholder="vd: tuila1freelancer" value="">
+              </div>
+            </div>
+          </div>
+
+          <div class="cfg-group" id="grpSubtitle">
+            <button class="cfg-head" type="button"><span class="cfg-ic">💬</span><span class="cfg-meta"><span class="cfg-title">Phụ đề</span><span class="cfg-chip" data-chip="subtitle"></span></span><span class="cfg-arr">▾</span></button>
+            <div class="cfg-body">
+              <label class="switch-row"><span class="switch"><input type="checkbox" id="cfgSub" checked><span class="sl"></span></span> Karaoke</label>
+              <div id="subStyle">
+                <div class="sub-preset-grid" id="subPresetGrid"></div>
+                <details class="cfg-details">
+                  <summary>Tinh chỉnh thủ công</summary>
+                  <div class="grid2" style="margin-top:8px">
+                    <div><label class="label">Font</label>
+                      <select class="input" id="cfgSubFont">
+                        <option>Be Vietnam Pro</option><option>Montserrat</option><option>Oswald</option><option>Anton</option><option>Nunito</option><option>Archivo Black</option><option>Lexend</option><option>JetBrains Mono</option><option>Arial</option><option>Impact</option>
+                      </select></div>
+                    <div><label class="label">Size</label>
+                      <select class="input" id="cfgSubSize"><option value="60">Nhỏ</option><option value="72">Vừa</option><option value="80" selected>Lớn</option><option value="96">XL</option></select></div>
+                  </div>
+                  <label class="label" style="margin-top:8px">Kiểu chữ</label>
+                  <select class="input" id="cfgSubCase"><option value="original">Gốc</option><option value="uppercase">HOA</option><option value="lowercase">thường</option><option value="titlecase">Hoa Đầu</option></select>
+                  <label class="label" style="margin-top:8px">Màu</label>
+                  <div class="color-palette" id="cfgSubColors"></div>
+                  <label class="label" style="margin-top:8px">Vị trí</label>
+                  <select class="input" id="cfgSubPos"><option value="bot">Dưới</option><option value="mid">Giữa</option><option value="top">Trên</option></select>
+                </details>
+                <div class="sub-preview" id="subPreview">Phụ đề mẫu</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="cfg-group" id="grpAudio">
+            <button class="cfg-head" type="button"><span class="cfg-ic">🎙</span><span class="cfg-meta"><span class="cfg-title">Giọng đọc & nhạc</span><span class="cfg-chip" data-chip="audio"></span></span><span class="cfg-arr">▾</span></button>
+            <div class="cfg-body">
+              <button class="btn block" id="btnCfgVoice">🎙 Chọn giọng đọc (nghe thử)…</button>
+              <div class="field" style="margin-top:10px">
+                <label class="label">🎵 Nhạc nền (BGM)</label>
+                <select class="input" id="cfgBgm"><option value="">— Không —</option></select>
+              </div>
+              <label class="switch-row"><span class="switch"><input type="checkbox" id="cfgBgmAuto" checked><span class="sl"></span></span> 🎵 Nhạc nền tự động</label>
+            </div>
+          </div>
+
+          <div class="cfg-group" id="grpAdvanced">
+            <button class="cfg-head" type="button"><span class="cfg-ic">⚙</span><span class="cfg-meta"><span class="cfg-title">Nâng cao</span><span class="cfg-chip" data-chip="advanced"></span></span><span class="cfg-arr">▾</span></button>
+            <div class="cfg-body">
+              <div class="field">
+                <label class="label">Phong cách cảnh</label>
+                <select class="input" id="cfgStyle"></select>
+              </div>
+              <label class="switch-row"><span class="switch"><input type="checkbox" id="cfgRich" checked><span class="sl"></span></span> 🖼️ Ảnh AI điện ảnh</label>
+              <label class="switch-row"><span class="switch"><input type="checkbox" id="cfgIntro" checked><span class="sl"></span></span> 🎬 Intro + Outro</label>
+              <label class="switch-row"><span class="switch"><input type="checkbox" id="cfgTrans"><span class="sl"></span></span> 🔀 Chuyển cảnh mượt (xfade)</label>
+              <label class="switch-row"><span class="switch"><input type="checkbox" id="cfgMeta" checked><span class="sl"></span></span> 📊 Tạo Metadata</label>
+              <label class="switch-row"><span class="switch"><input type="checkbox" id="cfgAutoConcat" checked><span class="sl"></span></span> Tự động ghép (B7)</label>
+              <label class="switch-row" style="margin-top:6px"><span class="switch"><input type="checkbox" id="cfgPTts"><span class="sl"></span></span> TTS song song</label>
+              <label class="switch-row"><span class="switch"><input type="checkbox" id="cfgPRender"><span class="sl"></span></span> Render song song</label>
+              <div class="grid2" style="margin-top:6px">
+                <select class="input" id="cfgTtsC"><option>2</option><option selected>4</option><option>6</option><option>8</option></select>
+                <select class="input" id="cfgRenderC"><option selected>2</option><option>3</option><option>4</option></select>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- LIBRARY -->
+    <section class="page" id="page-library">
+      <div class="lib">
+        <h1>📚 Thư viện tài nguyên</h1>
+        <div class="gtabs">
+          <button class="gtab active" data-kind="brand">🎨 Brand Asset</button>
+          <button class="gtab" data-kind="bgm">🎵 Nhạc nền</button>
+          <button class="gtab" data-kind="sfx">🔊 SFX</button>
+        </div>
+        <div class="row">
+          <label class="btn sm">+ Tải lên<input type="file" id="libUpload" multiple hidden></label>
+          <span class="hint" id="libStat"></span>
+        </div>
+        <div class="libgrid" id="libGrid"></div>
+      </div>
+    </section>
+
+    <!-- BRAND GEN -->
+    <section class="page" id="page-brandgen">
+      <div class="center-narrow">
+        <h1>🎨 Tạo Brand Asset</h1>
+        <p class="sub" style="color:var(--muted);margin:6px 0 18px">Upload ảnh tham chiếu → tạo bộ nhân vật nhiều cảm xúc. (Offline tạo placeholder; cắm API ảnh để có nhân vật thật.)</p>
+        <div class="field"><label class="label">Ảnh tham chiếu</label>
+          <label class="btn sm">📁 Chọn ảnh<input type="file" id="bgRef" accept="image/*" hidden></label>
+          <span id="bgRefName" class="hint">Chưa chọn</span></div>
+        <div class="field"><label class="label">Tên nhân vật</label><input class="input" id="bgName" placeholder="ema, luna, alex..."></div>
+        <div class="field"><label class="label">Style</label>
+          <select class="input" id="bgStyle"><option>2D Anime style</option><option>3D Pixar style</option><option>Realistic</option><option>Comic</option></select></div>
+        <button class="btn primary big" id="bgGo">✨ Tạo Brand Asset</button>
+        <div class="libgrid" id="bgResults"></div>
+      </div>
+    </section>
+
+    <!-- EDIT VIDEO -->
+    <section class="page" id="page-editvideo">
+      <div class="center-narrow">
+        <h1>✂️ Edit Video</h1>
+        <p class="sub" style="color:var(--muted);margin:6px 0 18px">Cắt nhanh đoạn video bằng ffmpeg.</p>
+        <div class="field"><label class="btn sm">📁 Chọn video<input type="file" id="evFile" accept="video/*" hidden></label> <span id="evName" class="hint">Chưa chọn</span></div>
+        <video id="evPreview" controls class="hidden" style="max-width:340px;border-radius:8px;background:#000"></video>
+        <div class="grid2" style="max-width:300px;margin-top:12px"><div><label class="label">Bắt đầu (s)</label><input class="input" id="evStart" type="number" value="0" min="0"></div><div><label class="label">Kết thúc (s)</label><input class="input" id="evEnd" type="number" value="10" min="0"></div></div>
+        <button class="btn primary" id="evCut" style="margin-top:12px">✂️ Cắt & xuất</button>
+        <div id="evOut" style="margin-top:14px"></div>
+      </div>
+    </section>
+
+    <!-- TUTORIALS -->
+    <section class="page" id="page-tutorials">
+      <div class="center-narrow">
+        <h1>Hướng dẫn nhanh</h1>
+        <ol style="line-height:2.1;color:var(--muted);margin-top:14px;padding-left:18px">
+          <li>Vào <strong>Tạo Video</strong>, nhập chủ đề (hoặc dán JSON / link).</li>
+          <li>Chỉnh <strong>Config đầu ra</strong>: tỉ lệ, thời lượng, phụ đề, BGM.</li>
+          <li>Nhấn <strong>▶ Bắt đầu</strong> — theo dõi pipeline B2→B7 real-time.</li>
+          <li>Xem video, render lại từng cảnh, sửa SRT, tải về.</li>
+          <li>Chạy hoàn toàn <strong>offline</strong> (giọng macOS + ffmpeg). Cắm API ở <strong>AI Setting</strong> để nâng chất lượng.</li>
+        </ol>
+        <div class="credit-card">
+          <span class="logo" id="creditLogo"></span>
+          <div><strong>AI Video Studio</strong><div class="hint">Thiết kế &amp; xây dựng bởi <strong>TuiLa1Freelancer</strong> — made with ♥ on macOS</div></div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- AI SETTINGS MODAL -->
+<div class="modal-bg" id="settingsModal">
+  <div class="modal">
+    <h2>🤖 AI Setting <button class="x" data-close>×</button></h2>
+    <div class="sec-label">LLM (kịch bản · metadata)</div>
+    <label class="switch-row"><span class="switch"><input type="checkbox" id="setLlmOn"><span class="sl"></span></span> Bật LLM (OpenAI-compatible)</label>
+    <div class="field"><label class="label">Base URL</label><input class="input" id="setLlmUrl" placeholder="https://api.openai.com/v1"></div>
+    <div class="field"><label class="label">API Key</label><input class="input" id="setLlmKey" type="password" placeholder="sk-..."></div>
+    <div class="field"><label class="label">Model</label><input class="input" id="setLlmModel" placeholder="gpt-4o-mini"></div>
+    <div class="sec-label">TTS (giọng đọc)</div>
+    <div class="field"><label class="label">Nhà cung cấp ưu tiên</label>
+      <select class="input" id="setTtsProvider"></select></div>
+    <div class="field" id="provFields"><!-- dynamic per-provider config from configSchema --></div>
+    <div class="row" style="margin-bottom:12px">
+      <button class="btn sm" id="btnTestProvider">🔌 Test kết nối</button>
+      <span class="hint" id="provTestResult"></span>
+    </div>
+    <div class="field">
+      <label class="label">Giọng mặc định theo ngôn ngữ</label>
+      <div id="langVoiceList" class="hint" style="line-height:2"></div>
+      <button class="btn sm block" id="btnOpenVoicePicker" style="margin-top:6px">🎙 Mở kho giọng (nghe thử & chọn)</button>
+    </div>
+    <div class="sec-label">Phụ đề</div>
+    <div class="field"><label class="label">Engine</label>
+      <select class="input" id="setSubEngine"><option value="estimate">Estimate (chữ đúng từ kịch bản — khuyên dùng)</option><option value="whisper">Whisper (transcribe audio)</option></select></div>
+    <button class="btn primary block" id="setSave">💾 Lưu cấu hình</button>
+  </div>
+</div>
+
+<!-- SRT EDITOR MODAL -->
+<div class="modal-bg" id="srtModal">
+  <div class="modal">
+    <h2>📝 SRT Timeline <button class="x" data-close>×</button></h2>
+    <div id="srtList"></div>
+    <button class="btn primary block" id="srtSave" style="margin-top:14px">💾 Lưu SRT</button>
+  </div>
+</div>
+
+<!-- CHANNELS MODAL -->
+<div class="modal-bg" id="channelModal">
+  <div class="modal" style="max-width:620px">
+    <h2>📺 Quản lý kênh <button class="x" data-close>×</button></h2>
+    <div id="channelList" style="margin-bottom:14px"></div>
+    <div class="sec-label">➕ Thêm kênh mới</div>
+    <div class="grid2">
+      <div class="field"><label class="label">Tên kênh *</label><input class="input" id="chName" placeholder="vd: TuiLa1Freelancer"></div>
+      <div class="field"><label class="label">Thư mục (bỏ trống = ~/Movies/AI Video Studio/…)</label><input class="input" id="chRoot" placeholder="~/Movies/AI Video Studio/ten-kenh"></div>
+    </div>
+    <div class="field"><label class="label">Watermark của kênh</label><input class="input" id="chWatermark" placeholder="vd: tuila1freelancer"></div>
+    <div class="row">
+      <label class="switch-row" style="flex:1"><span class="switch"><input type="checkbox" id="chCopyConfig" checked><span class="sl"></span></span>
+        <span style="font-size:12px">📋 Lấy config panel hiện tại làm mặc định kênh (theme, giọng, tỉ lệ…)</span></label>
+      <button class="btn primary" id="chCreate">Tạo kênh</button>
+    </div>
+  </div>
+</div>
+
+<!-- BRAND KIT EDITOR -->
+<!-- CONFIG GROUP EDITOR (body node is MOVED in/out — ids & listeners travel with it) -->
+<div class="modal-bg" id="cfgModal">
+  <div class="modal cfgm">
+    <h2><span id="cfgModalTitle">Cấu hình</span> <button class="x" data-close>×</button></h2>
+    <div id="cfgModalBody"></div>
+    <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn primary" data-close>Xong</button></div>
+  </div>
+</div>
+
+<div class="modal-bg" id="hfStyleModal">
+  <div class="modal" style="max-width:680px">
+    <h2>✨ Phong cách video HyperFrame <button class="x" data-close>×</button></h2>
+    <div class="hint" style="margin-bottom:10px">Một phong cách áp cho cả video: bảng màu, chữ, nền và tính cách chuyển động. AI phải tuân theo ở mọi cảnh.</div>
+    <div class="hf-preset-grid" id="hfPresetGrid"></div>
+    <div class="hf-ai-row">
+      <div class="label" style="margin:14px 0 6px">🎨 Hoặc để AI tự thiết kế theo mô tả</div>
+      <div class="row" style="gap:8px;align-items:stretch">
+        <input class="input" id="hfDescribe" placeholder="vd: tối giản kiểu Apple, nền kem, chữ đen lớn, nhấn cam đất…" style="flex:1">
+        <button class="btn" id="btnHfGenerate">Thiết kế</button>
+      </div>
+      <div class="hint" id="hfGenNote" style="margin-top:6px"></div>
+    </div>
+    <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn primary" data-close>Xong</button></div>
+  </div>
+</div>
+
+<div class="modal-bg" id="brandModal">
+  <div class="modal" style="max-width:760px">
+    <h2>🏷 Brand Kit — <span id="brandChName">kênh</span> <button class="x" data-close>×</button></h2>
+    <div class="brand-editor">
+      <div class="brand-stage-wrap">
+        <div class="brand-stage" id="brandStage">
+          <div class="bst-ghost bst-logo hidden" id="bstLogo" title="Kéo để đặt vị trí logo"><img id="bstLogoImg" alt=""></div>
+          <div class="bst-ghost bst-badge hidden" id="bstBadge" title="Kéo để đặt vị trí tên kênh">TÊN KÊNH</div>
+          <div class="bst-capband" title="Vùng phụ đề"></div>
+        </div>
+        <div class="hint" style="margin-top:6px">Kéo logo / tên kênh trên khung để đặt vị trí. Nền = cảnh thật gần nhất của kênh.</div>
+      </div>
+      <div class="brand-form">
+        <div class="field"><label class="label">Tên kênh (hiện trên video)</label><input class="input" id="brandName" placeholder="vd: TuiLa Dev"></div>
+        <div class="field">
+          <label class="label">Logo</label>
+          <div class="row"><input type="file" id="brandLogoFile" accept="image/*" style="flex:1;font-size:12px"><button class="btn sm danger" id="brandLogoClear" title="Bỏ logo">🗑</button></div>
+        </div>
+        <div class="grid2">
+          <div><label class="label">Cỡ logo: <strong id="brandLogoSizeL">8.5%</strong></label>
+            <input type="range" class="range" id="brandLogoSize" min="4" max="20" step="0.5" value="8.5"></div>
+          <div><label class="label">Độ mờ: <strong id="brandLogoOpacityL">90%</strong></label>
+            <input type="range" class="range" id="brandLogoOpacity" min="20" max="100" step="5" value="90"></div>
+        </div>
+        <div class="grid2">
+          <div><label class="label">Kiểu logo</label>
+            <select class="input" id="brandLogoStyle"><option value="plain">Thường</option><option value="glass">Glass (nền kính)</option><option value="glow">Glow (phát sáng)</option></select></div>
+          <div><label class="label">Kiểu tên kênh</label>
+            <select class="input" id="brandBadgeStyle"><option value="plain">Chữ thường</option><option value="pill">Pill (viên nén)</option><option value="underline">Gạch chân neon</option></select></div>
+        </div>
+        <label class="switch-row"><span class="switch"><input type="checkbox" id="brandBadgeOn" checked><span class="sl"></span></span> Hiện tên kênh trên video</label>
+        <div class="field" style="margin-top:6px">
+          <label class="label">Chèn brand vào cảnh</label>
+          <select class="input" id="brandPlacement">
+            <option value="smart">🧠 Thông minh — tự né nội dung & phụ đề từng cảnh</option>
+            <option value="always">📌 Cố định — đúng vị trí đã kéo</option>
+            <option value="off">Tắt</option>
+          </select>
+        </div>
+        <details class="cfg-details" style="margin:8px 0">
+          <summary>⚙ AI riêng của kênh (đè lên cấu hình chung)</summary>
+          <div class="field" style="margin-top:8px"><label class="label">Provider giọng đọc</label>
+            <select class="input" id="brandAiTts"><option value="">— Dùng cấu hình chung —</option></select></div>
+          <div class="field"><label class="label">LLM model (kịch bản)</label>
+            <input class="input" id="brandAiLlmModel" placeholder="— Dùng cấu hình chung —"></div>
+          <div class="field"><label class="label">Engine phụ đề</label>
+            <select class="input" id="brandAiSub"><option value="">— Dùng cấu hình chung —</option><option value="estimate">estimate (chữ chuẩn)</option><option value="whisper">whisper</option></select></div>
+        </details>
+        <button class="btn primary block" id="brandSave">💾 Lưu Brand Kit vào kênh</button>
+        <div class="hint" id="brandSaveHint" style="margin-top:6px"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- VOICE PICKER MODAL -->
+<div class="modal-bg" id="voicePickerModal">
+  <div class="modal" style="max-width:640px">
+    <h2>🎙 Kho giọng đọc <button class="x" data-close>×</button></h2>
+    <div class="row" style="margin-bottom:8px">
+      <input class="input" id="vpSearch" placeholder="🔎 Tìm tên giọng… (vd: HoaiMy, Ngọc Huyền)" style="flex:1">
+      <button class="btn sm" id="vpRefresh" title="Tải lại danh sách">↻</button>
+    </div>
+    <div class="row wrap" id="vpLangChips" style="margin-bottom:6px"></div>
+    <div class="row wrap" style="margin-bottom:10px">
+      <span id="vpProvChips" class="row wrap" style="gap:6px"></span>
+      <span style="flex:1"></span>
+      <select class="input" id="vpGender" style="max-width:110px">
+        <option value="">Giới tính</option><option value="f">Nữ</option><option value="m">Nam</option>
+      </select>
+    </div>
+    <div class="row" style="margin-bottom:8px">
+      <input class="input" id="vpCustomText" placeholder="✏️ Câu nghe thử tuỳ ý (bỏ trống = câu mẫu)" style="flex:1;font-size:12px">
+    </div>
+    <div id="vpList" style="max-height:44vh;overflow:auto;border:1px solid var(--border);border-radius:8px"></div>
+    <div class="hint" style="margin-top:8px">▶ nghe thử · ⭐ ghim · <strong>Chọn</strong> = đặt làm giọng mặc định cho ngôn ngữ của giọng đó.</div>
+  </div>
+</div>
+
+<!-- BATCH MODAL -->
+<div class="modal-bg" id="batchModal">
+  <div class="modal">
+    <h2>📦 Tạo video hàng loạt <button class="x" data-close>×</button></h2>
+    <p class="hint" style="margin-bottom:10px">Mỗi dòng = 1 chủ đề video. App sẽ tự tạo lần lượt từng video với config hiện tại — cứ để máy chạy.</p>
+    <textarea class="input" id="batchTopics" rows="8" placeholder="Ba thói quen buổi sáng giúp bạn thành công&#10;Năm sai lầm khi dùng AI trong công việc&#10;Cách học kỹ năng mới trong 7 ngày"></textarea>
+    <button class="btn primary block" id="batchGo" style="margin-top:12px">🚀 Chạy hàng loạt</button>
+  </div>
+</div>
+
+<!-- SCENE PROPS EDITOR MODAL -->
+<div class="modal-bg" id="propsModal">
+  <div class="modal">
+    <h2>✏️ Sửa nội dung cảnh <button class="x" data-close>×</button></h2>
+    <div class="field"><label class="label">Heading (chữ lớn)</label><input class="input" id="propHeading"></div>
+    <div class="field"><label class="label">Sub / mô tả</label><input class="input" id="propSub"></div>
+    <div class="field"><label class="label">Label nhỏ (HUD)</label><input class="input" id="propLabel"></div>
+    <details><summary class="hint" style="cursor:pointer">⚙️ Props JSON (nâng cao)</summary>
+      <textarea class="input" id="propJson" rows="6" style="margin-top:8px;font-family:ui-monospace,Menlo,monospace;font-size:11px"></textarea>
+    </details>
+    <button class="btn primary block" id="propSave" style="margin-top:12px">💾 Lưu + tạo preview</button>
+  </div>
+</div>
+
+<!-- LIVE SCENE PREVIEW MODAL -->
+<div class="modal-bg" id="liveModal">
+  <div class="modal" style="width:auto;max-width:none;padding:16px">
+    <h2 style="font-size:15px;margin-bottom:10px">👁 Preview cảnh (animation thật + tiếng) <button class="x" data-close>×</button></h2>
+    <div id="liveWrap" style="overflow:hidden;border-radius:10px;background:#000"></div>
+  </div>
+</div>
+
+<div class="toasts" id="toasts"></div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
