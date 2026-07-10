@@ -35,24 +35,20 @@
 - Xoá file `test-beats.mjs`, `test_overshoot_logic.js`, mọi `.DS_Store` (đã grep 0 importer — architecture.md §4).
 - Verify: G1. (Lưu ý: `test-beats.mjs` import `extractBeats` — không ai import ngược lại nó, an toàn.)
 
-**R2 — Gom trùng lặp helper/hằng số.** *(rủi ro: thấp · ~60 dòng · G1)*
-- `escapeHtml`: `animation/harness.js` tự định nghĩa → dùng bản `util/util.js`.
-- `clamp`: `animation/branding.js` có bản 4-tham-số riêng (có default) → đặt tên rõ `clampOr` trong `util/util.js`, branding dùng chung.
-- Cặp màu gradient: gộp `PALETTES` (`imagesearch.js`) + `THEMES` (`visuals.js`) → `config/constants.js`.
-- Verify: G1.
+**R2 — Gom trùng lặp helper/hằng số. → ĐÃ ĐÁNH GIÁ, BỎ QUA (không phải trùng lặp thật).**
+Khi soi kỹ, các "trùng lặp" agent khảo sát nêu ra hoá ra là hàm KHÁC nhau, gộp sẽ đổi hành vi (vi phạm mandate) hoặc là abstraction non:
+- `escapeHtml`: bản `harness.js` escape 4 ký tự (`& < > "`), bản `util.js` escape 5 (thêm `'`→`&#39;`). Khác nhau; harness nằm trên đường render nhạy → giữ nguyên.
+- `clamp`: `branding.js` là hàm **4 tham-số có default** `(v,lo,hi,dflt)`, chỉ dùng trong branding, đã là local const sạch → gộp lên util là abstraction non.
+- `PALETTES` (`imagesearch.js`, mảng `['0x..','0x..']`) vs `THEMES` (`visuals.js`, object `{a:'#..',b:'#..',…}`) — **khác cấu trúc**, không phải cùng dữ liệu.
+Kết luận: không có bản-sao thật nào để gộp an toàn. Bỏ R2, các bước sau giữ nguyên số.
 
 ### PHA B — Tầng thuần & config (rủi ro THẤP–VỪA)
 
-**R3 — `config/constants.js`: gom magic number an toàn.** *(rủi ro: thấp · ~50 dòng · G1)*
-- Rút các hằng có ý nghĩa xuyên module (chỉ những cái an toàn, KHÔNG đổi giá trị): `PAD_MS={vi:650,en:400}`, `OUTRO_DUR=2.6`, `PSNR_OK=70`, `QC_PIX_TH=0.04`, ngưỡng progress-plan, xfade… Mỗi hằng 1 JSDoc giải thích "vì sao giá trị này" (dẫn P-code).
-- Thay tại chỗ dùng; giá trị y hệt cũ.
-- Verify: G1 + G3 (vì đụng ngưỡng render/QC → chạy e2e để chắc không lệch).
+**R3 — magic number → hằng đặt tên. → LỒNG VÀO R9.**
+Các hằng tuned (`padMs`, `pix_th=0.04`, `PSNR=70`) là giá-trị-một-chỗ kèm comment giải thích "vì sao" NGAY tại call site — tách ra file trung tâm làm "why" xa "what", giảm rõ ràng và đụng ngưỡng render/QC (rủi ro thừa). Thay vào đó, khi tách module (R9) sẽ khai báo hằng đặt tên cục bộ (vd `PAD_MS` trong `stages/tts.js`). Đạt chuẩn "no magic number" mà không cần bước sweep rủi ro.
 
-**R4 — Tách domain kịch bản thuần khỏi `providers/llm.js`.** *(rủi ro: vừa · ~200 dòng chuyển · G1+G3)*
-- Tạo `domain/script.js`: `offlineScript`, `splitSentences`, `topNouns`, `wordBudgetNote`, `scriptLang`, `LANG_WPS`, `LANG_NAME`, và phần dựng prompt của `generateScript`/`twoStageScript`.
-- `providers/llm.js` giữ **transport + router**: `chat`, `chatOnce`, `chatJson`, `llmEnabled` (P1–P3), và `generateScript`/`generateMetadata`/`generateKeywords` như façade gọi `domain/script`. Giữ nguyên chữ ký export (runner import y như cũ).
-- **Bảo toàn P4/P5** (minScenes, LANG_WPS) từng ký tự.
-- Verify: G1 + **G3** (kịch bản là tim pipeline).
+**R4 — Tách domain kịch bản khỏi `providers/llm.js`. → HOÃN (dưới trần 400).**
+`llm.js` 382 dòng, dưới trần cứng; tổ chức theo section đã khá rõ. Ưu tiên context cho các file VƯỢT trần (runner 723, routes 464, db 452) và cắt vòng lặp. Làm R4 nếu còn ngân sách sau R10.
 
 ### PHA C — Cắt vòng lặp visual (rủi ro VỪA — mấu chốt kiến trúc)
 
