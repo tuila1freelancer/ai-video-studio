@@ -3,7 +3,7 @@
 // assert css/html non-empty, compile the GSAP script (syntax), and assemble the
 // full scene page. Exits non-zero on any failure.
 import { TEMPLATES, buildTemplate, makeCtx } from '../src/animation/templates.js';
-import { SAMPLE_SPEC } from '../src/animation/templates/hyperframe.js';
+import { SAMPLE_SPEC } from '../src/styleguide/index.js';
 import { buildScenePage } from '../src/animation/harness.js';
 import { getTheme } from '../src/animation/themes.js';
 

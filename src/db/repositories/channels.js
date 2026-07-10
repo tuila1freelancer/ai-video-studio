@@ -1,0 +1,124 @@
+// Channels (a YouTube channel = its own output folder + AI config) and their named presets.
+import { join } from 'node:path';
+import { homedir } from 'node:os';
+import { writeFileSync } from 'node:fs';
+import db from '../connection.js';
+import { getSetting, setSetting } from './settings.js';
+import { DATA_DIR, projectDirIn, ensureChannelDirs } from '../../config/paths.js';
+import { newId, safeJson } from '../../util/util.js';
+import { maskSecrets } from '../../util/secrets.js';
+
+function slugify(name) {
+  return String(name || 'kenh').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/gi, 'd')
+    .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'kenh';
+}
+function rowToChannel(r) { return r ? { ...r, config: safeJson(r.config, {}) } : null; }
+
+export function listChannels() { return db.prepare('SELECT * FROM channels ORDER BY created_at ASC').all().map(rowToChannel); }
+export function getChannel(id) { return rowToChannel(db.prepare('SELECT * FROM channels WHERE id=?').get(id)); }
+
+export function writeChannelJson(ch) {
+  // exported to the user's folder → never write real API keys to disk
+  try { writeFileSync(join(ch.root_dir, 'channel.json'), JSON.stringify({ name: ch.name, slug: ch.slug, config: maskSecrets(ch.config || {}), exported_at: new Date().toISOString() }, null, 2)); }
+  catch { /* folder may be missing/readonly — non-fatal */ }
+}
+
+export function createChannel({ name, rootDir, config = {} }) {
+  const slug0 = slugify(name);
+  let slug = slug0, n = 1;
+  while (db.prepare('SELECT 1 FROM channels WHERE slug=?').get(slug)) slug = `${slug0}-${++n}`;
+  const root = rootDir && rootDir.trim()
+    ? rootDir.trim().replace(/^~(?=\/|$)/, homedir())
+    : join(homedir(), 'Movies', 'AI Video Studio', slug);
+  const id = newId('ch');
+  ensureChannelDirs(root);
+  db.prepare('INSERT INTO channels(id,name,slug,root_dir,config,created_at) VALUES(?,?,?,?,?,?)')
+    .run(id, name, slug, root, JSON.stringify(config), Date.now());
+  const ch = getChannel(id);
+  writeChannelJson(ch);
+  return ch;
+}
+
+export function updateChannel(id, fields) {
+  const ch = getChannel(id);
+  if (!ch) return null;
+  const name = fields.name ?? ch.name;
+  const root = fields.rootDir ? fields.rootDir.replace(/^~(?=\/|$)/, homedir()) : ch.root_dir;
+  const config = fields.config !== undefined ? fields.config : ch.config;
+  ensureChannelDirs(root);
+  db.prepare('UPDATE channels SET name=?, root_dir=?, config=? WHERE id=?')
+    .run(name, root, JSON.stringify(config), id);
+  const out = getChannel(id);
+  writeChannelJson(out);
+  return out;
+}
+
+export function deleteChannel(id) {
+  const def = defaultChannel();
+  if (id === def.id) throw new Error('Không thể xoá kênh Default');
+  // unlink only — never delete files on disk
+  db.prepare('UPDATE projects SET channel_id=? WHERE channel_id=?').run(def.id, id);
+  db.prepare('DELETE FROM channels WHERE id=?').run(id);
+  if (activeChannelId() === id) setSetting('activeChannel', def.id);
+}
+
+export function defaultChannel() {
+  let ch = rowToChannel(db.prepare("SELECT * FROM channels WHERE slug='default'").get());
+  if (!ch) {
+    const id = newId('ch');
+    db.prepare('INSERT INTO channels(id,name,slug,root_dir,config,created_at) VALUES(?,?,?,?,?,?)')
+      .run(id, 'Default', 'default', DATA_DIR, '{}', Date.now());
+    ch = getChannel(id);
+  }
+  return ch;
+}
+
+export function activeChannelId() {
+  const v = getSetting('activeChannel', null);
+  return (v && getChannel(v)) ? v : defaultChannel().id;
+}
+export function setActiveChannel(id) { if (getChannel(id)) setSetting('activeChannel', id); }
+
+export function channelOf(projectId) {
+  const p = db.prepare('SELECT * FROM projects WHERE id=?').get(projectId);
+  return (p && p.channel_id && getChannel(p.channel_id)) || defaultChannel();
+}
+
+// Channel-aware project working dir (Default channel → original data/projects/<id> layout).
+export function projectDirFor(projectId) {
+  return projectDirIn(channelOf(projectId).root_dir, projectId);
+}
+
+// ---- channel presets (named output configs per channel) ----
+function rowToPreset(r) { return r ? { ...r, config: safeJson(r.config, {}), is_default: !!r.is_default } : null; }
+export function listPresets(channelId) {
+  return db.prepare('SELECT * FROM channel_presets WHERE channel_id=? ORDER BY created_at ASC')
+    .all(channelId).map(rowToPreset);
+}
+export function getPreset(id) {
+  return rowToPreset(db.prepare('SELECT * FROM channel_presets WHERE id=?').get(id));
+}
+export function defaultPresetFor(channelId) {
+  return rowToPreset(db.prepare('SELECT * FROM channel_presets WHERE channel_id=? AND is_default=1').get(channelId));
+}
+const _setDefaultPreset = db.transaction((channelId, presetId) => {
+  db.prepare('UPDATE channel_presets SET is_default=0 WHERE channel_id=?').run(channelId);
+  db.prepare('UPDATE channel_presets SET is_default=1 WHERE id=?').run(presetId);
+});
+export function createPreset({ channelId, name, config, isDefault = false }) {
+  const id = newId('ps');
+  db.prepare(`INSERT INTO channel_presets (id, channel_id, name, config, is_default, created_at)
+    VALUES (?, ?, ?, ?, 0, ?)`).run(id, channelId, name || 'Preset', JSON.stringify(config || {}), Date.now());
+  if (isDefault) _setDefaultPreset(channelId, id);
+  return getPreset(id);
+}
+export function updatePreset(id, fields) {
+  const cur = getPreset(id);
+  if (!cur) return null;
+  if (fields.name !== undefined) db.prepare('UPDATE channel_presets SET name=? WHERE id=?').run(fields.name, id);
+  if (fields.config !== undefined) db.prepare('UPDATE channel_presets SET config=? WHERE id=?').run(JSON.stringify(fields.config || {}), id);
+  if (fields.isDefault === true) _setDefaultPreset(cur.channel_id, id);
+  else if (fields.isDefault === false) db.prepare('UPDATE channel_presets SET is_default=0 WHERE id=?').run(id);
+  return getPreset(id);
+}
+export function deletePreset(id) { db.prepare('DELETE FROM channel_presets WHERE id=?').run(id); }
