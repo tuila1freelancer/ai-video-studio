@@ -68,8 +68,10 @@ Hai chế độ visual song song, đây là điểm mấu chốt của toàn b�
 
 ## 3. HAI VẤN ĐỀ KIẾN TRÚC LỚN NHẤT
 
-### 3.1 God file `pipeline/runner.js` (723 dòng)
-Một file gánh toàn bộ: điều phối pipeline, logic chi tiết từng stage (B2→B8), chính sách retry/self-heal 3 tầng, sinh metadata + chapter, và cả brand-gen offline. Hệ quả: khó đọc, khó test từng stage, khó cho AI agent sửa 1 khâu mà không đọc cả file.
+### 3.1 God file `pipeline/runner.js` (723 dòng) — ✅ ĐÃ MỔ (R8–R10)
+> Cập nhật sau refactor: `runner.js` giờ **68 dòng** (orchestrator thuần). Mỗi stage B2→B8 nằm ở `pipeline/stages/{script,tts,visuals,render,finalize,metadata}.js` (đều ≤168 dòng), nhận `ctx` từ `pipeline/context.js`; stop signal ở `pipeline/stop.js`, WS event + progress ở `pipeline/progress.js`, helper ở `pipeline/helpers.js`; `renderOnly`/`regenOne`/`brandGenImpl` tách ra `pipeline/{render-only,regen,brandgen}.js`. Bảng dưới là bố cục CŨ (giữ lại để đối chiếu).
+
+Một file (bản cũ) gánh toàn bộ: điều phối pipeline, logic chi tiết từng stage (B2→B8), chính sách retry/self-heal 3 tầng, sinh metadata + chapter, và cả brand-gen offline. Hệ quả: khó đọc, khó test từng stage, khó cho AI agent sửa 1 khâu mà không đọc cả file.
 
 Bên trong gồm các khối tách được ngay:
 | Khối | Dòng | Nên về đâu |
@@ -238,16 +240,14 @@ Quy tắc vàng khi refactor: gặp regex/hằng số/guard trông "thừa" → 
 
 ## 8. Phụ lục — đếm dòng file lớn (baseline trước refactor)
 
-| Dòng | File | Ghi chú |
+| Dòng (trước) | File | Sau refactor |
 |---|---|---|
-| 723 | `pipeline/runner.js` | god file — mục tiêu tách chính (§3.1) |
-| 464 | `api/routes.js` | fat router — tách theo domain |
-| 452 | `db/index.js` | schema + 8 domain query — tách repository |
-| 400 | `public/js/views/config.js` | FE fat — tách config serializer/UI |
-| 382 | `providers/llm.js` | tổ chức theo section khá tốt; tách domain/script |
-| 255 | `animation/templates/hyperframe.js` | **đặt nhầm chỗ** → về `styleguide/` (§3.2) |
-| 253 | `animation/harness.js` | engine — OK |
-| 263 | `public/js/views/scenes.js` | FE — OK |
-| 256 | `public/js/views/studio.js` | FE — OK |
+| 723 | `pipeline/runner.js` | **68** (orchestrator) + `stages/*` ≤168 + entries (R8–R10) ✅ |
+| 464 | `api/routes.js` | **392** + `api/services/*` (R7) ✅ |
+| 452 | `db/index.js` | **31** (barrel) + `db/repositories/*` ≤125 (R6) ✅ |
+| 400 | `public/js/views/config.js` | 400 — FE, chưa đụng (R11 còn lại) |
+| 382 | `providers/llm.js` | 382 — dưới trần, để nguyên |
+| 255 | `animation/templates/hyperframe.js` | **157** — chỉ còn renderer; guide về `styleguide/` (R5) ✅ |
+| 253 | `animation/harness.js` | 253 — engine, OK |
 
-Mục tiêu sau refactor: **không file nào >400 dòng** (ngoại lệ ghi lý do trong report).
+**Kết quả: 0 file backend >400 dòng** (mục tiêu đạt). Còn `public/js/views/config.js` (400, đúng ngưỡng) thuộc R11.
