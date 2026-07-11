@@ -26,8 +26,11 @@ export const DEFAULT_SETTINGS = {
   // 'whisper'  = raw re-transcription (only better when the audio text is unknown).
   subtitle: { engine: 'align' },
   imageSearch: { provider: 'none', apiKey: '' },
-  // Real AI image per scene. 'pollinations' is free + keyless (default). 'openai' or 'none' too.
-  imageGen: { provider: 'pollinations', model: 'flux', apiKey: '', baseUrl: 'https://api.openai.com/v1' },
+  // Real AI image per scene. 'pollinations' is free + keyless (default); 'openai' covers any
+  // OpenAI-compatible /images/generations endpoint; 'recraft' is a paid quality tier; 'none'
+  // disables. Paid providers automatically fail over to pollinations. bestOf (1-3, paid
+  // knob): generate N candidates and keep the most detailed one.
+  imageGen: { provider: 'pollinations', model: 'flux', apiKey: '', baseUrl: 'https://api.openai.com/v1', bestOf: 1 },
 };
 
 /** @returns {typeof DEFAULT_SETTINGS} defaults merged with the saved 'ai' setting */

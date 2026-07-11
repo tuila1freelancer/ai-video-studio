@@ -120,7 +120,8 @@ export async function runVisuals(ctx) {
         DB.updateScene(sc.id, { video_path: null }); // the clip bakes the old background in
       }
       op(projectId, `🎨 Dựng cảnh ${sc.idx + 1}/${scenes.length}`);
-      const bg = await buildSceneBackground(sc, project, size, visualOpts(config, dir));
+      // ai + guide: LLM-polished English prompt locked to the video's palette/motif
+      const bg = await buildSceneBackground(sc, project, size, { ...visualOpts(config, dir), ai, guide: resolveGuide(config) });
       DB.updateScene(sc.id, { image_path: bg, status: 'html',
         fp: fpStamp(sc, 'img', imageFingerprint(sc, { config, ai, size })) });
       hub.toProject(projectId, { type: 'scene', sceneId: sc.id, idx: sc.idx, status: 'html', image: `/api/file?path=${encodeURIComponent(bg)}` });
