@@ -289,6 +289,32 @@ export function mountRoutes(app, { version }) {
       res.json(await suggestTopics({ channelId: channel?.id, niche: String(req.body?.niche || ''), count: Math.min(12, parseInt(req.body?.count, 10) || 8), ai: aiSettingsFor(channel) }));
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
+  // suggestion history + owner decisions (accept is the ONLY route that starts a pipeline,
+  // and only for the explicitly clicked suggestion)
+  r.get('/topics/history', (req, res) => {
+    const channel = DB.getChannel(DB.activeChannelId());
+    res.json({ suggestions: DB.listSuggestions({
+      channelId: req.query.all ? null : channel?.id,
+      status: req.query.status || null,
+      q: String(req.query.q || ''),
+      limit: parseInt(req.query.limit, 10) || 200,
+      before: req.query.before || null,
+    }) });
+  });
+  r.post('/topics/:id/accept', async (req, res) => {
+    try {
+      const { acceptSuggestion } = await import('./services/assistant.js');
+      res.json({ ok: true, ...acceptSuggestion(req.params.id, { config: req.body?.config || {}, title: req.body?.title || null }) });
+    } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
+  });
+  r.post('/topics/:id/schedule', async (req, res) => {
+    try {
+      const { scheduleSuggestion } = await import('./services/assistant.js');
+      res.json({ ok: true, ...scheduleSuggestion(req.params.id, { dueAt: +req.body?.dueAt, config: req.body?.config || {}, title: req.body?.title || null }) });
+    } catch (e) { res.status(e.status || 400).json({ error: e.message }); }
+  });
+  r.post('/topics/:id/dismiss', (req, res) => res.json({ ok: DB.setSuggestionStatus(req.params.id, 'dismissed') > 0 }));
+  r.post('/topics/:id/restore', (req, res) => res.json({ ok: DB.setSuggestionStatus(req.params.id, 'suggested') > 0 }));
   r.get('/calendar', (req, res) => res.json({ slots: DB.listSlots() }));
   r.post('/calendar', (req, res) => {
     try {
@@ -296,7 +322,11 @@ export function mountRoutes(app, { version }) {
       res.json({ slot: DB.addSlot({ channelId: channel?.id || null, topic: req.body?.topic, config: req.body?.config || {}, dueAt: +req.body?.dueAt }) });
     } catch (e) { res.status(400).json({ error: e.message }); }
   });
-  r.delete('/calendar/:id', (req, res) => res.json({ ok: DB.cancelSlot(req.params.id) > 0 }));
+  r.delete('/calendar/:id', (req, res) => {
+    const ok = DB.cancelSlot(req.params.id) > 0;
+    if (ok) { try { DB.restoreSuggestionBySlot(req.params.id); } catch { /* linkage is best-effort */ } }
+    res.json({ ok });
+  });
   r.get('/dashboard', (req, res) => {
     const projects = DB.listProjects();
     const byStatus = projects.reduce((a, p) => { a[p.status] = (a[p.status] || 0) + 1; return a; }, {});

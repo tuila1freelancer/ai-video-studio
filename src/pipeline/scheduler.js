@@ -87,6 +87,8 @@ function promoteDueSlots() {
       });
       DB.projectDirFor(project.id);
       DB.markSlotCreated(slot.id, project.id);
+      // linkage is bookkeeping — its failure must never reach the cancelSlot error path
+      try { DB.linkSuggestionProject(slot.id, project.id); } catch { /* best-effort */ }
       DB.enqueueJob({ kind: 'pipeline', projectId: project.id, payload: {}, priority: -1 });
       hub.broadcast({ type: 'calendar', slotId: slot.id, projectId: project.id, topic: slot.topic });
       logger.info(`calendar: slot due → project ${project.id} "${slot.topic}"`, { projectId: project.id });
