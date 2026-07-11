@@ -27,13 +27,33 @@ function textLanguageLeak(txt, narrWords, narrLang) {
   return detectLang(txt) !== narrLang; // semantic same-language headline — fine; leak — defect
 }
 
+// Pure geometry/color helpers — mirrored inside PROBE (which runs as a page string) and
+// exported so the thresholds stay unit-testable without a browser.
+export function overlapFrac(a, b) {
+  const ix = Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x));
+  const iy = Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
+  const minA = Math.min(a.w * a.h, b.w * b.h);
+  return minA > 0 ? (ix * iy) / minA : 0;
+}
+export function contrastRatio([r1, g1, b1], [r2, g2, b2]) {
+  const lum = (r, g, b) => {
+    const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
+    return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+  };
+  const L1 = lum(r1, g1, b1), L2 = lum(r2, g2, b2);
+  return (Math.max(L1, L2) + 0.05) / (Math.min(L1, L2) + 0.05);
+}
+
 // Lists every rendered foreground element (skips the background motif) with its effective
-// opacity (product of ancestors) and bounding box, after a seek.
+// opacity (product of ancestors) and bounding box, after a seek — plus text-vs-text overlap
+// pairs (DOM-containment aware, so a label inside its own card never counts) and
+// low-contrast readable text (vs the nearest SOLID ancestor background; conservative
+// threshold because glass panels/gradients dilute the measurement).
 const PROBE = `(() => {
   function eff(el){ let o=1,n=el; while(n && n!==document.body && n){ const s=getComputedStyle(n);
     if(s.display==='none'||s.visibility==='hidden') return 0; o*=parseFloat(s.opacity||'1'); n=n.parentElement; } return o; }
-  const W=innerWidth,H=innerHeight,cam=document.querySelector('.hf-cam'); if(!cam) return {W,H,els:[]};
-  const out=[],seen=new Set();
+  const W=innerWidth,H=innerHeight,cam=document.querySelector('.hf-cam'); if(!cam) return {W,H,els:[],overlaps:[],lowContrast:[]};
+  const out=[],nodes=[],seen=new Set();
   for(const el of cam.querySelectorAll('*')){ if(seen.has(el))continue; seen.add(el);
     const ownText=[...el.childNodes].some(n=>n.nodeType===3&&n.textContent.trim().length);
     const isIcon=el.classList.contains('hf-iconbox')||el.tagName==='svg';
@@ -43,8 +63,37 @@ const PROBE = `(() => {
     out.push({o:+o.toFixed(3),x:Math.round(r.left),y:Math.round(r.top),w:Math.round(r.width),h:Math.round(r.height),
       cx:Math.round(r.left+r.width/2),cy:Math.round(r.top+r.height/2),
       cls:(el.className&&el.className.baseVal!==undefined?el.className.baseVal:String(el.className||'')).slice(0,32),
-      txt:(el.textContent||'').trim().slice(0,22)}); }
-  return {W,H,els:out};
+      txt:(el.textContent||'').trim().slice(0,22)});
+    nodes.push({el,ownText,o,r}); }
+  const txts=nodes.filter(n=>n.ownText&&n.o>0.35&&n.r.width>8&&n.r.height>8);
+  const overlaps=[];
+  for(let i=0;i<txts.length;i++)for(let j=i+1;j<txts.length;j++){
+    const a=txts[i],b=txts[j];
+    if(a.el.contains(b.el)||b.el.contains(a.el))continue;
+    const ix=Math.max(0,Math.min(a.r.right,b.r.right)-Math.max(a.r.left,b.r.left));
+    const iy=Math.max(0,Math.min(a.r.bottom,b.r.bottom)-Math.max(a.r.top,b.r.top));
+    const minA=Math.min(a.r.width*a.r.height,b.r.width*b.r.height);
+    if(minA>0&&(ix*iy)/minA>0.30) overlaps.push({a:(a.el.textContent||'').trim().slice(0,20),
+      b:(b.el.textContent||'').trim().slice(0,20),frac:+(((ix*iy)/minA)).toFixed(2)}); }
+  function bgOf(el){ let n=el; while(n&&n!==document.documentElement){ const c=getComputedStyle(n).backgroundColor;
+    if(c&&c!=='transparent'&&!/rgba\\((?:\\d+, ){2}\\d+, 0\\)/.test(c)) return c; n=n.parentElement; }
+    return getComputedStyle(document.body).backgroundColor; }
+  function lum(c){ const m=(c.match(/[\\d.]+/g)||[0,0,0]).map(Number);
+    const f=v=>{v/=255;return v<=0.03928?v/12.92:Math.pow((v+0.055)/1.055,2.4)};
+    return 0.2126*f(m[0])+0.7152*f(m[1])+0.0722*f(m[2]); }
+  const lowContrast=[];
+  for(const n of txts){ if(n.o<0.5)continue;
+    const cs=getComputedStyle(n.el);
+    // gradient-filled (background-clip:text) and stroked treatments render color:transparent
+    // on purpose — measuring their computed color would be a guaranteed false positive
+    if((cs.webkitBackgroundClip||cs.backgroundClip)==='text')continue;
+    if(parseFloat(cs.webkitTextStrokeWidth||'0')>0)continue;
+    const cm=cs.color.match(/[\\d.]+/g)||[];
+    if(cm.length>3&&parseFloat(cm[3])<0.99)continue;
+    const L1=lum(cs.color),L2=lum(bgOf(n.el));
+    const ratio=(Math.max(L1,L2)+0.05)/(Math.min(L1,L2)+0.05);
+    if(ratio<2.2) lowContrast.push({txt:(n.el.textContent||'').trim().slice(0,20),ratio:+ratio.toFixed(2)}); }
+  return {W,H,els:out,overlaps,lowContrast};
 })()`;
 
 /**
@@ -94,9 +143,12 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
     const T = [...times].filter((t) => t >= 0 && t <= dur).sort((a, c) => a - c);
     const narrWords = narrationWordSet(narration);
     const narrLang = detectLang(narration || '');
-    let anyVisible = false, endStrong = false, heroFrac = 0; const off = [], sub = [], bad = new Map();
+    let anyVisible = false, endStrong = false, heroFrac = 0;
+    const off = [], sub = [], bad = new Map(), ovl = new Map(), lowc = new Map();
     for (const t of T) {
-      const { W, H, els } = await page.evaluate((tt, probe) => { window.__seek(tt); return eval(probe); }, t, PROBE);
+      const { W, H, els, overlaps = [], lowContrast = [] } = await page.evaluate((tt, probe) => { window.__seek(tt); return eval(probe); }, t, PROBE);
+      for (const p of overlaps) { const k = `${p.a}|${p.b}`; if (!ovl.has(k)) ovl.set(k, { t, ...p }); }
+      for (const p of lowContrast) { if (!lowc.has(p.txt)) lowc.set(p.txt, { t, ...p }); }
       const vis = els.filter((e) => e.o > 0.15);
       if (vis.length) anyVisible = true;
       for (const e of vis) heroFrac = Math.max(heroFrac, e.w / W);
@@ -118,6 +170,8 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
     if (off.length) { const o = off[0]; defects.push(`element "${o.txt || o.cls}" runs ${o.overflow}px off-screen at ${o.t.toFixed(1)}s — keep all content inside the frame with a 6% margin; shrink font-size or reposition.`); }
     if (sub.length) { const o = sub[0]; defects.push(`element "${o.txt || o.cls}" reaches the bottom of the frame at ${o.t.toFixed(1)}s — the bottom 22% is reserved for subtitles, move it up.`); }
     if (bad.size) { const o = [...bad.values()][0]; defects.push(`the on-screen text "${o.txt}" is in the wrong language — the narration is ${narrLang === 'vi' ? 'Vietnamese' : narrLang}, and every keyword must be in the narration's language. Semantic (non-verbatim) keywords are fine; translating or mixing languages is not.`); }
+    if (ovl.size) { const o = [...ovl.values()][0]; defects.push(`the texts "${o.a}" and "${o.b}" overlap each other at ${o.t.toFixed(1)}s (${Math.round(o.frac * 100)}% of the smaller box) — text must NEVER sit on top of other text; separate them spatially or stagger their timing so only one occupies that area at a time.`); }
+    if (lowc.size) { const o = [...lowc.values()][0]; defects.push(`the text "${o.txt}" is unreadable at ${o.t.toFixed(1)}s — contrast ratio ${o.ratio}:1 against its background. Use the guide's ink color (or a bright accent) so readable text reaches at least 4.5:1.`); }
     return { ok: defects.length === 0, defects, tlDur: Number.isFinite(tlDur) ? +tlDur.toFixed(2) : null };
   } catch (e) {
     return { ok: true, skipped: true, defects: [], error: String(e.message || e) }; // never block codegen on a harness hiccup

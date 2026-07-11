@@ -94,17 +94,25 @@ export async function finalize(projectId, { dir, size, config, _qcAttempt = 0 })
   op(projectId, '✂️ Ghép & mix…');
   const expectDur = scenes.reduce((a, s) => a + (s.duration || 0), 0);
 
-  // SFX: a whoosh on every chapter transition — the section punctuation that makes long
-  // videos feel edited, not concatenated. Synthesized offline; any failure just skips SFX.
+  // SFX bed: auto whooshes on chapter transitions (autoSfx gate) + the owner's per-scene
+  // picks from Scene Studio (scene.props.audio = {sfx, sfxGain, sfxAt}) — an explicit pick
+  // is not "auto", so it plays regardless of autoSfx. Any failure just skips SFX.
   let sfxPath = null;
-  if (config.autoSfx !== false && visualMode !== 'image' && expectDur > 0) {
+  if (visualMode !== 'image' && expectDur > 0) {
     let t = 0; const events = [];
-    for (const s of scenes) { if (s.template === 'chapter-break' && t > 0.5) events.push({ at: t }); t += s.duration || 0; }
+    for (const s of scenes) {
+      if (config.autoSfx !== false && s.template === 'chapter-break' && t > 0.5) events.push({ at: t });
+      const au = s.props?.audio;
+      if (au?.sfx && existsSync(au.sfx)) {
+        events.push({ at: Math.max(0, t + (Number.isFinite(+au.sfxAt) ? +au.sfxAt : 0)), src: au.sfx, gain: +au.sfxGain || 0 });
+      }
+      t += s.duration || 0;
+    }
     if (events.length) {
       try {
-        op(projectId, `🔊 Đặt ${events.length} SFX chuyển chương…`);
+        op(projectId, `🔊 Đặt ${events.length} SFX…`);
         const whoosh = join(renderDir, 'sfx_whoosh.m4a');
-        if (!existsSync(whoosh)) await makeWhoosh(whoosh);
+        if (events.some((e) => !e.src) && !existsSync(whoosh)) await makeWhoosh(whoosh);
         sfxPath = await makeSfxBed(join(renderDir, 'sfx_bed.m4a'), { events, whooshPath: whoosh, total: expectDur });
       } catch (e) { logger.warn(`sfx bed: ${e.message} — bỏ SFX`, { projectId }); sfxPath = null; }
     }
