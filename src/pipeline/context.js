@@ -3,6 +3,8 @@
 import * as DB from '../db/index.js';
 import { ratioToSize } from '../util/util.js';
 import { aiSettingsFor } from '../core/config.js';
+import { budgetState } from '../core/budget.js';
+import { logger } from '../util/log.js';
 import { resolveOutputDir } from './helpers.js';
 
 /**
@@ -26,15 +28,28 @@ import { resolveOutputDir } from './helpers.js';
 export function buildContext(projectId, { resume = false } = {}) {
   const project = DB.getProject(projectId);
   if (!project) throw new Error('project not found');
-  const config = project.config || {};
+  let config = project.config || {};
   const dir = DB.projectDirFor(projectId);
   const channel = DB.channelOf(projectId);
   project.outputDir = resolveOutputDir(projectId, config, dir);
+  let ai = aiSettingsFor(channel);
+
+  // Budget guardrail — a PER-VIDEO decision made once per run: at the cap, downgrade to the
+  // existing free paths (llm off → offlineScript/heuristic planner; tts pinned to the free
+  // edge→say chain via the same explicit-override lane a user's per-video pick uses).
+  const budget = budgetState(projectId);
+  if (budget.capped) {
+    logger.warn(`budget cap reached ($${budget.spent.toFixed(2)}/$${budget.cap}) — free mode for this run`, { projectId });
+    ai = { ...ai, llm: { ...(ai.llm || {}), enabled: false } };
+    config = { ...config, tts: { ...(config.tts || {}), provider: 'edge', voice: 'auto' } };
+  }
+
   return {
     projectId, project, config,
     size: ratioToSize(project.aspect_ratio),
     dir, channel,
-    ai: aiSettingsFor(channel),
+    ai,
     resume,
+    budget,
   };
 }

@@ -102,6 +102,21 @@ CREATE TABLE IF NOT EXISTS logo_presets (
   position TEXT,
   size INTEGER
 );
+CREATE TABLE IF NOT EXISTS provider_usage (
+  id TEXT PRIMARY KEY,
+  project_id TEXT,
+  channel_id TEXT,
+  kind TEXT,                            -- llm|tts
+  provider TEXT,
+  model TEXT,
+  prompt_tokens INTEGER DEFAULT 0,
+  completion_tokens INTEGER DEFAULT 0,
+  chars INTEGER DEFAULT 0,
+  credits REAL DEFAULT 0,
+  est_cost REAL DEFAULT 0,              -- USD estimate at record time (pricing.js version)
+  at INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_usage_project ON provider_usage(project_id, at);
 CREATE TABLE IF NOT EXISTS jobs (
   id TEXT PRIMARY KEY,
   kind TEXT NOT NULL,                   -- pipeline|render

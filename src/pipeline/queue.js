@@ -4,16 +4,19 @@
 // settings.queue.durable=false falls back to the original in-memory Map path.
 import { runPipeline, renderOnly, regenOne, brandGenImpl, requestStop } from './runner.js';
 import { submit } from './scheduler.js';
-import { getSetting, cancelQueuedJobs } from '../db/index.js';
+import { getSetting, cancelQueuedJobs, getProject, getScene } from '../db/index.js';
+import { withRunContext } from '../util/run-context.js';
 
 const active = new Map(); // projectId -> Promise (legacy fallback path)
 
 function durable() { return getSetting('queue', {})?.durable !== false; }
+const attributed = (projectId, fn) =>
+  withRunContext({ projectId, channelId: getProject(projectId)?.channel_id || null }, fn);
 
 export function startProject(projectId, { resume = false } = {}) {
   if (durable()) return submit({ kind: 'pipeline', projectId, payload: { resume } }).done;
   if (active.has(projectId)) return active.get(projectId);
-  const p = runPipeline(projectId, { resume }).finally(() => active.delete(projectId));
+  const p = attributed(projectId, () => runPipeline(projectId, { resume })).finally(() => active.delete(projectId));
   active.set(projectId, p);
   return p;
 }
@@ -26,13 +29,16 @@ export function stopProject(projectId) {
 export function renderProject(projectId, opts) {
   if (durable()) return submit({ kind: 'render', projectId, payload: opts || {} }).done;
   if (active.has(projectId)) return active.get(projectId);
-  const p = renderOnly(projectId, opts).finally(() => active.delete(projectId));
+  const p = attributed(projectId, () => renderOnly(projectId, opts)).finally(() => active.delete(projectId));
   active.set(projectId, p);
   return p;
 }
 
 // Interactive short-lived actions stay direct — queueing them would only add latency.
-export function regenScene(sceneId, what) { return regenOne(sceneId, what); }
+export function regenScene(sceneId, what) {
+  const projectId = getScene(sceneId)?.project_id;
+  return projectId ? attributed(projectId, () => regenOne(sceneId, what)) : regenOne(sceneId, what);
+}
 
 export function brandGen(body, file) { return brandGenImpl(body, file); }
 
