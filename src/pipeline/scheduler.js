@@ -9,6 +9,7 @@ import * as DB from '../db/index.js';
 import { hub } from '../ws/hub.js';
 import { logger } from '../util/log.js';
 import { withRunContext } from '../util/run-context.js';
+import { resolveProjectConfig } from '../core/config.js';
 import { runPipeline, renderOnly } from './runner.js';
 
 // Per-kind lanes: how many jobs of a kind may run at once across the whole process.
@@ -78,7 +79,8 @@ function promoteDueSlots() {
   for (const slot of DB.dueSlots()) {
     try {
       const channel = slot.channel_id ? DB.getChannel(slot.channel_id) : DB.getChannel(DB.activeChannelId());
-      const config = { ...(channel?.config || {}), ...(slot.config || {}) };
+      // same layering as every other creation path: app defaults → channel → preset → slot
+      const config = resolveProjectConfig({ channel, preset: DB.defaultPresetFor(channel?.id), request: slot.config || {} });
       const project = DB.createProject({
         title: slot.topic.slice(0, 80), topic: slot.topic, inputType: 'text',
         aspectRatio: config.aspectRatio || '9:16', config, channelId: channel?.id || null,
