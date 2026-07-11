@@ -152,6 +152,7 @@
               <div class="proj-actions">
                 <button class="btn" id="btnRoughCut" title="Xem nháp cả video từ trang scene live — không tốn thời gian render">▶ Xem nháp</button>
                 <button class="btn" id="btnRepurpose" title="Nhân bản sang tỉ lệ khung khác — giữ nguyên giọng đọc & phụ đề, dàn lại bố cục rồi render">📱 Đổi tỉ lệ</button>
+                <button class="btn" id="btnExport" title="Xuất bản sao đúng chuẩn nền tảng (remux nhanh; cắt fade khi vượt trần thời lượng — luôn hỏi trước)">📤 Xuất nền tảng</button>
                 <button class="btn" id="btnRender">🎬 Render lại</button>
                 <button class="btn danger hidden" id="btnStop">⏹ Dừng</button>
                 <button class="btn warn hidden" id="btnResume">▶ Tiếp tục</button>
@@ -576,6 +577,7 @@
           <button class="gtab active" data-tab="voice">📝 Lời thoại</button>
           <button class="gtab" data-tab="visual">✨ Visual</button>
           <button class="gtab" data-tab="html">&lt;/&gt; HTML</button>
+          <button class="gtab" data-tab="audio">🔊 Âm thanh</button>
           <button class="gtab" data-tab="takes">🕘 Takes</button>
         </div>
         <div id="ssTabVoice">
@@ -586,7 +588,10 @@
         <div id="ssTabVisual" style="display:none">
           <textarea class="input ss-ta" id="ssVisual" rows="7" placeholder="Visual brief (mô tả đồ hoạ cảnh)…"></textarea>
           <div class="hint" style="margin:6px 0">AI sẽ dựng lại visual theo brief mới; bản cũ thành take để so sánh/rollback.</div>
-          <button class="btn primary" id="ssVisualSave">✨ Lưu + AI dựng lại visual</button>
+          <div class="row" style="gap:8px">
+            <button class="btn primary" id="ssVisualSave">✨ Lưu + AI dựng lại visual</button>
+            <button class="btn" id="ssTplGallery">🖼 Thư viện template…</button>
+          </div>
         </div>
         <div id="ssTabHtml" style="display:none">
           <div class="hint" style="margin-bottom:6px">Sửa trực tiếp markup của cảnh. Phụ đề, brand, progress bar vẫn do hệ thống quản — không sợ vỡ nhận diện. <b id="ssHtmlState"></b></div>
@@ -602,11 +607,37 @@
             <button class="btn" id="ssHtmlReset">↩ Bỏ bản sửa tay</button>
           </div>
         </div>
+        <div id="ssTabAudio" style="display:none">
+          <div class="field as-block">
+            <label class="label">SFX của cảnh này (từ Thư viện → SFX)</label>
+            <select class="input" id="ssSfx"><option value="">— Không có SFX riêng —</option></select>
+          </div>
+          <div class="as-grid" style="margin-bottom:10px">
+            <label>Âm lượng SFX <span id="ssSfxGainL">0 dB</span>
+              <input type="range" class="range" id="ssSfxGain" min="-18" max="6" step="1" value="0"></label>
+            <label>Thời điểm (giây, tính từ đầu cảnh)
+              <input class="input" id="ssSfxAt" type="number" min="0" step="0.1" value="0"></label>
+          </div>
+          <audio id="ssSfxPreview" controls style="width:100%;display:none;margin-bottom:10px"></audio>
+          <div class="hint" style="margin-bottom:8px">SFX được trộn ở bước GHÉP video (không đổi clip cảnh) — lưu xong bấm "Ghép lại" để nghe trong bản final.</div>
+          <div class="row" style="gap:8px">
+            <button class="btn primary" id="ssSfxSave">💾 Lưu âm thanh cảnh</button>
+            <button class="btn warn" id="ssReconcat">🎞 Ghép lại video</button>
+          </div>
+        </div>
         <div id="ssTabTakes" style="display:none">
           <div id="ssTakes"></div>
         </div>
       </div>
     </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="tplGalleryModal">
+  <div class="modal" style="max-width:1040px">
+    <h2>🖼 Thư viện template cảnh <button class="x" data-close>×</button></h2>
+    <div class="hint" style="margin-bottom:10px">Preview đang CHẠY THẬT đúng trang mà renderer sẽ vẽ — chọn là áp ngay cho cảnh đang mở.</div>
+    <div class="tg-grid" id="tgGrid"></div>
   </div>
 </div>
 

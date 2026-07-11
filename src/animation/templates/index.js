@@ -24,6 +24,9 @@ import orbit3d from './orbit-3d.js';
 import physicsBurst from './physics-burst.js';
 import drawDiagram from './draw-diagram.js';
 import barRace from './bar-race.js';
+// premium pack
+import spotlightQuote from './spotlight-quote.js';
+import glassMetricTrio from './glass-metric-trio.js';
 // HyperFrame is resolved by buildTemplate() but kept OUT of TEMPLATES: the planner and the
 // classic-mode LLM plan must never assign it — only the hyperframe pipeline branch does.
 import hyperframe from './hyperframe.js';
@@ -33,6 +36,7 @@ export const TEMPLATES = Object.fromEntries([
   timelineSteps, mindmapRadial, chatDemo, terminalScan, iconFocus,
   dualKeyword, ratingCriteria, chapterBreak, ctaOutro,
   splitCascade, counterStat, orbit3d, physicsBurst, drawDiagram, barRace,
+  spotlightQuote, glassMetricTrio,
 ].map((t) => [t.id, t]));
 
 export function listTemplates() {

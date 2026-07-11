@@ -469,6 +469,19 @@ export function mountRoutes(app, { version }) {
   r.get('/projects/:id/publishes', (req, res) => res.json({ publishes: DB.listPublishes(req.params.id) }));
 
   // ---- multi-aspect repurposing (16:9 <-> 9:16, no crop — full reflow re-render) ----
+  // one-click platform exports (fast remux / confirmed fade-trim; aspect mismatch →
+  // the caller runs the existing repurpose flow)
+  r.get('/export/presets', async (req, res) => {
+    const { EXPORT_PRESETS } = await import('../pipeline/export-presets.js');
+    res.json({ presets: Object.entries(EXPORT_PRESETS).map(([id, p]) => ({ id, ...p })) });
+  });
+  r.post('/projects/:id/export', async (req, res) => {
+    try {
+      const { exportForPlatform } = await import('../pipeline/export-presets.js');
+      res.json(await exportForPlatform(req.params.id, req.body?.preset, { allowTrim: !!req.body?.allowTrim }));
+    } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
+  });
+
   r.post('/projects/:id/repurpose', async (req, res) => {
     try {
       const { repurposeProject } = await import('../pipeline/repurpose.js');
@@ -602,11 +615,16 @@ export function mountRoutes(app, { version }) {
       if (!ok) return res.status(400).json({ error: 'srt_json sai cấu trúc cue ({start,end,text,words[]})' });
     }
     const changed = (k) => k in body && JSON.stringify(body[k]) !== JSON.stringify(before[k]);
+    // props.audio (per-scene SFX) is mixed at the CONCAT stage, never baked into the clip —
+    // an audio-only props edit must not stale the rendered clip
+    const strip = (pr) => { const { audio, ...rest } = pr || {}; return rest; };
+    const visualPropsChanged = changed('props')
+      && JSON.stringify(strip(body.props)) !== JSON.stringify(strip(before.props));
     if (changed('voice_text')) {
       // new narration → old audio, captions and clip are all stale
       body.audio_path = null; body.srt_json = null; body.srt_path = null; body.video_path = null;
       body.fp = { ...(before.fp || {}), tts: null, render: null };
-    } else if (changed('visual_prompt') || changed('template') || changed('props') || changed('srt_json')) {
+    } else if (changed('visual_prompt') || changed('template') || visualPropsChanged || changed('srt_json')) {
       body.video_path = null; // visuals/captions changed → clip is stale (audio still good)
       body.fp = { ...(before.fp || {}), render: null, ...(changed('visual_prompt') ? { img: null } : {}) };
     }
@@ -738,6 +756,34 @@ export function mountRoutes(app, { version }) {
     const row = DB.deleteLibrary(req.params.id);
     if (row && row.path && existsSync(row.path)) { try { unlinkSync(row.path); } catch { /* ignore */ } }
     res.json({ ok: true });
+  });
+
+  // Template gallery: a LIVE self-playing demo page per template (same harness the renderer
+  // uses). Superset demo props feed every template; the page auto-loops via rAF over __seek.
+  r.get('/templates/:id/preview-html', async (req, res) => {
+    try {
+      const { buildSceneHtml } = await import('../animation/index.js');
+      const ar = ['9:16', '16:9', '1:1', '4:5'].includes(req.query.ar) ? req.query.ar : '9:16';
+      const demoProps = {
+        heading: 'Tăng trưởng kênh', sub: 'Mỗi ngày một video tốt hơn', label: 'DEMO', hud: 'DEMO',
+        text: 'Nội dung minh hoạ cho template', keyword: 'BỨT PHÁ', keywords: ['TỐC ĐỘ', 'CHẤT LƯỢNG'],
+        value: 87, number: 87, unit: '%',
+        items: ['Ý tưởng', 'Kịch bản', 'Render'], steps: ['Chuẩn bị', 'Sản xuất', 'Xuất bản'],
+        left: { title: 'Trước', items: ['Chậm', 'Thủ công'] }, right: { title: 'Sau', items: ['Nhanh', 'Tự động'] },
+        messages: [{ from: 'user', text: 'Video mới đâu?' }, { from: 'bot', text: 'Đang render! 🎬' }],
+        criteria: [{ name: 'Tốc độ', score: 9 }, { name: 'Chất lượng', score: 8 }],
+        bars: [{ label: 'Trước', value: 40 }, { label: 'Sau', value: 90 }],
+        lines: ['$ avs render', '▸ scene 1/3…', '✓ done in 27s'], title: 'Chương mới',
+        nodes: ['Video', 'Ý tưởng', 'Âm thanh', 'Hình ảnh'],
+      };
+      const scene = { idx: 2, voice_text: 'Nội dung minh hoạ', srt_json: [], template: req.params.id, props: demoProps, duration: 6 };
+      let html = buildSceneHtml(scene, { aspect_ratio: ar, title: 'Template demo' },
+        { visualMode: 'animation', theme: 'neon-tech', enableSubtitles: false }, { durationOverride: 6 });
+      html = html.replace('</body>', `<script>addEventListener('load',async()=>{try{await __init();
+        const t0=performance.now();(function loop(){__seek(((performance.now()-t0)/1000)%6);requestAnimationFrame(loop)})()}catch(e){}})<\/script></body>`);
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.send(html);
+    } catch (e) { res.status(500).send(e.message); }
   });
 
   // Brand fonts: every family the owner can pick (vendored Vietnamese-safe set + uploads)
