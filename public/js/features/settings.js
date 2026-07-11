@@ -37,7 +37,7 @@ export async function loadSettings() {
   $('#setLlmKey').value = settings.llm?.apiKey || ''; // masked — thấy là biết đã lưu
   $('#setLlmModel').value = settings.llm?.model || '';
   $('#setTtsProvider').value = settings.tts?.provider || 'edge';
-  $('#setSubEngine').value = settings.subtitle?.engine || 'estimate';
+  $('#setSubEngine').value = settings.subtitle?.engine || 'align'; // backend default is 'align' when unset
   renderProviderFields();
   renderLangVoiceList();
 }
