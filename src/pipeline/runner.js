@@ -16,6 +16,7 @@ import { runVisuals } from './stages/visuals.js';
 import { runRender } from './stages/render.js';
 import { finalize } from './stages/finalize.js';
 import { runMetadata } from './stages/metadata.js';
+import { runPublish } from './stages/publish.js';
 
 // Stable import surface for pipeline/queue.js — the public pipeline entry points.
 export { requestStop, clearStop };
@@ -56,6 +57,7 @@ export async function runPipeline(projectId, { resume = false, _auto = 0 } = {})
 
     if (config.autoConcat !== false) await finalize(projectId, { dir, size, config }); // B7 + B8
     if (config.generateMetadata !== false) await runMetadata(ctx);
+    await runPublish(ctx); // B9 — opt-in (config.autoPublish), stages private by default
 
     DB.updateProject(projectId, { status: 'done' });
     const fin = DB.getProject(projectId);
