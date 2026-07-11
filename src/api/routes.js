@@ -664,6 +664,11 @@ export function mountRoutes(app, { version }) {
   });
   r.post('/library/:kind', upload.array('files'), (req, res) => {
     const kind = req.params.kind;
+    // unknown kind would join(undefined) → raw 500 with a stack trace; refuse cleanly
+    if (!['brand', 'bgm', 'sfx'].includes(kind)) {
+      for (const f of req.files || []) { try { unlinkSync(f.path); } catch { /* temp cleanup */ } }
+      return res.status(400).json({ error: `loại thư viện không hỗ trợ: ${kind}` });
+    }
     const brand = req.body.brand || 'Default';
     const names = [].concat(req.body.names || []);
     const dest = kind === 'brand' ? join(DIRS.brand, brand) : DIRS[kind];
