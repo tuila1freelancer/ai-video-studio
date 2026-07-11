@@ -5,7 +5,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join, extname } from 'node:path';
 import { screenshotHtml, chromeAvailable } from '../media/puppeteer.js';
 import { makeGradientImage } from '../media/ffmpeg.js';
-import { generateImage, imageGenEnabled, buildImagePrompt } from '../providers/imagegen.js';
+import { generateImage, imageGenEnabled, buildImagePrompt, buildImagePromptSmart, downloadImage } from '../providers/imagegen.js';
 import { escapeHtml, newId } from '../util/util.js';
 
 // Embed an image as a data: URI — Chrome blocks file:// resources in setContent pages.
@@ -132,14 +132,24 @@ export async function buildThumbnail(title, imgPath, size, outPath, opts = {}) {
 }
 
 // Returns a PNG path sized w×h to be used as the motion source for a scene.
+// opts.ai + opts.guide (optional): enable the LLM-polished, style-guide-locked prompt.
 export async function buildSceneBackground(scene, project, size, opts = {}) {
   const out = join(opts.dir, `bg_${scene.idx}_${newId('')}.png`);
 
-  // 1) Try a real AI image first (the premium path).
+  // 0) A REMOTE image URL on the scene (image search / og:image fetch) is downloaded to a
+  //    local file first — existsSync() can never see it, so it used to be silently ignored.
   let photo = null;
-  if (opts.mode !== 'gradient' && opts.mode !== 'graphic' && imageGenEnabled() && !(scene.image_path && existsSync(scene.image_path))) {
+  if (/^https?:\/\//i.test(scene.image_path || '')) {
+    try { photo = await downloadImage(scene.image_path, join(opts.dir, `dl_${scene.idx}_${newId('')}.jpg`)); }
+    catch { photo = null; }
+  }
+
+  // 1) Try a real AI image (the premium path) when no usable image is present yet.
+  if (!photo && opts.mode !== 'gradient' && opts.mode !== 'graphic' && imageGenEnabled() && !(scene.image_path && existsSync(scene.image_path))) {
     const imgOut = join(opts.dir, `ai_${scene.idx}_${newId('')}.jpg`);
-    const prompt = buildImagePrompt(scene, opts.styleName);
+    const prompt = opts.ai
+      ? await buildImagePromptSmart(scene, { styleName: opts.styleName, guide: opts.guide, ai: opts.ai })
+      : buildImagePrompt(scene, opts.styleName);
     const seed = (opts.consistent ? 700 : 0) + (scene.idx || 0) * 7 + 13;
     photo = await generateImage(prompt, { w: size.w, h: size.h, seed, outPath: imgOut });
   }
