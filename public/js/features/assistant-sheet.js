@@ -10,10 +10,21 @@ import { state } from '../state.js';
 import { openDialog } from '../ui/dialog.js';
 import { gatherConfig } from '../views/config.js';
 
+function toLocalInput(ts) {
+  const d = new Date(ts);
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
 function defaultDue() {
   const d = new Date(Date.now() + 24 * 3600 * 1000);
-  const p = (n) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T08:00`;
+  d.setHours(8, 0, 0, 0);
+  return toLocalInput(d.getTime());
+}
+
+/** The active channel's assistant preferences (config.assistant — carries no secrets). */
+export function channelAssistant() {
+  const ch = (state.channels || []).find((c) => c.id === state.activeChannel);
+  return ch?.config?.assistant || null;
 }
 
 function voiceOptions() {
@@ -41,10 +52,11 @@ const SHEET_LABELS = {
  * null on cancel. `mode`: 'now' creates immediately, 'schedule' adds a datetime field,
  * 'edit' emits config only (for updating a queued calendar slot).
  */
-export function configSheet({ row, mode }) {
+export function configSheet({ row, mode, due = null }) {
   const titles = mode === 'edit' ? [] : (Array.isArray(row.titles) ? row.titles.filter(Boolean) : []);
   const presets = state.presets || [];
   const canStudio = !!document.getElementById('cfgVisualMode');
+  const chDefault = channelAssistant()?.defaultConfig || null;
   return openDialog(`
     <div class="dlg-title">${SHEET_LABELS[mode][0]}</div>
     <div class="dlg-body" style="margin-bottom:10px">${esc(row.topic)}</div>
@@ -65,6 +77,7 @@ export function configSheet({ row, mode }) {
         </select>
       </label>
       <label class="as-radio${canStudio ? '' : ' disabled'}"><input type="radio" name="asSrc" value="studio" ${canStudio ? '' : 'disabled'}> <span>📋 Panel Studio hiện tại (toàn bộ lựa chọn đang mở)</span></label>
+      ${chDefault ? '<label class="as-radio"><input type="radio" name="asSrc" value="assistant"> <span>🤖 Config trợ lý của kênh (đã lưu trong ⚙ Cài đặt trợ lý)</span></label>' : ''}
     </div>
     <div class="field as-block">
       <label class="label">Ghi đè nhanh <span class="hint">(chỉ mục nào bạn đổi mới được áp)</span></label>
@@ -92,7 +105,7 @@ export function configSheet({ row, mode }) {
     ${mode === 'schedule' ? `
     <div class="field as-block">
       <label class="label">Thời điểm sản xuất</label>
-      <input class="input" type="datetime-local" data-a="due" value="${defaultDue()}">
+      <input class="input" type="datetime-local" data-a="due" value="${due ? toLocalInput(due) : defaultDue()}">
     </div>` : ''}
     <div class="hint" style="margin:4px 0 12px">Máy chủ vẫn xếp lớp: mặc định app → kênh → preset mặc định → lựa chọn ở đây.</div>
     <div class="dlg-actions">
@@ -114,6 +127,8 @@ export function configSheet({ row, mode }) {
           config = { ...(p?.config || {}) };
         } else if (src === 'studio') {
           config = { ...gatherConfig() };
+        } else if (src === 'assistant') {
+          config = { ...(channelAssistant()?.defaultConfig || {}) };
         }
         const v = (a) => dlg.querySelector(`[data-a=${a}]`)?.value || '';
         if (v('ar')) config.aspectRatio = v('ar');
@@ -185,7 +200,8 @@ export function slotTimeDialog(slot) {
  * Plan-my-week dialog: fill the coming days with the best pending suggestions.
  * Creates SLOTS only (owner confirms the whole plan here) — never starts a pipeline.
  */
-export function planWeekDialog() {
+export function planWeekDialog({ times = null } = {}) {
+  const prefTimes = (times && times.length ? times : ['08:00']).join(', ');
   return openDialog(`
     <div class="dlg-title">📅 Lên kế hoạch tuần</div>
     <div class="dlg-body" style="margin-bottom:10px">Tự xếp các gợi ý đang chờ (điểm viral cao trước) vào lịch sản xuất.</div>
@@ -199,7 +215,7 @@ export function planWeekDialog() {
     </div>
     <div class="field as-block">
       <label class="label">Khung giờ (cách nhau bằng dấu phẩy)</label>
-      <input class="input" data-a="times" value="08:00">
+      <input class="input" data-a="times" value="${esc(prefTimes)}">
     </div>
     <label class="as-radio" style="margin-bottom:12px"><input type="checkbox" data-a="useStudio"> <span>📋 Áp cấu hình từ panel Studio hiện tại cho mọi slot</span></label>
     <div class="dlg-actions">
@@ -225,11 +241,40 @@ export function planWeekDialog() {
   });
 }
 
+/** Add a fixed weekly production window (weekday + time). Template only — never auto-runs. */
+export function addRecurrenceDialog() {
+  const days = ['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
+  return openDialog(`
+    <div class="dlg-title">⏰ Thêm khung giờ cố định</div>
+    <div class="as-grid" style="margin-bottom:14px">
+      <label>Thứ <select class="input" data-a="wd">${days.map((d, i) => `<option value="${i}" ${i === 1 ? 'selected' : ''}>${d}</option>`).join('')}</select></label>
+      <label>Giờ <input class="input" type="time" data-a="time" value="08:00"></label>
+    </div>
+    <div class="dlg-actions">
+      <button class="btn" data-a="cancel">Huỷ</button>
+      <button class="btn primary" data-a="ok">⏰ Thêm</button>
+    </div>`, {
+    onReady(dlg, close) {
+      dlg.querySelector('[data-a=cancel]').addEventListener('click', () => close(false));
+      dlg.querySelector('[data-a=ok]').addEventListener('click', async () => {
+        try {
+          await api.post('/calendar/recurrences', {
+            weekday: +dlg.querySelector('[data-a=wd]').value,
+            time: dlg.querySelector('[data-a=time]').value,
+          });
+          toast('⏰ Đã thêm khung giờ cố định.', 'success');
+          close(true);
+        } catch (e) { toast('✗ ' + e.message, 'error'); close(false); }
+      });
+    },
+  });
+}
+
 /**
  * Full owner flow for a pending suggestion: sheet → API call → toast.
  * Returns true when something was created/changed (callers refresh their views).
  */
-export async function runSuggestionAction(row, act) {
+export async function runSuggestionAction(row, act, { due = null } = {}) {
   if (act === 'dismiss') {
     const r = await api.post(`/topics/${row.id}/dismiss`);
     if (r.ok) toast('Đã bỏ qua gợi ý — có thể khôi phục trong Lịch sử.', 'success');
@@ -241,7 +286,7 @@ export async function runSuggestionAction(row, act) {
     return !!r.ok;
   }
   const mode = act === 'now' ? 'now' : 'schedule';
-  const picked = await configSheet({ row, mode });
+  const picked = await configSheet({ row, mode, due });
   if (!picked) return false;
   try {
     if (mode === 'now') {

@@ -336,6 +336,20 @@ export function mountRoutes(app, { version }) {
   });
   r.post('/topics/:id/dismiss', (req, res) => res.json({ ok: DB.setSuggestionStatus(req.params.id, 'dismissed') > 0 }));
   r.post('/topics/:id/restore', (req, res) => res.json({ ok: DB.setSuggestionStatus(req.params.id, 'suggested') > 0 }));
+  // mini-series: LLM designs N connected episodes → persisted as pending suggestions (data only)
+  r.post('/topics/series', async (req, res) => {
+    try {
+      const { buildSeries } = await import('./services/assistant.js');
+      const channel = DB.getChannel(DB.activeChannelId());
+      const { aiSettingsFor } = await import('../core/config.js');
+      res.json({ ok: true, ...(await buildSeries({
+        suggestionId: req.body?.suggestionId || null,
+        seed: req.body?.seed || '',
+        episodes: req.body?.episodes,
+        ai: aiSettingsFor(channel),
+      })) });
+    } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
+  });
   r.get('/calendar', (req, res) => res.json({ slots: DB.listSlots() }));
   r.post('/calendar', (req, res) => {
     try {
@@ -356,6 +370,19 @@ export function mountRoutes(app, { version }) {
       res.json({ ok: DB.updateSlot(req.params.id, fields) > 0 });
     } catch (e) { res.status(400).json({ error: e.message }); }
   });
+  // recurring planning templates — inert windows; they never create projects by themselves
+  r.get('/calendar/recurrences', (req, res) => {
+    res.json({ recurrences: DB.listRecurrences(DB.activeChannelId()) });
+  });
+  r.post('/calendar/recurrences', (req, res) => {
+    try {
+      res.json({ recurrence: DB.addRecurrence({
+        channelId: DB.activeChannelId(),
+        weekday: req.body?.weekday, time: req.body?.time, config: req.body?.config || {},
+      }) });
+    } catch (e) { res.status(400).json({ error: e.message }); }
+  });
+  r.delete('/calendar/recurrences/:id', (req, res) => res.json({ ok: DB.deleteRecurrence(req.params.id) > 0 }));
   // plan-my-week: fill the coming days with pending suggestions — SLOTS only, owner-confirmed
   r.post('/calendar/plan', async (req, res) => {
     try {
