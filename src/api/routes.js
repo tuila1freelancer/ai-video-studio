@@ -280,6 +280,49 @@ export function mountRoutes(app, { version }) {
     res.json({ summary: DB.usageSummary({ limit: Math.min(100, parseInt(req.query.limit, 10) || 30) }) });
   });
 
+  // ---- publisher (B9 scaffold): OAuth loopback + manual publish (staging default) ----
+  r.get('/publish/status', async (req, res) => {
+    const { publisherStatus } = await import('../publish/index.js');
+    res.json({ platforms: publisherStatus() });
+  });
+  r.post('/publish/youtube/auth-url', async (req, res) => {
+    try {
+      const { getPublisher } = await import('../publish/index.js');
+      const redirectUri = `${req.protocol}://${req.get('host')}/api/publish/youtube/callback`;
+      res.json({ url: getPublisher('youtube').authUrl({ clientId: req.body?.clientId, clientSecret: req.body?.clientSecret, redirectUri }) });
+    } catch (e) { res.status(400).json({ error: e.message }); }
+  });
+  r.get('/publish/youtube/callback', async (req, res) => {
+    try {
+      const { getPublisher } = await import('../publish/index.js');
+      const redirectUri = `${req.protocol}://${req.get('host')}/api/publish/youtube/callback`;
+      await getPublisher('youtube').exchangeCode(String(req.query.code || ''), redirectUri);
+      res.send('<meta charset="utf-8"><body style="font-family:sans-serif;background:#0b1020;color:#eaf2ff;display:grid;place-items:center;height:100vh"><div>✅ Đã kết nối YouTube — bạn có thể đóng tab này.</div></body>');
+    } catch (e) { res.status(400).send(`OAuth lỗi: ${e.message}`); }
+  });
+  // Manual publish — an EXPLICIT user action; privacy defaults to 'private' (staging)
+  r.post('/projects/:id/publish', async (req, res) => {
+    try {
+      const p = DB.getProject(req.params.id);
+      if (!p) return res.status(404).json({ error: 'not found' });
+      if (!p.video_path || !existsSync(p.video_path)) return res.status(400).json({ error: 'video chưa render xong' });
+      const { getPublisher } = await import('../publish/index.js');
+      const pub = getPublisher(req.body?.platform || 'youtube');
+      if (!pub.connected()) return res.status(400).json({ error: 'chưa kết nối OAuth — vào Cài đặt → Đăng video' });
+      const privacy = ['private', 'unlisted', 'public'].includes(req.body?.privacy) ? req.body.privacy : 'private';
+      const md = p.metadata || {};
+      const recId = DB.recordPublish({ projectId: p.id, platform: pub.id, privacy });
+      const out = await pub.upload({
+        videoPath: p.video_path, title: md.title || p.title, description: md.description || '',
+        tags: (md.platforms?.youtube?.tags || md.hashtags || []).map((t) => String(t).replace(/^#/, '')),
+        privacy, thumbPath: p.thumb_path && existsSync(p.thumb_path) ? p.thumb_path : null,
+      });
+      DB.settlePublish(recId, { status: 'done', videoId: out.videoId, url: out.url });
+      res.json({ ok: true, ...out });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+  r.get('/projects/:id/publishes', (req, res) => res.json({ publishes: DB.listPublishes(req.params.id) }));
+
   // ---- multi-aspect repurposing (16:9 <-> 9:16, no crop — full reflow re-render) ----
   r.post('/projects/:id/repurpose', async (req, res) => {
     try {

@@ -102,6 +102,18 @@ CREATE TABLE IF NOT EXISTS logo_presets (
   position TEXT,
   size INTEGER
 );
+CREATE TABLE IF NOT EXISTS publish_targets (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL,
+  platform TEXT,                        -- youtube|...
+  video_id TEXT,
+  url TEXT,
+  privacy TEXT,                         -- private|unlisted|public
+  status TEXT,                          -- uploading|done|error
+  error TEXT,
+  at INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_publish_project ON publish_targets(project_id, at);
 CREATE TABLE IF NOT EXISTS scene_takes (
   id TEXT PRIMARY KEY,
   scene_id TEXT NOT NULL,

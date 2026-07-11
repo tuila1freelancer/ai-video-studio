@@ -49,6 +49,7 @@ export function initStudio() {
   $('#checkAll').addEventListener('change', (e) => { $$('#sceneGrid .scene').forEach((c) => { c.classList.toggle('sel', e.target.checked); c.querySelector('.chk').checked = e.target.checked; }); updateSelCount(); });
   $('#btnSrt').addEventListener('click', openSrt);
   $('#btnRepurpose').addEventListener('click', () => withLock($('#btnRepurpose'), repurposeCurrent));
+  $('#btnPublish')?.addEventListener('click', () => withLock($('#btnPublish'), publishCurrent));
   $('#btnMeta').addEventListener('click', genMeta);
   $('#logToggle').addEventListener('click', () => { const b = $('#logBody'); const open = b.style.display !== 'none'; b.style.display = open ? 'none' : 'block'; $('#logCaret').textContent = open ? '▸' : '▾'; });
   $('#btnFetch').addEventListener('click', fetchLink);
@@ -92,6 +93,29 @@ async function repurposeCurrent() {
     await loadProjects();
     await openProject(r.project.id);
   } catch (e) { toast('Lỗi đổi tỉ lệ: ' + e.message, 'error'); }
+}
+
+// Manual publish — always an explicit choice; 'Riêng tư' (staging) is the safe default.
+async function publishCurrent() {
+  if (!state.current) return;
+  const pick = await menuDialog({
+    title: '📤 Đăng YouTube — chế độ hiển thị?',
+    items: [
+      { id: 'private', label: '🔒 Riêng tư (kiểm tra trước — khuyên dùng)' },
+      { id: 'unlisted', label: '🔗 Không công khai (ai có link mới xem)' },
+      { id: 'public', label: '🌐 Công khai ngay', danger: true },
+    ],
+  });
+  if (!pick) return;
+  if (pick === 'public') {
+    const ok = await confirmDialog({ title: 'Đăng CÔNG KHAI ngay?', body: 'Video sẽ hiển thị với mọi người trên kênh. Bạn chắc chứ?', okText: 'Đăng công khai', danger: true });
+    if (!ok) return;
+  }
+  toast('📤 Đang tải lên YouTube…', 'success');
+  try {
+    const r = await api.post(`/projects/${state.current.id}/publish`, { platform: 'youtube', privacy: pick });
+    toast(`✅ Đã đăng (${pick}): ${r.url}`, 'success');
+  } catch (e) { toast('Lỗi đăng: ' + e.message, 'error'); }
 }
 
 export function startNewProject() {
