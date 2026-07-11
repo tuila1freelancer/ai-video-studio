@@ -233,9 +233,20 @@ function wordBudgetNote(wordsPerScene) {
   return `mỗi cảnh ${wordsPerScene - 3}–${wordsPerScene + 5} từ (mục tiêu ~${wordsPerScene}; TTS đọc nhanh hơn bạn nghĩ — viết ĐỦ chữ, tuyệt đối không cụt ngủn dưới ${wordsPerScene - 3} từ)`;
 }
 
+// Additive Show-Bible block (channel persona + anti-repeat ledger). Purely appended to
+// prompts — never restructures the JSON schema or touches the scene-count guard (P4).
+function bibleBlock(memory) {
+  if (!memory) return '';
+  const lines = [];
+  if ((memory.bible || '').trim()) lines.push(`BỐI CẢNH KÊNH (Show Bible — giữ đúng bản sắc, không đọc nguyên văn): ${memory.bible.trim().slice(0, 800)}`);
+  const recent = (memory.topics || []).slice(-10).map((t) => t.t).filter(Boolean);
+  if (recent.length) lines.push(`Các video gần đây của kênh (TRÁNH lặp lại nội dung/góc tiếp cận): ${recent.join('; ')}`);
+  return lines.length ? `\n${lines.join('\n')}` : '';
+}
+
 // Public: generate a full script for a project.
-// input: { topic, inputType, config }
-export async function generateScript({ topic, inputType, fetched, config, ai }) {
+// input: { topic, inputType, config, memory? (channel Show Bible) }
+export async function generateScript({ topic, inputType, fetched, config, ai, memory = null }) {
   const llm = ai?.llm || null;
   const sceneDuration = config.sceneDuration || 7;
   const videoDuration = config.videoDuration || 60;
@@ -267,7 +278,7 @@ export async function generateScript({ topic, inputType, fetched, config, ai }) 
   if (llmEnabled(llm)) {
     try {
       if (videoDuration >= 180) {
-        return await twoStageScript({ sourceText, title, sceneCount, wordsPerScene, videoDuration, language, llm });
+        return await twoStageScript({ sourceText, title, sceneCount, wordsPerScene, videoDuration, language, llm, memory });
       }
       const hf = (config.visualMode === 'hyperframe');
       const sys = hf
@@ -281,7 +292,7 @@ Yêu cầu cho "visualPrompt" — mô tả BRIEF cho một cảnh INFOGRAPHIC ch
 CẤM: "display text", layout tĩnh, mô tả mơ hồ, bịa chữ, chèn tiếng Anh vào video tiếng Việt.`;
       const usr = `Tạo kịch bản video từ nội dung sau. Xuất JSON dạng {"title":"...","scenes":[{"voice":"lời thoại đọc","visualPrompt":"${hf ? 'cinematic motion-graphics description in English' : 'mô tả hình ảnh tiếng Anh'}","keywords":["..."]}]}.
 Yêu cầu: PHẢI tạo ĐÚNG ${sceneCount} cảnh (video ${videoDuration}s cần đủ ${sceneCount} cảnh — trả thiếu cảnh là sai đề bài), ${wordBudgetNote(wordsPerScene)}, giọng tự nhiên${language === 'vi' ? ', xưng hô cố định "mình – các bạn"' : ''}, toàn bộ lời thoại bằng ${LANG_NAME[language] || language}.
-Cảnh mở đầu là HOOK theo công thức NỖI ĐAU → LỜI HỨA: 1-2 câu gọi đúng vấn đề người xem đang gặp, rồi hứa lợi ích cụ thể (có con số/khung thời gian) khi xem hết video. Cảnh cuối chốt giá trị + kêu gọi đăng ký + một câu hỏi cụ thể mời trả lời dưới comment.${hf ? hfVisualRules : ''}
+Cảnh mở đầu là HOOK theo công thức NỖI ĐAU → LỜI HỨA: 1-2 câu gọi đúng vấn đề người xem đang gặp, rồi hứa lợi ích cụ thể (có con số/khung thời gian) khi xem hết video. Cảnh cuối chốt giá trị + kêu gọi đăng ký + một câu hỏi cụ thể mời trả lời dưới comment.${hf ? hfVisualRules : ''}${bibleBlock(memory)}
 Nội dung:\n${sourceText.slice(0, 6000)}`;
       // enforce the scene count (≥70% of target) — lazy models love returning 2 scenes for a
       // 60s brief, which silently halves the video. chatJson re-asks once on validate failure.
@@ -303,9 +314,9 @@ Nội dung:\n${sourceText.slice(0, 6000)}`;
 // CTA; (2) detailed narration per chapter, each chapter seeing the tail of the previous one so
 // long videos never repeat themselves. Chapters that fail fall back to the offline splitter,
 // so one bad LLM reply never sinks the whole script.
-async function twoStageScript({ sourceText, title, sceneCount, wordsPerScene, videoDuration, language = 'vi', llm }) {
+async function twoStageScript({ sourceText, title, sceneCount, wordsPerScene, videoDuration, language = 'vi', llm, memory = null }) {
   const nCh = Math.max(3, Math.min(8, Math.round(videoDuration / 150)));
-  const langLine = `Toàn bộ lời thoại bằng ${LANG_NAME[language] || language}.`;
+  const langLine = `Toàn bộ lời thoại bằng ${LANG_NAME[language] || language}.${bibleBlock(memory)}`;
   const persona = language === 'vi' ? ' Xưng hô cố định "mình – các bạn".' : '';
   const outline = await chatJson([
     { role: 'system', content: 'Bạn là đạo diễn nội dung YouTube chuyên nghiệp. Trả về JSON thuần.' },

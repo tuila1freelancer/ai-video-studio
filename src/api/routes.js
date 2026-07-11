@@ -105,6 +105,29 @@ export function mountRoutes(app, { version }) {
     try { DB.deleteChannel(req.params.id); res.json({ ok: true }); }
     catch (e) { res.status(400).json({ error: e.message }); }
   });
+  // Persistent brand kit: save a style guide as the CHANNEL's canonical guide — every new
+  // project inherits it through the config merge (resolveProjectConfig → resolveGuide).
+  // normalizeGuide runs server-side, so the WCAG contrast lock is enforced at save time.
+  r.post('/channels/:id/style-guide', async (req, res) => {
+    const ch = DB.getChannel(req.params.id);
+    if (!ch) return res.status(404).json({ error: 'not found' });
+    const { normalizeGuide } = await import('../styleguide/index.js');
+    const guide = normalizeGuide(req.body?.guide || {});
+    const config = { ...(ch.config || {}), hyperframe: { ...(ch.config?.hyperframe || {}), guide } };
+    DB.updateChannel(ch.id, { config });
+    res.json({ ok: true, guide });
+  });
+
+  // Show Bible: owner-editable channel context + the anti-repeat topic ledger
+  r.get('/channels/:id/memory', (req, res) => {
+    if (!DB.getChannel(req.params.id)) return res.status(404).json({ error: 'not found' });
+    res.json(DB.getChannelMemory(req.params.id));
+  });
+  r.put('/channels/:id/memory', (req, res) => {
+    if (!DB.getChannel(req.params.id)) return res.status(404).json({ error: 'not found' });
+    res.json(DB.setChannelBible(req.params.id, req.body?.bible || ''));
+  });
+
   r.post('/channels/:id/activate', (req, res) => {
     DB.setActiveChannel(req.params.id);
     res.json({ ok: true, active: DB.activeChannelId() });

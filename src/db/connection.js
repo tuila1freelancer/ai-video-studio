@@ -102,6 +102,12 @@ CREATE TABLE IF NOT EXISTS logo_presets (
   position TEXT,
   size INTEGER
 );
+CREATE TABLE IF NOT EXISTS channel_memory (
+  channel_id TEXT PRIMARY KEY,
+  bible TEXT,                           -- the channel's Show Bible (persona, style, standing facts)
+  topics TEXT,                          -- JSON [{t,at}]: recent video topics — anti-repeat ledger
+  updated_at INTEGER
+);
 CREATE TABLE IF NOT EXISTS provider_usage (
   id TEXT PRIMARY KEY,
   project_id TEXT,

@@ -9,7 +9,7 @@ import { step, op, retryHook } from '../progress.js';
 
 /** @param {import('../context.js').PipelineContext} ctx */
 export async function runScript(ctx) {
-  const { projectId, project, config, ai, resume } = ctx;
+  const { projectId, project, config, ai, channel, resume } = ctx;
   let scenes = DB.getScenes(projectId);
   if (!resume || scenes.length === 0) {
     step(projectId, 'b2', 'running', 'Tạo kịch bản');
@@ -19,8 +19,10 @@ export async function runScript(ctx) {
     if (project.input_type === 'url') {
       try { fetched = await fetchLink(project.topic.trim().split(/\s+/)[0]); } catch (e) { logger.warn(`fetch-link: ${e.message}`, { projectId }); }
     }
+    // Show Bible: channel persona + anti-repeat ledger, injected additively into the prompt
+    const memory = channel ? DB.getChannelMemory(channel.id) : null;
     const script = await withRetry(
-      () => generateScript({ topic: project.topic, inputType: project.input_type, fetched, config, ai }),
+      () => generateScript({ topic: project.topic, inputType: project.input_type, fetched, config, ai, memory }),
       { tries: 2, label: 'b2 script', onRetry: retryHook(projectId, 'b2'), fatal: notStopped },
     );
     project.title = (script.title || project.title || '').trim() || project.title;
