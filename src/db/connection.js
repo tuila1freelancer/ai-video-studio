@@ -192,6 +192,42 @@ CREATE TABLE IF NOT EXISTS voices_cache (
   fetched_at INTEGER,
   PRIMARY KEY (provider, id)
 );
+CREATE TABLE IF NOT EXISTS topic_suggestions (
+  id TEXT PRIMARY KEY,
+  batch_id TEXT NOT NULL,               -- one group per /topics/suggest call
+  channel_id TEXT,
+  niche TEXT,
+  topic TEXT NOT NULL,
+  angle TEXT,
+  source TEXT,                          -- trend leaned on | 'evergreen'
+  score TEXT,                           -- JSON {viral,evergreen,difficulty,why} | NULL offline
+  titles TEXT,                          -- JSON title variants | NULL
+  series_id TEXT,
+  origin TEXT DEFAULT 'llm',            -- llm|trends-only|series
+  status TEXT DEFAULT 'suggested',      -- suggested|accepted|scheduled|dismissed|expired
+  project_id TEXT,
+  slot_id TEXT,
+  created_at INTEGER,
+  decided_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_sugg_channel ON topic_suggestions(channel_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_sugg_status ON topic_suggestions(status, created_at);
+CREATE TABLE IF NOT EXISTS suggestion_series (
+  id TEXT PRIMARY KEY,
+  channel_id TEXT,
+  name TEXT,
+  description TEXT,
+  created_at INTEGER
+);
+CREATE TABLE IF NOT EXISTS calendar_recurrences (
+  id TEXT PRIMARY KEY,
+  channel_id TEXT,
+  weekday INTEGER,                      -- 0=Sunday … 6=Saturday (JS getDay)
+  time TEXT,                            -- 'HH:mm' local
+  config TEXT,                          -- JSON config template for slots born here
+  active INTEGER DEFAULT 1,
+  created_at INTEGER
+);
 `);
 
 // Versioned migrations run AFTER every CREATE TABLE block (so migrations may reference any
