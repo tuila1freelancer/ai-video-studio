@@ -15,10 +15,15 @@ const VERSION = '1.0.0';
 
 ensureDirs();
 bindHub(hub);
+await import('./core/metering.js'); // cost meter: subscribe to provider usage before any run
 try {
   const { recoverZombieProjects } = await import('./db/index.js');
   const n = recoverZombieProjects();
   if (n) logger.info(`boot recovery: ${n} zombie 'running' project(s) → paused`);
+  // After P13's project recovery: requeue jobs orphaned by the dead process and start the
+  // scheduler — queued/batched work continues across restarts instead of being stranded.
+  const { startScheduler } = await import('./pipeline/scheduler.js');
+  startScheduler();
 } catch (e) { logger.warn(`boot recovery failed: ${e.message}`); }
 
 const app = express();

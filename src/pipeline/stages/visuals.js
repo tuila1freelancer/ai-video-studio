@@ -16,6 +16,7 @@ import { withRetry } from '../../util/retry.js';
 import { checkStop, notStopped } from '../stop.js';
 import { step, op, retryHook } from '../progress.js';
 import { mapPool, visualOpts } from '../helpers.js';
+import { imageFingerprint, fpCurrent, fpStamp } from '../fingerprint.js';
 
 /** @param {import('../context.js').PipelineContext} ctx */
 export async function runVisuals(ctx) {
@@ -112,10 +113,17 @@ export async function runVisuals(ctx) {
     const b5c = imageGenEnabled() && config.richAnimation !== false ? 1 : 4;
     await mapPool(scenes, b5c, async (sc) => {
       checkStop(projectId);
-      if (resume && sc.image_path && existsSync(sc.image_path)) return;
+      if (resume && sc.image_path && existsSync(sc.image_path)) {
+        // content-hash resume: keep the background only while the visual brief is unchanged
+        if (fpCurrent(sc, 'img', imageFingerprint(sc, { config, ai, size }))) return;
+        op(projectId, `♻️ Cảnh ${sc.idx + 1}: mô tả hình ảnh đã thay đổi — dựng lại nền`);
+        DB.updateScene(sc.id, { video_path: null }); // the clip bakes the old background in
+      }
       op(projectId, `🎨 Dựng cảnh ${sc.idx + 1}/${scenes.length}`);
-      const bg = await buildSceneBackground(sc, project, size, visualOpts(config, dir));
-      DB.updateScene(sc.id, { image_path: bg, status: 'html' });
+      // ai + guide: LLM-polished English prompt locked to the video's palette/motif
+      const bg = await buildSceneBackground(sc, project, size, { ...visualOpts(config, dir), ai, guide: resolveGuide(config) });
+      DB.updateScene(sc.id, { image_path: bg, status: 'html',
+        fp: fpStamp(sc, 'img', imageFingerprint(sc, { config, ai, size })) });
       hub.toProject(projectId, { type: 'scene', sceneId: sc.id, idx: sc.idx, status: 'html', image: `/api/file?path=${encodeURIComponent(bg)}` });
     });
   }

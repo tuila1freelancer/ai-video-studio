@@ -3,6 +3,7 @@
 import { aiSettings } from '../db/index.js';
 import { wordCount, safeJson } from '../util/util.js';
 import { detectLang } from '../util/lang.js';
+import { recordUsage } from '../util/usage.js';
 
 // llm param (optional) = a resolved settings.llm object (e.g. per-channel override);
 // omitted → global settings, exactly as before.
@@ -71,19 +72,25 @@ async function chatOnce(s, messages, { json, temperature, maxTokens, timeoutMs }
   const text = await res.text();
   try {
     const data = JSON.parse(text);
+    if (data.usage) {
+      recordUsage('llm', { model: body.model, promptTokens: data.usage.prompt_tokens, completionTokens: data.usage.completion_tokens });
+    }
     return data.choices?.[0]?.message?.content || '';
   } catch {
     // some proxies stream SSE regardless of stream:false — concatenate the delta chunks
     let out = '';
+    let usage = null; // some backends attach usage to the final SSE chunk
     for (const line of text.split(/\n/)) {
       const m = line.match(/^data:\s*(.+)$/);
       if (!m || m[1] === '[DONE]') continue;
       try {
         const j = JSON.parse(m[1]);
         out += j.choices?.[0]?.delta?.content ?? j.choices?.[0]?.message?.content ?? '';
+        if (j.usage) usage = j.usage;
       } catch { /* partial keep-alive line */ }
     }
     if (!out) throw new Error(`LLM unparseable response: ${text.slice(0, 200)}`);
+    if (usage) recordUsage('llm', { model: body.model, promptTokens: usage.prompt_tokens, completionTokens: usage.completion_tokens });
     return out;
   }
 }
@@ -214,7 +221,7 @@ function offlineScript(sourceText, { title, sceneCount, wordsPerScene, structure
 // Spoken words(-as-written-tokens) per second by language — Vietnamese "words" are syllables,
 // so neural voices land near the reference channel's ~270 syllables/min. Undershooting this
 // (the old flat 2.6) produced scenes that ran seconds shorter than their slot.
-const LANG_WPS = { vi: 4.4, en: 2.6, ja: 3.4, ko: 3.1, zh: 3.4, ru: 2.4 };
+export const LANG_WPS = { vi: 4.4, en: 2.6, ja: 3.4, ko: 3.1, zh: 3.4, ru: 2.4 };
 const LANG_NAME = { vi: 'tiếng Việt', en: 'English (US)', ja: '日本語', ko: '한국어', zh: '中文', ru: 'русский' };
 function scriptLang(config, sourceText) {
   const c = String(config?.language || '').toLowerCase();
@@ -226,9 +233,20 @@ function wordBudgetNote(wordsPerScene) {
   return `mỗi cảnh ${wordsPerScene - 3}–${wordsPerScene + 5} từ (mục tiêu ~${wordsPerScene}; TTS đọc nhanh hơn bạn nghĩ — viết ĐỦ chữ, tuyệt đối không cụt ngủn dưới ${wordsPerScene - 3} từ)`;
 }
 
+// Additive Show-Bible block (channel persona + anti-repeat ledger). Purely appended to
+// prompts — never restructures the JSON schema or touches the scene-count guard (P4).
+function bibleBlock(memory) {
+  if (!memory) return '';
+  const lines = [];
+  if ((memory.bible || '').trim()) lines.push(`BỐI CẢNH KÊNH (Show Bible — giữ đúng bản sắc, không đọc nguyên văn): ${memory.bible.trim().slice(0, 800)}`);
+  const recent = (memory.topics || []).slice(-10).map((t) => t.t).filter(Boolean);
+  if (recent.length) lines.push(`Các video gần đây của kênh (TRÁNH lặp lại nội dung/góc tiếp cận): ${recent.join('; ')}`);
+  return lines.length ? `\n${lines.join('\n')}` : '';
+}
+
 // Public: generate a full script for a project.
-// input: { topic, inputType, config }
-export async function generateScript({ topic, inputType, fetched, config, ai }) {
+// input: { topic, inputType, config, memory? (channel Show Bible) }
+export async function generateScript({ topic, inputType, fetched, config, ai, memory = null }) {
   const llm = ai?.llm || null;
   const sceneDuration = config.sceneDuration || 7;
   const videoDuration = config.videoDuration || 60;
@@ -260,7 +278,7 @@ export async function generateScript({ topic, inputType, fetched, config, ai }) 
   if (llmEnabled(llm)) {
     try {
       if (videoDuration >= 180) {
-        return await twoStageScript({ sourceText, title, sceneCount, wordsPerScene, videoDuration, language, llm });
+        return await twoStageScript({ sourceText, title, sceneCount, wordsPerScene, videoDuration, language, llm, memory });
       }
       const hf = (config.visualMode === 'hyperframe');
       const sys = hf
@@ -274,13 +292,13 @@ Yêu cầu cho "visualPrompt" — mô tả BRIEF cho một cảnh INFOGRAPHIC ch
 CẤM: "display text", layout tĩnh, mô tả mơ hồ, bịa chữ, chèn tiếng Anh vào video tiếng Việt.`;
       const usr = `Tạo kịch bản video từ nội dung sau. Xuất JSON dạng {"title":"...","scenes":[{"voice":"lời thoại đọc","visualPrompt":"${hf ? 'cinematic motion-graphics description in English' : 'mô tả hình ảnh tiếng Anh'}","keywords":["..."]}]}.
 Yêu cầu: PHẢI tạo ĐÚNG ${sceneCount} cảnh (video ${videoDuration}s cần đủ ${sceneCount} cảnh — trả thiếu cảnh là sai đề bài), ${wordBudgetNote(wordsPerScene)}, giọng tự nhiên${language === 'vi' ? ', xưng hô cố định "mình – các bạn"' : ''}, toàn bộ lời thoại bằng ${LANG_NAME[language] || language}.
-Cảnh mở đầu là HOOK theo công thức NỖI ĐAU → LỜI HỨA: 1-2 câu gọi đúng vấn đề người xem đang gặp, rồi hứa lợi ích cụ thể (có con số/khung thời gian) khi xem hết video. Cảnh cuối chốt giá trị + kêu gọi đăng ký + một câu hỏi cụ thể mời trả lời dưới comment.${hf ? hfVisualRules : ''}
+Cảnh mở đầu là HOOK theo công thức NỖI ĐAU → LỜI HỨA: 1-2 câu gọi đúng vấn đề người xem đang gặp, rồi hứa lợi ích cụ thể (có con số/khung thời gian) khi xem hết video. Cảnh cuối chốt giá trị + kêu gọi đăng ký + một câu hỏi cụ thể mời trả lời dưới comment.${hf ? hfVisualRules : ''}${bibleBlock(memory)}
 Nội dung:\n${sourceText.slice(0, 6000)}`;
       // enforce the scene count (≥70% of target) — lazy models love returning 2 scenes for a
       // 60s brief, which silently halves the video. chatJson re-asks once on validate failure.
       const minScenes = Math.max(1, Math.ceil(sceneCount * 0.7));
       const parsed = await chatJson([{ role: 'system', content: sys }, { role: 'user', content: usr }],
-        { maxTokens: Math.min(8000, sceneCount * Math.max(130, wordsPerScene * 4) + 600), attempts: 3,
+        { maxTokens: sceneCount * Math.max(130, wordsPerScene * 4) + 600, attempts: 3,
           validate: (p) => Array.isArray(p.scenes) && p.scenes.filter((s) => s.voice || s.text).length >= minScenes, llm });
       return { title: parsed.title || title, scenes: parsed.scenes.map((s) => ({
         voice: s.voice || s.text || '', visualPrompt: s.visualPrompt || s.visual || '', keywords: s.keywords || [],
@@ -296,9 +314,9 @@ Nội dung:\n${sourceText.slice(0, 6000)}`;
 // CTA; (2) detailed narration per chapter, each chapter seeing the tail of the previous one so
 // long videos never repeat themselves. Chapters that fail fall back to the offline splitter,
 // so one bad LLM reply never sinks the whole script.
-async function twoStageScript({ sourceText, title, sceneCount, wordsPerScene, videoDuration, language = 'vi', llm }) {
+async function twoStageScript({ sourceText, title, sceneCount, wordsPerScene, videoDuration, language = 'vi', llm, memory = null }) {
   const nCh = Math.max(3, Math.min(8, Math.round(videoDuration / 150)));
-  const langLine = `Toàn bộ lời thoại bằng ${LANG_NAME[language] || language}.`;
+  const langLine = `Toàn bộ lời thoại bằng ${LANG_NAME[language] || language}.${bibleBlock(memory)}`;
   const persona = language === 'vi' ? ' Xưng hô cố định "mình – các bạn".' : '';
   const outline = await chatJson([
     { role: 'system', content: 'Bạn là đạo diễn nội dung YouTube chuyên nghiệp. Trả về JSON thuần.' },
@@ -327,7 +345,7 @@ Nội dung:\n${sourceText.slice(0, 7000)}` },
 Các ý cần phủ đủ: ${(ch.points || []).join('; ')}.${prevTail ? `\nLời thoại KẾT chương trước (để nối mạch — KHÔNG lặp lại ý đã nói): "…${prevTail}"` : ''}
 Viết lời thoại chi tiết, tự nhiên như đang trò chuyện, có ví dụ cụ thể, không lặp tiêu đề chương.${persona}
 Xuất JSON {"scenes":[{"voice":"1-2 câu"}]} — PHẢI trả ĐÚNG ${perCh} phần tử (thiếu là sai đề bài), ${wordBudgetNote(wordsPerScene)}.` },
-      ], { maxTokens: Math.min(8000, perCh * Math.max(130, wordsPerScene * 4) + 400), attempts: 3,
+      ], { maxTokens: perCh * Math.max(130, wordsPerScene * 4) + 400, attempts: 3,
         validate: (p) => Array.isArray(p.scenes) && p.scenes.filter((s) => s.voice || s.text).length >= Math.max(1, Math.ceil(perCh * 0.6)), llm });
       const chScenes = det.scenes.map((s) => ({
         voice: s.voice || s.text || '', visualPrompt: (s.voice || '').slice(0, 90), keywords: topNouns(s.voice || '', 3),
@@ -360,18 +378,41 @@ export async function generateKeywords(topic) {
   return topNouns(topic, 6);
 }
 
+// Metadata 2.0 — per-platform SEO through the robust chatJson machinery. The returned
+// object keeps the OLD flat shape ({title, description, hashtags}) for every existing
+// consumer, and adds `platforms` with the full per-platform payload + pinnedComment.
 export async function generateMetadata(project, stylePrompt, { ai } = {}) {
   const llm = ai?.llm || null;
   const title = project?.title || project?.topic || 'Video';
   if (llmEnabled(llm)) {
     try {
-      const out = await chat([
-        { role: 'system', content: 'Trả về JSON thuần.' },
-        { role: 'user', content: `${stylePrompt || 'Tạo metadata mạng xã hội.'}\nXuất JSON {"title":"","description":"","hashtags":["#..."]}. Chủ đề: ${title}` },
-      ], { json: true, llm });
-      const p = safeJson(out, null);
-      if (p && p.title) return p;
-    } catch { /* ignore */ }
+      const p = await chatJson([
+        { role: 'system', content: 'Bạn là chuyên gia SEO YouTube/Shorts/TikTok. Trả về JSON thuần.' },
+        { role: 'user', content: `${stylePrompt || ''}
+Tạo metadata đa nền tảng cho video "${title}".
+Xuất JSON:
+{"youtube":{"title":"giật tít ≤100 ký tự, CHỨA từ khoá chính của chủ đề","description":"2-4 đoạn; 2 dòng đầu chứa từ khoá (phần hiển thị trước 'xem thêm'); kết bằng 3-5 hashtag","tags":["10-15 tag tìm kiếm, không dấu #"],"pinnedComment":"1 câu hỏi ghim mời người xem bình luận"},
+"shorts":{"title":"≤60 ký tự","hashtags":["#shorts","#..."]},
+"tiktok":{"title":"≤80 ký tự dạng câu móc","hashtags":["#..."]}}` },
+      ], { attempts: 2, llm, validate: (x) => typeof x?.youtube?.title === 'string' && x.youtube.title.length > 3 });
+      const yt = p.youtube;
+      // keyword guard: the SEO title must still carry a content word of the real topic —
+      // a clickbait rewrite that drops the topic entirely gets the topic prefixed back
+      const kws = topNouns(title, 3);
+      const flat = (s) => String(s || '').toLowerCase();
+      let seoTitle = String(yt.title).slice(0, 100);
+      if (kws.length && !kws.some((k) => flat(seoTitle).includes(flat(k)))) {
+        seoTitle = `${title.slice(0, 60)} — ${seoTitle}`.slice(0, 100);
+      }
+      const hashtags = (p.shorts?.hashtags?.length ? p.shorts.hashtags : (yt.tags || []).map((t) => '#' + String(t).replace(/^#/, '').replace(/\s+/g, ''))).slice(0, 12);
+      return {
+        title: seoTitle,
+        description: String(yt.description || ''),
+        hashtags,
+        pinnedComment: yt.pinnedComment || '',
+        platforms: p,
+      };
+    } catch { /* fall through to offline */ }
   }
   const tags = topNouns(title, 8).map((w) => '#' + w.replace(/\s+/g, ''));
   return {

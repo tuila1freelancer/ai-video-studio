@@ -1,6 +1,6 @@
 import { $, $$, el, esc, badgeText, statusIcon } from '../ui/dom.js';
 import { toast } from '../ui/toast.js';
-import { api, fileUrl, WS } from '../api.js';
+import { api, fileUrl, withLock, WS } from '../api.js';
 import { state } from '../state.js';
 import { PIPE, PHASE_W, PHASE_ORDER, prog, resetProgress, setProgress, recomputeProgress, setStep, showOp, hideOp, appendLog } from './progress.js';
 import { renderScenes, refreshScenes, onSceneUpdate, flushSceneUpdates, selectedIds, updateSelCount, regenScene, renderScenes2 } from './scenes.js';
@@ -9,7 +9,7 @@ import { renderGallery } from './home.js';
 import { switchPage } from './nav.js';
 import { gatherConfig, applyConfig } from './config.js';
 import { openSrt } from '../features/srt.js';
-import { confirmDialog } from '../ui/dialog.js';
+import { confirmDialog, menuDialog } from '../ui/dialog.js';
 
 let ws = null;
 export function initWs() { ws = new WS(onWsMessage); }
@@ -34,20 +34,22 @@ export function initStudio() {
   const lt = $('#logToggle');
   if (lt?.firstElementChild) lt.firstElementChild.innerHTML = `${icon('book', 13)} Nhật ký xử lý`;
   $('#topic').addEventListener('input', detectType);
-  $('#btnStart').addEventListener('click', createAndStart);
+  $('#btnStart').addEventListener('click', () => withLock($('#btnStart'), createAndStart));
   $('#btnDelAll').addEventListener('click', async () => {
     const ok = await confirmDialog({ title: 'Xoá tất cả dự án?', body: 'Toàn bộ dự án của kênh hiện tại sẽ bị xoá khỏi danh sách.', okText: 'Xoá tất cả', danger: true });
     if (ok) { await api.del('/projects'); startNewProject(); loadProjects(); }
   });
   $('#btnStop').addEventListener('click', () => api.post(`/projects/${state.current.id}/stop`, {}));
   $('#btnResume').addEventListener('click', () => api.post(`/projects/${state.current.id}/resume`, {}));
-  $('#btnRender').addEventListener('click', () => renderScenes2('all'));
-  $('#btnRenderAll').addEventListener('click', () => renderScenes2('all'));
-  $('#btnRenderSel').addEventListener('click', () => renderScenes2('scenes', selectedIds()));
+  $('#btnRender').addEventListener('click', () => withLock($('#btnRender'), () => renderScenes2('all')));
+  $('#btnRenderAll').addEventListener('click', () => withLock($('#btnRenderAll'), () => renderScenes2('all')));
+  $('#btnRenderSel').addEventListener('click', () => withLock($('#btnRenderSel'), () => renderScenes2('scenes', selectedIds())));
   $('#btnRegenVoiceSel').addEventListener('click', () => selectedIds().forEach((id) => regenScene(id, 'voice')));
   $('#btnRegenHtmlSel').addEventListener('click', () => selectedIds().forEach((id) => regenScene(id, 'html')));
   $('#checkAll').addEventListener('change', (e) => { $$('#sceneGrid .scene').forEach((c) => { c.classList.toggle('sel', e.target.checked); c.querySelector('.chk').checked = e.target.checked; }); updateSelCount(); });
   $('#btnSrt').addEventListener('click', openSrt);
+  $('#btnRepurpose').addEventListener('click', () => withLock($('#btnRepurpose'), repurposeCurrent));
+  $('#btnPublish')?.addEventListener('click', () => withLock($('#btnPublish'), publishCurrent));
   $('#btnMeta').addEventListener('click', genMeta);
   $('#logToggle').addEventListener('click', () => { const b = $('#logBody'); const open = b.style.display !== 'none'; b.style.display = open ? 'none' : 'block'; $('#logCaret').textContent = open ? '▸' : '▾'; });
   $('#btnFetch').addEventListener('click', fetchLink);
@@ -76,6 +78,46 @@ export function renderProjectList() {
   });
 }
 
+// Clone the current project into another aspect ratio: voice + captions are reused
+// verbatim, layouts reflow, every scene re-renders. Opens the derived project.
+async function repurposeCurrent() {
+  if (!state.current) { toast('Mở một dự án trước đã.', 'error'); return; }
+  const cur = state.current.aspect_ratio;
+  const names = { '9:16': '📱 Dọc 9:16 (Shorts/TikTok)', '16:9': '🖥 Ngang 16:9 (YouTube)', '1:1': '⬛ Vuông 1:1', '4:5': '📐 4:5 (Feed)' };
+  const items = ['9:16', '16:9', '1:1', '4:5'].filter((r) => r !== cur).map((r) => ({ id: r, label: names[r] }));
+  const pick = await menuDialog({ title: 'Đổi sang tỉ lệ khung nào?', items });
+  if (!pick) return;
+  try {
+    const r = await api.post(`/projects/${state.current.id}/repurpose`, { aspectRatio: pick });
+    toast(`Đã tạo bản ${pick} — giữ giọng đọc, đang dàn lại bố cục 🎬`, 'success');
+    await loadProjects();
+    await openProject(r.project.id);
+  } catch (e) { toast('Lỗi đổi tỉ lệ: ' + e.message, 'error'); }
+}
+
+// Manual publish — always an explicit choice; 'Riêng tư' (staging) is the safe default.
+async function publishCurrent() {
+  if (!state.current) return;
+  const pick = await menuDialog({
+    title: '📤 Đăng YouTube — chế độ hiển thị?',
+    items: [
+      { id: 'private', label: '🔒 Riêng tư (kiểm tra trước — khuyên dùng)' },
+      { id: 'unlisted', label: '🔗 Không công khai (ai có link mới xem)' },
+      { id: 'public', label: '🌐 Công khai ngay', danger: true },
+    ],
+  });
+  if (!pick) return;
+  if (pick === 'public') {
+    const ok = await confirmDialog({ title: 'Đăng CÔNG KHAI ngay?', body: 'Video sẽ hiển thị với mọi người trên kênh. Bạn chắc chứ?', okText: 'Đăng công khai', danger: true });
+    if (!ok) return;
+  }
+  toast('📤 Đang tải lên YouTube…', 'success');
+  try {
+    const r = await api.post(`/projects/${state.current.id}/publish`, { platform: 'youtube', privacy: pick });
+    toast(`✅ Đã đăng (${pick}): ${r.url}`, 'success');
+  } catch (e) { toast('Lỗi đăng: ' + e.message, 'error'); }
+}
+
 export function startNewProject() {
   state.current = null; state.scenes = []; state.assets = [];
   $('#welcome').classList.remove('hidden');
@@ -84,16 +126,27 @@ export function startNewProject() {
   renderProjectList();
 }
 
+// Module-level in-flight guard: createAndStart is reachable from two buttons (#btnStart and
+// the home hero) — whichever fires second must be a no-op, never a duplicate project.
+let creating = false;
 export async function createAndStart() {
+  if (creating) return;
   const topic = $('#topic').value.trim();
   if (!topic) { toast('Nhập chủ đề trước đã.', 'error'); return; }
-  resetProgress();
-  const config = gatherConfig();
-  const { project } = await api.post('/projects', { topic, config });
-  await loadProjects();
-  await openProject(project.id);
-  await api.post(`/projects/${project.id}/start`, { config });
-  toast('Đã bắt đầu pipeline 🚀', 'success');
+  creating = true;
+  try {
+    resetProgress();
+    const config = gatherConfig();
+    const { project } = await api.post('/projects', { topic, config });
+    await loadProjects();
+    await openProject(project.id);
+    await api.post(`/projects/${project.id}/start`, { config });
+    toast('Đã bắt đầu pipeline 🚀', 'success');
+  } catch (e) {
+    toast(`Không tạo được video: ${e.message}`, 'error');
+  } finally {
+    creating = false;
+  }
 }
 
 export async function openProject(id) {
@@ -117,7 +170,7 @@ export function renderProjectView() {
   $('#pvAr').textContent = p.aspect_ratio;
   $('#pvDate').textContent = new Date(p.updated_at).toLocaleString('vi-VN');
   $('#btnStop').classList.toggle('hidden', p.status !== 'running');
-  $('#btnResume').classList.toggle('hidden', p.status !== 'paused' && p.status !== 'error');
+  $('#btnResume').classList.toggle('hidden', !['paused', 'error', 'review'].includes(p.status));
   // reset pipeline visuals from scene statuses
   resetPipeFromState();
   renderScenes();
@@ -163,6 +216,14 @@ async function genMeta() {
 function onWsMessage(m) {
   if (m.type === '_status') { state.wsOpen = m.open; $('#wsDot').textContent = m.open ? '● realtime' : '● offline'; $('#wsDot').classList.toggle('on', m.open); return; }
   if (!state.current || (m.projectId && m.projectId !== state.current.id)) return;
+  if (m.type === 'replay') {
+    // buffered feed replayed on (re)subscribe: a page reload mid-run catches up instantly.
+    // 'op' spam is skipped except the last one (only the current activity line matters).
+    const events = m.events || [];
+    const lastOp = events.map((e, i) => (e.type === 'op' ? i : -1)).reduce((a, b) => Math.max(a, b), -1);
+    events.forEach((e, i) => { if (e.type !== 'op' || i === lastOp) onWsMessage(e); });
+    return;
+  }
   switch (m.type) {
     case 'step':
       flushSceneUpdates(); // coalesced patches must land before step transitions

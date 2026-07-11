@@ -4,6 +4,7 @@ import multer from 'multer';
 import { existsSync, statSync, mkdirSync, unlinkSync, renameSync } from 'node:fs';
 import { join, resolve, extname, basename } from 'node:path';
 import * as DB from '../db/index.js';
+import { hub } from '../ws/hub.js';
 import { DIRS, PATHS, depStatus } from '../config/paths.js';
 import { logger } from '../util/log.js';
 import { detectInputType, newId, ratioToSize, wordCount } from '../util/util.js';
@@ -105,6 +106,29 @@ export function mountRoutes(app, { version }) {
     try { DB.deleteChannel(req.params.id); res.json({ ok: true }); }
     catch (e) { res.status(400).json({ error: e.message }); }
   });
+  // Persistent brand kit: save a style guide as the CHANNEL's canonical guide — every new
+  // project inherits it through the config merge (resolveProjectConfig → resolveGuide).
+  // normalizeGuide runs server-side, so the WCAG contrast lock is enforced at save time.
+  r.post('/channels/:id/style-guide', async (req, res) => {
+    const ch = DB.getChannel(req.params.id);
+    if (!ch) return res.status(404).json({ error: 'not found' });
+    const { normalizeGuide } = await import('../styleguide/index.js');
+    const guide = normalizeGuide(req.body?.guide || {});
+    const config = { ...(ch.config || {}), hyperframe: { ...(ch.config?.hyperframe || {}), guide } };
+    DB.updateChannel(ch.id, { config });
+    res.json({ ok: true, guide });
+  });
+
+  // Show Bible: owner-editable channel context + the anti-repeat topic ledger
+  r.get('/channels/:id/memory', (req, res) => {
+    if (!DB.getChannel(req.params.id)) return res.status(404).json({ error: 'not found' });
+    res.json(DB.getChannelMemory(req.params.id));
+  });
+  r.put('/channels/:id/memory', (req, res) => {
+    if (!DB.getChannel(req.params.id)) return res.status(404).json({ error: 'not found' });
+    res.json(DB.setChannelBible(req.params.id, req.body?.bible || ''));
+  });
+
   r.post('/channels/:id/activate', (req, res) => {
     DB.setActiveChannel(req.params.id);
     res.json({ ok: true, active: DB.activeChannelId() });
@@ -185,17 +209,30 @@ export function mountRoutes(app, { version }) {
   r.delete('/projects/:id', (req, res) => { DB.deleteProject(req.params.id); res.json({ ok: true }); });
   r.delete('/projects', (req, res) => { DB.deleteAllProjects(); res.json({ ok: true }); });
 
-  // ---- full-video SRT export (all scene cues shifted to video timeline) ----
+  // ---- full-video SRT export (all scene cues shifted to the FINAL video timeline) ----
+  // Accounts for the image-mode intro card and per-junction xfade overlaps, so exported
+  // cues match the finished file instead of drifting late on long transitions videos.
   r.get('/projects/:id/srt', async (req, res) => {
     const p = DB.getProject(req.params.id);
     if (!p) return res.status(404).json({ error: 'not found' });
     const { buildSrt, shiftCues } = await import('../pipeline/srt.js');
+    const cfg = p.config || {};
     const scenes = DB.getScenes(p.id);
-    let acc = 0; const all = [];
+    const visualMode = cfg.visualMode || 'animation';
+    const introDur = visualMode === 'image' && cfg.intro !== false ? 2.6 : 0;
+    // clip list mirrors finalize: [intro card?] scenes… (outro comes after all cues)
+    const clipCount = scenes.length + (introDur ? 1 : 0)
+      + (visualMode !== 'image' ? (cfg.outro !== false ? 1 : 0) : (cfg.outro !== false ? 1 : 0));
+    const TD = 0.5;
+    const useXfade = cfg.transitions === true && clipCount > 1 && clipCount <= 24;
+    let acc = introDur; // scene 0 starts after the intro card (if any)
+    let ordinal = introDur ? 1 : 0; // this scene's index in the clip list
+    const all = [];
     for (const sc of scenes) {
-      const d = Math.max(1.5, sc.duration || (p.config?.sceneDuration || 6));
-      if (Array.isArray(sc.srt_json)) all.push(...shiftCues(sc.srt_json, acc));
-      acc += d;
+      const d = Math.max(1.5, sc.duration || (cfg.sceneDuration || 6));
+      const start = acc - (useXfade ? TD * ordinal : 0);
+      if (Array.isArray(sc.srt_json)) all.push(...shiftCues(sc.srt_json, Math.max(0, start)));
+      acc += d; ordinal++;
     }
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="subtitles.srt"`);
@@ -229,6 +266,115 @@ export function mountRoutes(app, { version }) {
     res.json({ ok: true });
   });
 
+  // ---- self-serve diagnostics bundle (masked, P14) ----
+  r.get('/projects/:id/diagnostics', async (req, res) => {
+    try {
+      const { buildDiagnostics } = await import('../pipeline/diagnostics.js');
+      res.json(buildDiagnostics(req.params.id));
+    } catch (e) { res.status(e.message === 'project not found' ? 404 : 500).json({ error: e.message }); }
+  });
+
+  // ---- usage / cost meter (estimates, labeled "ước tính") ----
+  r.get('/usage', (req, res) => {
+    if (req.query.projectId) return res.json({ usage: DB.usageForProject(String(req.query.projectId)) });
+    res.json({ summary: DB.usageSummary({ limit: Math.min(100, parseInt(req.query.limit, 10) || 30) }) });
+  });
+
+  // ---- trend autopilot + content calendar + ops dashboard ----
+  r.post('/topics/suggest', async (req, res) => {
+    try {
+      const { suggestTopics } = await import('./services/topic-autopilot.js');
+      const channel = DB.getChannel(DB.activeChannelId());
+      const { aiSettingsFor } = await import('../core/config.js');
+      res.json(await suggestTopics({ channelId: channel?.id, niche: String(req.body?.niche || ''), count: Math.min(12, parseInt(req.body?.count, 10) || 8), ai: aiSettingsFor(channel) }));
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+  r.get('/calendar', (req, res) => res.json({ slots: DB.listSlots() }));
+  r.post('/calendar', (req, res) => {
+    try {
+      const channel = DB.getChannel(DB.activeChannelId());
+      res.json({ slot: DB.addSlot({ channelId: channel?.id || null, topic: req.body?.topic, config: req.body?.config || {}, dueAt: +req.body?.dueAt }) });
+    } catch (e) { res.status(400).json({ error: e.message }); }
+  });
+  r.delete('/calendar/:id', (req, res) => res.json({ ok: DB.cancelSlot(req.params.id) > 0 }));
+  r.get('/dashboard', (req, res) => {
+    const projects = DB.listProjects();
+    const byStatus = projects.reduce((a, p) => { a[p.status] = (a[p.status] || 0) + 1; return a; }, {});
+    res.json({
+      projects: { total: projects.length, byStatus },
+      jobs: DB.listJobs({ limit: 20 }),
+      usage: DB.usageSummary({ limit: 10 }),
+      calendar: DB.listSlots({ includeDone: false }).slice(0, 10),
+    });
+  });
+
+  // ---- publisher (B9 scaffold): OAuth loopback + manual publish (staging default) ----
+  r.get('/publish/status', async (req, res) => {
+    const { publisherStatus } = await import('../publish/index.js');
+    res.json({ platforms: publisherStatus() });
+  });
+  r.post('/publish/youtube/auth-url', async (req, res) => {
+    try {
+      const { getPublisher } = await import('../publish/index.js');
+      const redirectUri = `${req.protocol}://${req.get('host')}/api/publish/youtube/callback`;
+      res.json({ url: getPublisher('youtube').authUrl({ clientId: req.body?.clientId, clientSecret: req.body?.clientSecret, redirectUri }) });
+    } catch (e) { res.status(400).json({ error: e.message }); }
+  });
+  r.get('/publish/youtube/callback', async (req, res) => {
+    try {
+      const { getPublisher } = await import('../publish/index.js');
+      const redirectUri = `${req.protocol}://${req.get('host')}/api/publish/youtube/callback`;
+      await getPublisher('youtube').exchangeCode(String(req.query.code || ''), redirectUri);
+      res.send('<meta charset="utf-8"><body style="font-family:sans-serif;background:#0b1020;color:#eaf2ff;display:grid;place-items:center;height:100vh"><div>✅ Đã kết nối YouTube — bạn có thể đóng tab này.</div></body>');
+    } catch (e) { res.status(400).send(`OAuth lỗi: ${e.message}`); }
+  });
+  // Manual publish — an EXPLICIT user action; privacy defaults to 'private' (staging)
+  r.post('/projects/:id/publish', async (req, res) => {
+    try {
+      const p = DB.getProject(req.params.id);
+      if (!p) return res.status(404).json({ error: 'not found' });
+      if (!p.video_path || !existsSync(p.video_path)) return res.status(400).json({ error: 'video chưa render xong' });
+      const { getPublisher } = await import('../publish/index.js');
+      const pub = getPublisher(req.body?.platform || 'youtube');
+      if (!pub.connected()) return res.status(400).json({ error: 'chưa kết nối OAuth — vào Cài đặt → Đăng video' });
+      const privacy = ['private', 'unlisted', 'public'].includes(req.body?.privacy) ? req.body.privacy : 'private';
+      const md = p.metadata || {};
+      const recId = DB.recordPublish({ projectId: p.id, platform: pub.id, privacy });
+      const out = await pub.upload({
+        videoPath: p.video_path, title: md.title || p.title, description: md.description || '',
+        tags: (md.platforms?.youtube?.tags || md.hashtags || []).map((t) => String(t).replace(/^#/, '')),
+        privacy, thumbPath: p.thumb_path && existsSync(p.thumb_path) ? p.thumb_path : null,
+      });
+      DB.settlePublish(recId, { status: 'done', videoId: out.videoId, url: out.url });
+      res.json({ ok: true, ...out });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+  r.get('/projects/:id/publishes', (req, res) => res.json({ publishes: DB.listPublishes(req.params.id) }));
+
+  // ---- multi-aspect repurposing (16:9 <-> 9:16, no crop — full reflow re-render) ----
+  r.post('/projects/:id/repurpose', async (req, res) => {
+    try {
+      const { repurposeProject } = await import('../pipeline/repurpose.js');
+      const out = await repurposeProject(req.params.id, { aspectRatio: req.body?.aspectRatio });
+      // start the derived render as a resume run: voice/captions are already attached,
+      // so only visuals-for-dropped-scenes + the full re-render actually execute
+      Pipeline.startProject(out.project.id, { resume: true }).catch((e) => logger.error(e.message, { projectId: out.project.id }));
+      res.json(out);
+    } catch (e) { res.status(400).json({ error: e.message }); }
+  });
+
+  // ---- durable job queue (run history + cancel) ----
+  r.get('/jobs', (req, res) => {
+    res.json({ jobs: DB.listJobs({ limit: Math.min(200, parseInt(req.query.limit, 10) || 50) }) });
+  });
+  r.get('/projects/:id/jobs', (req, res) => {
+    res.json({ jobs: DB.listJobs({ projectId: req.params.id, limit: 50 }) });
+  });
+  r.post('/jobs/:id/cancel', (req, res) => {
+    const n = DB.cancelJob(req.params.id); // queued only — a running job stops via /stop
+    res.json({ ok: true, cancelled: n > 0 });
+  });
+
   // ---- animation mode ----
   r.get('/animation/templates', async (req, res) => {
     const { listTemplates } = await import('../animation/index.js');
@@ -260,8 +406,9 @@ export function mountRoutes(app, { version }) {
       const { buildSceneHtml } = await import('../animation/index.js');
       const audioUrl = sc.audio_path && existsSync(sc.audio_path)
         ? `/api/file?path=${encodeURIComponent(sc.audio_path)}` : null;
+      // ?live=0: the rough-cut player drives __init/__seek itself — no tap-to-play overlay
       const html = buildSceneHtml(sc, p, p.config || {}, {
-        live: true, liveAudioUrl: audioUrl,
+        live: req.query.live !== '0', liveAudioUrl: req.query.live !== '0' ? audioUrl : null,
         progressStart: 0, progressTotal: Math.max(1, sc.duration || 6),
         durationOverride: Math.max(1.5, sc.duration || 6),
       });
@@ -284,7 +431,89 @@ export function mountRoutes(app, { version }) {
   });
 
   // ---- scenes ----
-  r.put('/scenes/:id', (req, res) => res.json({ scene: DB.updateScene(req.params.id, req.body || {}) }));
+  r.put('/scenes/:id', (req, res) => {
+    // Edit-aware invalidation: a USER edit through this route marks downstream artifacts
+    // stale, so the next resume/render redoes exactly the touched scene (content-hash
+    // resume then keeps everything else). Pipeline stages write via DB directly.
+    const body = { ...(req.body || {}) };
+    const before = DB.getScene(req.params.id);
+    if (!before) return res.status(404).json({ error: 'not found' });
+    // Cue-schema validation (P11): srt_json feeds karaoke AND hyperframe beat extraction —
+    // a malformed edit must be rejected here, never persisted.
+    if ('srt_json' in body && body.srt_json != null) {
+      const cues = body.srt_json;
+      const ok = Array.isArray(cues) && cues.every((c) => c && Number.isFinite(+c.start) && Number.isFinite(+c.end)
+        && +c.end > +c.start && typeof c.text === 'string'
+        && Array.isArray(c.words) && c.words.every((w) => w && Number.isFinite(+w.start) && Number.isFinite(+w.end) && typeof w.word === 'string'));
+      if (!ok) return res.status(400).json({ error: 'srt_json sai cấu trúc cue ({start,end,text,words[]})' });
+    }
+    const changed = (k) => k in body && JSON.stringify(body[k]) !== JSON.stringify(before[k]);
+    if (changed('voice_text')) {
+      // new narration → old audio, captions and clip are all stale
+      body.audio_path = null; body.srt_json = null; body.srt_path = null; body.video_path = null;
+      body.fp = { ...(before.fp || {}), tts: null, render: null };
+    } else if (changed('visual_prompt') || changed('template') || changed('props') || changed('srt_json')) {
+      body.video_path = null; // visuals/captions changed → clip is stale (audio still good)
+      body.fp = { ...(before.fp || {}), render: null, ...(changed('visual_prompt') ? { img: null } : {}) };
+    }
+    res.json({ scene: DB.updateScene(req.params.id, body) });
+  });
+  // ---- timeline waveform lane (read-only; peaks are numbers, not file contents) ----
+  r.get('/scenes/:id/waveform', async (req, res) => {
+    try {
+      const sc = DB.getScene(req.params.id);
+      if (!sc) return res.status(404).json({ error: 'not found' });
+      if (!sc.audio_path || !existsSync(sc.audio_path)) return res.json({ peaks: [], duration: sc.duration || 0 });
+      const { audioPeaks } = await import('../media/waveform.js');
+      res.json(await audioPeaks(sc.audio_path, { buckets: Math.min(1000, parseInt(req.query.buckets, 10) || 240) }));
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  // ---- multi-take history ----
+  r.get('/scenes/:id/takes', (req, res) => {
+    if (!DB.getScene(req.params.id)) return res.status(404).json({ error: 'not found' });
+    res.json({ takes: DB.listTakes(req.params.id, req.query.kind || null) });
+  });
+  r.post('/takes/:id/activate', (req, res) => {
+    try {
+      const scene = DB.activateTake(req.params.id);
+      hub.toProject(scene.project_id, { type: 'scene', sceneId: scene.id, idx: scene.idx, status: scene.status });
+      res.json({ scene });
+    } catch (e) { res.status(404).json({ error: e.message }); }
+  });
+
+  // Re-time the captions to the CURRENT script text on the EXISTING audio (align engine —
+  // no re-synthesis, no cost). Used by the subtitle studio's "resync" action.
+  r.post('/scenes/:id/resync-subs', async (req, res) => {
+    try {
+      const sc = DB.getScene(req.params.id);
+      if (!sc) return res.status(404).json({ error: 'not found' });
+      if (!sc.audio_path || !existsSync(sc.audio_path)) return res.status(400).json({ error: 'cảnh chưa có audio' });
+      const p = DB.getProject(sc.project_id);
+      const { buildSubtitles } = await import('../providers/subtitle.js');
+      const channel = DB.channelOf(p.id);
+      const { aiSettingsFor } = await import('../core/config.js');
+      const lang = (p.config || {}).language;
+      const padMs = /[ạảãàáâậầấẩẫăắằẳẵặđ]/i.test(sc.voice_text || '') ? 650 : 400;
+      const speechDur = Math.max(0.3, (sc.duration || 0) - padMs / 1000);
+      const sub = await buildSubtitles(sc.audio_path, sc.voice_text || '', speechDur, { language: lang, engine: aiSettingsFor(channel).subtitle?.engine });
+      const scene = DB.updateScene(sc.id, { srt_json: sub.cues, video_path: null }); // captions changed → clip stale
+      res.json({ scene });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  // ---- per-scene review gate (rough-cut player chips) ----
+  r.post('/scenes/:id/review', (req, res) => {
+    const sc = DB.getScene(req.params.id);
+    if (!sc) return res.status(404).json({ error: 'not found' });
+    try {
+      const review = DB.setSceneReview(sc.id, sc.project_id, { status: req.body?.status, note: req.body?.note });
+      hub.toProject(sc.project_id, { type: 'review', sceneId: sc.id, idx: sc.idx, status: review.status });
+      res.json({ review });
+    } catch (e) { res.status(400).json({ error: e.message }); }
+  });
+  r.get('/projects/:id/reviews', (req, res) => res.json({ reviews: DB.listReviews(req.params.id) }));
+
   r.post('/scenes/:id/regen-voice', (req, res) => {
     Pipeline.regenScene(req.params.id, 'voice').catch((e) => logger.error(e.message));
     res.json({ ok: true });

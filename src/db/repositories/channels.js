@@ -122,3 +122,30 @@ export function updatePreset(id, fields) {
   return getPreset(id);
 }
 export function deletePreset(id) { db.prepare('DELETE FROM channel_presets WHERE id=?').run(id); }
+
+// ---- Show Bible / channel memory ----------------------------------------------------
+// One row per channel: an owner-editable "bible" block injected into script generation,
+// plus a rolling anti-repeat ledger of recent video topics (deterministic write-back —
+// runner appends after each finished video, best-effort).
+export function getChannelMemory(channelId) {
+  if (!channelId) return { bible: '', topics: [] };
+  const r = db.prepare('SELECT * FROM channel_memory WHERE channel_id=?').get(channelId);
+  return { bible: r?.bible || '', topics: safeJson(r?.topics, []) };
+}
+
+export function setChannelBible(channelId, bible) {
+  const cur = getChannelMemory(channelId);
+  db.prepare(`INSERT INTO channel_memory(channel_id,bible,topics,updated_at) VALUES(?,?,?,?)
+    ON CONFLICT(channel_id) DO UPDATE SET bible=excluded.bible, updated_at=excluded.updated_at`)
+    .run(channelId, String(bible || '').slice(0, 4000), JSON.stringify(cur.topics), Date.now());
+  return getChannelMemory(channelId);
+}
+
+export function appendChannelTopic(channelId, title) {
+  if (!channelId || !String(title || '').trim()) return;
+  const cur = getChannelMemory(channelId);
+  const topics = [...cur.topics, { t: String(title).slice(0, 120), at: Date.now() }].slice(-40);
+  db.prepare(`INSERT INTO channel_memory(channel_id,bible,topics,updated_at) VALUES(?,?,?,?)
+    ON CONFLICT(channel_id) DO UPDATE SET topics=excluded.topics, updated_at=excluded.updated_at`)
+    .run(channelId, cur.bible, JSON.stringify(topics), Date.now());
+}

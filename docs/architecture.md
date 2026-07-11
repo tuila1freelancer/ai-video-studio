@@ -8,10 +8,10 @@
 
 AI Video Studio is a macOS app that generates videos automatically: enter a topic → generate script (LLM) → voiceover + subtitles → build per-scene motion graphics → render → concat + mix → QC. There is no build step and no FE framework.
 
-- **Stack**: Pure Node.js 22 ESM. `express` (REST) + `ws` (realtime progress) + `better-sqlite3` (persistence) + `puppeteer-core` (render HTML→frame) + `ffmpeg`/`ffprobe` (media) + `whisper-cli` (subtitles). The FE is vanilla ESM in `public/js/`.
-- **Entry**: `src/server.js` → mounts REST (`api/routes.js`) + WebSocket hub + static SPA.
-- **Scale**: ~131 files, ~15.7k lines (src ~8.6k). Line-count details in §8.
-- **Pipeline (step codes used throughout the codebase)**: `B2` script → `B34` TTS+SRT → `B5` visuals → `B6` scene render → `B7` concat/mix → `B8` QC gate.
+- **Stack**: Pure Node.js 22 ESM. `express` (REST) + `ws` (realtime progress, replay buffer + heartbeat) + `better-sqlite3` (persistence, versioned migrations) + `puppeteer-core` (render HTML→frame) + `ffmpeg`/`ffprobe` (media) + `whisper-cli` (subtitles, forced alignment). The FE is vanilla ESM in `public/js/`.
+- **Entry**: `src/server.js` → cost-meter subscribe → zombie/job recovery → scheduler start → REST (`api/routes.js`) + WebSocket hub + static SPA.
+- **Pipeline (step codes used throughout the codebase)**: `B2` script → `b2.5` editorial gate → `B34` TTS+SRT → `B5` visuals → `B6` scene render → *(review gate)* → `B7` concat/mix + master → `B8` QC gate → metadata → `B9` publish (opt-in).
+- **Orchestration**: REST enqueues durable jobs (`jobs` table) → `pipeline/scheduler.js` single-tick loop claims per-kind lanes → executors (`runPipeline`/`renderOnly`); `pipeline/governor.js` counting semaphores bound Chrome+ffmpeg across ALL concurrent runs; the content calendar promotes due slots on the same tick.
 
 Two visual modes run in parallel; this is the crux of the entire architecture:
 - **animation mode** — the planner picks 1 prebuilt motion-graphics template for each scene (`src/animation/`).
@@ -188,6 +188,30 @@ Rationale for each layer:
 
 ---
 
+## 5b. Upgrade-v3 module map (what was added on top of the v2 refactor)
+
+| Concern | Module(s) |
+|---|---|
+| Versioned migrations + auto-backup | `db/migrate.js` (PRAGMA user_version; backups in `data/backups/`) |
+| Durable job queue / scheduler / governor | `db/repositories/jobs.js` · `pipeline/scheduler.js` · `pipeline/governor.js` (flag: `settings.queue.durable`) |
+| Content-hash resume (edit-aware) | `pipeline/fingerprint.js` (+ `scenes.fp`; PUT /scenes/:id invalidation) |
+| Cost meter + budget guardrail | `util/usage.js` → `core/metering.js` → `db/repositories/usage.js`; `core/pricing.js` · `core/budget.js` |
+| Error taxonomy + diagnostics | `core/errors.js` · `pipeline/diagnostics.js` |
+| Broadcast master (-16 LUFS authority) | `media/master.js` (concat graph now ducks BGM via sidechain, no in-graph loudnorm) |
+| Forced-alignment subtitles | `media/align.js` + `providers/subtitle.js` engine `align` (default) + whisper `--prompt` |
+| Image provider mesh + smart prompts | `providers/imagegen.js` (openai/recraft → pollinations failover, `buildImagePromptSmart`) |
+| Beat-synced motion | `animation/templates/index.js` `accentTimes` + `ctx.accentTimes` + FX.accents/schedule |
+| VN TTS normalization + prosody | `providers/tts-normalize.js` (speak-text only; captions keep the script) |
+| Timbre-preserving voice fallback | `providers/tts.js` + `db/repositories/catalogs.js` `nearestCachedVoice` |
+| Channel guide + Show Bible | `POST /channels/:id/style-guide` · `channel_memory` + `db/repositories/channels.js` |
+| Rough-cut player / review gate / takes / subtitle studio / timeline | `public/js/views/player.js` · `db/repositories/{reviews,takes}.js` · `features/srt.js` · `media/waveform.js` |
+| Editorial gate (b2.5) | `content/scorer.js` · `pipeline/stages/editorial.js` |
+| SEO metadata 2.0 / thumbnails / outro promo | `providers/llm.js` `generateMetadata` · `pipeline/visuals.js` `buildThumbnailVariants` · `templates/cta-outro.js` |
+| Repurpose (aspect reflow) | `pipeline/repurpose.js` |
+| Publisher (B9, staging-first) | `src/publish/` · `pipeline/stages/publish.js` · `db/repositories/publishes.js` |
+| Trend autopilot + calendar + dashboard | `providers/trends.js` · `api/services/topic-autopilot.js` · `db/repositories/calendar.js` · `features/autopilot.js` |
+| Tests + CI | `tests/` (named test per P1–P15) · `.github/workflows/ci.yml` · `npm test` |
+
 ## 6. "Want to change X → go to file Y" table (will be updated to the new structure after refactor)
 
 | Want to do | Currently go to file |
@@ -222,14 +246,14 @@ Hard-won fixes proven by real testing. Refactors may **relocate** these, but mus
 | P3 | Catch **429/rate-limit BEFORE dead-key**, backoff [8s,20s,45s]×4 | `providers/llm.js:26,38–42` |
 | P4 | `minScenes ≥70%` (single) / `≥60%` (per-chapter) to guard against the model returning too few scenes | `providers/llm.js:281,331` |
 | P5 | `LANG_WPS` (vi 4.4…) — word count based on real reading speed | `providers/llm.js:217` |
-| P6 | `qc.probeStreams` strips the trailing comma from ffprobe csv; `pix_th=0.04`; `tailAllowance`; defect mapping prioritizes exact-containment | `pipeline/qc.js` |
-| P7 | TTS: an explicit `ttsOverride.provider` beats `langVoices`; voice-lock retries 3× with the same voice | `providers/tts.js` |
-| P8 | B5 hyperframe **skips a `chapter-break` scene with props** (keeps the anchor SFX); on successful codegen it sets `video_path:null` (so resume re-renders) | `pipeline/runner.js:244,247,257` |
-| P9 | loudnorm EBU R128 per-scene + `apad` by language (vi 650ms/en 400ms) | `media/ffmpeg.js:normalizeVoice`, `runner.js:146` |
-| P10 | Multi-tier self-heal: render retry → swap `kinetic-statement` template → deferred sequential → QC repair (guard `_qcAttempt<1`); auto-resume once (`_auto<1`) | `pipeline/runner.js:319–372,415–422,549–560` |
+| P6 | `qc.probeStreams` strips the trailing comma from ffprobe csv; `pix_th=0.04`; `tailAllowance`; defect mapping prioritizes exact-containment; **+v3:** `qcSceneClip` `expectVoice` flags near-silent narrated clips (mean < −50dB) | `pipeline/qc.js` |
+| P7 | TTS: an explicit `ttsOverride.provider` beats `langVoices`; voice-lock retries 3× with the same voice; **+v3:** the edge fallback lane picks `nearestCachedVoice` (timbre-preserving) | `providers/tts.js` |
+| P8 | B5 hyperframe **skips a `chapter-break` scene with props** (keeps the anchor SFX); on successful codegen it sets `video_path:null` (so resume re-renders) — take activation & repurpose do the same | `pipeline/stages/visuals.js` · `db/repositories/takes.js` · `pipeline/repurpose.js` |
+| P9 | −16 LUFS semantics + `apad` by language (vi 650ms/en 400ms). **v3 relocation:** per-scene = measured LINEAR loudnorm (`normalizeVoice`); the −16 authority for the finished file = `media/master.js` two-pass master; the concat graph carries NO loudnorm (ducking + limiter only) | `media/ffmpeg.js` · `media/master.js` · `stages/tts.js` |
+| P10 | Multi-tier self-heal: render retry → swap `kinetic-statement` template → deferred sequential → QC repair (guard `_qcAttempt<1`); auto-resume once (`_auto<1`) — **v3:** only for retryable error classes (`core/errors.js`); deterministic config/resource errors surface immediately (never fewer resumes than before) | `pipeline/runner.js` · `stages/render.js` · `stages/finalize.js` |
 | P11 | beats: `MIN_GAP=1.2 HOLD_MAX=2.6 LEAD=0.12`; filter out punctuation-only beats | `hyperframe/beats.js:61–63,137` |
 | P12 | QA/determinism `PSNR_OK=70`; `FROZEN_TAIL` when `tlDur<dur-0.4`; `SUBTITLE_COLLISION cy>0.82H` | `scripts/{determinism,hf-qa}.mjs`, `hyperframe/validate.js` |
-| P13 | recover zombie 'running'→'paused' at boot | `db/index.js:214` |
+| P13 | recover zombie 'running'→'paused' at boot; **+v3 superset:** orphaned running JOBS requeue (`requeueZombieJobs`, attempts≥2 → terminal error); the clean review hold uses a DISTINCT `'review'` status so it is never mistaken for a crash | `db/repositories/projects.js` · `db/repositories/jobs.js` |
 | P14 | mask secrets at every egress + `applyMaskedUpdate` round-trips `••` | `util/secrets.js`, `core/config.js` |
 | P15 | `/api/file` path allowlist (data/ + channel roots + app bundle read-only) | `api/routes.js:426` |
 

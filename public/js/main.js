@@ -11,12 +11,14 @@ import { initConfig, buildSubColors, updateEstimate, loadStyles, loadTemplates, 
 import { initLibrary } from './views/library.js';
 import { initBrandGen } from './views/brandgen.js';
 import { initEditVideo } from './views/editvideo.js';
+import { initPlayer } from './views/player.js';
 import { initSettings, loadVoices, loadSettings } from './features/settings.js';
 import { initVoicePicker } from './features/voicepicker.js';
 import { initChannels, loadChannels } from './features/channels.js';
 import { initBrandKit, refreshBrandSummary } from './features/brandkit.js';
 import { initSrt } from './features/srt.js';
 import { initBatch } from './features/batch.js';
+import { initAutopilot } from './features/autopilot.js';
 import { initPalette } from './ui/palette.js';
 
 init();
@@ -32,11 +34,13 @@ async function init() {
   initLibrary();
   initBrandGen();
   initEditVideo();
+  initPlayer();
   initSettings();
   initVoicePicker();
   initChannels();
   initSrt();
   initBatch();
+  initAutopilot();
   initPalette();
   buildSubColors();
   buildPipeSteps();

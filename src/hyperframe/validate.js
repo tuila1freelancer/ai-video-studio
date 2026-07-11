@@ -7,20 +7,24 @@ import { buildTemplate, makeCtx } from '../animation/templates.js';
 import { buildScenePage } from '../animation/harness.js';
 import { themeFromGuide, normalizeGuide } from '../styleguide/index.js';
 import { fold } from './beats.js';
+import { detectLang } from '../util/lang.js';
 import { getBrowser, chromeAvailable } from '../media/puppeteer.js';
 
-// Diacritic-folded content words of the narration, for the invented/wrong-language text check.
+// Diacritic-folded content words of the narration, for the wrong-language text check.
 function narrationWordSet(narration) {
   const t = (narration || '').trim();
   if (!t) return null;
   return new Set((fold(t).match(/[\p{L}\p{N}]+/gu) || []).filter((w) => w.length >= 2));
 }
-// True if the on-screen text is legitimately derived from the narration: any of its multi-letter
-// words appears in the narration, OR it is purely numeric/symbolic (48%, ×10, →).
-function textInNarration(txt, narrWords) {
+// The prompt asks the model to pick on-screen text SEMANTICALLY (not verbatim from the voice
+// line), so "not in the narration" alone is NOT a defect. What IS a defect is a LANGUAGE leak:
+// e.g. an English display headline in a Vietnamese-narrated video. Flag only when the text is
+// multi-word, shares no word with the narration, AND reads as a different language.
+function textLanguageLeak(txt, narrWords, narrLang) {
   const words = (fold(txt || '').match(/[\p{L}]+/gu) || []).filter((w) => w.length >= 3);
-  if (words.length < 2) return true; // single word / number / symbol — too little signal, don't flag
-  return words.some((w) => narrWords.has(w));
+  if (words.length < 2) return false; // single word / number / symbol — too little signal
+  if (words.some((w) => narrWords.has(w))) return false; // derived from the narration — fine
+  return detectLang(txt) !== narrLang; // semantic same-language headline — fine; leak — defect
 }
 
 // Lists every rendered foreground element (skips the background motif) with its effective
@@ -89,6 +93,7 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
     }
     const T = [...times].filter((t) => t >= 0 && t <= dur).sort((a, c) => a - c);
     const narrWords = narrationWordSet(narration);
+    const narrLang = detectLang(narration || '');
     let anyVisible = false, endStrong = false, heroFrac = 0; const off = [], sub = [], bad = new Map();
     for (const t of T) {
       const { W, H, els } = await page.evaluate((tt, probe) => { window.__seek(tt); return eval(probe); }, t, PROBE);
@@ -101,7 +106,7 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
         const overflow = Math.max(-e.x, e.x + e.w - W, -e.y, e.y + e.h - H);
         if (overflow > 0.10 * Math.max(W, H)) off.push({ t, ...e, overflow: Math.round(overflow) });
         if (e.y + e.h > 0.80 * H) sub.push({ t, ...e }); // element BOTTOM edge intrudes on the caption band
-        if (narrWords && /hf-kw/.test(e.cls || '') && !textInNarration(e.txt, narrWords)) bad.set(e.txt, e);
+        if (narrWords && /hf-kw/.test(e.cls || '') && textLanguageLeak(e.txt, narrWords, narrLang)) bad.set(e.txt, e);
       }
     }
     if (!anyVisible) defects.push('no element is ever visible — the scene renders empty. Make each beat element visible during its window.');
@@ -112,7 +117,7 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
     }
     if (off.length) { const o = off[0]; defects.push(`element "${o.txt || o.cls}" runs ${o.overflow}px off-screen at ${o.t.toFixed(1)}s — keep all content inside the frame with a 6% margin; shrink font-size or reposition.`); }
     if (sub.length) { const o = sub[0]; defects.push(`element "${o.txt || o.cls}" reaches the bottom of the frame at ${o.t.toFixed(1)}s — the bottom 22% is reserved for subtitles, move it up.`); }
-    if (bad.size) { const o = [...bad.values()][0]; defects.push(`the on-screen text "${o.txt}" is not in the narration — every keyword must be taken verbatim from the narration and be in its language. Do not invent or translate text.`); }
+    if (bad.size) { const o = [...bad.values()][0]; defects.push(`the on-screen text "${o.txt}" is in the wrong language — the narration is ${narrLang === 'vi' ? 'Vietnamese' : narrLang}, and every keyword must be in the narration's language. Semantic (non-verbatim) keywords are fine; translating or mixing languages is not.`); }
     return { ok: defects.length === 0, defects, tlDur: Number.isFinite(tlDur) ? +tlDur.toFixed(2) : null };
   } catch (e) {
     return { ok: true, skipped: true, defects: [], error: String(e.message || e) }; // never block codegen on a harness hiccup

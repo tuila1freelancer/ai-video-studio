@@ -79,6 +79,7 @@
               </select>
               <span class="flex-spacer"></span>
               <button class="btn big" id="heroBatch" title="Nhiều chủ đề — tự chạy lần lượt">Hàng loạt</button>
+              <button class="btn big" id="heroAutopilot" title="Gợi ý chủ đề theo xu hướng + lịch đăng + tổng quan hệ thống">🛰 Trợ lý</button>
               <button class="btn primary big" id="heroGo">Tạo video tự động</button>
             </div>
             <div class="hint">Tự động: dựng cảnh GSAP · giọng đọc neural · phụ đề karaoke · nhạc nền · intro/outro · metadata.</div>
@@ -149,6 +150,8 @@
                 </div>
               </div>
               <div class="proj-actions">
+                <button class="btn" id="btnRoughCut" title="Xem nháp cả video từ trang scene live — không tốn thời gian render">▶ Xem nháp</button>
+                <button class="btn" id="btnRepurpose" title="Nhân bản sang tỉ lệ khung khác — giữ nguyên giọng đọc & phụ đề, dàn lại bố cục rồi render">📱 Đổi tỉ lệ</button>
                 <button class="btn" id="btnRender">🎬 Render lại</button>
                 <button class="btn danger hidden" id="btnStop">⏹ Dừng</button>
                 <button class="btn warn hidden" id="btnResume">▶ Tiếp tục</button>
@@ -187,6 +190,7 @@
                 <a class="btn success" id="btnDownload" download>⬇ Tải video</a>
                 <a class="btn" id="btnDownloadSrt" download>📑 Tải .SRT</a>
                 <button class="btn" id="btnOpenFolder">📂 Mở thư mục</button>
+                <button class="btn" id="btnPublish" title="Đăng lên YouTube qua tài khoản đã kết nối — mặc định ở chế độ Riêng tư">📤 Đăng YouTube</button>
               </div>
               <div id="metaCard"></div>
             </div>
@@ -209,8 +213,8 @@
               <div class="field">
                 <label class="label">Chế độ hình ảnh</label>
                 <select class="input" id="cfgVisualMode">
+                  <option value="hyperframe" selected>✨ HyperFrame (AI đạo diễn theo lời thoại — mặc định)</option>
                   <option value="animation">🎬 Animation (motion graphics)</option>
-                  <option value="hyperframe">✨ HyperFrame (AI đạo diễn theo lời thoại)</option>
                   <option value="image">🖼️ Ảnh AI + Ken Burns</option>
                 </select>
               </div>
@@ -335,6 +339,7 @@
               <label class="switch-row"><span class="switch"><input type="checkbox" id="cfgTrans"><span class="sl"></span></span> 🔀 Chuyển cảnh mượt (xfade)</label>
               <label class="switch-row"><span class="switch"><input type="checkbox" id="cfgMeta" checked><span class="sl"></span></span> 📊 Tạo Metadata</label>
               <label class="switch-row"><span class="switch"><input type="checkbox" id="cfgAutoConcat" checked><span class="sl"></span></span> Tự động ghép (B7)</label>
+              <label class="switch-row" title="Dừng trước khi ghép để bạn duyệt từng cảnh trong Xem nháp"><span class="switch"><input type="checkbox" id="cfgReview"><span class="sl"></span></span> 🧐 Duyệt từng cảnh trước khi ghép</label>
               <label class="switch-row" style="margin-top:6px"><span class="switch"><input type="checkbox" id="cfgPTts"><span class="sl"></span></span> TTS song song</label>
               <label class="switch-row"><span class="switch"><input type="checkbox" id="cfgPRender"><span class="sl"></span></span> Render song song</label>
               <div class="grid2" style="margin-top:6px">
@@ -437,7 +442,7 @@
     </div>
     <div class="sec-label">Phụ đề</div>
     <div class="field"><label class="label">Engine</label>
-      <select class="input" id="setSubEngine"><option value="estimate">Estimate (chữ đúng từ kịch bản — khuyên dùng)</option><option value="whisper">Whisper (transcribe audio)</option></select></div>
+      <select class="input" id="setSubEngine"><option value="align">Align (chữ đúng kịch bản + timing thật từ audio — khuyên dùng)</option><option value="estimate">Estimate (chữ đúng từ kịch bản, chia đều thời gian)</option><option value="whisper">Whisper (transcribe audio)</option></select></div>
     <button class="btn primary block" id="setSave">💾 Lưu cấu hình</button>
   </div>
 </div>
@@ -480,6 +485,40 @@
   </div>
 </div>
 
+<div class="modal-bg" id="autopilotModal">
+  <div class="modal" style="max-width:760px">
+    <h2>🛰 Trợ lý nội dung <button class="x" data-close>×</button></h2>
+    <div class="ap-stats row" id="apStats" style="gap:14px;flex-wrap:wrap;margin-bottom:12px"></div>
+    <div class="label" style="margin:6px 0">💡 Gợi ý chủ đề theo xu hướng</div>
+    <div class="row" style="gap:8px;align-items:stretch">
+      <input class="input" id="apNiche" placeholder="Ngách của kênh (vd: AI cho freelancer)…" style="flex:1">
+      <button class="btn" id="apSuggest">Gợi ý</button>
+    </div>
+    <div id="apTopics" style="margin-top:8px"></div>
+    <div class="label" style="margin:14px 0 6px">🗓 Lịch sản xuất (đến hạn sẽ tự tạo video)</div>
+    <div id="apCalendar"></div>
+    <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn primary" data-close>Đóng</button></div>
+  </div>
+</div>
+
+<div id="rcOverlay" class="rc-overlay hidden">
+  <div class="rc-top">
+    <span class="rc-title">▶ Bản nháp <span class="rc-note">(preview trực tiếp — chưa phải bản render cuối)</span></span>
+    <span id="rcSceneLabel" class="rc-note"></span>
+    <span id="rcReviewState" class="rc-note"></span>
+    <button class="btn" id="rcApprove" title="Duyệt cảnh đang xem">✓ Duyệt</button>
+    <button class="btn danger" id="rcReject" title="Loại cảnh đang xem (cần làm lại)">✕ Loại</button>
+    <button class="btn" id="rcClose">✕ Đóng</button>
+  </div>
+  <div class="rc-stagewrap"><div id="rcStage" class="rc-stage"></div></div>
+  <div class="rc-timeline"><canvas id="rcTl" height="86"></canvas></div>
+  <div class="rc-controls">
+    <button class="btn" id="rcPlay">▶</button>
+    <input type="range" id="rcSeek" min="0" max="100" step="0.05" value="0">
+    <span id="rcTime" class="rc-time">0:00 / 0:00</span>
+  </div>
+</div>
+
 <div class="modal-bg" id="hfStyleModal">
   <div class="modal" style="max-width:680px">
     <h2>✨ Phong cách video HyperFrame <button class="x" data-close>×</button></h2>
@@ -493,7 +532,10 @@
       </div>
       <div class="hint" id="hfGenNote" style="margin-top:6px"></div>
     </div>
-    <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn primary" data-close>Xong</button></div>
+    <div class="row" style="justify-content:space-between;margin-top:14px">
+      <button class="btn" id="btnHfSaveChannel" title="Mọi video mới của kênh sẽ dùng phong cách này">💾 Đặt làm phong cách của kênh</button>
+      <button class="btn primary" data-close>Xong</button>
+    </div>
   </div>
 </div>
 
@@ -543,7 +585,7 @@
           <div class="field"><label class="label">LLM model (kịch bản)</label>
             <input class="input" id="brandAiLlmModel" placeholder="— Dùng cấu hình chung —"></div>
           <div class="field"><label class="label">Engine phụ đề</label>
-            <select class="input" id="brandAiSub"><option value="">— Dùng cấu hình chung —</option><option value="estimate">estimate (chữ chuẩn)</option><option value="whisper">whisper</option></select></div>
+            <select class="input" id="brandAiSub"><option value="">— Dùng cấu hình chung —</option><option value="align">align (chữ chuẩn + timing thật)</option><option value="estimate">estimate (chữ chuẩn)</option><option value="whisper">whisper</option></select></div>
         </details>
         <button class="btn primary block" id="brandSave">💾 Lưu Brand Kit vào kênh</button>
         <div class="hint" id="brandSaveHint" style="margin-top:6px"></div>

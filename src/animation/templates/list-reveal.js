@@ -8,9 +8,10 @@ export default {
     const { u, theme, accent, duration } = ctx;
     const items = (p.items || []).slice(0, 6);
     const n = Math.max(1, items.length);
-    // each item becomes "active" during its slice of the scene (deterministic via delays)
-    const slice = Math.max(1.2, (duration - 1.2) / n);
-    const actStarts = items.map((_, i) => (0.8 + i * slice).toFixed(2));
+    // each item becomes "active" ON the narration's beats (word-timing accents) — clamped
+    // after the heading entrance and kept monotonic; scenes without captions fall back to
+    // even spacing inside accentTimes itself
+    const actStarts = ctx.accentTimes(n).map((t, i) => Math.max(0.8 + i * 0.4, t).toFixed(2));
     const rows = items.map((it, i) => {
       const dIn = 0.25 + i * 0.14;
       const actStart = actStarts[i];

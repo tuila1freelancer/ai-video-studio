@@ -1,7 +1,7 @@
 import { $, $$, el, esc, badgeText } from '../ui/dom.js';
 import { icon } from '../ui/icons.js';
 import { toast } from '../ui/toast.js';
-import { fileUrl } from '../api.js';
+import { fileUrl, withLock } from '../api.js';
 import { state } from '../state.js';
 import { registerPageHook, switchPage } from './nav.js';
 import { openProject, createAndStart } from './studio.js';
@@ -13,8 +13,8 @@ export function initHome() {
   $$('#page-home .gtab').forEach((b) => {
     b.innerHTML = `${icon(b.dataset.cat === 'short' ? 'smartphone' : 'monitor', 14)} ${b.textContent.trim()}`;
   });
-  $('#heroGo').addEventListener('click', heroGenerate);
-  $('#heroTopic').addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) heroGenerate(); });
+  $('#heroGo').addEventListener('click', () => withLock($('#heroGo'), heroGenerate));
+  $('#heroTopic').addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) withLock($('#heroGo'), heroGenerate); });
   $$('#page-home .gtab').forEach((b) => b.addEventListener('click', () => {
     $$('#page-home .gtab').forEach((x) => x.classList.remove('active')); b.classList.add('active');
     state.galleryCat = b.dataset.cat; renderGallery();

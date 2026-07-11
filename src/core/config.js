@@ -26,9 +26,19 @@ export function mergeConfigLayers(...layers) {
 }
 function isPlainObject(v) { return v != null && typeof v === 'object' && !Array.isArray(v); }
 
+// Base defaults for NEW projects (the app's showcase mode): HyperFrame with the channel's
+// signature style. Sits UNDER every other layer, so channel/preset/request always win;
+// existing projects keep their stored config snapshot (this only runs at creation).
+// Consumption-site fallbacks stay 'animation' so legacy rows without a visualMode are
+// untouched on resume.
+const NEW_PROJECT_DEFAULTS = {
+  visualMode: 'hyperframe',
+  hyperframe: { styleId: 'tuila1-hud-cyber', density: 'balanced' },
+};
+
 // Effective config for a new project. `preset` = the channel's default preset row (or null).
 export function resolveProjectConfig({ channel, preset, request } = {}) {
-  return mergeConfigLayers(channel?.config, preset?.config, request);
+  return mergeConfigLayers(NEW_PROJECT_DEFAULTS, channel?.config, preset?.config, request);
 }
 
 // AI settings with per-channel overrides layered per section (llm/tts/subtitle/imageGen/imageSearch).

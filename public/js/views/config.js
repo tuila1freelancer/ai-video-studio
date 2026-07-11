@@ -49,7 +49,7 @@ export function gatherConfig() {
   return {
     visualMode: $('#cfgVisualMode').value,
     hyperframe: {
-      styleId: state.hfStyleId || 'chrome-kinetic',
+      styleId: state.hfStyleId || 'tuila1-hud-cyber',
       ...(state.hfGuide ? { guide: state.hfGuide } : {}),
       density: $('#cfgHfDensity').value,
       direction: $('#cfgHfDirection').value.trim() || undefined,
@@ -73,6 +73,7 @@ export function gatherConfig() {
     useDefaultBgm: !!$('#cfgBgm').value,
     styleId: $('#cfgStyle').value,
     autoConcat: $('#cfgAutoConcat').checked,
+    requireReview: $('#cfgReview')?.checked || false,
     richAnimation: $('#cfgRich').checked,
     transitions: $('#cfgTrans').checked,
     intro: $('#cfgIntro').checked,
@@ -87,8 +88,8 @@ export function gatherConfig() {
   };
 }
 export function applyConfig(cfg = {}) {
-  $('#cfgVisualMode').value = cfg.visualMode || 'animation';
-  state.hfStyleId = cfg.hyperframe?.styleId || 'chrome-kinetic';
+  $('#cfgVisualMode').value = cfg.visualMode || 'hyperframe';
+  state.hfStyleId = cfg.hyperframe?.styleId || 'tuila1-hud-cyber';
   state.hfGuide = cfg.hyperframe?.guide || null;
   if ($('#cfgHfDensity')) $('#cfgHfDensity').value = cfg.hyperframe?.density || 'balanced';
   if ($('#cfgHfDirection')) $('#cfgHfDirection').value = cfg.hyperframe?.direction || '';
@@ -111,6 +112,7 @@ export function applyConfig(cfg = {}) {
   if (cfg.subtitleColor) { state.subColor = cfg.subtitleColor; buildSubColors(); }
   if (cfg.subtitlePosition?.preset) $('#cfgSubPos').value = cfg.subtitlePosition.preset;
   if ('autoConcat' in cfg) $('#cfgAutoConcat').checked = cfg.autoConcat !== false;
+  if ('requireReview' in cfg && $('#cfgReview')) $('#cfgReview').checked = cfg.requireReview === true;
   if ('richAnimation' in cfg) $('#cfgRich').checked = cfg.richAnimation !== false;
   if ('transitions' in cfg) $('#cfgTrans').checked = !!cfg.transitions;
   if ('intro' in cfg) $('#cfgIntro').checked = cfg.intro !== false;
@@ -224,6 +226,20 @@ function wireHfStyle() {
       state.hfGuide = r.guide; state.hfStyleId = 'custom';
       renderHfPresetGrid(); renderHfStyleButton(); updateCfgChips();
       note.textContent = r.source === 'llm' ? `✓ Đã tạo phong cách "${r.guide.name}"` : '⚠ LLM chưa cấu hình — dùng phong cách mặc định';
+    } catch (e) { note.textContent = '✗ ' + e.message; }
+  });
+  // Persistent brand kit: pin the selected style as the CHANNEL's canonical guide —
+  // every new project of the channel inherits it automatically.
+  $('#btnHfSaveChannel')?.addEventListener('click', async () => {
+    const note = $('#hfGenNote');
+    try {
+      const { active } = await api.get('/channels');
+      if (!active) { toast('Chưa có kênh đang hoạt động.', 'error'); return; }
+      const g = hfCurrentStyle();
+      const guide = state.hfGuide || g; // custom guide object, or the chosen preset's full data
+      await api.post(`/channels/${active}/style-guide`, { guide });
+      note.textContent = `✓ Đã đặt "${guide.name || guide.id}" làm phong cách mặc định của kênh`;
+      toast('Đã lưu phong cách cho kênh 🎨', 'success');
     } catch (e) { note.textContent = '✗ ' + e.message; }
   });
   renderHfStyleButton();
