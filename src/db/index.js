@@ -11,6 +11,7 @@ export * from './repositories/scenes.js';
 export * from './repositories/channels.js';
 export * from './repositories/catalogs.js';
 export * from './repositories/jobs.js';
+export * from './repositories/usage.js';
 
 // ---- one-time bootstrap (runs on first import) ----
 // existing projects belong to Default

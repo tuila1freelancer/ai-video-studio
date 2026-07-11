@@ -229,6 +229,12 @@ export function mountRoutes(app, { version }) {
     res.json({ ok: true });
   });
 
+  // ---- usage / cost meter (estimates, labeled "ước tính") ----
+  r.get('/usage', (req, res) => {
+    if (req.query.projectId) return res.json({ usage: DB.usageForProject(String(req.query.projectId)) });
+    res.json({ summary: DB.usageSummary({ limit: Math.min(100, parseInt(req.query.limit, 10) || 30) }) });
+  });
+
   // ---- durable job queue (run history + cancel) ----
   r.get('/jobs', (req, res) => {
     res.json({ jobs: DB.listJobs({ limit: Math.min(200, parseInt(req.query.limit, 10) || 50) }) });

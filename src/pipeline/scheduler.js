@@ -8,6 +8,7 @@
 import * as DB from '../db/index.js';
 import { hub } from '../ws/hub.js';
 import { logger } from '../util/log.js';
+import { withRunContext } from '../util/run-context.js';
 import { runPipeline, renderOnly } from './runner.js';
 
 // Per-kind lanes: how many jobs of a kind may run at once across the whole process.
@@ -29,6 +30,12 @@ function laneCapacity() {
 }
 
 async function execute(job) {
+  const projectId = job.project_id;
+  // attribution for the cost meter: every llm/tts call in this async chain bills the project
+  return withRunContext({ projectId, channelId: DB.getProject(projectId)?.channel_id || null }, () => executeInner(job));
+}
+
+async function executeInner(job) {
   const projectId = job.project_id;
   try {
     if (job.kind === 'pipeline') {
