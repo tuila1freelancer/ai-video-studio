@@ -668,13 +668,20 @@ export function mountRoutes(app, { version }) {
   });
   r.get('/projects/:id/reviews', (req, res) => res.json({ reviews: DB.listReviews(req.params.id) }));
 
-  r.post('/scenes/:id/regen-voice', (req, res) => {
-    Pipeline.regenScene(req.params.id, 'voice').catch((e) => logger.error(e.message));
-    res.json({ ok: true });
+  // Awaited on purpose: callers (Scene Studio, grid buttons) treat the response as "the
+  // new take is ready" — fire-and-forget here made the UI lie and let an immediate
+  // per-scene render race the still-running regen (clip then re-nulled moments later).
+  r.post('/scenes/:id/regen-voice', async (req, res) => {
+    try {
+      await Pipeline.regenScene(req.params.id, 'voice');
+      res.json({ ok: true, scene: DB.getScene(req.params.id) });
+    } catch (e) { logger.error(e.message); res.status(500).json({ error: e.message }); }
   });
-  r.post('/scenes/:id/regen-html', (req, res) => {
-    Pipeline.regenScene(req.params.id, 'html').catch((e) => logger.error(e.message));
-    res.json({ ok: true });
+  r.post('/scenes/:id/regen-html', async (req, res) => {
+    try {
+      await Pipeline.regenScene(req.params.id, 'html');
+      res.json({ ok: true, scene: DB.getScene(req.params.id) });
+    } catch (e) { logger.error(e.message); res.status(500).json({ error: e.message }); }
   });
 
   // ---- helpers: fetch link / image search / metadata ----

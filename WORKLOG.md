@@ -6,14 +6,14 @@ update immediately when anything is discovered — this file is the loop's only 
 ## State
 - Current-Branch: feat/ultra-loop
 - PR-URL: (opening after first push)
-- Item-Counter: 5
+- Item-Counter: 6
 - Sandbox: AVS_DATA_DIR=<scratchpad>/avs-loop, server managed per iteration
 
 ## In-Progress
-- M1.2 Scene Studio polish: (a) prove single-scene re-render keeps other scenes'
-  fingerprints — needs a 2+ scene sandbox project (create one with a multi-sentence
-  topic); (b) syntax-highlight overlay for the code editor (vendored, no CDN);
-  (c) undo/redo in editors; (d) checkpoint screenshots/GIF for the UX bar.
+- M1.3 Scene Studio polish: (a) syntax-highlight overlay for the code editor (vendored,
+  no CDN; textarea + <pre> underlay); (b) editors rely on native textarea undo/redo —
+  document ⌘Z in a tooltip; (c) checkpoint screenshots/GIF for the UX bar, then M1
+  acceptance sign-off and on to M2.
 
 ## Backlog
 - M1 acceptance run, then M2 → M3 → M4 (see loop prompt)
@@ -50,6 +50,13 @@ update immediately when anything is discovered — this file is the loop's only 
   Verified end-to-end on sandbox: template-source 516-char hero-title source; custom html
   applied → anim-html page carries the edit → 2 visual takes recorded → reset restores
   template; UI screenshot shows panel with live preview + 4 tabs + loaded takes.
+- M1.2 Fingerprint acceptance + RACE BUG FIX. Proof on a 3-scene sandbox project: edited
+  scene 1's dialogue → regen voice → render mode 'scenes' [scene1] → scene 1 got a NEW
+  clip (5.9s, new narration), scenes 0/2 clip paths + mtimes byte-identical (untouched).
+  BUG FIXED on the way: POST /scenes/:id/regen-voice|regen-html were fire-and-forget, so
+  the UI's "done" state lied and an immediate per-scene render raced the in-flight regen
+  (render finished first, then regen re-nulled video_path — scene stuck looking stale).
+  Routes now await regenOne and return the fresh scene row (src/api/routes.js).
 
 ## Metrics
 (none yet)
