@@ -7,6 +7,7 @@ import { api, withLock } from '../api.js';
 import { toast } from '../ui/toast.js';
 import { state } from '../state.js';
 import { esc } from '../ui/dom.js';
+import { openTemplateGallery } from './template-gallery.js';
 
 let cur = null;          // scene currently open in the studio
 let htmlLoaded = false;  // template-source fetched for this open
@@ -18,9 +19,42 @@ export function initSceneStudio() {
   });
   $('#ssVoiceSave')?.addEventListener('click', () => withLock($('#ssVoiceSave'), saveVoice));
   $('#ssVisualSave')?.addEventListener('click', () => withLock($('#ssVisualSave'), saveVisual));
+  $('#ssTplGallery')?.addEventListener('click', () => {
+    if (!cur) return;
+    openTemplateGallery({
+      current: cur.template || null,
+      apply: async (tplId) => {
+        try {
+          await api.put(`/scenes/${cur.id}`, { template: tplId });
+          await api.post(`/scenes/${cur.id}/preview-frame`, {});
+          await syncScene();
+          htmlLoaded = false;
+          reloadPreview();
+          document.querySelector('#tplGalleryModal [data-close]')?.click();
+          note(`✓ Đã áp template "${tplId}" — render lại cảnh để nhận clip mới.`);
+          toast('🖼 Đã áp template.', 'success');
+        } catch (e) { toast('✗ ' + e.message, 'error'); }
+      },
+    });
+  });
   $('#ssHtmlApply')?.addEventListener('click', () => withLock($('#ssHtmlApply'), applyHtml));
   $('#ssHtmlReset')?.addEventListener('click', () => withLock($('#ssHtmlReset'), resetHtml));
   $('#ssReload')?.addEventListener('click', reloadPreview);
+  // audio director wiring
+  $('#ssSfxGain')?.addEventListener('input', () => { $('#ssSfxGainL').textContent = `${$('#ssSfxGain').value} dB`; });
+  $('#ssSfx')?.addEventListener('change', () => {
+    const a = $('#ssSfxPreview');
+    const v = $('#ssSfx').value;
+    a.style.display = v ? 'block' : 'none';
+    if (v) a.src = '/api/file?path=' + encodeURIComponent(v);
+  });
+  $('#ssSfxSave')?.addEventListener('click', () => withLock($('#ssSfxSave'), saveAudio));
+  $('#ssReconcat')?.addEventListener('click', () => withLock($('#ssReconcat'), async () => {
+    if (!state.current) return;
+    await api.post(`/projects/${state.current.id}/render`, { mode: 'concat' });
+    note('🎞 Đang ghép lại video final với SFX mới — theo dõi ở trang dự án.');
+    toast('Đang ghép lại video…');
+  }));
   $('#ssRender')?.addEventListener('click', () => withLock($('#ssRender'), renderThisScene));
   $('#ssTakes')?.addEventListener('click', onTakeAction);
   // ⌘/Ctrl+Enter applies from inside either code editor
@@ -78,10 +112,42 @@ function note(msg, isErr = false) {
 
 function switchTab(tab) {
   document.querySelectorAll('#ssTabs .gtab').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
-  const panes = { voice: '#ssTabVoice', visual: '#ssTabVisual', html: '#ssTabHtml', takes: '#ssTabTakes' };
+  const panes = { voice: '#ssTabVoice', visual: '#ssTabVisual', html: '#ssTabHtml', audio: '#ssTabAudio', takes: '#ssTabTakes' };
   Object.entries(panes).forEach(([k, sel]) => { const p = $(sel); if (p) p.style.display = k === tab ? 'block' : 'none'; });
   if (tab === 'html' && !htmlLoaded) loadHtml();
+  if (tab === 'audio') loadAudio();
   if (tab === 'takes') loadTakes();
+}
+
+// ---- per-scene audio director (SFX mixed at the concat stage) ----
+async function loadAudio() {
+  if (!cur) return;
+  const sel = $('#ssSfx');
+  try {
+    const { items } = await api.get('/library/sfx');
+    const au = cur.props?.audio || {};
+    sel.innerHTML = '<option value="">— Không có SFX riêng —</option>'
+      + items.map((i) => `<option value="${esc(i.path)}"${i.path === au.sfx ? ' selected' : ''}>${esc(i.name)}</option>`).join('');
+    $('#ssSfxGain').value = au.sfxGain ?? 0;
+    $('#ssSfxGainL').textContent = `${au.sfxGain ?? 0} dB`;
+    $('#ssSfxAt').value = au.sfxAt ?? 0;
+    sel.dispatchEvent(new Event('change'));
+  } catch (e) { sel.innerHTML = `<option value="">✗ ${esc(e.message)}</option>`; }
+}
+
+async function saveAudio() {
+  if (!cur) return;
+  const sfx = $('#ssSfx').value || null;
+  const props = { ...(cur.props || {}) };
+  if (sfx) props.audio = { sfx, sfxGain: +$('#ssSfxGain').value || 0, sfxAt: Math.max(0, +$('#ssSfxAt').value || 0) };
+  else delete props.audio;
+  try {
+    note('⏳ Đang lưu âm thanh cảnh…');
+    await api.put(`/scenes/${cur.id}`, { props });
+    await syncScene();
+    note(sfx ? '✓ Đã lưu SFX — bấm "Ghép lại video" để nghe trong bản final.' : '✓ Đã bỏ SFX riêng của cảnh.');
+    toast('🔊 Đã lưu âm thanh cảnh.', 'success');
+  } catch (e) { note('✗ ' + e.message, true); }
 }
 
 // ---- live preview (same page the renderer uses — WYSIWYG by construction) ----
