@@ -355,6 +355,15 @@ export function mountRoutes(app, { version }) {
     const body = { ...(req.body || {}) };
     const before = DB.getScene(req.params.id);
     if (!before) return res.status(404).json({ error: 'not found' });
+    // Cue-schema validation (P11): srt_json feeds karaoke AND hyperframe beat extraction —
+    // a malformed edit must be rejected here, never persisted.
+    if ('srt_json' in body && body.srt_json != null) {
+      const cues = body.srt_json;
+      const ok = Array.isArray(cues) && cues.every((c) => c && Number.isFinite(+c.start) && Number.isFinite(+c.end)
+        && +c.end > +c.start && typeof c.text === 'string'
+        && Array.isArray(c.words) && c.words.every((w) => w && Number.isFinite(+w.start) && Number.isFinite(+w.end) && typeof w.word === 'string'));
+      if (!ok) return res.status(400).json({ error: 'srt_json sai cấu trúc cue ({start,end,text,words[]})' });
+    }
     const changed = (k) => k in body && JSON.stringify(body[k]) !== JSON.stringify(before[k]);
     if (changed('voice_text')) {
       // new narration → old audio, captions and clip are all stale
@@ -366,6 +375,39 @@ export function mountRoutes(app, { version }) {
     }
     res.json({ scene: DB.updateScene(req.params.id, body) });
   });
+  // ---- multi-take history ----
+  r.get('/scenes/:id/takes', (req, res) => {
+    if (!DB.getScene(req.params.id)) return res.status(404).json({ error: 'not found' });
+    res.json({ takes: DB.listTakes(req.params.id, req.query.kind || null) });
+  });
+  r.post('/takes/:id/activate', (req, res) => {
+    try {
+      const scene = DB.activateTake(req.params.id);
+      hub.toProject(scene.project_id, { type: 'scene', sceneId: scene.id, idx: scene.idx, status: scene.status });
+      res.json({ scene });
+    } catch (e) { res.status(404).json({ error: e.message }); }
+  });
+
+  // Re-time the captions to the CURRENT script text on the EXISTING audio (align engine —
+  // no re-synthesis, no cost). Used by the subtitle studio's "resync" action.
+  r.post('/scenes/:id/resync-subs', async (req, res) => {
+    try {
+      const sc = DB.getScene(req.params.id);
+      if (!sc) return res.status(404).json({ error: 'not found' });
+      if (!sc.audio_path || !existsSync(sc.audio_path)) return res.status(400).json({ error: 'cảnh chưa có audio' });
+      const p = DB.getProject(sc.project_id);
+      const { buildSubtitles } = await import('../providers/subtitle.js');
+      const channel = DB.channelOf(p.id);
+      const { aiSettingsFor } = await import('../core/config.js');
+      const lang = (p.config || {}).language;
+      const padMs = /[ạảãàáâậầấẩẫăắằẳẵặđ]/i.test(sc.voice_text || '') ? 650 : 400;
+      const speechDur = Math.max(0.3, (sc.duration || 0) - padMs / 1000);
+      const sub = await buildSubtitles(sc.audio_path, sc.voice_text || '', speechDur, { language: lang, engine: aiSettingsFor(channel).subtitle?.engine });
+      const scene = DB.updateScene(sc.id, { srt_json: sub.cues, video_path: null }); // captions changed → clip stale
+      res.json({ scene });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
   // ---- per-scene review gate (rough-cut player chips) ----
   r.post('/scenes/:id/review', (req, res) => {
     const sc = DB.getScene(req.params.id);

@@ -487,3 +487,12 @@ html.is-shell .center-narrow{padding-top:calc(30px + var(--pad-titlebar))}
 .rc-controls input[type=range]{flex:1}
 .rc-time{font-variant-numeric:tabular-nums;color:var(--muted,#8b93b0);font-size:13px;white-space:nowrap}
 .badge.review{background:rgba(139,92,246,.16);color:#a78bfa}
+
+/* ---- Subtitle studio ---- */
+.srt-cue{display:flex;gap:6px;margin-top:4px}
+.srt-cue .num{width:84px;flex:0 0 auto}
+.srt-cue .txt{flex:1}
+.btn.sm{padding:4px 10px;font-size:12px}
+.input.sm{padding:4px 8px;font-size:12.5px}
+.srt-cues,.srt-takes{margin-top:6px;padding:8px;border:1px solid rgba(120,160,255,.12);border-radius:8px;background:rgba(10,14,26,.4)}
+.srt-cues.hidden,.srt-takes.hidden{display:none}

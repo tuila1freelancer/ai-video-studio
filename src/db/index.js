@@ -13,6 +13,7 @@ export * from './repositories/catalogs.js';
 export * from './repositories/jobs.js';
 export * from './repositories/usage.js';
 export * from './repositories/reviews.js';
+export * from './repositories/takes.js';
 
 // ---- one-time bootstrap (runs on first import) ----
 // existing projects belong to Default

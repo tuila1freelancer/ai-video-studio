@@ -102,6 +102,16 @@ CREATE TABLE IF NOT EXISTS logo_presets (
   position TEXT,
   size INTEGER
 );
+CREATE TABLE IF NOT EXISTS scene_takes (
+  id TEXT PRIMARY KEY,
+  scene_id TEXT NOT NULL,
+  project_id TEXT NOT NULL,
+  kind TEXT,                            -- voice|visual
+  payload TEXT,                         -- JSON snapshot of the artifact fields
+  is_active INTEGER DEFAULT 0,
+  created_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_takes_scene ON scene_takes(scene_id, kind, created_at);
 CREATE TABLE IF NOT EXISTS scene_reviews (
   scene_id TEXT PRIMARY KEY,
   project_id TEXT NOT NULL,

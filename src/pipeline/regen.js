@@ -1,10 +1,13 @@
 // Regenerate ONE scene's voice (B3+4) or visual (B5) — used by the scene-edit UI.
+// Every regen APPENDS a take (multi-take history): the previous artifact is snapshotted
+// before being replaced, so the user can A/B and roll back non-destructively.
 import { join } from 'node:path';
 import * as DB from '../db/index.js';
 import { hub } from '../ws/hub.js';
-import { ratioToSize } from '../util/util.js';
+import { ratioToSize, newId } from '../util/util.js';
 import { synthesizeVoice } from '../providers/tts.js';
 import { buildSubtitles } from '../providers/subtitle.js';
+import { normalizeForTts, moodOf } from '../providers/tts-normalize.js';
 import { normalizeVoice } from '../media/ffmpeg.js';
 import { detectLang } from '../util/lang.js';
 import { generateSceneDirection } from './direction.js';
@@ -13,6 +16,7 @@ import { resolveGuide } from '../styleguide/index.js';
 import { planScene, resolveBrandKit, animSize, previewSceneFrame } from '../animation/index.js';
 import { buildSceneBackground } from './visuals.js';
 import { aiSettingsFor, ttsOverrideFor } from '../core/config.js';
+import { ttsFingerprint, fpStamp } from './fingerprint.js';
 import { visualOpts } from './helpers.js';
 
 export async function regenOne(sceneId, what) {
@@ -22,14 +26,25 @@ export async function regenOne(sceneId, what) {
   const config = project.config || {};
   const size = ratioToSize(project.aspect_ratio);
   const dir = DB.projectDirFor(project.id);
+  // history: snapshot the current artifact BEFORE this regen replaces it
+  try { DB.snapshotTake(sc, what === 'voice' ? 'voice' : 'visual'); } catch { /* history is best-effort */ }
   if (what === 'voice') {
     const channel = DB.channelOf(project.id);
-    const audioOut = join(dir, 'audio', `scene_${sc.idx}.m4a`);
-    const r = await synthesizeVoice(sc.voice_text || ' ', audioOut, { ttsOverride: ttsOverrideFor(channel, config) });
-    const padMs = detectLang(sc.voice_text || '') === 'vi' ? 650 : 400;
-    const { path, duration } = await normalizeVoice(r.path, join(dir, 'audio', `scene_${sc.idx}_n.m4a`), { padMs });
-    const sub = await buildSubtitles(path, sc.voice_text || '', Math.max(0.3, duration - padMs / 1000), { engine: aiSettingsFor(channel).subtitle?.engine });
-    DB.updateScene(sc.id, { audio_path: path, duration, srt_json: sub.cues, status: 'tts' });
+    const ai = aiSettingsFor(channel);
+    const total = DB.getScenes(project.id).length;
+    // unique filenames per take — an old take's audio must never be overwritten in place
+    const audioOut = join(dir, 'audio', `scene_${sc.idx}_${newId('')}.m4a`);
+    const ttsOverride = ttsOverrideFor(channel, config);
+    const lang = detectLang(sc.voice_text || '');
+    // parity with stages/tts.js: normalized speech, prosody hint, provider word timestamps
+    const speakText = normalizeForTts(sc.voice_text || ' ', { lang, lexicon: ttsOverride?.lexicon || ai.tts?.lexicon });
+    const r = await synthesizeVoice(speakText, audioOut, { ttsOverride, style: moodOf(sc, total) });
+    const padMs = lang === 'vi' ? 650 : 400;
+    const { path, duration } = await normalizeVoice(r.path, audioOut.replace(/\.m4a$/, '_n.m4a'), { padMs });
+    const sub = await buildSubtitles(path, sc.voice_text || '', Math.max(0.3, duration - padMs / 1000), { language: config.language, engine: ai.subtitle?.engine, words: r.words });
+    DB.updateScene(sc.id, { audio_path: path, duration, srt_json: sub.cues, status: 'tts', video_path: null,
+      fp: fpStamp(sc, 'tts', ttsFingerprint(sc, { config, channel, ai })) });
+    DB.snapshotTake(DB.getScene(sc.id), 'voice', { active: true });
     hub.toProject(project.id, { type: 'scene', sceneId: sc.id, idx: sc.idx, status: 'tts', duration });
   } else if (what === 'html') {
     const vm = config.visualMode || 'animation';
@@ -59,25 +74,28 @@ export async function regenOne(sceneId, what) {
       } catch {
         plan = planScene(sc, { idx: sc.idx, total, title: project.title, brand: resolveBrandKit(config) });
       }
-      DB.updateScene(sc.id, { template: plan.template, props: plan.props, status: 'html' });
+      DB.updateScene(sc.id, { template: plan.template, props: plan.props, status: 'html', video_path: null });
       const fresh = DB.getScene(sc.id);
       const out = join(dir, 'render', `scene_${String(sc.idx).padStart(3, '0')}_preview.jpg`);
       await previewSceneFrame(fresh, project, config, { outPath: out });
       DB.updateScene(sc.id, { image_path: out });
+      DB.snapshotTake(DB.getScene(sc.id), 'visual', { active: true });
       hub.toProject(project.id, { type: 'scene', sceneId: sc.id, idx: sc.idx, status: 'html', template: plan.template, image: `/api/file?path=${encodeURIComponent(out)}` });
     } else if (vm === 'animation') {
       // re-plan template + refresh preview frame
       const total = DB.getScenes(project.id).length;
       const plan = planScene(sc, { idx: sc.idx, total, title: project.title, brand: resolveBrandKit(config) });
-      DB.updateScene(sc.id, { template: plan.template, props: plan.props, status: 'html' });
+      DB.updateScene(sc.id, { template: plan.template, props: plan.props, status: 'html', video_path: null });
       const fresh = DB.getScene(sc.id);
       const out = join(dir, 'render', `scene_${String(sc.idx).padStart(3, '0')}_preview.jpg`);
       await previewSceneFrame(fresh, project, config, { outPath: out });
       DB.updateScene(sc.id, { image_path: out });
+      DB.snapshotTake(DB.getScene(sc.id), 'visual', { active: true });
       hub.toProject(project.id, { type: 'scene', sceneId: sc.id, idx: sc.idx, status: 'html', template: plan.template, image: `/api/file?path=${encodeURIComponent(out)}` });
     } else {
       const bg = await buildSceneBackground(sc, project, size, visualOpts(config, dir));
-      DB.updateScene(sc.id, { image_path: bg, status: 'html' });
+      DB.updateScene(sc.id, { image_path: bg, status: 'html', video_path: null });
+      DB.snapshotTake(DB.getScene(sc.id), 'visual', { active: true });
       hub.toProject(project.id, { type: 'scene', sceneId: sc.id, idx: sc.idx, status: 'html', image: `/api/file?path=${encodeURIComponent(bg)}` });
     }
   }
