@@ -1,4 +1,4 @@
-// One NAMED regression test per protected behavior (P1–P15, docs/architecture.md §7).
+// One NAMED regression test per protected behavior (P1–P16, docs/architecture.md §7).
 // A refactor may RELOCATE a behavior — update the anchor here — but a silently deleted
 // guard/constant turns exactly one of these red. Functional where cheap, source-anchored
 // where a functional test would need live providers.
@@ -107,4 +107,22 @@ test('P15: /api/file path allowlist module guards internal media serving', () =>
   const s = src('src/api/services/file-access.js');
   assert.match(s, /allowlist|allowed/i);
   assert.match(src('src/api/routes.js'), /file-access\.js|isPathAllowed|fileAllowed/, 'routes must serve files through the allowlist');
+});
+
+test('P16: assistant proposals never auto-start a paid pipeline', () => {
+  // suggestTopics computes + persists DATA only — no job/pipeline machinery in the module
+  const autopilot = src('src/api/services/topic-autopilot.js');
+  assert.ok(!/enqueueJob|startBatch|startProject|pipeline\//.test(autopilot),
+    'topic-autopilot must stay data-only');
+  // planWeek and buildSeries create slots/suggestions; only acceptSuggestion (an explicit
+  // owner click) may reach startBatch
+  const assistant = src('src/api/services/assistant.js');
+  const afterPlan = assistant.slice(assistant.indexOf('export function planWeek'));
+  assert.ok(!/enqueueJob|startBatch|startProject/.test(afterPlan),
+    'planWeek/buildSeries must never enqueue or start anything');
+  // the suggest route itself must not create projects either
+  const routes = src('src/api/routes.js');
+  const suggestHandler = routes.slice(routes.indexOf("r.post('/topics/suggest'"), routes.indexOf("r.get('/topics/history'"));
+  assert.ok(suggestHandler.length > 0 && !/startBatch|enqueueJob|createProject/.test(suggestHandler),
+    'POST /topics/suggest returns proposals, never projects');
 });
