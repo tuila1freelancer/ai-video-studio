@@ -442,7 +442,7 @@
     </div>
     <div class="sec-label">Phụ đề</div>
     <div class="field"><label class="label">Engine</label>
-      <select class="input" id="setSubEngine"><option value="estimate">Estimate (chữ đúng từ kịch bản — khuyên dùng)</option><option value="whisper">Whisper (transcribe audio)</option></select></div>
+      <select class="input" id="setSubEngine"><option value="align">Align (chữ đúng kịch bản + timing thật từ audio — khuyên dùng)</option><option value="estimate">Estimate (chữ đúng từ kịch bản, chia đều thời gian)</option><option value="whisper">Whisper (transcribe audio)</option></select></div>
     <button class="btn primary block" id="setSave">💾 Lưu cấu hình</button>
   </div>
 </div>
@@ -585,7 +585,7 @@
           <div class="field"><label class="label">LLM model (kịch bản)</label>
             <input class="input" id="brandAiLlmModel" placeholder="— Dùng cấu hình chung —"></div>
           <div class="field"><label class="label">Engine phụ đề</label>
-            <select class="input" id="brandAiSub"><option value="">— Dùng cấu hình chung —</option><option value="estimate">estimate (chữ chuẩn)</option><option value="whisper">whisper</option></select></div>
+            <select class="input" id="brandAiSub"><option value="">— Dùng cấu hình chung —</option><option value="align">align (chữ chuẩn + timing thật)</option><option value="estimate">estimate (chữ chuẩn)</option><option value="whisper">whisper</option></select></div>
         </details>
         <button class="btn primary block" id="brandSave">💾 Lưu Brand Kit vào kênh</button>
         <div class="hint" id="brandSaveHint" style="margin-top:6px"></div>
