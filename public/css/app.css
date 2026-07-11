@@ -507,3 +507,15 @@ html.is-shell .center-narrow{padding-top:calc(30px + var(--pad-titlebar))}
 .ap-topic .t{font-weight:650}
 .ap-slot{display:flex;gap:10px;align-items:center;padding:6px 10px;border-bottom:1px solid rgba(120,160,255,.1);font-size:13.5px}
 .ap-slot .when{font-variant-numeric:tabular-nums;color:var(--muted,#8b93b0);white-space:nowrap}
+.ap-hist{display:flex;gap:10px;align-items:center;padding:7px 10px;border:1px solid rgba(120,160,255,.1);border-radius:10px;margin-top:6px}
+.ap-hist-main{flex:1;min-width:0}
+.ap-hist-main .t{font-weight:600;font-size:13.5px}
+.ap-hist-acts{display:flex;gap:5px;white-space:nowrap}
+.as-score{font-size:11.5px;color:var(--muted,#8b93b0);font-weight:600;letter-spacing:.02em;cursor:help}
+/* pre-create config sheet */
+.as-block{margin-bottom:12px}
+.as-radio{display:flex;gap:8px;align-items:center;padding:5px 2px;font-size:13.5px;cursor:pointer}
+.as-radio.disabled{opacity:.45;cursor:default}
+.as-radio input[type=radio]{accent-color:var(--accent,#6c8cff)}
+.as-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px}
+.as-grid label{display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--muted,#8b93b0)}
