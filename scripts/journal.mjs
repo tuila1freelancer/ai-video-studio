@@ -68,6 +68,13 @@ writeFileSync(JOURNAL, md);
 // ---- commit + push (only JOURNAL.md; safe on a dirty tree) -------------------------
 const git = (...args) => execFileSync('git', ['-C', ROOT, ...args], { stdio: 'pipe' }).toString().trim();
 try {
+  // Only journal on main — committing on whatever feature branch HEAD happens to be on
+  // smuggles the entry into an unrelated PR (happened once on 2026-07-11).
+  const branch = git('rev-parse', '--abbrev-ref', 'HEAD');
+  if (branch !== 'main') {
+    console.log(`[journal] HEAD is on '${branch}', not main — skipping today (next run from main catches up)`);
+    process.exit(0);
+  }
   git('add', 'JOURNAL.md');
   const staged = git('diff', '--cached', '--name-only');
   if (!staged.includes('JOURNAL.md')) { console.log('[journal] no change today — nothing to commit'); process.exit(0); }
