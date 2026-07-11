@@ -246,6 +246,17 @@ function onWsMessage(m) {
       toast('Lỗi: ' + m.msg, 'error'); hideOp(); updateStatusBadge('error');
       if (prog.step) setStep(prog.step, 'error', (m.msg || '').slice(0, 60));
       break;
+    // content calendar lifecycle (assistant-scheduled videos)
+    case 'calendar':
+      toast(`🗓 Đến hạn — bắt đầu sản xuất: ${(m.topic || '').slice(0, 60)}`, 'success');
+      loadProjects();
+      break;
+    case 'calendar-done':
+      toast(m.status === 'done'
+        ? `✅ Video hẹn lịch đã xong: ${(m.topic || '').slice(0, 60)}`
+        : `⚠ Video hẹn lịch kết thúc (${m.status}): ${(m.topic || '').slice(0, 60)}`, m.status === 'done' ? 'success' : 'error');
+      loadProjects();
+      break;
   }
 }
 // Self-heal visibility: 'đang tự thử lại' — the user sees the app fixing itself, not a stall.

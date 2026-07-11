@@ -30,16 +30,23 @@ function voiceOptions() {
   return `<option value="">${label}</option>` + opts.join('');
 }
 
+const SHEET_LABELS = {
+  now: ['🎬 Tạo video từ gợi ý', '🎬 Tạo ngay'],
+  schedule: ['🗓 Hẹn lịch sản xuất', '🗓 Hẹn lịch'],
+  edit: ['⚙ Cấu hình cho slot lịch', '💾 Lưu cấu hình'],
+};
+
 /**
  * Open the sheet for one suggestion row. Resolves {config, title?, dueAt?} on confirm,
- * null on cancel. `mode`: 'now' creates immediately, 'schedule' adds a datetime field.
+ * null on cancel. `mode`: 'now' creates immediately, 'schedule' adds a datetime field,
+ * 'edit' emits config only (for updating a queued calendar slot).
  */
 export function configSheet({ row, mode }) {
-  const titles = Array.isArray(row.titles) ? row.titles.filter(Boolean) : [];
+  const titles = mode === 'edit' ? [] : (Array.isArray(row.titles) ? row.titles.filter(Boolean) : []);
   const presets = state.presets || [];
   const canStudio = !!document.getElementById('cfgVisualMode');
   return openDialog(`
-    <div class="dlg-title">${mode === 'now' ? '🎬 Tạo video từ gợi ý' : '🗓 Hẹn lịch sản xuất'}</div>
+    <div class="dlg-title">${SHEET_LABELS[mode][0]}</div>
     <div class="dlg-body" style="margin-bottom:10px">${esc(row.topic)}</div>
     ${titles.length ? `
     <div class="field as-block">
@@ -90,7 +97,7 @@ export function configSheet({ row, mode }) {
     <div class="hint" style="margin:4px 0 12px">Máy chủ vẫn xếp lớp: mặc định app → kênh → preset mặc định → lựa chọn ở đây.</div>
     <div class="dlg-actions">
       <button class="btn" data-a="cancel">Huỷ</button>
-      <button class="btn primary" data-a="ok">${mode === 'now' ? '🎬 Tạo ngay' : '🗓 Hẹn lịch'}</button>
+      <button class="btn primary" data-a="ok">${SHEET_LABELS[mode][1]}</button>
     </div>`, {
     onReady(dlg, close) {
       // picking a preset from the dropdown implies the preset source
@@ -128,6 +135,92 @@ export function configSheet({ row, mode }) {
         close(out);
       });
       dlg.querySelector('[data-a=ok]').focus();
+    },
+  });
+}
+
+/** Edit a queued slot's config in place (assistantBrief provenance is preserved). */
+export async function slotConfigSheet(slot) {
+  const picked = await configSheet({ row: { topic: slot.topic }, mode: 'edit' });
+  if (!picked) return false;
+  const config = slot.config?.assistantBrief
+    ? { ...picked.config, assistantBrief: slot.config.assistantBrief }
+    : picked.config;
+  try {
+    const r = await api.put(`/calendar/${slot.id}`, { config });
+    if (r.ok) toast('💾 Đã cập nhật cấu hình slot.', 'success');
+    return !!r.ok;
+  } catch (e) { toast('✗ ' + e.message, 'error'); return false; }
+}
+
+/** Reschedule a queued slot. */
+export function slotTimeDialog(slot) {
+  const d = new Date(slot.due_at);
+  const p = (n) => String(n).padStart(2, '0');
+  const cur = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+  return openDialog(`
+    <div class="dlg-title">🕐 Dời lịch sản xuất</div>
+    <div class="dlg-body" style="margin-bottom:10px">${esc(slot.topic)}</div>
+    <div class="field" style="margin-bottom:14px"><input class="input" type="datetime-local" data-a="due" value="${cur}"></div>
+    <div class="dlg-actions">
+      <button class="btn" data-a="cancel">Huỷ</button>
+      <button class="btn primary" data-a="ok">🕐 Dời lịch</button>
+    </div>`, {
+    onReady(dlg, close) {
+      dlg.querySelector('[data-a=cancel]').addEventListener('click', () => close(false));
+      dlg.querySelector('[data-a=ok]').addEventListener('click', async () => {
+        const dueAt = Date.parse(dlg.querySelector('[data-a=due]').value);
+        if (!Number.isFinite(dueAt)) { toast('Thời điểm không hợp lệ.', 'error'); return; }
+        try {
+          const r = await api.put(`/calendar/${slot.id}`, { dueAt });
+          if (r.ok) toast('🕐 Đã dời lịch.', 'success');
+          close(!!r.ok);
+        } catch (e) { toast('✗ ' + e.message, 'error'); close(false); }
+      });
+    },
+  });
+}
+
+/**
+ * Plan-my-week dialog: fill the coming days with the best pending suggestions.
+ * Creates SLOTS only (owner confirms the whole plan here) — never starts a pipeline.
+ */
+export function planWeekDialog() {
+  return openDialog(`
+    <div class="dlg-title">📅 Lên kế hoạch tuần</div>
+    <div class="dlg-body" style="margin-bottom:10px">Tự xếp các gợi ý đang chờ (điểm viral cao trước) vào lịch sản xuất.</div>
+    <div class="as-grid" style="margin-bottom:12px">
+      <label>Số ngày <select class="input" data-a="days">
+        <option value="7">7 ngày</option><option value="3">3 ngày</option><option value="14">14 ngày</option><option value="30">30 ngày</option>
+      </select></label>
+      <label>Video mỗi ngày <select class="input" data-a="perDay">
+        <option value="1">1</option><option value="2">2</option><option value="3">3</option>
+      </select></label>
+    </div>
+    <div class="field as-block">
+      <label class="label">Khung giờ (cách nhau bằng dấu phẩy)</label>
+      <input class="input" data-a="times" value="08:00">
+    </div>
+    <label class="as-radio" style="margin-bottom:12px"><input type="checkbox" data-a="useStudio"> <span>📋 Áp cấu hình từ panel Studio hiện tại cho mọi slot</span></label>
+    <div class="dlg-actions">
+      <button class="btn" data-a="cancel">Huỷ</button>
+      <button class="btn primary" data-a="ok">📅 Xếp lịch</button>
+    </div>`, {
+    onReady(dlg, close) {
+      dlg.querySelector('[data-a=cancel]').addEventListener('click', () => close(false));
+      dlg.querySelector('[data-a=ok]').addEventListener('click', async () => {
+        const v = (a) => dlg.querySelector(`[data-a=${a}]`);
+        const times = v('times').value.split(',').map((t) => t.trim()).filter((t) => /^\d{1,2}:\d{2}$/.test(t));
+        if (!times.length) { toast('Khung giờ không hợp lệ (vd: 08:00, 19:30).', 'error'); return; }
+        const config = v('useStudio').checked ? { ...gatherConfig() } : {};
+        try {
+          const r = await api.post('/calendar/plan', { days: +v('days').value, perDay: +v('perDay').value, times, config });
+          toast(r.planned
+            ? `📅 Đã xếp ${r.planned} chủ đề vào lịch${r.skipped ? ` (còn ${r.skipped} chờ đợt sau)` : ''}.`
+            : 'Không có gợi ý đang chờ để xếp — tạo thêm gợi ý trước đã.', r.planned ? 'success' : 'error');
+          close(!!r.planned);
+        } catch (e) { toast('✗ ' + e.message, 'error'); close(false); }
+      });
     },
   });
 }
