@@ -5,6 +5,7 @@ import * as DB from '../db/index.js';
 import { hub } from '../ws/hub.js';
 import { logger } from '../util/log.js';
 import { sleep } from '../util/retry.js';
+import { classifyError } from '../core/errors.js';
 import { buildContext } from './context.js';
 import { requestStop, clearStop, isStopped } from './stop.js';
 import { op } from './progress.js';
@@ -47,20 +48,27 @@ export async function runPipeline(projectId, { resume = false, _auto = 0 } = {})
       DB.updateProject(projectId, { status: 'paused' });
       hub.toProject(projectId, { type: 'status', status: 'paused' });
       logger.warn('Pipeline stopped', { projectId });
-    } else if (_auto < 1) {
-      // Macro self-heal: one automatic resume — completed work is on disk/DB, so this
-      // only redoes the failing part. Only after that do we surface an error.
-      logger.warn(`Pipeline error: ${e.message} — auto-resume in 8s`, { projectId });
-      hub.toProject(projectId, { type: 'retry', scope: 'pipeline', attempt: 1, msg: e.message, delayMs: 8000 });
-      op(projectId, `🩹 Gặp lỗi "${e.message.slice(0, 100)}" — tự động chạy tiếp sau 8 giây…`);
-      await sleep(8000);
-      if (!isStopped(projectId)) return runPipeline(projectId, { resume: true, _auto: _auto + 1 });
-      DB.updateProject(projectId, { status: 'paused' });
-      hub.toProject(projectId, { type: 'status', status: 'paused' });
     } else {
-      DB.updateProject(projectId, { status: 'error', error: e.message });
-      hub.toProject(projectId, { type: 'error', msg: e.message });
-      logger.error(`Pipeline error: ${e.message}`, { projectId });
+      // Error taxonomy: deterministic config/resource failures surface IMMEDIATELY with an
+      // actionable message — an auto-resume cannot fix a bad API key or a missing binary.
+      // Transient/rate-limit (and anything unknown) keeps the macro self-heal: exactly one
+      // automatic resume (P10) — completed work is on disk/DB, so it only redoes the
+      // failing part. A misclassification can only ever ADD a resume, never remove one.
+      const kind = classifyError(e);
+      if (kind.retryable && _auto < 1) {
+        logger.warn(`Pipeline error [${kind.cls}]: ${e.message} — auto-resume in 8s`, { projectId });
+        hub.toProject(projectId, { type: 'retry', scope: 'pipeline', attempt: 1, msg: e.message, cls: kind.cls, delayMs: 8000 });
+        op(projectId, `🩹 Gặp lỗi "${e.message.slice(0, 100)}" — tự động chạy tiếp sau 8 giây…`);
+        await sleep(8000);
+        if (!isStopped(projectId)) return runPipeline(projectId, { resume: true, _auto: _auto + 1 });
+        DB.updateProject(projectId, { status: 'paused' });
+        hub.toProject(projectId, { type: 'status', status: 'paused' });
+      } else {
+        DB.updateProject(projectId, { status: 'error', error: e.message });
+        hub.toProject(projectId, { type: 'error', msg: e.message, cls: kind.cls, hint: kind.hint });
+        if (!kind.retryable) op(projectId, `⛔ ${kind.hint}`);
+        logger.error(`Pipeline error [${kind.cls}]: ${e.message}`, { projectId });
+      }
     }
   } finally {
     clearStop(projectId);

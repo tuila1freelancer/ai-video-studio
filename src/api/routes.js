@@ -229,6 +229,14 @@ export function mountRoutes(app, { version }) {
     res.json({ ok: true });
   });
 
+  // ---- self-serve diagnostics bundle (masked, P14) ----
+  r.get('/projects/:id/diagnostics', async (req, res) => {
+    try {
+      const { buildDiagnostics } = await import('../pipeline/diagnostics.js');
+      res.json(buildDiagnostics(req.params.id));
+    } catch (e) { res.status(e.message === 'project not found' ? 404 : 500).json({ error: e.message }); }
+  });
+
   // ---- usage / cost meter (estimates, labeled "ước tính") ----
   r.get('/usage', (req, res) => {
     if (req.query.projectId) return res.json({ usage: DB.usageForProject(String(req.query.projectId)) });
