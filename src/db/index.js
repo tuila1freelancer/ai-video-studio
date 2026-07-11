@@ -10,6 +10,12 @@ export * from './repositories/projects.js';
 export * from './repositories/scenes.js';
 export * from './repositories/channels.js';
 export * from './repositories/catalogs.js';
+export * from './repositories/jobs.js';
+export * from './repositories/usage.js';
+export * from './repositories/reviews.js';
+export * from './repositories/takes.js';
+export * from './repositories/publishes.js';
+export * from './repositories/calendar.js';
 
 // ---- one-time bootstrap (runs on first import) ----
 // existing projects belong to Default

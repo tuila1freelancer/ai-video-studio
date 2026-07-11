@@ -8,6 +8,7 @@ import { hub } from '../../ws/hub.js';
 import { logger } from '../../util/log.js';
 import { synthesizeVoice } from '../../providers/tts.js';
 import { buildSubtitles } from '../../providers/subtitle.js';
+import { normalizeForTts, moodOf } from '../../providers/tts-normalize.js';
 import { normalizeVoice } from '../../media/ffmpeg.js';
 import { detectLang } from '../../util/lang.js';
 import { buildSrt } from '../srt.js';
@@ -16,6 +17,7 @@ import { ttsOverrideFor } from '../../core/config.js';
 import { checkStop, notStopped } from '../stop.js';
 import { step, op, retryHook } from '../progress.js';
 import { mapPool } from '../helpers.js';
+import { ttsFingerprint, fpCurrent, fpStamp } from '../fingerprint.js';
 
 // Trailing breath-pad after normalize: Vietnamese syllable endings need a touch more room.
 const padMsFor = (lang) => (lang === 'vi' ? 650 : 400);
@@ -30,28 +32,40 @@ export async function runTts(ctx) {
   const voiceFallbacks = []; // scenes that had to switch voice — re-tried once below
   const ttsOne = async (sc, { trackFallback = true } = {}) => {
     const audioOut = join(dir, 'audio', `scene_${sc.idx}.m4a`);
-    const r = await synthesizeVoice(sc.voice_text || ' ', audioOut, { ttsOverride: ttsOverrideFor(channel, config) });
+    const lang = detectLang(sc.voice_text || '');
+    const ttsOverride = ttsOverrideFor(channel, config);
+    // The synthesizer SPEAKS the normalized expansion ('85%' → '85 phần trăm', per-channel
+    // lexicon); captions keep the ORIGINAL script (digits stay on screen — P11 number-beat
+    // detection intact; the align engine spans '85%' over the spoken expansion's time).
+    const speakText = normalizeForTts(sc.voice_text || ' ', { lang, lexicon: ttsOverride?.lexicon || ai.tts?.lexicon });
+    const r = await synthesizeVoice(speakText, audioOut, { ttsOverride, style: moodOf(sc, scenes.length) });
     if (!r.duration || r.duration <= 0) throw new Error('âm thanh rỗng');
     if (r.fallback && trackFallback) {
       voiceFallbacks.push(sc.id);
       op(projectId, `⚠️ Cảnh ${sc.idx + 1}: dùng giọng dự phòng (${r.provider}) — sẽ thử lại giọng chính sau`);
     }
     // per-scene loudnorm + trailing breath pad → every scene at the same loudness, across all providers
-    const lang = detectLang(sc.voice_text || '');
     const padMs = padMsFor(lang);
     const { path, duration } = await normalizeVoice(r.path, join(dir, 'audio', `scene_${sc.idx}_n.m4a`), { padMs });
     // captions time against the SPEECH span — the pad is silence, no caption should sit on it
     const speechDur = Math.max(0.3, duration - padMs / 1000);
-    const sub = await buildSubtitles(path, sc.voice_text || '', speechDur, { language: config.language, engine: ai.subtitle?.engine });
+    // provider-native word timestamps (e.g. ElevenLabs with-timestamps) skip transcription
+    const sub = await buildSubtitles(path, sc.voice_text || '', speechDur, { language: config.language, engine: ai.subtitle?.engine, words: r.words });
     const srtPath = join(dir, 'srt', `scene_${sc.idx}.srt`);
     writeFileSync(srtPath, buildSrt(sub.cues));
-    DB.updateScene(sc.id, { audio_path: path, duration, srt_path: srtPath, srt_json: sub.cues, status: 'tts' });
+    DB.updateScene(sc.id, { audio_path: path, duration, srt_path: srtPath, srt_json: sub.cues, status: 'tts',
+      fp: fpStamp(sc, 'tts', ttsFingerprint(sc, ctx)) });
     hub.toProject(projectId, { type: 'scene', sceneId: sc.id, idx: sc.idx, status: 'tts', duration });
     return r;
   };
   await mapPool(scenes, ttsC, async (sc) => {
     checkStop(projectId);
-    if (resume && sc.audio_path && existsSync(sc.audio_path) && sc.srt_json) return;
+    if (resume && sc.audio_path && existsSync(sc.audio_path) && sc.srt_json) {
+      // content-hash resume: an existing artifact is only kept while its INPUTS are unchanged
+      if (fpCurrent(sc, 'tts', ttsFingerprint(sc, ctx))) return;
+      op(projectId, `♻️ Cảnh ${sc.idx + 1}: lời thoại/giọng đã thay đổi — thu âm lại`);
+      DB.updateScene(sc.id, { video_path: null }); // the clip carries the old voice → re-render
+    }
     op(projectId, `🎙️ Cảnh ${sc.idx + 1}/${scenes.length}`);
     await withRetry(async () => {
       checkStop(projectId);

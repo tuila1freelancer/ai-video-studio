@@ -18,10 +18,15 @@ export default {
   },
 
   async synthesize(text, voiceId, cfg, outPath) {
+    // prosody hint from the pipeline (cfg._style) → natural-language delivery instructions
+    const instructions = cfg?._style === 'energetic'
+      ? 'Speak with energy and excitement, upbeat pacing, confident tone.'
+      : cfg?._style === 'calm' ? 'Speak calmly and warmly, relaxed pacing, gentle tone.' : null;
     const res = await fetch(`${(cfg?.baseUrl || 'https://api.openai.com/v1').replace(/\/$/, '')}/audio/speech`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${cfg?.apiKey}` },
-      body: JSON.stringify({ model: cfg?.model || 'gpt-4o-mini-tts', voice: voiceId || 'alloy', input: text, format: 'mp3' }),
+      body: JSON.stringify({ model: cfg?.model || 'gpt-4o-mini-tts', voice: voiceId || 'alloy', input: text, format: 'mp3',
+        ...(instructions ? { instructions } : {}) }),
     });
     if (!res.ok) throw new Error(`OpenAI TTS ${res.status}: ${(await res.text()).slice(0, 160)}`);
     writeFileSync(outPath, Buffer.from(await res.arrayBuffer()));

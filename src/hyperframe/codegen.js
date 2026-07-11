@@ -34,13 +34,13 @@ export function parseSpec(raw) {
 }
 
 // A render defect is "hard" (wrong content/layout — never ship) vs "soft" (cosmetic timing).
-const HARD_DEFECT = /off-screen|bottom of the frame|not in the narration|renders empty|threw at runtime/i;
+const HARD_DEFECT = /off-screen|bottom of the frame|wrong language|renders empty|threw at runtime/i;
 
 function syntaxCheck(spec, guide, { w, h, duration }) {
   // compile the FULL assembled script (FX prelude + spec.script) exactly as the page will run it
   const ctx = makeCtx({ w, h, theme: getTheme('neon-tech'), seed: 1, duration, idx: 0 });
   const tpl = buildTemplate('hyperframe', { ...spec, guide }, ctx);
-  if (!tpl.css || !tpl.html) throw new Error('spec build ra css/html rỗng');
+  if (!tpl.css || !tpl.html) throw new Error('spec builds empty css/html');
   new Function('gsap', 'tl', 'S', 'rng', tpl.script); // throws SyntaxError on bad JS
 }
 

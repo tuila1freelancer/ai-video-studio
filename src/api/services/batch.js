@@ -29,13 +29,21 @@ export function startBatch({ topics = [], config = {} } = {}) {
     DB.projectDirFor(p.id);
     return p;
   });
-  // sequential background run — one video at a time
-  (async () => {
-    for (const p of created) {
-      try { await Pipeline.startProject(p.id); }
-      catch (e) { logger.error(`batch item failed: ${e.message}`, { projectId: p.id }); }
-    }
-    hub.broadcast({ type: 'batch-done', count: created.length });
-  })();
+  if (DB.getSetting('queue', {})?.durable !== false) {
+    // Durable path: N ledger rows sharing one batch_id. The scheduler serializes jobs of a
+    // batch (one video at a time, as before) and broadcasts batch-done when the last one
+    // settles — and unlike the old fire-and-forget IIFE, a crash no longer strands the rest.
+    const batchId = `batch_${Date.now().toString(36)}`;
+    for (const p of created) Pipeline.enqueueBatchItem(p.id, batchId);
+  } else {
+    // legacy fallback: sequential background run — one video at a time
+    (async () => {
+      for (const p of created) {
+        try { await Pipeline.startProject(p.id); }
+        catch (e) { logger.error(`batch item failed: ${e.message}`, { projectId: p.id }); }
+      }
+      hub.broadcast({ type: 'batch-done', count: created.length });
+    })();
+  }
   return { projects: created.map((p) => p.id), count: created.length };
 }

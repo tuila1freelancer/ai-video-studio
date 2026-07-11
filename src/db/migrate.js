@@ -1,0 +1,75 @@
+// Versioned schema migrations, driven by PRAGMA user_version.
+//
+// Division of labor with connection.js:
+//   - NEW tables keep being born via CREATE TABLE IF NOT EXISTS in connection.js — the
+//     proven idempotent pattern (channels/styles/library all shipped that way).
+//   - Every column ALTER + backfill lives HERE, as a numbered migration. Append-only:
+//     never edit or reorder a shipped migration — add a new one.
+//
+// Each migration runs inside one transaction and user_version advances with it, so a
+// mid-migration crash rolls back cleanly. Before applying anything pending, the DB file
+// is checkpointed and copied to data/backups/ (latest 10 kept).
+import { copyFileSync, mkdirSync, readdirSync, rmSync } from 'node:fs';
+import { join } from 'node:path';
+import { DIRS } from '../config/paths.js';
+
+const KEEP_BACKUPS = 10;
+
+// Ordered, append-only registry. id must be a positive integer, strictly increasing.
+const MIGRATIONS = [
+  {
+    id: 1,
+    name: 'baseline-pre-migrator-alters',
+    // The three column ALTERs that predate user_version tracking. Idempotent by
+    // construction (checks PRAGMA table_info) so DBs of every vintage converge.
+    up(db) {
+      const scols = db.prepare('PRAGMA table_info(scenes)').all().map((c) => c.name);
+      if (!scols.includes('template')) db.exec('ALTER TABLE scenes ADD COLUMN template TEXT');
+      if (!scols.includes('props')) db.exec('ALTER TABLE scenes ADD COLUMN props TEXT');
+      const pcols = db.prepare('PRAGMA table_info(projects)').all().map((c) => c.name);
+      if (!pcols.includes('channel_id')) db.exec('ALTER TABLE projects ADD COLUMN channel_id TEXT');
+    },
+  },
+  {
+    id: 2,
+    name: 'scene-input-fingerprints',
+    // fp = JSON {tts, img, render}: content hashes of each artifact's inputs, so resume can
+    // tell "artifact exists" from "artifact is still CURRENT". NULL (legacy rows) means
+    // "trust the artifact" — exactly the old existence-based behavior.
+    up(db) {
+      const scols = db.prepare('PRAGMA table_info(scenes)').all().map((c) => c.name);
+      if (!scols.includes('fp')) db.exec('ALTER TABLE scenes ADD COLUMN fp TEXT');
+    },
+  },
+];
+
+function backupBefore(db) {
+  try {
+    const dir = join(DIRS.data, 'backups');
+    mkdirSync(dir, { recursive: true });
+    db.pragma('wal_checkpoint(TRUNCATE)'); // fold the WAL in so the copy is self-contained
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    copyFileSync(join(DIRS.data, 'studio.sqlite'), join(dir, `studio-${stamp}.sqlite`));
+    const old = readdirSync(dir).filter((f) => /^studio-.*\.sqlite$/.test(f)).sort();
+    for (const f of old.slice(0, Math.max(0, old.length - KEEP_BACKUPS))) rmSync(join(dir, f), { force: true });
+  } catch { /* a failed backup must not block boot — migrations are transactional regardless */ }
+}
+
+/**
+ * Apply all pending migrations. Called once from connection.js after the CREATE TABLE
+ * blocks and before db/index.js's bootstrap runs any query.
+ * @returns {{applied: number, version: number}}
+ */
+export function migrate(db) {
+  const current = db.pragma('user_version', { simple: true });
+  const pending = MIGRATIONS.filter((m) => m.id > current).sort((a, b) => a.id - b.id);
+  if (!pending.length) return { applied: 0, version: current };
+  backupBefore(db);
+  for (const m of pending) {
+    db.transaction(() => {
+      m.up(db);
+      db.pragma(`user_version = ${m.id}`);
+    })();
+  }
+  return { applied: pending.length, version: pending[pending.length - 1].id };
+}

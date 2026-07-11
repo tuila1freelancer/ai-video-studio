@@ -2,8 +2,9 @@
 // Resolution order per scene text:
 //   1. langVoices[detected-lang] = { provider, voice }     (per-language defaults, set via Voice Picker)
 //   2. settings provider + its chosen voice ('auto' → provider.autoVoiceFor(lang))
-//   3. on failure: edge auto → say auto (never throws)
-import { aiSettings } from '../db/index.js';
+//   3. on failure: edge → say, timbre-preserving: the fallback picks the cached voice
+//      closest to the primary's language+gender instead of an arbitrary default (never throws)
+import { aiSettings, cachedVoiceGender, nearestCachedVoice } from '../db/index.js';
 import { getProvider, providerConfig, legacyVoice } from './voice/index.js';
 import { logger } from '../util/log.js';
 import { detectLang } from '../util/lang.js';
@@ -21,9 +22,12 @@ function resolveTarget(s, lang) {
   return { pid, voice };
 }
 
-async function synthWith(pid, voice, text, s, outPath) {
+async function synthWith(pid, voice, text, s, outPath, style) {
   const provider = getProvider(pid);
-  const cfg = providerConfig(s, pid);
+  // _style: optional prosody hint ('energetic'|'calm') — read only by providers with
+  // expressive controls (elevenlabs voice_settings, openai instructions); others ignore
+  // it, so a malformed style can never cost the voice lock (P7).
+  const cfg = style ? { ...providerConfig(s, pid), _style: style } : providerConfig(s, pid);
   let v = voice;
   if (!v || v === 'auto') v = provider.autoVoiceFor(detectLang(text));
   if (v == null && pid !== 'say') throw new Error(`${pid}: không có giọng phù hợp cho ngôn ngữ`);
@@ -47,8 +51,13 @@ export async function synthesizeVoice(text, outPath, opts = {}) {
     ? { pid: opts.ttsOverride.provider, voice: opts.ttsOverride.voice || legacyVoice(s, opts.ttsOverride.provider) || 'auto' }
     : resolveTarget(s, lang);
 
+  // Timbre-preserving fallback: instead of an arbitrary default voice, the fallback
+  // provider picks its cached voice closest to the primary's language + gender, so a
+  // provider outage changes the VOICE as little as the listener can notice.
+  const targetGender = cachedVoiceGender(target.pid, target.voice);
+  const near = (pid) => { try { return nearestCachedVoice(pid, lang, targetGender) || 'auto'; } catch { return 'auto'; } };
   const chain = [target];
-  if (target.pid !== 'edge') chain.push({ pid: 'edge', voice: 'auto' });
+  if (target.pid !== 'edge') chain.push({ pid: 'edge', voice: near('edge') });
   if (target.pid !== 'say') chain.push({ pid: 'say', voice: 'auto' });
 
   let lastErr;
@@ -57,7 +66,7 @@ export async function synthesizeVoice(text, outPath, opts = {}) {
     const tries = ci === 0 ? 3 : 1; // fight for the locked voice before switching provider
     for (let a = 0; a < tries; a++) {
       try {
-        const r = await synthWith(pid, voice, text, s, outPath);
+        const r = await synthWith(pid, voice, text, s, outPath, opts.style);
         return { ...r, provider: pid, fallback: ci > 0 };
       } catch (e) {
         lastErr = e;

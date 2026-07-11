@@ -8,9 +8,10 @@ import * as DB from '../../db/index.js';
 import { logger } from '../../util/log.js';
 import { renderAnimationScene, renderOutroScene } from '../../animation/index.js';
 import { resolveGuide } from '../../styleguide/index.js';
-import { buildThumbnail } from '../visuals.js';
+import { buildThumbnail, buildThumbnailVariants } from '../visuals.js';
 import { concatScenes, renderCard } from '../render.js';
 import { qcFinalVideo } from '../qc.js';
+import { masterAudio } from '../../media/master.js';
 import { makeAmbientBed, probeDuration, makeWhoosh, makeSfxBed } from '../../media/ffmpeg.js';
 import { withRetry } from '../../util/retry.js';
 import { step, op, retryHook, progressPlan } from '../progress.js';
@@ -54,7 +55,13 @@ export async function finalize(projectId, { dir, size, config, _qcAttempt = 0 })
     if (config.outro !== false) {
       op(projectId, '🎬 Tạo outro…');
       const pp = progressPlan(scenes, config);
-      const o = await renderOutroScene(project, config, { dir: renderDir, progressStart: pp.outroStart, progressTotal: pp.total, duration: 2.6 });
+      // end-screen cross-promo: surface the channel's most recent finished video.
+      // Duration stays 2.6s — outroDur and QC expectDur (P6) remain in lockstep.
+      let related = null;
+      try {
+        related = DB.listProjects().find((p2) => p2.id !== projectId && p2.channel_id === project.channel_id && p2.status === 'done')?.title || null;
+      } catch { /* optional */ }
+      const o = await renderOutroScene(project, config, { dir: renderDir, progressStart: pp.outroStart, progressTotal: pp.total, duration: 2.6, related });
       clips = [...clips, o.path];
     }
   } else {
@@ -116,6 +123,15 @@ export async function finalize(projectId, { dir, size, config, _qcAttempt = 0 })
     return r;
   }, { tries: 2, label: 'b7 concat', onRetry: retryHook(projectId, 'b7') });
 
+  // Broadcast master (P9's -16 LUFS authority, relocated from the concat graph): measure
+  // the mixed program, correct the AUDIO ONLY (-c:v copy — video is never re-encoded).
+  let mastered = { lufs: null, truePeak: null, corrected: false };
+  try {
+    op(projectId, '🎚️ Master âm thanh chuẩn phát sóng (-16 LUFS)…');
+    mastered = await masterAudio(res.path, { onLog: (s) => logger.debug(s, { projectId }) });
+    if (mastered.corrected) op(projectId, `🎚️ Đã master: ${mastered.lufs?.toFixed(1)} LUFS · true-peak ${mastered.truePeak?.toFixed(1)} dB`);
+  } catch (e) { logger.warn(`master: ${e.message} — giữ bản mix gốc`, { projectId }); }
+
   // ---- B8: content quality gate — decode the finished video and hunt visible defects
   // (black frames, dead air, missing audio). Scene-attributable defects get ONE repair
   // cycle: re-render exactly those scenes, then concat + QC again. The report always
@@ -130,7 +146,10 @@ export async function finalize(projectId, { dir, size, config, _qcAttempt = 0 })
       : (config.intro !== false ? 2.6 : 0) + (config.outro !== false ? 2.4 : 0);
     const xfadeLoss = config.transitions === true && clips.length > 1 && clips.length <= 24 ? 0.5 * (clips.length - 1) : 0;
     const qc = await qcFinalVideo(res.path, { expectDur: expectDur + outroDur - xfadeLoss, sceneSpans, tolerancePct: 8, tailAllowance: outroDur });
-    writeFileSync(join(dir, 'qc_report.json'), JSON.stringify({ ...qc, at: new Date().toISOString(), attempt: _qcAttempt }, null, 2));
+    writeFileSync(join(dir, 'qc_report.json'), JSON.stringify({
+      ...qc, loudness: { lufs: mastered.lufs, truePeak: mastered.truePeak, corrected: mastered.corrected },
+      at: new Date().toISOString(), attempt: _qcAttempt,
+    }, null, 2));
     if (!qc.ok) {
       const badIdx = [...new Set(qc.issues.map((i) => i.sceneIdx).filter((n) => n != null))];
       logger.warn(`QC: ${qc.issues.length} vấn đề (${qc.issues.map((i) => i.type).join(', ')}) — cảnh liên quan: ${badIdx.join(', ') || 'không xác định'}`, { projectId });
@@ -154,12 +173,20 @@ export async function finalize(projectId, { dir, size, config, _qcAttempt = 0 })
   }
 
   // Premium thumbnail (title over best image); keyed to the video's style guide in
-  // hyperframe mode so it matches the video. Falls back to the basic frame grab.
+  // hyperframe mode so it matches the video. config.thumbVariants (1-3) renders extra
+  // A/B compositions next to it (thumb_*_v1.jpg, _v2.jpg) at YouTube 1280x720.
   let thumb = res.thumb;
   try {
     const guide = visualMode === 'hyperframe' ? resolveGuide(config) : null;
-    const t = await buildThumbnail(project.title, firstImg, size, join(project.outputDir, `thumb_${Date.now()}.jpg`), { guide });
-    if (t) thumb = t;
+    const nVar = Math.max(1, Math.min(3, parseInt(config.thumbVariants, 10) || 1));
+    if (nVar > 1) {
+      const variants = await buildThumbnailVariants(project.title, firstImg, join(project.outputDir, `thumb_${Date.now()}.jpg`), { guide, count: nVar });
+      if (variants[0]) thumb = variants[0];
+      if (variants.length > 1) op(projectId, `🖼️ Đã tạo ${variants.length} biến thể thumbnail (A/B) trong thư mục xuất`);
+    } else {
+      const t = await buildThumbnail(project.title, firstImg, size, join(project.outputDir, `thumb_${Date.now()}.jpg`), { guide });
+      if (t) thumb = t;
+    }
   } catch { /* keep basic */ }
 
   DB.updateProject(projectId, { video_path: res.path, thumb_path: thumb, current_step: 'b7' });

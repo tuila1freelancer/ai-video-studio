@@ -1,6 +1,23 @@
 // ElevenLabs — premium multilingual voices (needs API key).
 import { writeFileSync } from 'node:fs';
 import { probeDuration } from '../../media/ffmpeg.js';
+import { recordUsage } from '../../util/usage.js';
+
+// { characters:[], character_start_times_seconds:[], character_end_times_seconds:[] }
+// → word timings: whitespace splits words, each word spans its first→last character.
+function charAlignmentToWords(text, alignment) {
+  const chars = alignment?.characters, t0 = alignment?.character_start_times_seconds, t1 = alignment?.character_end_times_seconds;
+  if (!Array.isArray(chars) || !Array.isArray(t0) || !Array.isArray(t1) || chars.length !== t0.length) return null;
+  const words = [];
+  let cur = null;
+  for (let i = 0; i < chars.length; i++) {
+    if (/\s/.test(chars[i])) { if (cur) { words.push(cur); cur = null; } continue; }
+    if (!cur) cur = { start: t0[i], end: t1[i], word: chars[i] };
+    else { cur.word += chars[i]; cur.end = t1[i]; }
+  }
+  if (cur) words.push(cur);
+  return words.map((w) => ({ start: +(+w.start).toFixed(3), end: +(+w.end).toFixed(3), word: w.word }));
+}
 
 export default {
   id: 'elevenlabs', name: 'ElevenLabs', free: false, needsNetwork: true,
@@ -29,14 +46,26 @@ export default {
 
   async synthesize(text, voiceId, cfg, outPath) {
     if (!voiceId) throw new Error('Chưa chọn voice ElevenLabs');
-    const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'xi-api-key': cfg?.apiKey },
-      body: JSON.stringify({ text, model_id: cfg?.model || 'eleven_multilingual_v2' }),
-    });
-    if (!res.ok) throw new Error(`ElevenLabs ${res.status}: ${(await res.text()).slice(0, 160)}`);
-    writeFileSync(outPath, Buffer.from(await res.arrayBuffer()));
-    return { path: outPath, duration: await probeDuration(outPath) };
+    // prosody hint from the pipeline (cfg._style): expressive voice_settings per mood
+    const vs = cfg?._style === 'energetic' ? { stability: 0.35, similarity_boost: 0.85, style: 0.55 }
+      : cfg?._style === 'calm' ? { stability: 0.7, similarity_boost: 0.85, style: 0.15 } : null;
+    const body = JSON.stringify({ text, model_id: cfg?.model || 'eleven_multilingual_v2', ...(vs ? { voice_settings: vs } : {}) });
+    const headers = { 'Content-Type': 'application/json', 'xi-api-key': cfg?.apiKey };
+    // with-timestamps returns character-level alignment alongside the audio — perfect
+    // word timing for the exact script, no transcription pass needed downstream.
+    let words = null;
+    let res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/with-timestamps`, { method: 'POST', headers, body });
+    if (res.ok) {
+      const data = await res.json();
+      writeFileSync(outPath, Buffer.from(data.audio_base64, 'base64'));
+      words = charAlignmentToWords(text, data.alignment);
+    } else {
+      res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, { method: 'POST', headers, body });
+      if (!res.ok) throw new Error(`ElevenLabs ${res.status}: ${(await res.text()).slice(0, 160)}`);
+      writeFileSync(outPath, Buffer.from(await res.arrayBuffer()));
+    }
+    recordUsage('tts', { provider: 'elevenlabs', chars: String(text).length });
+    return { path: outPath, duration: await probeDuration(outPath), ...(words?.length ? { words } : {}) };
   },
 
   async testConnection(cfg) {

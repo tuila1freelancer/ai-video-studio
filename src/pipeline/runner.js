@@ -5,15 +5,18 @@ import * as DB from '../db/index.js';
 import { hub } from '../ws/hub.js';
 import { logger } from '../util/log.js';
 import { sleep } from '../util/retry.js';
+import { classifyError } from '../core/errors.js';
 import { buildContext } from './context.js';
 import { requestStop, clearStop, isStopped } from './stop.js';
 import { op } from './progress.js';
 import { runScript } from './stages/script.js';
+import { runEditorial } from './stages/editorial.js';
 import { runTts } from './stages/tts.js';
 import { runVisuals } from './stages/visuals.js';
 import { runRender } from './stages/render.js';
 import { finalize } from './stages/finalize.js';
 import { runMetadata } from './stages/metadata.js';
+import { runPublish } from './stages/publish.js';
 
 // Stable import surface for pipeline/queue.js — the public pipeline entry points.
 export { requestStop, clearStop };
@@ -31,36 +34,66 @@ export async function runPipeline(projectId, { resume = false, _auto = 0 } = {})
 
   try {
     await runScript(ctx);                                   // B2
+    await runEditorial(ctx);                                // b2.5 — quality gate (B2 banner)
     await runTts(ctx);                                      // B3+4
     await runVisuals(ctx);                                  // B5
     await runRender(ctx);                                   // B6
+
+    // Review gate: with config.requireReview the run holds at a DISTINCT 'review' status
+    // before concat until every scene is approved (rough-cut player chips). Deliberately
+    // NOT 'paused' — P13's zombie recovery must never mistake a clean hold for a crash.
+    // A clean return (not the error path) → the macro auto-resume (P10) is never involved.
+    if (config.requireReview === true) {
+      const ids = DB.getScenes(projectId).map((s) => s.id);
+      const pending = DB.pendingReview(projectId, ids);
+      if (pending.length) {
+        DB.updateProject(projectId, { status: 'review' });
+        hub.toProject(projectId, { type: 'status', status: 'review' });
+        op(projectId, `🧐 Chờ duyệt ${pending.length}/${ids.length} cảnh — mở "▶ Xem nháp" để duyệt, rồi bấm Tiếp tục`);
+        logger.info(`review gate: ${pending.length} scene(s) pending`, { projectId });
+        return;
+      }
+    }
+
     if (config.autoConcat !== false) await finalize(projectId, { dir, size, config }); // B7 + B8
     if (config.generateMetadata !== false) await runMetadata(ctx);
+    await runPublish(ctx); // B9 — opt-in (config.autoPublish), stages private by default
 
     DB.updateProject(projectId, { status: 'done' });
     const fin = DB.getProject(projectId);
     hub.toProject(projectId, { type: 'done', video: fin.video_path ? `/api/file?path=${encodeURIComponent(fin.video_path)}` : null,
       thumb: fin.thumb_path ? `/api/file?path=${encodeURIComponent(fin.thumb_path)}` : null });
+    // Show-Bible write-back (best-effort, like metadata — never blocks status:done):
+    // the finished video's topic joins the channel's anti-repeat ledger.
+    try { if (fin.channel_id) DB.appendChannelTopic(fin.channel_id, fin.title || fin.topic); }
+    catch (e) { logger.warn(`show-bible write-back: ${e.message}`, { projectId }); }
     logger.info('Pipeline done', { projectId });
   } catch (e) {
     if (e.stopped) {
       DB.updateProject(projectId, { status: 'paused' });
       hub.toProject(projectId, { type: 'status', status: 'paused' });
       logger.warn('Pipeline stopped', { projectId });
-    } else if (_auto < 1) {
-      // Macro self-heal: one automatic resume — completed work is on disk/DB, so this
-      // only redoes the failing part. Only after that do we surface an error.
-      logger.warn(`Pipeline error: ${e.message} — auto-resume in 8s`, { projectId });
-      hub.toProject(projectId, { type: 'retry', scope: 'pipeline', attempt: 1, msg: e.message, delayMs: 8000 });
-      op(projectId, `🩹 Gặp lỗi "${e.message.slice(0, 100)}" — tự động chạy tiếp sau 8 giây…`);
-      await sleep(8000);
-      if (!isStopped(projectId)) return runPipeline(projectId, { resume: true, _auto: _auto + 1 });
-      DB.updateProject(projectId, { status: 'paused' });
-      hub.toProject(projectId, { type: 'status', status: 'paused' });
     } else {
-      DB.updateProject(projectId, { status: 'error', error: e.message });
-      hub.toProject(projectId, { type: 'error', msg: e.message });
-      logger.error(`Pipeline error: ${e.message}`, { projectId });
+      // Error taxonomy: deterministic config/resource failures surface IMMEDIATELY with an
+      // actionable message — an auto-resume cannot fix a bad API key or a missing binary.
+      // Transient/rate-limit (and anything unknown) keeps the macro self-heal: exactly one
+      // automatic resume (P10) — completed work is on disk/DB, so it only redoes the
+      // failing part. A misclassification can only ever ADD a resume, never remove one.
+      const kind = classifyError(e);
+      if (kind.retryable && _auto < 1) {
+        logger.warn(`Pipeline error [${kind.cls}]: ${e.message} — auto-resume in 8s`, { projectId });
+        hub.toProject(projectId, { type: 'retry', scope: 'pipeline', attempt: 1, msg: e.message, cls: kind.cls, delayMs: 8000 });
+        op(projectId, `🩹 Gặp lỗi "${e.message.slice(0, 100)}" — tự động chạy tiếp sau 8 giây…`);
+        await sleep(8000);
+        if (!isStopped(projectId)) return runPipeline(projectId, { resume: true, _auto: _auto + 1 });
+        DB.updateProject(projectId, { status: 'paused' });
+        hub.toProject(projectId, { type: 'status', status: 'paused' });
+      } else {
+        DB.updateProject(projectId, { status: 'error', error: e.message });
+        hub.toProject(projectId, { type: 'error', msg: e.message, cls: kind.cls, hint: kind.hint });
+        if (!kind.retryable) op(projectId, `⛔ ${kind.hint}`);
+        logger.error(`Pipeline error [${kind.cls}]: ${e.message}`, { projectId });
+      }
     }
   } finally {
     clearStop(projectId);

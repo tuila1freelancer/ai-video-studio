@@ -46,7 +46,12 @@ export default {
         <div class="h1" style="margin-top:${u(0.8)}px">${esc(p.heading)}</div>
         <div class="tl">${rail}<div class="spark"></div>${nodes}</div>
       </div>`,
-      script: fx(`
+      script: (() => {
+        // each node lands on a narration beat instead of a fixed 0.24s stagger — a step
+        // appears as it is SPOKEN (even-spacing fallback lives inside accentTimes)
+        const beatT = ctx.accentTimes(Math.max(1, items.length))
+          .map((t, i) => +Math.max(0.5 + i * 0.3, t).toFixed(2));
+        return fx(`
         FX.splitIn(tl, '.h1', { at: 0.12, each: 0.024, y: ${u(3.5)}, persp: ${u(40)} });
         FX.drawIn(tl, '.rail line', { at: 0.35, dur: 1.2, each: 0.08 });
         var railEl = document.querySelector('.rail');
@@ -54,10 +59,16 @@ export default {
         tl.fromTo('.spark', { ${vertical ? 'y' : 'x'}: -rb.${vertical ? 'height' : 'width'} },
           { ${vertical ? 'y' : 'x'}: 0, duration: 1.2, ease: 'power2.inOut' }, 0.35);
         tl.from('.spark', { opacity: 0, duration: 0.25, ease: 'power1.out' }, 0.35);
-        ${items.length ? `FX.pop(tl, '.dot', { at: 0.5, each: 0.24, dur: 0.5 });
-        tl.from('.ntt', { y: ${u(2.4)}, opacity: 0, duration: 0.55, ease: 'power3.out', stagger: 0.24 }, 0.62);` : ''}
+        ${items.length ? `var beatT = ${JSON.stringify(beatT)};
+        var dots = FX.q('.dot'), ntts = FX.q('.ntt');
+        for (var i = 0; i < dots.length; i++) {
+          var at = beatT[i] != null ? beatT[i] : 0.5 + i * 0.24;
+          tl.from(dots[i], { scale: 0.4, opacity: 0, duration: 0.5, ease: 'back.out(2)' }, at);
+          if (ntts[i]) tl.from(ntts[i], { y: ${u(2.4)}, opacity: 0, duration: 0.55, ease: 'power3.out' }, at + 0.12);
+        }` : ''}
         FX.loop(tl, '.tl', { y: -${u(0.7)}, at: 2.2, dur: 3.2 });
-      `),
+      `);
+      })(),
     };
   },
 };
