@@ -280,6 +280,34 @@ export function mountRoutes(app, { version }) {
     res.json({ summary: DB.usageSummary({ limit: Math.min(100, parseInt(req.query.limit, 10) || 30) }) });
   });
 
+  // ---- trend autopilot + content calendar + ops dashboard ----
+  r.post('/topics/suggest', async (req, res) => {
+    try {
+      const { suggestTopics } = await import('./services/topic-autopilot.js');
+      const channel = DB.getChannel(DB.activeChannelId());
+      const { aiSettingsFor } = await import('../core/config.js');
+      res.json(await suggestTopics({ channelId: channel?.id, niche: String(req.body?.niche || ''), count: Math.min(12, parseInt(req.body?.count, 10) || 8), ai: aiSettingsFor(channel) }));
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+  r.get('/calendar', (req, res) => res.json({ slots: DB.listSlots() }));
+  r.post('/calendar', (req, res) => {
+    try {
+      const channel = DB.getChannel(DB.activeChannelId());
+      res.json({ slot: DB.addSlot({ channelId: channel?.id || null, topic: req.body?.topic, config: req.body?.config || {}, dueAt: +req.body?.dueAt }) });
+    } catch (e) { res.status(400).json({ error: e.message }); }
+  });
+  r.delete('/calendar/:id', (req, res) => res.json({ ok: DB.cancelSlot(req.params.id) > 0 }));
+  r.get('/dashboard', (req, res) => {
+    const projects = DB.listProjects();
+    const byStatus = projects.reduce((a, p) => { a[p.status] = (a[p.status] || 0) + 1; return a; }, {});
+    res.json({
+      projects: { total: projects.length, byStatus },
+      jobs: DB.listJobs({ limit: 20 }),
+      usage: DB.usageSummary({ limit: 10 }),
+      calendar: DB.listSlots({ includeDone: false }).slice(0, 10),
+    });
+  });
+
   // ---- publisher (B9 scaffold): OAuth loopback + manual publish (staging default) ----
   r.get('/publish/status', async (req, res) => {
     const { publisherStatus } = await import('../publish/index.js');

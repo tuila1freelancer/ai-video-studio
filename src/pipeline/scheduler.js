@@ -72,8 +72,32 @@ function settle(job, { status, error = null }) {
   }
 }
 
+// Content calendar: promote due slots into real projects + queued jobs — piggybacks the
+// scheduler tick (no second timer). Slot topics were chosen BY THE OWNER when scheduling.
+function promoteDueSlots() {
+  for (const slot of DB.dueSlots()) {
+    try {
+      const channel = slot.channel_id ? DB.getChannel(slot.channel_id) : DB.getChannel(DB.activeChannelId());
+      const config = { ...(channel?.config || {}), ...(slot.config || {}) };
+      const project = DB.createProject({
+        title: slot.topic.slice(0, 80), topic: slot.topic, inputType: 'text',
+        aspectRatio: config.aspectRatio || '9:16', config, channelId: channel?.id || null,
+      });
+      DB.projectDirFor(project.id);
+      DB.markSlotCreated(slot.id, project.id);
+      DB.enqueueJob({ kind: 'pipeline', projectId: project.id, payload: {}, priority: -1 });
+      hub.broadcast({ type: 'calendar', slotId: slot.id, projectId: project.id, topic: slot.topic });
+      logger.info(`calendar: slot due → project ${project.id} "${slot.topic}"`, { projectId: project.id });
+    } catch (e) {
+      logger.error(`calendar promote failed: ${e.message}`);
+      DB.cancelSlot(slot.id); // a broken slot must not wedge every future tick
+    }
+  }
+}
+
 export function tick() {
   try {
+    promoteDueSlots();
     for (;;) {
       const kinds = laneCapacity();
       const job = DB.claimNextJob(kinds);

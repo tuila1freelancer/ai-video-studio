@@ -102,6 +102,17 @@ CREATE TABLE IF NOT EXISTS logo_presets (
   position TEXT,
   size INTEGER
 );
+CREATE TABLE IF NOT EXISTS calendar_slots (
+  id TEXT PRIMARY KEY,
+  channel_id TEXT,
+  topic TEXT NOT NULL,
+  config TEXT,                          -- JSON config overrides for the future project
+  due_at INTEGER NOT NULL,
+  status TEXT DEFAULT 'queued',         -- queued|created|cancelled
+  project_id TEXT,
+  created_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_calendar_due ON calendar_slots(status, due_at);
 CREATE TABLE IF NOT EXISTS publish_targets (
   id TEXT PRIMARY KEY,
   project_id TEXT NOT NULL,

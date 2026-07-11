@@ -18,6 +18,7 @@ import { initChannels, loadChannels } from './features/channels.js';
 import { initBrandKit, refreshBrandSummary } from './features/brandkit.js';
 import { initSrt } from './features/srt.js';
 import { initBatch } from './features/batch.js';
+import { initAutopilot } from './features/autopilot.js';
 import { initPalette } from './ui/palette.js';
 
 init();
@@ -39,6 +40,7 @@ async function init() {
   initChannels();
   initSrt();
   initBatch();
+  initAutopilot();
   initPalette();
   buildSubColors();
   buildPipeSteps();
