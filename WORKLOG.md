@@ -3,6 +3,33 @@
 Persistent state of the autonomous upgrade loop. Re-read at the start of every iteration;
 update immediately when anything is discovered — this file is the loop's only memory.
 
+## OPERATING DIRECTIVE (owner order, 2026-07-11 — overrides the small-item cadence)
+Every iteration must deliver ONE complete, DEEP, high-impact feature that visibly raises
+the app's quality — designed, implemented full-stack, functionally verified, committed and
+pushed within that single iteration. No thin slices spread across wakes. Choose the most
+impactful item from Big-Feature Backlog below, finish it end-to-end (UI + backend + pipeline
++ evidence), then report one line and pick the next. Carry-overs (like collecting an
+in-flight verification batch) are finished FIRST in minutes, never counted as the
+iteration's feature.
+
+## BIG-FEATURE BACKLOG (one per iteration, in order)
+- F1: Brand Font System end-to-end (= M3 whole): font picker per-channel + per-video from
+  the vendored families, font UPLOAD (.ttf/.otf/.woff2 → DIRS kind 'font' + rebuild
+  vendor/fonts/fonts.css via scripts/build-fonts.mjs flow), codegen/templates honor the
+  choice, subtitleFont consistency, graceful fallback; evidence = before/after rendered
+  frames with different fonts. (Carry-over first: collect M2 true-positive batch → commit M2.)
+- F2: Cinematic Scene Template Gallery — browsable gallery with LIVE animated previews of
+  every template + one-click apply per scene (Scene Studio integration), plus 2-3 brand-new
+  premium templates designed for the "TUYỆT VỜI QUÁ" bar.
+- F3: Adaptive Performance Engine — governor upgraded from static semaphores to
+  freemem/load-aware adaptive concurrency + preview downscale lane + measured before/after
+  (render time/scene, peak RAM, weak-machine simulation concurrency=1).
+- F4: Per-scene Audio Director — per-scene BGM/SFX picker in Scene Studio with waveform
+  preview, volume/ducking control per scene, library integration.
+- F5: Multi-platform Export Presets — one-click export profiles (YouTube long/Shorts/
+  TikTok/Reels) with correct aspect/bitrate/duration trims + repurpose integration.
+(add new big features here as they are discovered; never shrink an iteration below one)
+
 ## State
 - Current-Branch: feat/ultra-loop
 - PR-URL: (opening after first push)
