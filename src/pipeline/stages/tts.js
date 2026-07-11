@@ -8,6 +8,7 @@ import { hub } from '../../ws/hub.js';
 import { logger } from '../../util/log.js';
 import { synthesizeVoice } from '../../providers/tts.js';
 import { buildSubtitles } from '../../providers/subtitle.js';
+import { normalizeForTts, moodOf } from '../../providers/tts-normalize.js';
 import { normalizeVoice } from '../../media/ffmpeg.js';
 import { detectLang } from '../../util/lang.js';
 import { buildSrt } from '../srt.js';
@@ -31,14 +32,19 @@ export async function runTts(ctx) {
   const voiceFallbacks = []; // scenes that had to switch voice — re-tried once below
   const ttsOne = async (sc, { trackFallback = true } = {}) => {
     const audioOut = join(dir, 'audio', `scene_${sc.idx}.m4a`);
-    const r = await synthesizeVoice(sc.voice_text || ' ', audioOut, { ttsOverride: ttsOverrideFor(channel, config) });
+    const lang = detectLang(sc.voice_text || '');
+    const ttsOverride = ttsOverrideFor(channel, config);
+    // The synthesizer SPEAKS the normalized expansion ('85%' → '85 phần trăm', per-channel
+    // lexicon); captions keep the ORIGINAL script (digits stay on screen — P11 number-beat
+    // detection intact; the align engine spans '85%' over the spoken expansion's time).
+    const speakText = normalizeForTts(sc.voice_text || ' ', { lang, lexicon: ttsOverride?.lexicon || ai.tts?.lexicon });
+    const r = await synthesizeVoice(speakText, audioOut, { ttsOverride, style: moodOf(sc, scenes.length) });
     if (!r.duration || r.duration <= 0) throw new Error('âm thanh rỗng');
     if (r.fallback && trackFallback) {
       voiceFallbacks.push(sc.id);
       op(projectId, `⚠️ Cảnh ${sc.idx + 1}: dùng giọng dự phòng (${r.provider}) — sẽ thử lại giọng chính sau`);
     }
     // per-scene loudnorm + trailing breath pad → every scene at the same loudness, across all providers
-    const lang = detectLang(sc.voice_text || '');
     const padMs = padMsFor(lang);
     const { path, duration } = await normalizeVoice(r.path, join(dir, 'audio', `scene_${sc.idx}_n.m4a`), { padMs });
     // captions time against the SPEECH span — the pad is silence, no caption should sit on it

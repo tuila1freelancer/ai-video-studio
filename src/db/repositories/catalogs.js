@@ -28,6 +28,27 @@ export function voicesCacheAge(provider) {
   return r && r.t ? Date.now() - r.t : Infinity;
 }
 
+/** Gender ('m'|'f'|'u') of a cached voice, or null when unknown/uncached. */
+export function cachedVoiceGender(provider, voiceId) {
+  const r = db.prepare('SELECT gender FROM voices_cache WHERE provider=? AND id=?').get(provider, String(voiceId || ''));
+  return r?.gender || null;
+}
+
+/**
+ * Timbre-preserving fallback pick: the closest voice on `provider` to (lang, gender),
+ * from the cached catalog. Same-language + same-gender first, then same-language.
+ * Returns a voice id or null (caller keeps 'auto').
+ */
+export function nearestCachedVoice(provider, lang, gender) {
+  const rows = db.prepare('SELECT id, gender FROM voices_cache WHERE provider=? AND lang=?').all(provider, lang);
+  if (!rows.length) return null;
+  if (gender && gender !== 'u') {
+    const same = rows.find((r) => r.gender === gender);
+    if (same) return same.id;
+  }
+  return rows[0].id;
+}
+
 // ---- styles ----
 export function listStyles(kind) {
   return db.prepare('SELECT * FROM styles WHERE kind=? ORDER BY builtin DESC, name ASC').all(kind);
