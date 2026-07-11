@@ -43,7 +43,8 @@ export async function runTts(ctx) {
     const { path, duration } = await normalizeVoice(r.path, join(dir, 'audio', `scene_${sc.idx}_n.m4a`), { padMs });
     // captions time against the SPEECH span — the pad is silence, no caption should sit on it
     const speechDur = Math.max(0.3, duration - padMs / 1000);
-    const sub = await buildSubtitles(path, sc.voice_text || '', speechDur, { language: config.language, engine: ai.subtitle?.engine });
+    // provider-native word timestamps (e.g. ElevenLabs with-timestamps) skip transcription
+    const sub = await buildSubtitles(path, sc.voice_text || '', speechDur, { language: config.language, engine: ai.subtitle?.engine, words: r.words });
     const srtPath = join(dir, 'srt', `scene_${sc.idx}.srt`);
     writeFileSync(srtPath, buildSrt(sub.cues));
     DB.updateScene(sc.id, { audio_path: path, duration, srt_path: srtPath, srt_json: sub.cues, status: 'tts',

@@ -20,9 +20,11 @@ export const DEFAULT_SETTINGS = {
   // 'edge' = Microsoft neural voices (free, needs internet, auto-falls back to say offline).
   // 'auto' voices resolve per-scene from the detected text language — never a wrong-language voice.
   tts: { provider: 'edge', edgeVoice: 'auto', voice: 'auto', rate: 175, apiKey: '', voiceId: '', model: '' },
-  // 'estimate' = use the known script text with even timing (correct words, great for TTS).
-  // 'whisper'  = re-transcribe audio (only better when the audio text is unknown).
-  subtitle: { engine: 'estimate' },
+  // 'align'    = forced alignment: whisper's word TIMESTAMPS + the script's exact WORDS —
+  //              the default: tight karaoke timing that can never mis-spell the script.
+  // 'estimate' = known script text with length-weighted timing (no whisper needed).
+  // 'whisper'  = raw re-transcription (only better when the audio text is unknown).
+  subtitle: { engine: 'align' },
   imageSearch: { provider: 'none', apiKey: '' },
   // Real AI image per scene. 'pollinations' is free + keyless (default). 'openai' or 'none' too.
   imageGen: { provider: 'pollinations', model: 'flux', apiKey: '', baseUrl: 'https://api.openai.com/v1' },

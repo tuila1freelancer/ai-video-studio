@@ -185,17 +185,30 @@ export function mountRoutes(app, { version }) {
   r.delete('/projects/:id', (req, res) => { DB.deleteProject(req.params.id); res.json({ ok: true }); });
   r.delete('/projects', (req, res) => { DB.deleteAllProjects(); res.json({ ok: true }); });
 
-  // ---- full-video SRT export (all scene cues shifted to video timeline) ----
+  // ---- full-video SRT export (all scene cues shifted to the FINAL video timeline) ----
+  // Accounts for the image-mode intro card and per-junction xfade overlaps, so exported
+  // cues match the finished file instead of drifting late on long transitions videos.
   r.get('/projects/:id/srt', async (req, res) => {
     const p = DB.getProject(req.params.id);
     if (!p) return res.status(404).json({ error: 'not found' });
     const { buildSrt, shiftCues } = await import('../pipeline/srt.js');
+    const cfg = p.config || {};
     const scenes = DB.getScenes(p.id);
-    let acc = 0; const all = [];
+    const visualMode = cfg.visualMode || 'animation';
+    const introDur = visualMode === 'image' && cfg.intro !== false ? 2.6 : 0;
+    // clip list mirrors finalize: [intro card?] scenes… (outro comes after all cues)
+    const clipCount = scenes.length + (introDur ? 1 : 0)
+      + (visualMode !== 'image' ? (cfg.outro !== false ? 1 : 0) : (cfg.outro !== false ? 1 : 0));
+    const TD = 0.5;
+    const useXfade = cfg.transitions === true && clipCount > 1 && clipCount <= 24;
+    let acc = introDur; // scene 0 starts after the intro card (if any)
+    let ordinal = introDur ? 1 : 0; // this scene's index in the clip list
+    const all = [];
     for (const sc of scenes) {
-      const d = Math.max(1.5, sc.duration || (p.config?.sceneDuration || 6));
-      if (Array.isArray(sc.srt_json)) all.push(...shiftCues(sc.srt_json, acc));
-      acc += d;
+      const d = Math.max(1.5, sc.duration || (cfg.sceneDuration || 6));
+      const start = acc - (useXfade ? TD * ordinal : 0);
+      if (Array.isArray(sc.srt_json)) all.push(...shiftCues(sc.srt_json, Math.max(0, start)));
+      acc += d; ordinal++;
     }
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="subtitles.srt"`);
