@@ -31,6 +31,46 @@ export const HF_DEFAULT_GUIDE = {
 const HEX_RE = /^#[0-9A-Fa-f]{6}$/;
 const strList = (v, max, len = 200) => (Array.isArray(v) ? v : [])
   .map((s) => String(s || '').trim()).filter(Boolean).slice(0, max).map((s) => s.slice(0, len));
+
+// ---- WCAG contrast lock ----------------------------------------------------------------
+// AI- or user-authored palettes carry no guarantee that text survives on the background.
+// Every foreground color is nudged toward legibility here, at the single normalization seam,
+// so no downstream renderer can ever paint unreadable captions. Floors: ink ≥ 4.5:1 (body
+// text, WCAG AA), muted/accents/semantics ≥ 3:1 (large display text + graphics).
+function hexToRgb(hex) {
+  const v = parseInt(hex.slice(1), 16);
+  return [(v >> 16) & 255, (v >> 8) & 255, v & 255];
+}
+function rgbToHex([r, g, b]) {
+  return '#' + [r, g, b].map((c) => Math.round(Math.min(255, Math.max(0, c))).toString(16).padStart(2, '0')).join('').toUpperCase();
+}
+function relLuminance(hex) {
+  const [r, g, b] = hexToRgb(hex).map((c) => {
+    const s = c / 255;
+    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+function contrastRatio(a, b) {
+  const la = relLuminance(a), lb = relLuminance(b);
+  return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+}
+function mix(hex, toward, t) {
+  const a = hexToRgb(hex), b = hexToRgb(toward);
+  return rgbToHex([0, 1, 2].map((i) => a[i] + (b[i] - a[i]) * t));
+}
+/** Nudge fg toward white (dark bg) or black (light bg) until it clears `min` contrast on bg. */
+export function ensureContrast(fg, bg, min) {
+  if (!HEX_RE.test(String(fg || '')) || !HEX_RE.test(String(bg || ''))) return fg;
+  if (contrastRatio(fg, bg) >= min) return fg;
+  const toward = relLuminance(bg) > 0.35 ? '#000000' : '#FFFFFF';
+  let out = fg;
+  for (let t = 0.08; t <= 1.001; t += 0.08) {
+    out = mix(fg, toward, t);
+    if (contrastRatio(out, bg) >= min) return out;
+  }
+  return toward; // pathological palette — full white/black is always legible
+}
 function normalizeSemantics(s, accents) {
   const out = {};
   for (const [k, v] of Object.entries(s && typeof s === 'object' ? s : {})) {
@@ -51,14 +91,21 @@ export function normalizeGuide(g) {
   g = g && typeof g === 'object' ? g : {};
   const pal = g.palette || {};
   const fonts = g.fonts || {};
-  const accents = Array.isArray(pal.accents) && pal.accents.length ? pal.accents.slice(0, 3) : d.palette.accents;
-  while (accents.length < 3) accents.push(accents[accents.length - 1]);
   const hud = g.hud && typeof g.hud === 'object' ? g.hud : {};
+  const bg = pal.bg || d.palette.bg;
+  // WCAG lock: every foreground color must clear its contrast floor on the background
+  const accentsRaw = Array.isArray(pal.accents) && pal.accents.length ? pal.accents.slice(0, 3) : d.palette.accents;
+  while (accentsRaw.length < 3) accentsRaw.push(accentsRaw[accentsRaw.length - 1]);
+  const accents = accentsRaw.map((a) => ensureContrast(a, bg, 3));
+  const semantics = normalizeSemantics(g.semantics, accents);
+  for (const k of Object.keys(semantics)) semantics[k] = ensureContrast(semantics[k], bg, 3);
   return {
     id: g.id || d.id, name: g.name || d.name,
     palette: {
-      bg: pal.bg || d.palette.bg, bg2: pal.bg2 || d.palette.bg2,
-      ink: pal.ink || d.palette.ink, muted: pal.muted || d.palette.muted, accents,
+      bg, bg2: pal.bg2 || d.palette.bg2,
+      ink: ensureContrast(pal.ink || d.palette.ink, bg, 4.5),
+      muted: ensureContrast(pal.muted || d.palette.muted, bg, 3),
+      accents,
     },
     fonts: { display: fonts.display || d.fonts.display, body: fonts.body || d.fonts.body, mono: fonts.mono || d.fonts.mono },
     motif: ['mesh', 'bokeh', 'grid', 'particles', 'grain'].includes(g.motif) ? g.motif : d.motif,
@@ -66,7 +113,7 @@ export function normalizeGuide(g) {
     motionPersonality: g.motionPersonality || d.motionPersonality,
     iconStyle: g.iconStyle || d.iconStyle,
     cameraDefault: g.cameraDefault || d.cameraDefault,
-    semantics: normalizeSemantics(g.semantics, accents),
+    semantics,
     conceptMap: strList(g.conceptMap, 14),
     hud: { kickers: strList(hud.kickers, 6, 24), statuses: strList(hud.statuses, 10, 32) },
     sceneRules: strList(g.sceneRules, 8),

@@ -37,6 +37,14 @@ export function probeStreams(file) {
 
 const num = (s) => { const v = parseFloat(s); return Number.isFinite(v) ? v : null; };
 
+// Mean loudness of a file's audio via volumedetect (reports on stderr at info level).
+// Returns dBFS (negative) or null when unmeasurable.
+export async function measureMeanVolume(file) {
+  const err = await detectPass(file, { af: 'volumedetect' }).catch(() => '');
+  const m = err.match(/mean_volume:\s*(-?[\d.]+)\s*dB/);
+  return m ? num(m[1]) : null;
+}
+
 function sceneAt(t, sceneSpans) {
   // exact containment first — a defect STARTING on a boundary belongs to the scene that
   // starts there, not the one that just ended
@@ -91,7 +99,11 @@ export async function qcFinalVideo(path, { expectDur = 0, tolerancePct = 5, scen
 }
 
 // Per-scene clip check used in B6 verification: exists → probes → carries BOTH streams.
-export async function qcSceneClip(path, { expectDur = 0 } = {}) {
+// expectVoice: the scene has narration (voice_text + audio_path), so the clip's audio must
+// actually CARRY speech — stream presence alone is not enough. Scene clips are the pre-mix
+// voice bus (BGM only joins at concat), so a near-silent mean here means the narration is
+// missing even though the final mixed video would stay above the silencedetect floor.
+export async function qcSceneClip(path, { expectDur = 0, expectVoice = false } = {}) {
   const dur = await probeDuration(path);
   if (!dur || dur < 0.4) return { ok: false, reason: `thời lượng bất thường (${dur.toFixed(2)}s)` };
   const { hasAudio, hasVideo } = await probeStreams(path);
@@ -99,6 +111,13 @@ export async function qcSceneClip(path, { expectDur = 0 } = {}) {
   if (!hasAudio) return { ok: false, reason: 'cảnh câm — thiếu audio stream' };
   if (expectDur > 0 && Math.abs(dur - expectDur) > Math.max(0.5, expectDur * 0.12)) {
     return { ok: false, reason: `A/V lệch: clip ${dur.toFixed(2)}s vs voice ${expectDur.toFixed(2)}s` };
+  }
+  if (expectVoice) {
+    const mean = await measureMeanVolume(path);
+    // normalized speech sits around −20 dB mean; digital silence reads ≈ −91 dB
+    if (mean != null && mean < -50) {
+      return { ok: false, reason: `cảnh câm — có audio stream nhưng không có tiếng đọc (mean ${mean.toFixed(1)}dB)` };
+    }
   }
   return { ok: true };
 }

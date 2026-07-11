@@ -1,6 +1,7 @@
 // ElevenLabs — premium multilingual voices (needs API key).
 import { writeFileSync } from 'node:fs';
 import { probeDuration } from '../../media/ffmpeg.js';
+import { recordUsage } from '../../util/usage.js';
 
 export default {
   id: 'elevenlabs', name: 'ElevenLabs', free: false, needsNetwork: true,
@@ -36,6 +37,7 @@ export default {
     });
     if (!res.ok) throw new Error(`ElevenLabs ${res.status}: ${(await res.text()).slice(0, 160)}`);
     writeFileSync(outPath, Buffer.from(await res.arrayBuffer()));
+    recordUsage('tts', { provider: 'elevenlabs', chars: String(text).length });
     return { path: outPath, duration: await probeDuration(outPath) };
   },
 
