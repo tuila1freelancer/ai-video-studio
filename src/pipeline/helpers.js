@@ -4,17 +4,24 @@ import { existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import * as DB from '../db/index.js';
 import { assStyleFrom } from '../subtitles/presets.js';
+import { acquire } from './governor.js';
 
 /**
  * Run `fn` over `items` with at most `concurrency` in flight; results keep input order.
+ * opts.pool: also draw a permit from the named global governor pool per item, so several
+ * concurrent runs (two pipelines + a manual render) share one process-wide bound.
  * @template T,R @param {T[]} items @param {number} concurrency @param {(item:T,idx:number)=>Promise<R>} fn
  * @returns {Promise<R[]>}
  */
-export async function mapPool(items, concurrency, fn) {
+export async function mapPool(items, concurrency, fn, { pool = null } = {}) {
   const ret = new Array(items.length);
   let i = 0;
   const workers = Array.from({ length: Math.max(1, concurrency) }, async () => {
-    while (i < items.length) { const idx = i++; ret[idx] = await fn(items[idx], idx); }
+    while (i < items.length) {
+      const idx = i++;
+      const release = pool ? await acquire(pool) : null;
+      try { ret[idx] = await fn(items[idx], idx); } finally { release?.(); }
+    }
   });
   await Promise.all(workers);
   return ret;
