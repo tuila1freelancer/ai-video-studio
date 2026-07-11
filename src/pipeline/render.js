@@ -114,14 +114,22 @@ export async function concatScenes(sceneVideos, project, { dir, size, bgmPath, s
     nextIdx = 1; vbase = '[0:v]'; abase = '[0:a]';
   }
   if (bgmPath && existsSync(bgmPath)) {
+    // Sidechain ducking: the voice bus keys a compressor on the BGM, so music breathes up
+    // in pauses and tucks itself under narration — replaces the old fixed 0.13 mix level.
+    // normalize=0 keeps the (already scene-normalized, P9) voice level intact; the master
+    // pass (media/master.js) owns the final -16 LUFS.
     args.push('-stream_loop', '-1', '-i', bgmPath);
-    fc.push(`[${nextIdx}:a]volume=0.13[bg]`, `${abase}[bg]amix=inputs=2:duration=first:dropout_transition=2[amx]`);
+    fc.push(`${abase}asplit=2[vmain][vkey]`);
+    fc.push(`[${nextIdx}:a]volume=0.22[bg0]`,
+      `[bg0][vkey]sidechaincompress=threshold=0.02:ratio=10:attack=60:release=550[bgd]`,
+      `[vmain][bgd]amix=inputs=2:duration=first:normalize=0:dropout_transition=2[amx]`);
     abase = '[amx]'; nextIdx++;
   }
   if (sfxPath && existsSync(sfxPath)) {
-    // transition-whoosh bed (already timed to the cut) — louder than BGM, under the voice
+    // transition-whoosh bed (already timed to the cut) — louder than BGM, under the voice;
+    // deliberately NOT ducked: whooshes land at chapter breaks where narration pauses
     args.push('-i', sfxPath);
-    fc.push(`[${nextIdx}:a]volume=0.75[sfx]`, `${abase}[sfx]amix=inputs=2:duration=first:dropout_transition=2[asx]`);
+    fc.push(`[${nextIdx}:a]volume=0.75[sfx]`, `${abase}[sfx]amix=inputs=2:duration=first:normalize=0:dropout_transition=2[asx]`);
     abase = '[asx]'; nextIdx++;
   }
   if (logo && logo.path && existsSync(logo.path)) {
@@ -132,7 +140,9 @@ export async function concatScenes(sceneVideos, project, { dir, size, bgmPath, s
     vbase = '[vov]'; nextIdx++;
   }
   fc.push(`${vbase}fade=t=in:st=0:d=0.5,fade=t=out:st=${fadeOut.toFixed(2)}:d=0.6[vout]`);
-  fc.push(`${abase}loudnorm=I=-16:TP=-1.5:LRA=11,afade=t=in:st=0:d=0.4,afade=t=out:st=${fadeOut.toFixed(2)}:d=0.6[aout]`);
+  // No loudnorm here anymore: stacking a dynamic normalizer on the mix caused pumping.
+  // The measured two-pass master (finalize → masterAudio) sets -16 LUFS on the finished file.
+  fc.push(`${abase}alimiter=limit=0.891:level=false,afade=t=in:st=0:d=0.4,afade=t=out:st=${fadeOut.toFixed(2)}:d=0.6[aout]`);
   args.push('-filter_complex', fc.join(';'), '-map', '[vout]', '-map', '[aout]', '-t', total.toFixed(2),
     '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-pix_fmt', 'yuv420p', '-r', String(FPS),
     '-c:a', 'aac', '-b:a', '160k', '-ar', '44100', '-ac', '2', '-movflags', '+faststart', finalOut);

@@ -11,6 +11,7 @@ import { resolveGuide } from '../../styleguide/index.js';
 import { buildThumbnail } from '../visuals.js';
 import { concatScenes, renderCard } from '../render.js';
 import { qcFinalVideo } from '../qc.js';
+import { masterAudio } from '../../media/master.js';
 import { makeAmbientBed, probeDuration, makeWhoosh, makeSfxBed } from '../../media/ffmpeg.js';
 import { withRetry } from '../../util/retry.js';
 import { step, op, retryHook, progressPlan } from '../progress.js';
@@ -116,6 +117,15 @@ export async function finalize(projectId, { dir, size, config, _qcAttempt = 0 })
     return r;
   }, { tries: 2, label: 'b7 concat', onRetry: retryHook(projectId, 'b7') });
 
+  // Broadcast master (P9's -16 LUFS authority, relocated from the concat graph): measure
+  // the mixed program, correct the AUDIO ONLY (-c:v copy — video is never re-encoded).
+  let mastered = { lufs: null, truePeak: null, corrected: false };
+  try {
+    op(projectId, '🎚️ Master âm thanh chuẩn phát sóng (-16 LUFS)…');
+    mastered = await masterAudio(res.path, { onLog: (s) => logger.debug(s, { projectId }) });
+    if (mastered.corrected) op(projectId, `🎚️ Đã master: ${mastered.lufs?.toFixed(1)} LUFS · true-peak ${mastered.truePeak?.toFixed(1)} dB`);
+  } catch (e) { logger.warn(`master: ${e.message} — giữ bản mix gốc`, { projectId }); }
+
   // ---- B8: content quality gate — decode the finished video and hunt visible defects
   // (black frames, dead air, missing audio). Scene-attributable defects get ONE repair
   // cycle: re-render exactly those scenes, then concat + QC again. The report always
@@ -130,7 +140,10 @@ export async function finalize(projectId, { dir, size, config, _qcAttempt = 0 })
       : (config.intro !== false ? 2.6 : 0) + (config.outro !== false ? 2.4 : 0);
     const xfadeLoss = config.transitions === true && clips.length > 1 && clips.length <= 24 ? 0.5 * (clips.length - 1) : 0;
     const qc = await qcFinalVideo(res.path, { expectDur: expectDur + outroDur - xfadeLoss, sceneSpans, tolerancePct: 8, tailAllowance: outroDur });
-    writeFileSync(join(dir, 'qc_report.json'), JSON.stringify({ ...qc, at: new Date().toISOString(), attempt: _qcAttempt }, null, 2));
+    writeFileSync(join(dir, 'qc_report.json'), JSON.stringify({
+      ...qc, loudness: { lufs: mastered.lufs, truePeak: mastered.truePeak, corrected: mastered.corrected },
+      at: new Date().toISOString(), attempt: _qcAttempt,
+    }, null, 2));
     if (!qc.ok) {
       const badIdx = [...new Set(qc.issues.map((i) => i.sceneIdx).filter((n) => n != null))];
       logger.warn(`QC: ${qc.issues.length} vấn đề (${qc.issues.map((i) => i.type).join(', ')}) — cảnh liên quan: ${badIdx.join(', ') || 'không xác định'}`, { projectId });
