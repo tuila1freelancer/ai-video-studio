@@ -296,7 +296,24 @@ export function mountRoutes(app, { version }) {
   });
 
   // ---- scenes ----
-  r.put('/scenes/:id', (req, res) => res.json({ scene: DB.updateScene(req.params.id, req.body || {}) }));
+  r.put('/scenes/:id', (req, res) => {
+    // Edit-aware invalidation: a USER edit through this route marks downstream artifacts
+    // stale, so the next resume/render redoes exactly the touched scene (content-hash
+    // resume then keeps everything else). Pipeline stages write via DB directly.
+    const body = { ...(req.body || {}) };
+    const before = DB.getScene(req.params.id);
+    if (!before) return res.status(404).json({ error: 'not found' });
+    const changed = (k) => k in body && JSON.stringify(body[k]) !== JSON.stringify(before[k]);
+    if (changed('voice_text')) {
+      // new narration → old audio, captions and clip are all stale
+      body.audio_path = null; body.srt_json = null; body.srt_path = null; body.video_path = null;
+      body.fp = { ...(before.fp || {}), tts: null, render: null };
+    } else if (changed('visual_prompt') || changed('template') || changed('props') || changed('srt_json')) {
+      body.video_path = null; // visuals/captions changed → clip is stale (audio still good)
+      body.fp = { ...(before.fp || {}), render: null, ...(changed('visual_prompt') ? { img: null } : {}) };
+    }
+    res.json({ scene: DB.updateScene(req.params.id, body) });
+  });
   r.post('/scenes/:id/regen-voice', (req, res) => {
     Pipeline.regenScene(req.params.id, 'voice').catch((e) => logger.error(e.message));
     res.json({ ok: true });

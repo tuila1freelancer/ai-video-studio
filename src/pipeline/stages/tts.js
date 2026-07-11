@@ -16,6 +16,7 @@ import { ttsOverrideFor } from '../../core/config.js';
 import { checkStop, notStopped } from '../stop.js';
 import { step, op, retryHook } from '../progress.js';
 import { mapPool } from '../helpers.js';
+import { ttsFingerprint, fpCurrent, fpStamp } from '../fingerprint.js';
 
 // Trailing breath-pad after normalize: Vietnamese syllable endings need a touch more room.
 const padMsFor = (lang) => (lang === 'vi' ? 650 : 400);
@@ -45,13 +46,19 @@ export async function runTts(ctx) {
     const sub = await buildSubtitles(path, sc.voice_text || '', speechDur, { language: config.language, engine: ai.subtitle?.engine });
     const srtPath = join(dir, 'srt', `scene_${sc.idx}.srt`);
     writeFileSync(srtPath, buildSrt(sub.cues));
-    DB.updateScene(sc.id, { audio_path: path, duration, srt_path: srtPath, srt_json: sub.cues, status: 'tts' });
+    DB.updateScene(sc.id, { audio_path: path, duration, srt_path: srtPath, srt_json: sub.cues, status: 'tts',
+      fp: fpStamp(sc, 'tts', ttsFingerprint(sc, ctx)) });
     hub.toProject(projectId, { type: 'scene', sceneId: sc.id, idx: sc.idx, status: 'tts', duration });
     return r;
   };
   await mapPool(scenes, ttsC, async (sc) => {
     checkStop(projectId);
-    if (resume && sc.audio_path && existsSync(sc.audio_path) && sc.srt_json) return;
+    if (resume && sc.audio_path && existsSync(sc.audio_path) && sc.srt_json) {
+      // content-hash resume: an existing artifact is only kept while its INPUTS are unchanged
+      if (fpCurrent(sc, 'tts', ttsFingerprint(sc, ctx))) return;
+      op(projectId, `♻️ Cảnh ${sc.idx + 1}: lời thoại/giọng đã thay đổi — thu âm lại`);
+      DB.updateScene(sc.id, { video_path: null }); // the clip carries the old voice → re-render
+    }
     op(projectId, `🎙️ Cảnh ${sc.idx + 1}/${scenes.length}`);
     await withRetry(async () => {
       checkStop(projectId);

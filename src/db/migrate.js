@@ -30,6 +30,17 @@ const MIGRATIONS = [
       if (!pcols.includes('channel_id')) db.exec('ALTER TABLE projects ADD COLUMN channel_id TEXT');
     },
   },
+  {
+    id: 2,
+    name: 'scene-input-fingerprints',
+    // fp = JSON {tts, img, render}: content hashes of each artifact's inputs, so resume can
+    // tell "artifact exists" from "artifact is still CURRENT". NULL (legacy rows) means
+    // "trust the artifact" — exactly the old existence-based behavior.
+    up(db) {
+      const scols = db.prepare('PRAGMA table_info(scenes)').all().map((c) => c.name);
+      if (!scols.includes('fp')) db.exec('ALTER TABLE scenes ADD COLUMN fp TEXT');
+    },
+  },
 ];
 
 function backupBefore(db) {

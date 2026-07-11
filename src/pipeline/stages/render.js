@@ -14,6 +14,7 @@ import { qcSceneClip } from '../qc.js';
 import { checkStop } from '../stop.js';
 import { step, op, progressPlan } from '../progress.js';
 import { mapPool, subtitleStyleFrom } from '../helpers.js';
+import { renderFingerprint, fpCurrent, fpStamp } from '../fingerprint.js';
 
 /** @param {import('../context.js').PipelineContext} ctx */
 export async function runRender(ctx) {
@@ -44,7 +45,8 @@ export async function runRender(ctx) {
       });
       path = r.path; duration = r.duration;
     }
-    DB.updateScene(sc.id, { video_path: path, duration, status: 'rendered', error: null, ...(preview ? { image_path: preview } : {}) });
+    DB.updateScene(sc.id, { video_path: path, duration, status: 'rendered', error: null, ...(preview ? { image_path: preview } : {}),
+      fp: fpStamp(sc, 'render', renderFingerprint(sc, ctx)) });
     hub.toProject(projectId, { type: 'scene', sceneId: sc.id, idx: sc.idx, status: 'rendered',
       video: `/api/file?path=${encodeURIComponent(path)}`, ...(preview ? { image: `/api/file?path=${encodeURIComponent(preview)}` } : {}) });
   };
@@ -74,7 +76,12 @@ export async function runRender(ctx) {
   // pool 'render': process-wide bound — concurrent pipelines/manual renders share it
   await mapPool(scenes, rC, async (sc) => {
     checkStop(projectId);
-    if (resume && sc.video_path && existsSync(sc.video_path)) return;
+    if (resume && sc.video_path && existsSync(sc.video_path)) {
+      // content-hash resume: keep the clip only while its inputs (template/props/visual
+      // config) are unchanged; legacy rows without a stamp stay trusted
+      if (fpCurrent(sc, 'render', renderFingerprint(sc, ctx))) return;
+      op(projectId, `♻️ Cảnh ${sc.idx + 1}: visual/cấu hình đã thay đổi — render lại`);
+    }
     op(projectId, `🎬 Render cảnh ${sc.idx + 1}/${scenes.length}`);
     try { await renderHealed(sc); }
     catch (e) {

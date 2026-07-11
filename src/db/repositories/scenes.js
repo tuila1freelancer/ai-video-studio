@@ -11,7 +11,7 @@ const _delScenes = db.prepare('DELETE FROM scenes WHERE project_id=?');
 
 function rowToScene(r) {
   if (!r) return null;
-  return { ...r, keywords: safeJson(r.keywords, []), srt_json: safeJson(r.srt_json, null), props: safeJson(r.props, null) };
+  return { ...r, keywords: safeJson(r.keywords, []), srt_json: safeJson(r.srt_json, null), props: safeJson(r.props, null), fp: safeJson(r.fp, null) };
 }
 export function replaceScenes(projectId, scenes) {
   const tx = db.transaction((arr) => {
@@ -30,12 +30,12 @@ export function replaceScenes(projectId, scenes) {
 export function getScenes(projectId) { return _listScenes.all(projectId).map(rowToScene); }
 export function getScene(id) { return rowToScene(_getScene.get(id)); }
 export function updateScene(id, fields) {
-  const allowed = ['idx', 'voice_text', 'visual_prompt', 'keywords', 'image_path', 'audio_path', 'srt_path', 'srt_json', 'html_path', 'video_path', 'duration', 'status', 'error', 'template', 'props'];
+  const allowed = ['idx', 'voice_text', 'visual_prompt', 'keywords', 'image_path', 'audio_path', 'srt_path', 'srt_json', 'html_path', 'video_path', 'duration', 'status', 'error', 'template', 'props', 'fp'];
   const sets = [], vals = {};
   for (const k of allowed) {
     if (k in fields) {
       sets.push(`${k}=@${k}`);
-      vals[k] = (k === 'keywords' || k === 'srt_json' || k === 'props') && fields[k] != null && typeof fields[k] !== 'string'
+      vals[k] = (k === 'keywords' || k === 'srt_json' || k === 'props' || k === 'fp') && fields[k] != null && typeof fields[k] !== 'string'
         ? JSON.stringify(fields[k]) : fields[k];
     }
   }
