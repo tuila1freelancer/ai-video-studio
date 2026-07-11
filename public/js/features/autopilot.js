@@ -5,10 +5,13 @@
 import { $, $$, esc } from '../ui/dom.js';
 import { api, withLock } from '../api.js';
 import { toast } from '../ui/toast.js';
-import { runSuggestionAction } from './assistant-sheet.js';
+import { runSuggestionAction, slotConfigSheet, slotTimeDialog, planWeekDialog } from './assistant-sheet.js';
 import { initHistoryTab, renderHistory } from './assistant-history.js';
 
+const PACK_LABELS = { 'vn-news': '📰 Tin tức VN', 'vn-tech': '💻 Công nghệ VN', 'vn-business': '📈 Kinh doanh VN' };
+
 let pool = []; // pending suggestion rows shown in the suggest tab
+let sourcesLoaded = false;
 
 export function initAutopilot() {
   $('#heroAutopilot')?.addEventListener('click', openAutopilot);
@@ -19,6 +22,10 @@ export function initAutopilot() {
     if (b) switchTab(b.dataset.tab);
   });
   $('#apTopics')?.addEventListener('click', onPoolAction);
+  $('#apSaveSources')?.addEventListener('click', () => withLock($('#apSaveSources'), saveSources));
+  $('#apPlanWeek')?.addEventListener('click', async () => {
+    if (await planWeekDialog()) { refreshOverview(); renderPool(); }
+  });
   initHistoryTab();
   // cross-tab hooks: history's "🔁 similar" re-runs suggest; any decision refreshes the pool
   document.addEventListener('ap:resuggest', (e) => {
@@ -33,7 +40,31 @@ export function initAutopilot() {
 async function openAutopilot() {
   $('#autopilotModal').classList.add('open');
   switchTab('suggest');
-  await Promise.all([refreshOverview(), renderPool()]);
+  await Promise.all([refreshOverview(), renderPool(), loadSources()]);
+}
+
+// ---- trend source preferences (packs + custom feeds) ----
+async function loadSources() {
+  if (sourcesLoaded) return;
+  try {
+    const { assistant } = await api.get('/assistant/settings');
+    const packs = new Set(assistant.packs || []);
+    $('#apPacks').innerHTML = Object.entries(PACK_LABELS).map(([id, label]) =>
+      `<label class="hint" style="display:flex;align-items:center;gap:6px;cursor:pointer">
+        <input type="checkbox" data-pack="${id}" ${packs.has(id) ? 'checked' : ''}> ${label}</label>`).join('');
+    $('#apFeeds').value = (assistant.feeds || []).map((f) => f.url).join('\n');
+    sourcesLoaded = true;
+  } catch { /* the disclosure just stays empty */ }
+}
+
+async function saveSources() {
+  const packs = [...$('#apPacks').querySelectorAll('[data-pack]:checked')].map((n) => n.dataset.pack);
+  const feeds = $('#apFeeds').value.split('\n').map((u) => u.trim()).filter((u) => /^https?:\/\//i.test(u))
+    .map((url) => ({ url }));
+  try {
+    await api.put('/assistant/settings', { packs, feeds });
+    toast('💾 Đã lưu nguồn xu hướng.', 'success');
+  } catch (e) { toast('✗ ' + e.message, 'error'); }
 }
 
 function switchTab(tab) {
@@ -51,18 +82,39 @@ async function refreshOverview() {
     const runningJobs = (d.jobs || []).filter((j) => j.status === 'running').length;
     const queuedJobs = (d.jobs || []).filter((j) => j.status === 'queued').length;
     const cost = (d.usage || []).reduce((a, u) => a + (u.estCost || 0), 0);
+    const f = d.funnel || {};
+    const next = (d.upcoming || [])[0];
     $('#apStats').innerHTML = [
       chip('🎞 Video', d.projects.total),
       chip('✅ Hoàn thành', st.done || 0),
       chip('⚙️ Job chạy/chờ', `${runningJobs}/${queuedJobs}`),
       chip('💸 Chi phí ước tính', '$' + cost.toFixed(2)),
-      chip('🗓 Lịch chờ', (d.calendar || []).length),
+      chip('💡 Gợi ý 30 ngày', `${f.accepted || 0}+${f.scheduled || 0}/${(f.suggested || 0) + (f.accepted || 0) + (f.scheduled || 0) + (f.dismissed || 0)}`,
+        'đã dùng + đã hẹn / tổng gợi ý'),
+      next ? chip('⏭ Slot kế tiếp', nextIn(next.due_at), next.topic) : chip('🗓 Lịch chờ', (d.calendar || []).length),
+      d.week ? sparkChip(d.week) : '',
     ].join('');
     renderCalendar(await api.get('/calendar'));
   } catch (e) { toast('Lỗi tải tổng quan: ' + e.message, 'error'); }
 }
-function chip(label, val) {
-  return `<div class="ap-chip"><b>${esc(String(val))}</b><span>${esc(label)}</span></div>`;
+function chip(label, val, title = '') {
+  return `<div class="ap-chip" ${title ? `title="${esc(title)}"` : ''}><b>${esc(String(val))}</b><span>${esc(label)}</span></div>`;
+}
+function nextIn(dueAt) {
+  const mins = Math.max(0, Math.round((dueAt - Date.now()) / 60000));
+  if (mins < 60) return `${mins} phút`;
+  if (mins < 48 * 60) return `${Math.round(mins / 60)} giờ`;
+  return `${Math.round(mins / 1440)} ngày`;
+}
+// 7-day created/done sparkline — inline SVG, no library
+function sparkChip(week) {
+  const max = Math.max(1, ...week.createdByDay, ...week.doneByDay);
+  const pts = (arr) => arr.map((v, i) => `${6 + i * 14},${26 - (v / max) * 20}`).join(' ');
+  return `<div class="ap-chip" title="7 ngày: tạo (mờ) / hoàn thành (đậm)">
+    <svg width="96" height="28" viewBox="0 0 96 28" aria-hidden="true">
+      <polyline points="${pts(week.createdByDay)}" fill="none" stroke="rgba(124,140,255,.45)" stroke-width="2"/>
+      <polyline points="${pts(week.doneByDay)}" fill="none" stroke="#7C8CFF" stroke-width="2"/>
+    </svg><span>📈 Nhịp 7 ngày</span></div>`;
 }
 
 // ---- suggestion pool (pending rows from history — survives reloads) ----
@@ -114,14 +166,21 @@ function renderCalendar({ slots }) {
   if (!box) return;
   if (!slots?.length) { box.innerHTML = '<div class="hint">Chưa có lịch nào — hẹn từ một gợi ý ở tab 💡.</div>'; return; }
   box.innerHTML = slots.slice(-20).map((s) => `
-    <div class="ap-slot">
+    <div class="ap-slot" data-id="${esc(s.id)}">
       <span class="when">${new Date(s.due_at).toLocaleString('vi-VN')}</span>
       <span class="t" style="flex:1">${esc(s.topic)}</span>
       <span class="badge ${s.status === 'created' ? 'done' : s.status === 'cancelled' ? 'error' : 'paused'}">${s.status === 'queued' ? 'Chờ đến hạn' : s.status === 'created' ? 'Đã tạo video' : 'Đã huỷ'}</span>
-      ${s.status === 'queued' ? `<button class="btn sm" data-del="${s.id}" title="Huỷ lịch (ý tưởng quay về pool)">✕</button>` : ''}
+      ${s.status === 'queued' ? `
+      <button class="btn sm" data-slot="cfg" title="Sửa cấu hình slot">⚙</button>
+      <button class="btn sm" data-slot="time" title="Dời lịch">🕐</button>
+      <button class="btn sm" data-slot="del" title="Huỷ lịch (ý tưởng quay về pool)">✕</button>` : ''}
     </div>`).join('');
-  box.querySelectorAll('[data-del]').forEach((b) => b.addEventListener('click', async () => {
-    await api.del(`/calendar/${b.dataset.del}`);
-    refreshOverview(); renderPool();
+  box.querySelectorAll('[data-slot]').forEach((b) => b.addEventListener('click', async () => {
+    const slot = slots.find((s) => s.id === b.closest('.ap-slot')?.dataset.id);
+    if (!slot) return;
+    const act = b.dataset.slot;
+    if (act === 'del') { await api.del(`/calendar/${slot.id}`); refreshOverview(); renderPool(); return; }
+    const changed = act === 'cfg' ? await slotConfigSheet(slot) : await slotTimeDialog(slot);
+    if (changed) refreshOverview();
   }));
 }

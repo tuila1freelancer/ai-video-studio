@@ -9,7 +9,7 @@ import { fetchTrends } from '../../providers/trends.js';
 
 const fold = DB.foldTopic;
 
-export async function suggestTopics({ channelId = null, niche = '', count = 8, ai = null, trendsFetcher = fetchTrends } = {}) {
+export async function suggestTopics({ channelId = null, niche = '', count = 8, ai = null, sources = {}, trendsFetcher = fetchTrends } = {}) {
   const channel = channelId ? DB.getChannel(channelId) : DB.getChannel(DB.activeChannelId());
   DB.expireSuggestions({ channelId: channel?.id });
   const memory = channel ? DB.getChannelMemory(channel.id) : { bible: '', topics: [] };
@@ -18,7 +18,7 @@ export async function suggestTopics({ channelId = null, niche = '', count = 8, a
     ...DB.listProjects().filter((p) => !channelId || p.channel_id === channel?.id).map((p) => fold(p.title)),
     ...DB.suggestionBlockSet(channel?.id, { includePending: true }),
   ]);
-  const trends = await trendsFetcher({ niche });
+  const trends = await trendsFetcher({ niche, packs: sources.packs || [], feeds: sources.feeds || [] });
   const llm = ai?.llm || null;
   const persist = (topics, origin) => {
     const rows = DB.recordSuggestionBatch({ channelId: channel?.id || null, niche, origin, topics });

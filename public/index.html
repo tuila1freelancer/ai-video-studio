@@ -499,6 +499,12 @@
         <input class="input" id="apNiche" placeholder="Ngách của kênh (vd: AI cho freelancer)…" style="flex:1">
         <button class="btn" id="apSuggest">Gợi ý</button>
       </div>
+      <details id="apSources" style="margin-top:8px">
+        <summary class="hint" style="cursor:pointer">⚙ Nguồn xu hướng (Google Trends luôn bật)</summary>
+        <div class="row" id="apPacks" style="gap:14px;margin:8px 0;flex-wrap:wrap"></div>
+        <textarea class="input" id="apFeeds" rows="2" placeholder="RSS/Atom tuỳ chỉnh — mỗi dòng một URL (vd: https://vnexpress.net/rss/giai-tri.rss)"></textarea>
+        <div class="row" style="justify-content:flex-end;margin-top:6px"><button class="btn sm" id="apSaveSources">💾 Lưu nguồn</button></div>
+      </details>
       <div class="hint" id="apSuggestNote" style="margin-top:6px"></div>
       <div id="apTopics" style="margin-top:6px"></div>
     </div>
@@ -518,7 +524,10 @@
       <div id="apHistory" style="margin-top:8px"></div>
     </div>
     <div id="apTabCalendar" style="display:none">
-      <div class="hint" style="margin:4px 0 8px">Đến hạn sẽ tự tạo video — với đúng cấu hình bạn đã duyệt khi hẹn lịch.</div>
+      <div class="row" style="align-items:center;gap:8px;margin:2px 0 8px">
+        <div class="hint" style="flex:1">Đến hạn sẽ tự tạo video — với đúng cấu hình bạn đã duyệt khi hẹn lịch.</div>
+        <button class="btn sm" id="apPlanWeek">📅 Lên kế hoạch tuần</button>
+      </div>
       <div id="apCalendar"></div>
     </div>
     <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn primary" data-close>Đóng</button></div>
