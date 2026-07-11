@@ -3,6 +3,9 @@
 Persistent state of the autonomous upgrade loop. Re-read at the start of every iteration;
 update immediately when anything is discovered — this file is the loop's only memory.
 
+## LOOP STATUS: STOPPED by owner (2026-07-11) — final push completed M2 + F1 + F3 in one
+run. F2 (template gallery) and F4/F5 remain in the backlog for a future session.
+
 ## OPERATING DIRECTIVE (owner order, 2026-07-11 — overrides the small-item cadence)
 Every iteration must deliver ONE complete, DEEP, high-impact feature that visibly raises
 the app's quality — designed, implemented full-stack, functionally verified, committed and
@@ -32,16 +35,12 @@ iteration's feature.
 
 ## State
 - Current-Branch: feat/ultra-loop
-- PR-URL: (opening after first push)
-- Item-Counter: 7
+- PR-URL: https://github.com/tuila1freelancer/ai-video-studio/pull/5
+- Item-Counter: 10
 - Sandbox: AVS_DATA_DIR=<scratchpad>/avs-loop, server managed per iteration
 
 ## In-Progress
-- M2 Visual-HTML quality gates: add text-vs-text overlap + low-contrast detectors to
-  renderValidate (src/hyperframe/validate.js), extend the HARD_DEFECT regex in
-  src/hyperframe/codegen.js with the new phrases (re-ask, not just lastGood fallback),
-  polish src/hyperframe/prompt.js for balanced layout. Then batch qaSpec on ≥10 sample
-  specs. Cap: ≤3 re-asks/scene. P11/P12 guards must stay green.
+(nothing — loop stopped; next candidate on resume: F2 Cinematic Scene Template Gallery)
 
 ## Backlog
 - M1 acceptance run, then M2 → M3 → M4 (see loop prompt)
@@ -92,6 +91,29 @@ iteration's feature.
   documented in the editor tooltip (⌘Z/⇧⌘Z/⌘↵). M1 acceptance complete: fingerprint
   proof (M1.2), preview==render by construction (same buildSceneHtml), takes+rollback,
   inline busy/error states, no blocking operations.
+- M2 Visual-quality gates COMPLETE. renderValidate probe now reports text-vs-text overlap
+  (bbox >30% of the smaller box, DOM-containment aware, both readable) and unreadable text
+  (WCAG <2.2:1 vs nearest solid bg; background-clip:text / stroked / transparent treatments
+  exempt after the chrome-treatment false positive was found and fixed). Both phrases are
+  HARD_DEFECT → codegen re-asks. Layout contract in the prompt forbids overlapping text.
+  Evidence: all 7 presets clean (0 FP), stacked-keywords spec DETECTED (100% overlap),
+  #191922-on-dark spec DETECTED (1.05:1). Pure math pinned in tests/visual-qa.test.js.
+- F1 Brand Font System COMPLETE (one run): per-video 'Font thương hiệu' select (channel
+  default via preset layering), library kind 'font' with .ttf/.otf/.woff/.woff2 validation,
+  page-time @font-face injection of uploads (vendor fonts.css untouched), GET /fonts/families,
+  subtitle-font select gains the same families, graceful fallback on deletion. Evidence:
+  uploaded 'FontRieng' → families lists it → anim-html carries @font-face + stack → preview
+  frame md5 ca23fc… → 6cbbc3… (pixel change) → delete → page 200 on fallback stack.
+- F3 Adaptive Performance Engine COMPLETE (one run): governor render pool is now adaptive —
+  base from cores (or AVS_RENDER_CONCURRENCY pin), shrinks to 2 under <3GB free, to 1 under
+  <1.5GB free, sheds one when load1 > cores*1.5; never above base, never below 1; refreshed
+  on every acquire; AVS_ADAPTIVE=0 opt-out. adaptiveCap thresholds pinned by unit tests.
+
+## Metrics
+- 3-scene re-render (animation, 1080x1920): default cap 27.1s vs weak-machine sim cap=1
+  25.1s — completes cleanly single-lane, no hang (per-scene render already saturates
+  cores via ffmpeg, so lane-1 costs almost nothing on this machine; the win is RAM: one
+  Chrome page + one encode at a time on low-memory machines).
 
 ## Metrics
 (none yet)
