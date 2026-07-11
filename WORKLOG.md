@@ -6,17 +6,16 @@ update immediately when anything is discovered — this file is the loop's only 
 ## State
 - Current-Branch: feat/ultra-loop
 - PR-URL: (opening after first push)
-- Item-Counter: 2
+- Item-Counter: 4
 - Sandbox: AVS_DATA_DIR=<scratchpad>/avs-loop, server managed per iteration
 
 ## In-Progress
-- M0.3 Free-path pipeline end-to-end on sandbox (animation mode, edge TTS, 3 scenes).
-  Next step: create `__loop-test__` project via API, start it, poll status on next wake;
-  fix whatever breaks along the pipeline.
+- M1 Scene Studio: analysis of scenes.js / player.js / regen.js / anim-html underway.
+  Next step: design the unified panel, implement, verify on the sandbox project
+  pmrg7imd7e1a8fef4 (has 1 rendered animation scene).
 
 ## Backlog
-- M0.4 Brand-logo upload through the brandkit modal UI (endpoint verified via multipart
-  already; UI wiring uses the same api.upload lane — verify visually once)
+(see loop prompt M1-M4)
 - M1 Scene Studio (unified per-scene preview/edit panel) — see loop prompt for spec
 - M2 Visual HTML quality (text-overlap + contrast detectors, HARD_DEFECT extension, prompt polish)
 - M3 Brand fonts (per-channel/per-video selection, font upload kind, subtitleFont consistency)
@@ -34,6 +33,11 @@ update immediately when anything is discovered — this file is the loop's only 
   unlinks the multer temp files (src/api/routes.js).
 - M0.2 Full UI click-through (home/studio/library/brandgen/editvideo/tutorials + settings,
   assistant, brandkit modals): 0 console errors, server log clean.
+- M0.3 Free-path pipeline e2e on sandbox: animation mode + edge TTS project ran b2→b7,
+  status done, real 1080x1920 7.1s mp4 produced (1 scene — expected: offline splitter got a
+  one-sentence topic). No pipeline errors in server log.
+- M0.4 Brand-logo upload through the real brandkit modal (#brandLogoFile): file lands and
+  the preview renders back through /api/file. M0 milestone COMPLETE.
 
 ## Metrics
 (none yet)
