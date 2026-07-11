@@ -1,9 +1,12 @@
-// SQLite connection + schema + migrations (better-sqlite3). One file DB under data/.
+// SQLite connection + schema (better-sqlite3). One file DB under data/.
 // This file owns ONLY the handle and DDL — no query functions, no seed data — so every
 // repository can `import db from './connection.js'` without a dependency cycle.
+// Column ALTERs + backfills live in ./migrate.js (versioned via PRAGMA user_version);
+// new tables keep being added here via CREATE TABLE IF NOT EXISTS.
 import Database from 'better-sqlite3';
 import { join } from 'node:path';
 import { DIRS, ensureDirs } from '../config/paths.js';
+import { migrate } from './migrate.js';
 
 ensureDirs();
 const db = new Database(join(DIRS.data, 'studio.sqlite'));
@@ -52,15 +55,6 @@ CREATE TABLE IF NOT EXISTS scenes (
 );
 CREATE INDEX IF NOT EXISTS idx_scenes_project ON scenes(project_id, idx);
 `);
-
-// lightweight migrations for older DBs
-{
-  const cols = db.prepare('PRAGMA table_info(scenes)').all().map((c) => c.name);
-  if (!cols.includes('template')) db.exec('ALTER TABLE scenes ADD COLUMN template TEXT');
-  if (!cols.includes('props')) db.exec('ALTER TABLE scenes ADD COLUMN props TEXT');
-  const pcols = db.prepare('PRAGMA table_info(projects)').all().map((c) => c.name);
-  if (!pcols.includes('channel_id')) db.exec('ALTER TABLE projects ADD COLUMN channel_id TEXT');
-}
 
 db.exec(`
 CREATE TABLE IF NOT EXISTS channels (
@@ -121,5 +115,9 @@ CREATE TABLE IF NOT EXISTS voices_cache (
   PRIMARY KEY (provider, id)
 );
 `);
+
+// Versioned migrations run AFTER every CREATE TABLE block (so migrations may reference any
+// table) and BEFORE db/index.js's bootstrap issues its first query.
+migrate(db);
 
 export default db;
