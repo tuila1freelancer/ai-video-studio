@@ -73,6 +73,7 @@ export function gatherConfig() {
     useDefaultBgm: !!$('#cfgBgm').value,
     styleId: $('#cfgStyle').value,
     autoConcat: $('#cfgAutoConcat').checked,
+    requireReview: $('#cfgReview')?.checked || false,
     richAnimation: $('#cfgRich').checked,
     transitions: $('#cfgTrans').checked,
     intro: $('#cfgIntro').checked,
@@ -111,6 +112,7 @@ export function applyConfig(cfg = {}) {
   if (cfg.subtitleColor) { state.subColor = cfg.subtitleColor; buildSubColors(); }
   if (cfg.subtitlePosition?.preset) $('#cfgSubPos').value = cfg.subtitlePosition.preset;
   if ('autoConcat' in cfg) $('#cfgAutoConcat').checked = cfg.autoConcat !== false;
+  if ('requireReview' in cfg && $('#cfgReview')) $('#cfgReview').checked = cfg.requireReview === true;
   if ('richAnimation' in cfg) $('#cfgRich').checked = cfg.richAnimation !== false;
   if ('transitions' in cfg) $('#cfgTrans').checked = !!cfg.transitions;
   if ('intro' in cfg) $('#cfgIntro').checked = cfg.intro !== false;

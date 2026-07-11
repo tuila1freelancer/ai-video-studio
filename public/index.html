@@ -336,6 +336,7 @@
               <label class="switch-row"><span class="switch"><input type="checkbox" id="cfgTrans"><span class="sl"></span></span> 🔀 Chuyển cảnh mượt (xfade)</label>
               <label class="switch-row"><span class="switch"><input type="checkbox" id="cfgMeta" checked><span class="sl"></span></span> 📊 Tạo Metadata</label>
               <label class="switch-row"><span class="switch"><input type="checkbox" id="cfgAutoConcat" checked><span class="sl"></span></span> Tự động ghép (B7)</label>
+              <label class="switch-row" title="Dừng trước khi ghép để bạn duyệt từng cảnh trong Xem nháp"><span class="switch"><input type="checkbox" id="cfgReview"><span class="sl"></span></span> 🧐 Duyệt từng cảnh trước khi ghép</label>
               <label class="switch-row" style="margin-top:6px"><span class="switch"><input type="checkbox" id="cfgPTts"><span class="sl"></span></span> TTS song song</label>
               <label class="switch-row"><span class="switch"><input type="checkbox" id="cfgPRender"><span class="sl"></span></span> Render song song</label>
               <div class="grid2" style="margin-top:6px">
@@ -485,6 +486,9 @@
   <div class="rc-top">
     <span class="rc-title">▶ Bản nháp <span class="rc-note">(preview trực tiếp — chưa phải bản render cuối)</span></span>
     <span id="rcSceneLabel" class="rc-note"></span>
+    <span id="rcReviewState" class="rc-note"></span>
+    <button class="btn" id="rcApprove" title="Duyệt cảnh đang xem">✓ Duyệt</button>
+    <button class="btn danger" id="rcReject" title="Loại cảnh đang xem (cần làm lại)">✕ Loại</button>
     <button class="btn" id="rcClose">✕ Đóng</button>
   </div>
   <div class="rc-stagewrap"><div id="rcStage" class="rc-stage"></div></div>
