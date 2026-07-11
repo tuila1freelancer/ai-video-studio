@@ -72,6 +72,7 @@ export function gatherConfig() {
     bgmPath: $('#cfgBgm').value || null,
     useDefaultBgm: !!$('#cfgBgm').value,
     styleId: $('#cfgStyle').value,
+    ...($('#cfgBrandFont')?.value ? { fonts: { display: $('#cfgBrandFont').value } } : {}),
     autoConcat: $('#cfgAutoConcat').checked,
     requireReview: $('#cfgReview')?.checked || false,
     richAnimation: $('#cfgRich').checked,
@@ -111,6 +112,7 @@ export function applyConfig(cfg = {}) {
   if (cfg.subtitleTextCase) $('#cfgSubCase').value = cfg.subtitleTextCase;
   if (cfg.subtitleColor) { state.subColor = cfg.subtitleColor; buildSubColors(); }
   if (cfg.subtitlePosition?.preset) $('#cfgSubPos').value = cfg.subtitlePosition.preset;
+  if ($('#cfgBrandFont')) $('#cfgBrandFont').value = cfg.fonts?.display || '';
   if ('autoConcat' in cfg) $('#cfgAutoConcat').checked = cfg.autoConcat !== false;
   if ('requireReview' in cfg && $('#cfgReview')) $('#cfgReview').checked = cfg.requireReview === true;
   if ('richAnimation' in cfg) $('#cfgRich').checked = cfg.richAnimation !== false;
@@ -257,6 +259,31 @@ export async function loadTemplates() {
 export async function loadBgmOptions() {
   const { items } = await api.get('/library/bgm');
   $('#cfgBgm').innerHTML = '<option value="">— Không —</option>' + items.map((i) => `<option value="${esc(i.path)}">${esc(i.name)}</option>`).join('');
+}
+// Brand-font picker: vendored Vietnamese-safe families + owner uploads. The same list is
+// appended to the subtitle-font select so captions can match the brand typography.
+export async function loadFontFamilies() {
+  let families = [];
+  try { families = (await api.get('/fonts/families')).families || []; } catch { return; }
+  const bf = $('#cfgBrandFont');
+  if (bf) {
+    const cur = bf.value;
+    bf.innerHTML = '<option value="">— Theo style guide —</option>' + families.map((f) =>
+      `<option value="${esc(f.name)}">${f.source === 'uploaded' ? '📤 ' : ''}${esc(f.name)}${f.tooBig ? ' (quá 6MB — bỏ qua)' : ''}</option>`).join('');
+    bf.value = cur;
+  }
+  const sf = $('#cfgSubFont');
+  if (sf) {
+    const have = new Set([...sf.options].map((o) => o.value));
+    for (const f of families) {
+      const stack = `'${f.name}', sans-serif`;
+      if (!have.has(stack)) {
+        const o = document.createElement('option');
+        o.value = stack; o.textContent = `${f.source === 'uploaded' ? '📤 ' : ''}${f.name}`;
+        sf.appendChild(o);
+      }
+    }
+  }
 }
 
 // ================= config groups: summary cards + edit modal =================

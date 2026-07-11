@@ -38,18 +38,19 @@ export function buildSceneHtml(scene, project, config, extras = {}) {
   const { w, h } = animSize(project.aspect_ratio, config.resolutionScale || 1);
   const duration = extras.durationOverride || scene.duration || config.sceneDuration || 6;
   const brand = resolveBrandKit(config);
-  const plan = scene.template && scene.props
+  let plan = scene.template && scene.props
     ? { template: scene.template, props: scene.props }
     : planScene(scene, { idx: scene.idx, total: extras.total || 9999, title: project.title, brand });
   // HyperFrame scenes carry their style guide in props — the whole page (bg canvas, captions,
   // progress bar) follows the guide's palette instead of the classic theme. In a hyperframe
   // project the guide also drives FALLBACK-template scenes and the outro, so a scene that
   // dropped to the heuristic planner can never break the video's visual identity.
-  const theme = plan.template === 'hyperframe' && plan.props?.guide
+  let theme = plan.template === 'hyperframe' && plan.props?.guide
     ? themeFromGuide(normalizeGuide(plan.props.guide))
     : (config.visualMode === 'hyperframe'
       ? themeFromGuide(resolveGuide(config))
       : getTheme(config.theme || 'neon-tech'));
+  ({ plan, theme } = applyBrandFont(plan, theme, config));
   // captions resolve BEFORE the template builds: word timings feed ctx.accentTimes so
   // template motion lands on the narration's beats (still deterministic — srt_json is data)
   const captions = config.enableSubtitles !== false ? (scene.srt_json || []) : [];
@@ -71,6 +72,24 @@ export function buildSceneHtml(scene, project, config, extras = {}) {
   });
 }
 
+// Brand-font override (config.fonts.display, layered per-channel/per-video through the
+// normal config chain): the owner's family leads the stack; the vendored Vietnamese-safe
+// families remain the fallback. Hyperframe scenes get it through their guide (drives
+// .hf-kw/.hf-kw2/.hf-stat-v); animation scenes through theme.font.
+export function brandFontStack(config) {
+  const fam = String(config?.fonts?.display || '').replace(/['"<>]/g, '').trim();
+  return fam ? `'${fam}', 'Be Vietnam Pro', sans-serif` : null;
+}
+function applyBrandFont(plan, theme, config) {
+  const stack = brandFontStack(config);
+  if (!stack) return { plan, theme };
+  if (plan.props?.guide) {
+    plan = { ...plan, props: { ...plan.props, guide: { ...plan.props.guide, fonts: { ...(plan.props.guide.fonts || {}), display: stack } } } };
+  }
+  if ((config.visualMode || 'animation') === 'animation') theme = { ...theme, font: stack };
+  return { plan, theme };
+}
+
 // Direct-edit lane (Scene Studio): owner-authored markup/css/script in props.__custom
 // replaces the TEMPLATE output only — page chrome (captions, brand layer, progress bar,
 // watermark) stays system-managed, so a hand edit can never break the video's identity.
@@ -90,14 +109,15 @@ export function sceneTemplateSource(scene, project, config) {
   const { w, h } = animSize(project.aspect_ratio, config.resolutionScale || 1);
   const duration = scene.duration || config.sceneDuration || 6;
   const brand = resolveBrandKit(config);
-  const plan = scene.template && scene.props
+  let plan = scene.template && scene.props
     ? { template: scene.template, props: scene.props }
     : planScene(scene, { idx: scene.idx, total: 9999, title: project.title, brand });
-  const theme = plan.template === 'hyperframe' && plan.props?.guide
+  let theme = plan.template === 'hyperframe' && plan.props?.guide
     ? themeFromGuide(normalizeGuide(plan.props.guide))
     : (config.visualMode === 'hyperframe'
       ? themeFromGuide(resolveGuide(config))
       : getTheme(config.theme || 'neon-tech'));
+  ({ plan, theme } = applyBrandFont(plan, theme, config));
   const ctx = makeCtx({ w, h, theme, seed: scene.idx + 1, duration, idx: scene.idx, captions: scene.srt_json || [] });
   const tpl = buildTemplate(plan.template, plan.props, ctx);
   applyCustomOverride(tpl, plan.props);

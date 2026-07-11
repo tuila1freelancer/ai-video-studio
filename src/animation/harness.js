@@ -13,6 +13,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { VENDOR_DIR } from '../config/paths.js';
 import { gsapBundle } from './gsap.js';
+import { userFontsCss } from './userfonts.js';
 
 let fontsCssCache = null;
 export function fontsCss() {
@@ -210,6 +211,7 @@ export function buildScenePage(opts) {
   return `<!doctype html><html><head><meta charset="utf-8">
 <style>
 ${fontsCss()}
+${userFontsCss()}
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{width:${w}px;height:${h}px;overflow:hidden;background:${theme.bg}}
 body{font-family:${theme.font};color:${theme.ink};-webkit-font-smoothing:antialiased}

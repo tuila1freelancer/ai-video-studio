@@ -709,9 +709,16 @@ export function mountRoutes(app, { version }) {
   r.post('/library/:kind', upload.array('files'), (req, res) => {
     const kind = req.params.kind;
     // unknown kind would join(undefined) → raw 500 with a stack trace; refuse cleanly
-    if (!['brand', 'bgm', 'sfx'].includes(kind)) {
+    if (!['brand', 'bgm', 'sfx', 'font'].includes(kind)) {
       for (const f of req.files || []) { try { unlinkSync(f.path); } catch { /* temp cleanup */ } }
       return res.status(400).json({ error: `loại thư viện không hỗ trợ: ${kind}` });
+    }
+    if (kind === 'font') {
+      const badFile = (req.files || []).find((f) => !/\.(ttf|otf|woff2?)$/i.test(f.originalname));
+      if (badFile) {
+        for (const f of req.files || []) { try { unlinkSync(f.path); } catch { /* temp cleanup */ } }
+        return res.status(400).json({ error: `font chỉ nhận .ttf/.otf/.woff/.woff2 — "${badFile.originalname}" không hợp lệ` });
+      }
     }
     const brand = req.body.brand || 'Default';
     const names = [].concat(req.body.names || []);
@@ -731,6 +738,14 @@ export function mountRoutes(app, { version }) {
     const row = DB.deleteLibrary(req.params.id);
     if (row && row.path && existsSync(row.path)) { try { unlinkSync(row.path); } catch { /* ignore */ } }
     res.json({ ok: true });
+  });
+
+  // Brand fonts: every family the owner can pick (vendored Vietnamese-safe set + uploads)
+  r.get('/fonts/families', async (req, res) => {
+    try {
+      const { fontFamilies } = await import('../animation/userfonts.js');
+      res.json(fontFamilies());
+    } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
   // ---- generic uploads (assets/logo) ----

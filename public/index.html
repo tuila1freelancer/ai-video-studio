@@ -280,6 +280,11 @@
                 <div class="bs-info"><div class="bs-name" id="bsName">Chưa cấu hình brand</div><div class="hint" id="bsMeta">Logo + tên kênh sẽ tự chèn vào từng cảnh</div></div>
               </div>
               <button class="btn block" id="btnBrandEditor">🎨 Chỉnh Brand Kit của kênh…</button>
+              <div class="field" style="margin-top:10px">
+                <label class="label">🔤 Font thương hiệu cho video này</label>
+                <select class="input" id="cfgBrandFont"><option value="">— Theo style guide —</option></select>
+                <div class="hint">Áp cho chữ đồ hoạ trong cảnh (headline/số liệu). Tải font riêng ở Thư viện → Font chữ.</div>
+              </div>
               <div class="field" id="legacyWatermark" style="margin-top:10px">
                 <label class="label">Watermark chữ (khi chưa có Brand Kit)</label>
                 <input class="input" id="cfgWatermark" placeholder="vd: tuila1freelancer" value="">
@@ -360,6 +365,7 @@
           <button class="gtab active" data-kind="brand">🎨 Brand Asset</button>
           <button class="gtab" data-kind="bgm">🎵 Nhạc nền</button>
           <button class="gtab" data-kind="sfx">🔊 SFX</button>
+          <button class="gtab" data-kind="font">🔤 Font chữ</button>
         </div>
         <div class="row">
           <label class="btn sm">+ Tải lên<input type="file" id="libUpload" multiple hidden></label>
