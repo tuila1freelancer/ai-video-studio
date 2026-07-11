@@ -54,7 +54,7 @@ export async function renderOnly(projectId, { mode = 'all', sceneIds = [] }) {
       }
       DB.updateScene(sc.id, { video_path: path, duration, status: 'rendered', ...(preview ? { image_path: preview } : {}) });
       hub.toProject(projectId, { type: 'scene', sceneId: sc.id, idx: sc.idx, status: 'rendered', video: `/api/file?path=${encodeURIComponent(path)}`, ...(preview ? { image: `/api/file?path=${encodeURIComponent(preview)}` } : {}) });
-    });
+    }, { pool: 'render' }); // same process-wide bound as pipeline renders
     step(projectId, 'b6', 'done');
     if (mode !== 'scenes') await finalize(projectId, { dir, size, config });
     DB.updateProject(projectId, { status: 'done' });

@@ -102,6 +102,22 @@ CREATE TABLE IF NOT EXISTS logo_presets (
   position TEXT,
   size INTEGER
 );
+CREATE TABLE IF NOT EXISTS jobs (
+  id TEXT PRIMARY KEY,
+  kind TEXT NOT NULL,                   -- pipeline|render
+  project_id TEXT,
+  batch_id TEXT,
+  payload TEXT,                         -- JSON: executor opts (resume, mode, sceneIds…)
+  status TEXT DEFAULT 'queued',         -- queued|running|done|error|cancelled
+  priority INTEGER DEFAULT 0,           -- higher first; batch items enqueue at -1
+  attempts INTEGER DEFAULT 0,
+  error TEXT,
+  created_at INTEGER,
+  started_at INTEGER,
+  finished_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_jobs_claim ON jobs(status, priority DESC, created_at);
+CREATE INDEX IF NOT EXISTS idx_jobs_project ON jobs(project_id, created_at);
 CREATE TABLE IF NOT EXISTS voices_cache (
   provider TEXT,
   id TEXT,

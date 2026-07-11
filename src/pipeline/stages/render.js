@@ -71,6 +71,7 @@ export async function runRender(ctx) {
   };
 
   const failedScenes = [];
+  // pool 'render': process-wide bound — concurrent pipelines/manual renders share it
   await mapPool(scenes, rC, async (sc) => {
     checkStop(projectId);
     if (resume && sc.video_path && existsSync(sc.video_path)) return;
@@ -82,7 +83,7 @@ export async function runRender(ctx) {
       DB.updateScene(sc.id, { status: 'error', error: e.message });
       hub.toProject(projectId, { type: 'scene', sceneId: sc.id, idx: sc.idx, status: 'error', error: e.message });
     }
-  });
+  }, { pool: 'render' });
   // Deferred pass: retry stragglers one-by-one (no concurrency → no CPU contention).
   if (failedScenes.length) {
     op(projectId, `🩹 Thử lại ${failedScenes.length} cảnh lỗi (tuần tự)…`);
