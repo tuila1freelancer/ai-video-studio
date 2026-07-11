@@ -149,6 +149,7 @@
                 </div>
               </div>
               <div class="proj-actions">
+                <button class="btn" id="btnRoughCut" title="Xem nháp cả video từ trang scene live — không tốn thời gian render">▶ Xem nháp</button>
                 <button class="btn" id="btnRender">🎬 Render lại</button>
                 <button class="btn danger hidden" id="btnStop">⏹ Dừng</button>
                 <button class="btn warn hidden" id="btnResume">▶ Tiếp tục</button>
@@ -477,6 +478,20 @@
     <h2><span id="cfgModalTitle">Cấu hình</span> <button class="x" data-close>×</button></h2>
     <div id="cfgModalBody"></div>
     <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn primary" data-close>Xong</button></div>
+  </div>
+</div>
+
+<div id="rcOverlay" class="rc-overlay hidden">
+  <div class="rc-top">
+    <span class="rc-title">▶ Bản nháp <span class="rc-note">(preview trực tiếp — chưa phải bản render cuối)</span></span>
+    <span id="rcSceneLabel" class="rc-note"></span>
+    <button class="btn" id="rcClose">✕ Đóng</button>
+  </div>
+  <div class="rc-stagewrap"><div id="rcStage" class="rc-stage"></div></div>
+  <div class="rc-controls">
+    <button class="btn" id="rcPlay">▶</button>
+    <input type="range" id="rcSeek" min="0" max="100" step="0.05" value="0">
+    <span id="rcTime" class="rc-time">0:00 / 0:00</span>
   </div>
 </div>
 

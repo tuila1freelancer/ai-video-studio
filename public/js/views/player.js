@@ -1,0 +1,137 @@
+// Rough-cut player — preview the WHOLE video before spending any render time.
+// One master rAF clock drives a moving window of live scene iframes (each is the existing
+// /api/scenes/:id/anim-html paused-timeline page, live=0) via contentWindow.__seek(localT),
+// plus the scene's narration audio (served through the /api/file allowlist, P15).
+// Read-only by design; a live GSAP page is not pixel-identical to the ffmpeg render —
+// the header labels it as a PREVIEW.
+import { $, el } from '../ui/dom.js';
+import { state } from '../state.js';
+import { fileUrl } from '../api.js';
+import { toast } from '../ui/toast.js';
+
+let scenes = [], starts = [], total = 0;
+let t = 0, playing = false, raf = 0, lastTs = 0, activeIdx = -1;
+const frames = new Map(); // idx -> { iframe, ready, audio }
+let sceneSize = { w: 1080, h: 1920 };
+
+const dur = (i) => Math.max(1.5, scenes[i]?.duration || 6);
+const fmt = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+
+export function initPlayer() {
+  $('#btnRoughCut')?.addEventListener('click', openPlayer);
+  $('#rcClose')?.addEventListener('click', closePlayer);
+  $('#rcPlay')?.addEventListener('click', toggle);
+  $('#rcSeek')?.addEventListener('input', (e) => seekTo(parseFloat(e.target.value)));
+  document.addEventListener('keydown', (e) => {
+    const ov = $('#rcOverlay');
+    if (!ov || ov.classList.contains('hidden')) return;
+    if (e.key === ' ') { e.preventDefault(); toggle(); }
+    else if (e.key === 'Escape') closePlayer();
+    else if (e.key === 'ArrowRight') seekTo(t + 5);
+    else if (e.key === 'ArrowLeft') seekTo(t - 5);
+  });
+  window.addEventListener('resize', fitStage);
+}
+
+function openPlayer() {
+  scenes = (state.scenes || []).filter((s) => s.voice_text != null);
+  if (!scenes.length) { toast('Chưa có cảnh nào để xem nháp.', 'error'); return; }
+  starts = []; total = 0;
+  for (let i = 0; i < scenes.length; i++) { starts.push(total); total += dur(i); }
+  const ar = state.current?.aspect_ratio || '9:16';
+  sceneSize = ar === '16:9' ? { w: 1920, h: 1080 } : ar === '1:1' ? { w: 1080, h: 1080 } : ar === '4:5' ? { w: 1080, h: 1350 } : { w: 1080, h: 1920 };
+  t = 0; activeIdx = -1; playing = false;
+  $('#rcSeek').max = total.toFixed(2);
+  $('#rcOverlay').classList.remove('hidden');
+  fitStage();
+  lastTs = performance.now();
+  raf = requestAnimationFrame(tick);
+  render();
+}
+
+function closePlayer() {
+  cancelAnimationFrame(raf);
+  playing = false;
+  for (const [, f] of frames) { f.audio?.pause(); f.iframe.remove(); }
+  frames.clear();
+  $('#rcStage').innerHTML = '';
+  $('#rcOverlay').classList.add('hidden');
+}
+
+function toggle() {
+  playing = !playing;
+  $('#rcPlay').textContent = playing ? '⏸' : '▶';
+  if (!playing) frames.get(activeIdx)?.audio?.pause();
+  lastTs = performance.now();
+}
+
+function seekTo(nt) {
+  t = Math.max(0, Math.min(total, nt));
+  const f = frames.get(activeIdx);
+  if (f?.audio) f.audio.currentTime = Math.max(0, t - starts[activeIdx]);
+  render();
+}
+
+function sceneAt(time) {
+  for (let i = scenes.length - 1; i >= 0; i--) if (time >= starts[i]) return i;
+  return 0;
+}
+
+function fitStage() {
+  const stage = $('#rcStage'); if (!stage) return;
+  const wrap = stage.parentElement;
+  const scale = Math.min(wrap.clientWidth / sceneSize.w, wrap.clientHeight / sceneSize.h) * 0.98;
+  stage.style.width = `${sceneSize.w}px`; stage.style.height = `${sceneSize.h}px`;
+  stage.style.transform = `scale(${scale})`;
+}
+
+function mount(i) {
+  const sc = scenes[i];
+  const iframe = el('iframe', 'rc-frame');
+  iframe.width = sceneSize.w; iframe.height = sceneSize.h;
+  iframe.src = `/api/scenes/${sc.id}/anim-html?live=0`;
+  const f = { iframe, ready: false, audio: sc.audio_path ? new Audio(fileUrl(sc.audio_path)) : null };
+  iframe.addEventListener('load', async () => {
+    try { await iframe.contentWindow.__init?.(); f.ready = true; } catch { /* stays unready */ }
+  });
+  $('#rcStage').appendChild(iframe);
+  frames.set(i, f);
+}
+
+// keep a ±1 window of mounted iframes so 200-scene projects never hold 200 pages
+function ensureWindow() {
+  const want = new Set([activeIdx - 1, activeIdx, activeIdx + 1].filter((i) => i >= 0 && i < scenes.length));
+  for (const [i, f] of frames) if (!want.has(i)) { f.audio?.pause(); f.iframe.remove(); frames.delete(i); }
+  for (const i of want) if (!frames.has(i)) mount(i);
+}
+
+function tick(ts) {
+  if (playing) {
+    t += (ts - lastTs) / 1000;
+    if (t >= total) { t = total; playing = false; $('#rcPlay').textContent = '▶'; frames.get(activeIdx)?.audio?.pause(); }
+  }
+  lastTs = ts;
+  render();
+  raf = requestAnimationFrame(tick);
+}
+
+function render() {
+  const idx = sceneAt(t);
+  if (idx !== activeIdx) {
+    frames.get(activeIdx)?.audio?.pause();
+    activeIdx = idx;
+    ensureWindow();
+    for (const [i, f] of frames) f.iframe.classList.toggle('on', i === activeIdx);
+  }
+  const f = frames.get(activeIdx);
+  const localT = Math.min(t - starts[activeIdx], dur(activeIdx) - 0.01);
+  if (f?.ready) { try { f.iframe.contentWindow.__seek(Math.max(0, localT)); } catch { /* frame reloading */ } }
+  if (f?.audio) {
+    if (playing && f.audio.paused) { f.audio.currentTime = Math.max(0, localT); f.audio.play().catch(() => {}); }
+    else if (playing && Math.abs(f.audio.currentTime - localT) > 0.35) f.audio.currentTime = localT; // drift snap
+    else if (!playing && !f.audio.paused) f.audio.pause();
+  }
+  $('#rcSeek').value = t.toFixed(2);
+  $('#rcTime').textContent = `${fmt(t)} / ${fmt(total)}`;
+  $('#rcSceneLabel').textContent = `Cảnh ${activeIdx + 1}/${scenes.length}`;
+}

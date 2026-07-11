@@ -322,8 +322,9 @@ export function mountRoutes(app, { version }) {
       const { buildSceneHtml } = await import('../animation/index.js');
       const audioUrl = sc.audio_path && existsSync(sc.audio_path)
         ? `/api/file?path=${encodeURIComponent(sc.audio_path)}` : null;
+      // ?live=0: the rough-cut player drives __init/__seek itself — no tap-to-play overlay
       const html = buildSceneHtml(sc, p, p.config || {}, {
-        live: true, liveAudioUrl: audioUrl,
+        live: req.query.live !== '0', liveAudioUrl: req.query.live !== '0' ? audioUrl : null,
         progressStart: 0, progressTotal: Math.max(1, sc.duration || 6),
         durationOverride: Math.max(1.5, sc.duration || 6),
       });
