@@ -221,7 +221,7 @@ function offlineScript(sourceText, { title, sceneCount, wordsPerScene, structure
 // Spoken words(-as-written-tokens) per second by language — Vietnamese "words" are syllables,
 // so neural voices land near the reference channel's ~270 syllables/min. Undershooting this
 // (the old flat 2.6) produced scenes that ran seconds shorter than their slot.
-const LANG_WPS = { vi: 4.4, en: 2.6, ja: 3.4, ko: 3.1, zh: 3.4, ru: 2.4 };
+export const LANG_WPS = { vi: 4.4, en: 2.6, ja: 3.4, ko: 3.1, zh: 3.4, ru: 2.4 };
 const LANG_NAME = { vi: 'tiếng Việt', en: 'English (US)', ja: '日本語', ko: '한국어', zh: '中文', ru: 'русский' };
 function scriptLang(config, sourceText) {
   const c = String(config?.language || '').toLowerCase();

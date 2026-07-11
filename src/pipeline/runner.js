@@ -10,6 +10,7 @@ import { buildContext } from './context.js';
 import { requestStop, clearStop, isStopped } from './stop.js';
 import { op } from './progress.js';
 import { runScript } from './stages/script.js';
+import { runEditorial } from './stages/editorial.js';
 import { runTts } from './stages/tts.js';
 import { runVisuals } from './stages/visuals.js';
 import { runRender } from './stages/render.js';
@@ -32,6 +33,7 @@ export async function runPipeline(projectId, { resume = false, _auto = 0 } = {})
 
   try {
     await runScript(ctx);                                   // B2
+    await runEditorial(ctx);                                // b2.5 — quality gate (B2 banner)
     await runTts(ctx);                                      // B3+4
     await runVisuals(ctx);                                  // B5
     await runRender(ctx);                                   // B6
