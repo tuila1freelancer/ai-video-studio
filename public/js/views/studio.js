@@ -9,7 +9,7 @@ import { renderGallery } from './home.js';
 import { switchPage } from './nav.js';
 import { gatherConfig, applyConfig } from './config.js';
 import { openSrt } from '../features/srt.js';
-import { confirmDialog } from '../ui/dialog.js';
+import { confirmDialog, menuDialog } from '../ui/dialog.js';
 
 let ws = null;
 export function initWs() { ws = new WS(onWsMessage); }
@@ -48,6 +48,7 @@ export function initStudio() {
   $('#btnRegenHtmlSel').addEventListener('click', () => selectedIds().forEach((id) => regenScene(id, 'html')));
   $('#checkAll').addEventListener('change', (e) => { $$('#sceneGrid .scene').forEach((c) => { c.classList.toggle('sel', e.target.checked); c.querySelector('.chk').checked = e.target.checked; }); updateSelCount(); });
   $('#btnSrt').addEventListener('click', openSrt);
+  $('#btnRepurpose').addEventListener('click', () => withLock($('#btnRepurpose'), repurposeCurrent));
   $('#btnMeta').addEventListener('click', genMeta);
   $('#logToggle').addEventListener('click', () => { const b = $('#logBody'); const open = b.style.display !== 'none'; b.style.display = open ? 'none' : 'block'; $('#logCaret').textContent = open ? '▸' : '▾'; });
   $('#btnFetch').addEventListener('click', fetchLink);
@@ -74,6 +75,23 @@ export function renderProjectList() {
     it.addEventListener('click', () => openProject(p.id));
     box.appendChild(it);
   });
+}
+
+// Clone the current project into another aspect ratio: voice + captions are reused
+// verbatim, layouts reflow, every scene re-renders. Opens the derived project.
+async function repurposeCurrent() {
+  if (!state.current) { toast('Mở một dự án trước đã.', 'error'); return; }
+  const cur = state.current.aspect_ratio;
+  const names = { '9:16': '📱 Dọc 9:16 (Shorts/TikTok)', '16:9': '🖥 Ngang 16:9 (YouTube)', '1:1': '⬛ Vuông 1:1', '4:5': '📐 4:5 (Feed)' };
+  const items = ['9:16', '16:9', '1:1', '4:5'].filter((r) => r !== cur).map((r) => ({ id: r, label: names[r] }));
+  const pick = await menuDialog({ title: 'Đổi sang tỉ lệ khung nào?', items });
+  if (!pick) return;
+  try {
+    const r = await api.post(`/projects/${state.current.id}/repurpose`, { aspectRatio: pick });
+    toast(`Đã tạo bản ${pick} — giữ giọng đọc, đang dàn lại bố cục 🎬`, 'success');
+    await loadProjects();
+    await openProject(r.project.id);
+  } catch (e) { toast('Lỗi đổi tỉ lệ: ' + e.message, 'error'); }
 }
 
 export function startNewProject() {
