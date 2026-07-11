@@ -50,6 +50,14 @@ export function openBrandEditor() {
     + (state.providers || []).map((p) => `<option value="${p.id}"${ai.tts?.provider === p.id ? ' selected' : ''}>${esc(p.name)}</option>`).join('');
   $('#brandAiLlmModel').value = ai.llm?.model || '';
   $('#brandAiSub').value = ai.subtitle?.engine || '';
+  // channel brand font (drives graphics typography in every new video of the channel)
+  api.get('/fonts/families').then(({ families }) => {
+    const sel = $('#brandFont');
+    if (!sel) return;
+    sel.innerHTML = '<option value="">— Theo style guide —</option>'
+      + (families || []).map((f) => `<option value="${esc(f.name)}">${f.source === 'uploaded' ? '📤 ' : ''}${esc(f.name)}</option>`).join('');
+    sel.value = ch.config?.fonts?.display || '';
+  }).catch(() => { /* picker just stays on the default option */ });
   // stage backdrop: latest scene preview of this channel's projects, else theme-dark
   const stage = $('#brandStage');
   const ar = $('#cfgAr').value;
@@ -146,6 +154,7 @@ export function initBrandKit() {
     if ($('#brandAiSub').value) ai.subtitle = { engine: $('#brandAiSub').value };
     const cfg = { ...(ch.config || {}), brandKit };
     cfg.ai = Object.keys(ai).length ? ai : null; // null = xoá override AI của kênh (deep-merge delete)
+    cfg.fonts = $('#brandFont')?.value ? { display: $('#brandFont').value } : null;
     const r = await api.put(`/channels/${ch.id}`, { config: cfg });
     if (r.error) return toast(r.error, 'error');
     ch.config = r.channel.config;
