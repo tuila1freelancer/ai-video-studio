@@ -152,6 +152,7 @@
               <div class="proj-actions">
                 <button class="btn" id="btnRoughCut" title="Xem nháp cả video từ trang scene live — không tốn thời gian render">▶ Xem nháp</button>
                 <button class="btn" id="btnRepurpose" title="Nhân bản sang tỉ lệ khung khác — giữ nguyên giọng đọc & phụ đề, dàn lại bố cục rồi render">📱 Đổi tỉ lệ</button>
+                <button class="btn" id="btnExport" title="Xuất bản sao đúng chuẩn nền tảng (remux nhanh; cắt fade khi vượt trần thời lượng — luôn hỏi trước)">📤 Xuất nền tảng</button>
                 <button class="btn" id="btnRender">🎬 Render lại</button>
                 <button class="btn danger hidden" id="btnStop">⏹ Dừng</button>
                 <button class="btn warn hidden" id="btnResume">▶ Tiếp tục</button>
@@ -280,6 +281,11 @@
                 <div class="bs-info"><div class="bs-name" id="bsName">Chưa cấu hình brand</div><div class="hint" id="bsMeta">Logo + tên kênh sẽ tự chèn vào từng cảnh</div></div>
               </div>
               <button class="btn block" id="btnBrandEditor">🎨 Chỉnh Brand Kit của kênh…</button>
+              <div class="field" style="margin-top:10px">
+                <label class="label">🔤 Font thương hiệu cho video này</label>
+                <select class="input" id="cfgBrandFont"><option value="">— Theo style guide —</option></select>
+                <div class="hint">Áp cho chữ đồ hoạ trong cảnh (headline/số liệu). Tải font riêng ở Thư viện → Font chữ.</div>
+              </div>
               <div class="field" id="legacyWatermark" style="margin-top:10px">
                 <label class="label">Watermark chữ (khi chưa có Brand Kit)</label>
                 <input class="input" id="cfgWatermark" placeholder="vd: tuila1freelancer" value="">
@@ -360,6 +366,7 @@
           <button class="gtab active" data-kind="brand">🎨 Brand Asset</button>
           <button class="gtab" data-kind="bgm">🎵 Nhạc nền</button>
           <button class="gtab" data-kind="sfx">🔊 SFX</button>
+          <button class="gtab" data-kind="font">🔤 Font chữ</button>
         </div>
         <div class="row">
           <label class="btn sm">+ Tải lên<input type="file" id="libUpload" multiple hidden></label>
@@ -553,6 +560,87 @@
   </div>
 </div>
 
+<div class="modal-bg" id="sceneStudioModal">
+  <div class="modal" style="max-width:1080px">
+    <h2>🎬 Scene Studio — <span id="ssTitle"></span> <button class="x" data-close>×</button></h2>
+    <div class="ss-body">
+      <div class="ss-left">
+        <div class="ss-frame" id="ssFrameWrap"></div>
+        <div class="row" style="gap:8px;margin-top:8px;align-items:center">
+          <button class="btn sm" id="ssReload" title="Phát lại preview">↻ Phát lại</button>
+          <span class="hint" id="ssNote" style="flex:1"></span>
+          <button class="btn sm warn" id="ssRender">🎞 Render cảnh này</button>
+        </div>
+      </div>
+      <div class="ss-right">
+        <div class="gtabs" id="ssTabs" style="margin:0 0 10px">
+          <button class="gtab active" data-tab="voice">📝 Lời thoại</button>
+          <button class="gtab" data-tab="visual">✨ Visual</button>
+          <button class="gtab" data-tab="html">&lt;/&gt; HTML</button>
+          <button class="gtab" data-tab="audio">🔊 Âm thanh</button>
+          <button class="gtab" data-tab="takes">🕘 Takes</button>
+        </div>
+        <div id="ssTabVoice">
+          <textarea class="input ss-ta" id="ssVoice" rows="7" placeholder="Lời thoại của cảnh…"></textarea>
+          <div class="hint" style="margin:6px 0">Lưu sẽ tạo lại giọng đọc đúng cấu hình + phụ đề + timing; clip cũ được lưu thành take.</div>
+          <button class="btn primary" id="ssVoiceSave">🎙 Lưu + tạo lại giọng</button>
+        </div>
+        <div id="ssTabVisual" style="display:none">
+          <textarea class="input ss-ta" id="ssVisual" rows="7" placeholder="Visual brief (mô tả đồ hoạ cảnh)…"></textarea>
+          <div class="hint" style="margin:6px 0">AI sẽ dựng lại visual theo brief mới; bản cũ thành take để so sánh/rollback.</div>
+          <div class="row" style="gap:8px">
+            <button class="btn primary" id="ssVisualSave">✨ Lưu + AI dựng lại visual</button>
+            <button class="btn" id="ssTplGallery">🖼 Thư viện template…</button>
+          </div>
+        </div>
+        <div id="ssTabHtml" style="display:none">
+          <div class="hint" style="margin-bottom:6px">Sửa trực tiếp markup của cảnh. Phụ đề, brand, progress bar vẫn do hệ thống quản — không sợ vỡ nhận diện. <b id="ssHtmlState"></b></div>
+          <div class="ss-editor" title="⌘Z hoàn tác · ⇧⌘Z làm lại · ⌘↵ áp dụng">
+            <pre id="ssHtmlHl" aria-hidden="true"></pre>
+            <textarea class="input ss-ta ss-code" id="ssHtml" rows="12" spellcheck="false" placeholder="&lt;div class=&quot;wrap&quot;&gt;…&lt;/div&gt;"></textarea>
+          </div>
+          <details style="margin-top:6px"><summary class="hint" style="cursor:pointer">+ CSS bổ sung (tuỳ chọn)</summary>
+            <textarea class="input ss-ta ss-code" id="ssCss" rows="4" spellcheck="false" placeholder=".my-el{...}"></textarea>
+          </details>
+          <div class="row" style="gap:8px;margin-top:8px">
+            <button class="btn primary" id="ssHtmlApply" title="⌘/Ctrl+Enter">💾 Áp dụng (⌘↵)</button>
+            <button class="btn" id="ssHtmlReset">↩ Bỏ bản sửa tay</button>
+          </div>
+        </div>
+        <div id="ssTabAudio" style="display:none">
+          <div class="field as-block">
+            <label class="label">SFX của cảnh này (từ Thư viện → SFX)</label>
+            <select class="input" id="ssSfx"><option value="">— Không có SFX riêng —</option></select>
+          </div>
+          <div class="as-grid" style="margin-bottom:10px">
+            <label>Âm lượng SFX <span id="ssSfxGainL">0 dB</span>
+              <input type="range" class="range" id="ssSfxGain" min="-18" max="6" step="1" value="0"></label>
+            <label>Thời điểm (giây, tính từ đầu cảnh)
+              <input class="input" id="ssSfxAt" type="number" min="0" step="0.1" value="0"></label>
+          </div>
+          <audio id="ssSfxPreview" controls style="width:100%;display:none;margin-bottom:10px"></audio>
+          <div class="hint" style="margin-bottom:8px">SFX được trộn ở bước GHÉP video (không đổi clip cảnh) — lưu xong bấm "Ghép lại" để nghe trong bản final.</div>
+          <div class="row" style="gap:8px">
+            <button class="btn primary" id="ssSfxSave">💾 Lưu âm thanh cảnh</button>
+            <button class="btn warn" id="ssReconcat">🎞 Ghép lại video</button>
+          </div>
+        </div>
+        <div id="ssTabTakes" style="display:none">
+          <div id="ssTakes"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="tplGalleryModal">
+  <div class="modal" style="max-width:1040px">
+    <h2>🖼 Thư viện template cảnh <button class="x" data-close>×</button></h2>
+    <div class="hint" style="margin-bottom:10px">Preview đang CHẠY THẬT đúng trang mà renderer sẽ vẽ — chọn là áp ngay cho cảnh đang mở.</div>
+    <div class="tg-grid" id="tgGrid"></div>
+  </div>
+</div>
+
 <div id="rcOverlay" class="rc-overlay hidden">
   <div class="rc-top">
     <span class="rc-title">▶ Bản nháp <span class="rc-note">(preview trực tiếp — chưa phải bản render cuối)</span></span>
@@ -638,6 +726,8 @@
             <input class="input" id="brandAiLlmModel" placeholder="— Dùng cấu hình chung —"></div>
           <div class="field"><label class="label">Engine phụ đề</label>
             <select class="input" id="brandAiSub"><option value="">— Dùng cấu hình chung —</option><option value="align">align (chữ chuẩn + timing thật)</option><option value="estimate">estimate (chữ chuẩn)</option><option value="whisper">whisper</option></select></div>
+          <div class="field"><label class="label">🔤 Font thương hiệu của kênh</label>
+            <select class="input" id="brandFont"><option value="">— Theo style guide —</option></select></div>
         </details>
         <button class="btn primary block" id="brandSave">💾 Lưu Brand Kit vào kênh</button>
         <div class="hint" id="brandSaveHint" style="margin-top:6px"></div>

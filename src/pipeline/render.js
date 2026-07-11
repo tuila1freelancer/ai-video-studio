@@ -1,14 +1,41 @@
 // Scene rendering (B6) + final concat/mix (B7) with ffmpeg.
-import { writeFileSync, existsSync, readdirSync, rmSync } from 'node:fs';
+import { writeFileSync, existsSync, readdirSync, rmSync, mkdirSync, copyFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { ffmpeg, ffmpegAss, probeDuration, makeSilence } from '../media/ffmpeg.js';
 import { buildKaraokeAss } from './srt.js';
 import { buildSceneBackground, buildTitleCard } from './visuals.js';
 import { ratioToSize, newId } from '../util/util.js';
-import { VENDOR_DIR } from '../config/paths.js';
+import { VENDOR_DIR, DIRS } from '../config/paths.js';
 
 // Vendored TTFs so libass can burn the preset font families (Montserrat, Oswald, …).
 const FONTS_DIR = join(VENDOR_DIR, 'fonts', 'ttf');
+
+// libass takes a SINGLE fontsdir — when the owner has uploaded brand fonts, mirror the
+// vendored TTFs + uploads into one merged dir (refreshed by mtime) so burned subtitles can
+// use uploaded families too. No uploads → the plain vendored dir, exactly as before.
+let mergedStamp = '';
+function assFontsDir() {
+  let uploads = [];
+  try { uploads = readdirSync(DIRS.font).filter((f) => /\.(ttf|otf)$/i.test(f)); } catch { /* none */ }
+  if (!uploads.length) return FONTS_DIR;
+  const merged = join(DIRS.tmp, 'fontsdir');
+  const stamp = uploads.map((f) => { try { return f + statSync(join(DIRS.font, f)).mtimeMs; } catch { return f; } }).join('|');
+  if (stamp !== mergedStamp || !existsSync(merged)) {
+    mkdirSync(merged, { recursive: true });
+    const want = new Set();
+    for (const src of [FONTS_DIR, DIRS.font]) {
+      let files = [];
+      try { files = readdirSync(src).filter((f) => /\.(ttf|otf)$/i.test(f)); } catch { continue; }
+      for (const f of files) {
+        want.add(f);
+        try { copyFileSync(join(src, f), join(merged, f)); } catch { /* skip unreadable */ }
+      }
+    }
+    for (const f of readdirSync(merged)) { if (!want.has(f)) { try { rmSync(join(merged, f)); } catch { /* stale */ } } }
+    mergedStamp = stamp;
+  }
+  return merged;
+}
 
 const FPS = 30;
 
@@ -57,7 +84,8 @@ export async function renderScene(scene, project, { dir, size, subtitleStyle, re
     + `format=yuv420p`;
   if (assPath) {
     vf += `,subtitles=filename='${escFilter(assPath)}'`;
-    if (existsSync(FONTS_DIR)) vf += `:fontsdir='${escFilter(FONTS_DIR)}'`;
+    const fdir = assFontsDir();
+    if (existsSync(fdir)) vf += `:fontsdir='${escFilter(fdir)}'`;
   }
 
   // subtitles= needs libass — only use the (slower) libass build when actually burning subs

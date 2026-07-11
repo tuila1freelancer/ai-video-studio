@@ -469,6 +469,19 @@ export function mountRoutes(app, { version }) {
   r.get('/projects/:id/publishes', (req, res) => res.json({ publishes: DB.listPublishes(req.params.id) }));
 
   // ---- multi-aspect repurposing (16:9 <-> 9:16, no crop — full reflow re-render) ----
+  // one-click platform exports (fast remux / confirmed fade-trim; aspect mismatch →
+  // the caller runs the existing repurpose flow)
+  r.get('/export/presets', async (req, res) => {
+    const { EXPORT_PRESETS } = await import('../pipeline/export-presets.js');
+    res.json({ presets: Object.entries(EXPORT_PRESETS).map(([id, p]) => ({ id, ...p })) });
+  });
+  r.post('/projects/:id/export', async (req, res) => {
+    try {
+      const { exportForPlatform } = await import('../pipeline/export-presets.js');
+      res.json(await exportForPlatform(req.params.id, req.body?.preset, { allowTrim: !!req.body?.allowTrim }));
+    } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
+  });
+
   r.post('/projects/:id/repurpose', async (req, res) => {
     try {
       const { repurposeProject } = await import('../pipeline/repurpose.js');
@@ -547,6 +560,43 @@ export function mountRoutes(app, { version }) {
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
+  // Scene Studio: the scene's EFFECTIVE template source for the direct-HTML editor
+  r.get('/scenes/:id/template-source', async (req, res) => {
+    try {
+      const sc = DB.getScene(req.params.id);
+      if (!sc) return res.status(404).json({ error: 'not found' });
+      const p = DB.getProject(sc.project_id);
+      const { sceneTemplateSource } = await import('../animation/index.js');
+      res.json(sceneTemplateSource(sc, p, p.config || {}));
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+  // Scene Studio: apply (or reset) a direct edit of the scene's markup. Snapshots a take
+  // first, invalidates the clip, refreshes the poster — chrome (captions/brand) untouched.
+  r.post('/scenes/:id/custom-html', async (req, res) => {
+    try {
+      const sc = DB.getScene(req.params.id);
+      if (!sc) return res.status(404).json({ error: 'not found' });
+      const p = DB.getProject(sc.project_id);
+      try { DB.snapshotTake(sc, 'visual'); } catch { /* history is best-effort */ }
+      const props = { ...(sc.props || {}) };
+      if (req.body?.reset) {
+        delete props.__custom;
+      } else {
+        const html = typeof req.body?.html === 'string' ? req.body.html : null;
+        if (html == null || !html.trim()) return res.status(400).json({ error: 'thiếu nội dung HTML' });
+        props.__custom = { html, ...(typeof req.body?.css === 'string' && req.body.css.trim() ? { css: req.body.css } : {}) };
+      }
+      DB.updateScene(sc.id, { props, status: 'html', video_path: null, fp: { ...(sc.fp || {}), render: null } });
+      const { previewSceneFrame } = await import('../animation/index.js');
+      const out = join(DB.projectDirFor(p.id), 'render', `scene_${String(sc.idx).padStart(3, '0')}_preview.jpg`);
+      await previewSceneFrame(DB.getScene(sc.id), p, p.config || {}, { outPath: out });
+      DB.updateScene(sc.id, { image_path: out });
+      DB.snapshotTake(DB.getScene(sc.id), 'visual', { active: true });
+      hub.toProject(p.id, { type: 'scene', sceneId: sc.id, idx: sc.idx, status: 'html', image: `/api/file?path=${encodeURIComponent(out)}` });
+      res.json({ ok: true, hasCustom: !req.body?.reset, image: `/api/file?path=${encodeURIComponent(out)}` });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
   // ---- scenes ----
   r.put('/scenes/:id', (req, res) => {
     // Edit-aware invalidation: a USER edit through this route marks downstream artifacts
@@ -565,11 +615,16 @@ export function mountRoutes(app, { version }) {
       if (!ok) return res.status(400).json({ error: 'srt_json sai cấu trúc cue ({start,end,text,words[]})' });
     }
     const changed = (k) => k in body && JSON.stringify(body[k]) !== JSON.stringify(before[k]);
+    // props.audio (per-scene SFX) is mixed at the CONCAT stage, never baked into the clip —
+    // an audio-only props edit must not stale the rendered clip
+    const strip = (pr) => { const { audio, ...rest } = pr || {}; return rest; };
+    const visualPropsChanged = changed('props')
+      && JSON.stringify(strip(body.props)) !== JSON.stringify(strip(before.props));
     if (changed('voice_text')) {
       // new narration → old audio, captions and clip are all stale
       body.audio_path = null; body.srt_json = null; body.srt_path = null; body.video_path = null;
       body.fp = { ...(before.fp || {}), tts: null, render: null };
-    } else if (changed('visual_prompt') || changed('template') || changed('props') || changed('srt_json')) {
+    } else if (changed('visual_prompt') || changed('template') || visualPropsChanged || changed('srt_json')) {
       body.video_path = null; // visuals/captions changed → clip is stale (audio still good)
       body.fp = { ...(before.fp || {}), render: null, ...(changed('visual_prompt') ? { img: null } : {}) };
     }
@@ -631,13 +686,20 @@ export function mountRoutes(app, { version }) {
   });
   r.get('/projects/:id/reviews', (req, res) => res.json({ reviews: DB.listReviews(req.params.id) }));
 
-  r.post('/scenes/:id/regen-voice', (req, res) => {
-    Pipeline.regenScene(req.params.id, 'voice').catch((e) => logger.error(e.message));
-    res.json({ ok: true });
+  // Awaited on purpose: callers (Scene Studio, grid buttons) treat the response as "the
+  // new take is ready" — fire-and-forget here made the UI lie and let an immediate
+  // per-scene render race the still-running regen (clip then re-nulled moments later).
+  r.post('/scenes/:id/regen-voice', async (req, res) => {
+    try {
+      await Pipeline.regenScene(req.params.id, 'voice');
+      res.json({ ok: true, scene: DB.getScene(req.params.id) });
+    } catch (e) { logger.error(e.message); res.status(500).json({ error: e.message }); }
   });
-  r.post('/scenes/:id/regen-html', (req, res) => {
-    Pipeline.regenScene(req.params.id, 'html').catch((e) => logger.error(e.message));
-    res.json({ ok: true });
+  r.post('/scenes/:id/regen-html', async (req, res) => {
+    try {
+      await Pipeline.regenScene(req.params.id, 'html');
+      res.json({ ok: true, scene: DB.getScene(req.params.id) });
+    } catch (e) { logger.error(e.message); res.status(500).json({ error: e.message }); }
   });
 
   // ---- helpers: fetch link / image search / metadata ----
@@ -664,6 +726,18 @@ export function mountRoutes(app, { version }) {
   });
   r.post('/library/:kind', upload.array('files'), (req, res) => {
     const kind = req.params.kind;
+    // unknown kind would join(undefined) → raw 500 with a stack trace; refuse cleanly
+    if (!['brand', 'bgm', 'sfx', 'font'].includes(kind)) {
+      for (const f of req.files || []) { try { unlinkSync(f.path); } catch { /* temp cleanup */ } }
+      return res.status(400).json({ error: `loại thư viện không hỗ trợ: ${kind}` });
+    }
+    if (kind === 'font') {
+      const badFile = (req.files || []).find((f) => !/\.(ttf|otf|woff2?)$/i.test(f.originalname));
+      if (badFile) {
+        for (const f of req.files || []) { try { unlinkSync(f.path); } catch { /* temp cleanup */ } }
+        return res.status(400).json({ error: `font chỉ nhận .ttf/.otf/.woff/.woff2 — "${badFile.originalname}" không hợp lệ` });
+      }
+    }
     const brand = req.body.brand || 'Default';
     const names = [].concat(req.body.names || []);
     const dest = kind === 'brand' ? join(DIRS.brand, brand) : DIRS[kind];
@@ -682,6 +756,42 @@ export function mountRoutes(app, { version }) {
     const row = DB.deleteLibrary(req.params.id);
     if (row && row.path && existsSync(row.path)) { try { unlinkSync(row.path); } catch { /* ignore */ } }
     res.json({ ok: true });
+  });
+
+  // Template gallery: a LIVE self-playing demo page per template (same harness the renderer
+  // uses). Superset demo props feed every template; the page auto-loops via rAF over __seek.
+  r.get('/templates/:id/preview-html', async (req, res) => {
+    try {
+      const { buildSceneHtml } = await import('../animation/index.js');
+      const ar = ['9:16', '16:9', '1:1', '4:5'].includes(req.query.ar) ? req.query.ar : '9:16';
+      const demoProps = {
+        heading: 'Tăng trưởng kênh', sub: 'Mỗi ngày một video tốt hơn', label: 'DEMO', hud: 'DEMO',
+        text: 'Nội dung minh hoạ cho template', keyword: 'BỨT PHÁ', keywords: ['TỐC ĐỘ', 'CHẤT LƯỢNG'],
+        value: 87, number: 87, unit: '%',
+        items: ['Ý tưởng', 'Kịch bản', 'Render'], steps: ['Chuẩn bị', 'Sản xuất', 'Xuất bản'],
+        left: { title: 'Trước', items: ['Chậm', 'Thủ công'] }, right: { title: 'Sau', items: ['Nhanh', 'Tự động'] },
+        messages: [{ from: 'user', text: 'Video mới đâu?' }, { from: 'bot', text: 'Đang render! 🎬' }],
+        criteria: [{ name: 'Tốc độ', score: 9 }, { name: 'Chất lượng', score: 8 }],
+        bars: [{ label: 'Trước', value: 40 }, { label: 'Sau', value: 90 }],
+        lines: ['$ avs render', '▸ scene 1/3…', '✓ done in 27s'], title: 'Chương mới',
+        nodes: ['Video', 'Ý tưởng', 'Âm thanh', 'Hình ảnh'],
+      };
+      const scene = { idx: 2, voice_text: 'Nội dung minh hoạ', srt_json: [], template: req.params.id, props: demoProps, duration: 6 };
+      let html = buildSceneHtml(scene, { aspect_ratio: ar, title: 'Template demo' },
+        { visualMode: 'animation', theme: 'neon-tech', enableSubtitles: false }, { durationOverride: 6 });
+      html = html.replace('</body>', `<script>addEventListener('load',async()=>{try{await __init();
+        const t0=performance.now();(function loop(){__seek(((performance.now()-t0)/1000)%6);requestAnimationFrame(loop)})()}catch(e){}})<\/script></body>`);
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.send(html);
+    } catch (e) { res.status(500).send(e.message); }
+  });
+
+  // Brand fonts: every family the owner can pick (vendored Vietnamese-safe set + uploads)
+  r.get('/fonts/families', async (req, res) => {
+    try {
+      const { fontFamilies } = await import('../animation/userfonts.js');
+      res.json(fontFamilies());
+    } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
   // ---- generic uploads (assets/logo) ----
