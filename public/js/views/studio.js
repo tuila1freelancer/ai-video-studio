@@ -128,7 +128,7 @@ export function renderProjectView() {
   $('#pvAr').textContent = p.aspect_ratio;
   $('#pvDate').textContent = new Date(p.updated_at).toLocaleString('vi-VN');
   $('#btnStop').classList.toggle('hidden', p.status !== 'running');
-  $('#btnResume').classList.toggle('hidden', p.status !== 'paused' && p.status !== 'error');
+  $('#btnResume').classList.toggle('hidden', !['paused', 'error', 'review'].includes(p.status));
   // reset pipeline visuals from scene statuses
   resetPipeFromState();
   renderScenes();

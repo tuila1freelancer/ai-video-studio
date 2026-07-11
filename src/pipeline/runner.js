@@ -35,6 +35,23 @@ export async function runPipeline(projectId, { resume = false, _auto = 0 } = {})
     await runTts(ctx);                                      // B3+4
     await runVisuals(ctx);                                  // B5
     await runRender(ctx);                                   // B6
+
+    // Review gate: with config.requireReview the run holds at a DISTINCT 'review' status
+    // before concat until every scene is approved (rough-cut player chips). Deliberately
+    // NOT 'paused' — P13's zombie recovery must never mistake a clean hold for a crash.
+    // A clean return (not the error path) → the macro auto-resume (P10) is never involved.
+    if (config.requireReview === true) {
+      const ids = DB.getScenes(projectId).map((s) => s.id);
+      const pending = DB.pendingReview(projectId, ids);
+      if (pending.length) {
+        DB.updateProject(projectId, { status: 'review' });
+        hub.toProject(projectId, { type: 'status', status: 'review' });
+        op(projectId, `🧐 Chờ duyệt ${pending.length}/${ids.length} cảnh — mở "▶ Xem nháp" để duyệt, rồi bấm Tiếp tục`);
+        logger.info(`review gate: ${pending.length} scene(s) pending`, { projectId });
+        return;
+      }
+    }
+
     if (config.autoConcat !== false) await finalize(projectId, { dir, size, config }); // B7 + B8
     if (config.generateMetadata !== false) await runMetadata(ctx);
 

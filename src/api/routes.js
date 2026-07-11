@@ -4,6 +4,7 @@ import multer from 'multer';
 import { existsSync, statSync, mkdirSync, unlinkSync, renameSync } from 'node:fs';
 import { join, resolve, extname, basename } from 'node:path';
 import * as DB from '../db/index.js';
+import { hub } from '../ws/hub.js';
 import { DIRS, PATHS, depStatus } from '../config/paths.js';
 import { logger } from '../util/log.js';
 import { detectInputType, newId, ratioToSize, wordCount } from '../util/util.js';
@@ -365,6 +366,18 @@ export function mountRoutes(app, { version }) {
     }
     res.json({ scene: DB.updateScene(req.params.id, body) });
   });
+  // ---- per-scene review gate (rough-cut player chips) ----
+  r.post('/scenes/:id/review', (req, res) => {
+    const sc = DB.getScene(req.params.id);
+    if (!sc) return res.status(404).json({ error: 'not found' });
+    try {
+      const review = DB.setSceneReview(sc.id, sc.project_id, { status: req.body?.status, note: req.body?.note });
+      hub.toProject(sc.project_id, { type: 'review', sceneId: sc.id, idx: sc.idx, status: review.status });
+      res.json({ review });
+    } catch (e) { res.status(400).json({ error: e.message }); }
+  });
+  r.get('/projects/:id/reviews', (req, res) => res.json({ reviews: DB.listReviews(req.params.id) }));
+
   r.post('/scenes/:id/regen-voice', (req, res) => {
     Pipeline.regenScene(req.params.id, 'voice').catch((e) => logger.error(e.message));
     res.json({ ok: true });

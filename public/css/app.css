@@ -486,3 +486,4 @@ html.is-shell .center-narrow{padding-top:calc(30px + var(--pad-titlebar))}
 .rc-controls{display:flex;align-items:center;gap:12px;padding:12px 16px;border-top:1px solid rgba(120,160,255,.14)}
 .rc-controls input[type=range]{flex:1}
 .rc-time{font-variant-numeric:tabular-nums;color:var(--muted,#8b93b0);font-size:13px;white-space:nowrap}
+.badge.review{background:rgba(139,92,246,.16);color:#a78bfa}

@@ -102,6 +102,14 @@ CREATE TABLE IF NOT EXISTS logo_presets (
   position TEXT,
   size INTEGER
 );
+CREATE TABLE IF NOT EXISTS scene_reviews (
+  scene_id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL,
+  status TEXT,                          -- approved|rejected
+  note TEXT,
+  at INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_reviews_project ON scene_reviews(project_id);
 CREATE TABLE IF NOT EXISTS channel_memory (
   channel_id TEXT PRIMARY KEY,
   bible TEXT,                           -- the channel's Show Bible (persona, style, standing facts)

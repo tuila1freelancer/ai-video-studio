@@ -6,13 +6,14 @@
 // the header labels it as a PREVIEW.
 import { $, el } from '../ui/dom.js';
 import { state } from '../state.js';
-import { fileUrl } from '../api.js';
+import { api, fileUrl } from '../api.js';
 import { toast } from '../ui/toast.js';
 
 let scenes = [], starts = [], total = 0;
 let t = 0, playing = false, raf = 0, lastTs = 0, activeIdx = -1;
 const frames = new Map(); // idx -> { iframe, ready, audio }
 let sceneSize = { w: 1080, h: 1920 };
+let reviews = new Map(); // sceneId -> 'approved'|'rejected'
 
 const dur = (i) => Math.max(1.5, scenes[i]?.duration || 6);
 const fmt = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
@@ -22,6 +23,8 @@ export function initPlayer() {
   $('#rcClose')?.addEventListener('click', closePlayer);
   $('#rcPlay')?.addEventListener('click', toggle);
   $('#rcSeek')?.addEventListener('input', (e) => seekTo(parseFloat(e.target.value)));
+  $('#rcApprove')?.addEventListener('click', () => reviewActive('approved'));
+  $('#rcReject')?.addEventListener('click', () => reviewActive('rejected'));
   document.addEventListener('keydown', (e) => {
     const ov = $('#rcOverlay');
     if (!ov || ov.classList.contains('hidden')) return;
@@ -33,9 +36,36 @@ export function initPlayer() {
   window.addEventListener('resize', fitStage);
 }
 
+async function reviewActive(status) {
+  const sc = scenes[activeIdx];
+  if (!sc) return;
+  try {
+    await api.post(`/scenes/${sc.id}/review`, { status });
+    reviews.set(sc.id, status);
+    renderReviewState();
+    toast(status === 'approved' ? `✓ Đã duyệt cảnh ${activeIdx + 1}` : `✕ Đã loại cảnh ${activeIdx + 1} — hãy tạo lại rồi duyệt lại`, status === 'approved' ? 'success' : 'error');
+  } catch (e) { toast('Lỗi lưu duyệt: ' + e.message, 'error'); }
+}
+
+function renderReviewState() {
+  const sc = scenes[activeIdx];
+  const st = sc ? reviews.get(sc.id) : null;
+  const elx = $('#rcReviewState');
+  if (elx) elx.textContent = st === 'approved' ? '✓ đã duyệt' : st === 'rejected' ? '✕ đã loại' : '· chưa duyệt';
+  const done = scenes.filter((s) => reviews.get(s.id) === 'approved').length;
+  const lbl = $('#rcSceneLabel');
+  if (lbl) lbl.textContent = `Cảnh ${activeIdx + 1}/${scenes.length} · đã duyệt ${done}/${scenes.length}`;
+}
+
 function openPlayer() {
   scenes = (state.scenes || []).filter((s) => s.voice_text != null);
   if (!scenes.length) { toast('Chưa có cảnh nào để xem nháp.', 'error'); return; }
+  reviews = new Map();
+  if (state.current) {
+    api.get(`/projects/${state.current.id}/reviews`)
+      .then((r) => { for (const rv of r.reviews || []) reviews.set(rv.scene_id, rv.status); renderReviewState(); })
+      .catch(() => {});
+  }
   starts = []; total = 0;
   for (let i = 0; i < scenes.length; i++) { starts.push(total); total += dur(i); }
   const ar = state.current?.aspect_ratio || '9:16';
@@ -133,5 +163,5 @@ function render() {
   }
   $('#rcSeek').value = t.toFixed(2);
   $('#rcTime').textContent = `${fmt(t)} / ${fmt(total)}`;
-  $('#rcSceneLabel').textContent = `Cảnh ${activeIdx + 1}/${scenes.length}`;
+  renderReviewState();
 }
