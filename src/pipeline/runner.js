@@ -42,6 +42,10 @@ export async function runPipeline(projectId, { resume = false, _auto = 0 } = {})
     const fin = DB.getProject(projectId);
     hub.toProject(projectId, { type: 'done', video: fin.video_path ? `/api/file?path=${encodeURIComponent(fin.video_path)}` : null,
       thumb: fin.thumb_path ? `/api/file?path=${encodeURIComponent(fin.thumb_path)}` : null });
+    // Show-Bible write-back (best-effort, like metadata — never blocks status:done):
+    // the finished video's topic joins the channel's anti-repeat ledger.
+    try { if (fin.channel_id) DB.appendChannelTopic(fin.channel_id, fin.title || fin.topic); }
+    catch (e) { logger.warn(`show-bible write-back: ${e.message}`, { projectId }); }
     logger.info('Pipeline done', { projectId });
   } catch (e) {
     if (e.stopped) {

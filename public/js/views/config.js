@@ -226,6 +226,20 @@ function wireHfStyle() {
       note.textContent = r.source === 'llm' ? `✓ Đã tạo phong cách "${r.guide.name}"` : '⚠ LLM chưa cấu hình — dùng phong cách mặc định';
     } catch (e) { note.textContent = '✗ ' + e.message; }
   });
+  // Persistent brand kit: pin the selected style as the CHANNEL's canonical guide —
+  // every new project of the channel inherits it automatically.
+  $('#btnHfSaveChannel')?.addEventListener('click', async () => {
+    const note = $('#hfGenNote');
+    try {
+      const { active } = await api.get('/channels');
+      if (!active) { toast('Chưa có kênh đang hoạt động.', 'error'); return; }
+      const g = hfCurrentStyle();
+      const guide = state.hfGuide || g; // custom guide object, or the chosen preset's full data
+      await api.post(`/channels/${active}/style-guide`, { guide });
+      note.textContent = `✓ Đã đặt "${guide.name || guide.id}" làm phong cách mặc định của kênh`;
+      toast('Đã lưu phong cách cho kênh 🎨', 'success');
+    } catch (e) { note.textContent = '✗ ' + e.message; }
+  });
   renderHfStyleButton();
 }
 
