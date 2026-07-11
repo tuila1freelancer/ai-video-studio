@@ -2,7 +2,7 @@
 // close, focus management, spring in/out (uses .modal-bg/.modal/.dlg styles in app.css).
 import { el, esc } from './dom.js';
 
-function openDialog(innerHtml, { onReady } = {}) {
+export function openDialog(innerHtml, { onReady } = {}) {
   return new Promise((resolve) => {
     const bg = el('div', 'modal-bg open');
     bg.innerHTML = `<div class="modal dlg" role="dialog" aria-modal="true">${innerHtml}</div>`;

@@ -64,6 +64,13 @@ async function executeInner(job) {
 function settle(job, { status, error = null }) {
   DB.settleJob(job.id, status, error);
   hub.broadcast({ type: 'job', id: job.id, kind: job.kind, projectId: job.project_id, status });
+  // a calendar-born video finished (or failed) — tell the owner which scheduled topic it was
+  if (job.kind === 'pipeline') {
+    try {
+      const slot = DB.slotForProject(job.project_id);
+      if (slot) hub.broadcast({ type: 'calendar-done', slotId: slot.id, projectId: job.project_id, topic: slot.topic, status });
+    } catch { /* notification only — never disturb settlement */ }
+  }
   settlers.get(job.id)?.resolve({ status, error });
   settlers.delete(job.id);
   // last job of a batch settled → the batch is done (parity with the old batch IIFE)
@@ -87,6 +94,8 @@ function promoteDueSlots() {
       });
       DB.projectDirFor(project.id);
       DB.markSlotCreated(slot.id, project.id);
+      // linkage is bookkeeping — its failure must never reach the cancelSlot error path
+      try { DB.linkSuggestionProject(slot.id, project.id); } catch { /* best-effort */ }
       DB.enqueueJob({ kind: 'pipeline', projectId: project.id, payload: {}, priority: -1 });
       hub.broadcast({ type: 'calendar', slotId: slot.id, projectId: project.id, topic: slot.topic });
       logger.info(`calendar: slot due → project ${project.id} "${slot.topic}"`, { projectId: project.id });

@@ -274,11 +274,14 @@ export async function generateScript({ topic, inputType, fetched, config, ai, me
   const firstSentence = (splitSentences(sourceText)[0] || sourceText.split('\n')[0] || topic).trim();
   const title = ((fetched && fetched.title) || (firstSentence.length > 6 ? firstSentence : topic) || 'Video mới').slice(0, 64);
 
+  // assistant-accepted topics carry the angle the owner approved — the script must honor it
+  const angleLine = config.assistantBrief?.angle ? `\nGóc tiếp cận BẮT BUỘC của video: ${config.assistantBrief.angle}` : '';
+
   // 2) LLM path — two-stage for long videos (outline → detailed chapters), single call for short.
   if (llmEnabled(llm)) {
     try {
       if (videoDuration >= 180) {
-        return await twoStageScript({ sourceText, title, sceneCount, wordsPerScene, videoDuration, language, llm, memory });
+        return await twoStageScript({ sourceText, title, sceneCount, wordsPerScene, videoDuration, language, llm, memory, angleLine });
       }
       const hf = (config.visualMode === 'hyperframe');
       const sys = hf
@@ -292,7 +295,7 @@ Yêu cầu cho "visualPrompt" — mô tả BRIEF cho một cảnh INFOGRAPHIC ch
 CẤM: "display text", layout tĩnh, mô tả mơ hồ, bịa chữ, chèn tiếng Anh vào video tiếng Việt.`;
       const usr = `Tạo kịch bản video từ nội dung sau. Xuất JSON dạng {"title":"...","scenes":[{"voice":"lời thoại đọc","visualPrompt":"${hf ? 'cinematic motion-graphics description in English' : 'mô tả hình ảnh tiếng Anh'}","keywords":["..."]}]}.
 Yêu cầu: PHẢI tạo ĐÚNG ${sceneCount} cảnh (video ${videoDuration}s cần đủ ${sceneCount} cảnh — trả thiếu cảnh là sai đề bài), ${wordBudgetNote(wordsPerScene)}, giọng tự nhiên${language === 'vi' ? ', xưng hô cố định "mình – các bạn"' : ''}, toàn bộ lời thoại bằng ${LANG_NAME[language] || language}.
-Cảnh mở đầu là HOOK theo công thức NỖI ĐAU → LỜI HỨA: 1-2 câu gọi đúng vấn đề người xem đang gặp, rồi hứa lợi ích cụ thể (có con số/khung thời gian) khi xem hết video. Cảnh cuối chốt giá trị + kêu gọi đăng ký + một câu hỏi cụ thể mời trả lời dưới comment.${hf ? hfVisualRules : ''}${bibleBlock(memory)}
+Cảnh mở đầu là HOOK theo công thức NỖI ĐAU → LỜI HỨA: 1-2 câu gọi đúng vấn đề người xem đang gặp, rồi hứa lợi ích cụ thể (có con số/khung thời gian) khi xem hết video. Cảnh cuối chốt giá trị + kêu gọi đăng ký + một câu hỏi cụ thể mời trả lời dưới comment.${hf ? hfVisualRules : ''}${bibleBlock(memory)}${angleLine}
 Nội dung:\n${sourceText.slice(0, 6000)}`;
       // enforce the scene count (≥70% of target) — lazy models love returning 2 scenes for a
       // 60s brief, which silently halves the video. chatJson re-asks once on validate failure.
@@ -314,9 +317,9 @@ Nội dung:\n${sourceText.slice(0, 6000)}`;
 // CTA; (2) detailed narration per chapter, each chapter seeing the tail of the previous one so
 // long videos never repeat themselves. Chapters that fail fall back to the offline splitter,
 // so one bad LLM reply never sinks the whole script.
-async function twoStageScript({ sourceText, title, sceneCount, wordsPerScene, videoDuration, language = 'vi', llm, memory = null }) {
+async function twoStageScript({ sourceText, title, sceneCount, wordsPerScene, videoDuration, language = 'vi', llm, memory = null, angleLine = '' }) {
   const nCh = Math.max(3, Math.min(8, Math.round(videoDuration / 150)));
-  const langLine = `Toàn bộ lời thoại bằng ${LANG_NAME[language] || language}.${bibleBlock(memory)}`;
+  const langLine = `Toàn bộ lời thoại bằng ${LANG_NAME[language] || language}.${bibleBlock(memory)}${angleLine}`;
   const persona = language === 'vi' ? ' Xưng hô cố định "mình – các bạn".' : '';
   const outline = await chatJson([
     { role: 'system', content: 'Bạn là đạo diễn nội dung YouTube chuyên nghiệp. Trả về JSON thuần.' },

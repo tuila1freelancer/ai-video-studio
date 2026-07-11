@@ -34,3 +34,46 @@ export function dueSlots(now = Date.now()) {
 export function markSlotCreated(id, projectId) {
   db.prepare("UPDATE calendar_slots SET status='created', project_id=? WHERE id=?").run(projectId, id);
 }
+
+/** Edit a slot's config/due time — only while it is still waiting (queued). */
+export function updateSlot(id, { config, dueAt } = {}) {
+  const sets = [];
+  const args = [];
+  if (config !== undefined) { sets.push('config=?'); args.push(JSON.stringify(config || {})); }
+  if (dueAt !== undefined) {
+    if (!Number.isFinite(+dueAt)) throw new Error('thiếu thời điểm hẹn');
+    sets.push('due_at=?'); args.push(+dueAt);
+  }
+  if (!sets.length) return 0;
+  return db.prepare(`UPDATE calendar_slots SET ${sets.join(',')} WHERE id=? AND status='queued'`)
+    .run(...args, id).changes;
+}
+
+/** The slot a project was born from (for completion notifications). */
+export function slotForProject(projectId) {
+  return row(db.prepare('SELECT * FROM calendar_slots WHERE project_id=?').get(projectId));
+}
+
+// ---- recurring planning templates (fixed weekday+time production windows) ----
+// Recurrences are INERT: they prefill the plan-week dialog and render as empty windows the
+// owner fills with a picked suggestion. They never promote or create anything by themselves.
+export function addRecurrence({ channelId = null, weekday, time, config = {} }) {
+  const wd = parseInt(weekday, 10);
+  if (!(wd >= 0 && wd <= 6)) throw new Error('thứ trong tuần không hợp lệ');
+  if (!/^\d{1,2}:\d{2}$/.test(String(time || ''))) throw new Error('khung giờ không hợp lệ (HH:mm)');
+  const id = newId('rec');
+  db.prepare('INSERT INTO calendar_recurrences(id,channel_id,weekday,time,config,active,created_at) VALUES(?,?,?,?,?,1,?)')
+    .run(id, channelId, wd, String(time), JSON.stringify(config || {}), Date.now());
+  return row(db.prepare('SELECT * FROM calendar_recurrences WHERE id=?').get(id));
+}
+
+export function listRecurrences(channelId = null) {
+  const rows = channelId
+    ? db.prepare('SELECT * FROM calendar_recurrences WHERE active=1 AND (channel_id=? OR channel_id IS NULL) ORDER BY weekday, time').all(channelId)
+    : db.prepare('SELECT * FROM calendar_recurrences WHERE active=1 ORDER BY weekday, time').all();
+  return rows.map(row);
+}
+
+export function deleteRecurrence(id) {
+  return db.prepare('DELETE FROM calendar_recurrences WHERE id=?').run(id).changes;
+}

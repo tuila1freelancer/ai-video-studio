@@ -209,8 +209,9 @@ Rationale for each layer:
 | SEO metadata 2.0 / thumbnails / outro promo | `providers/llm.js` `generateMetadata` · `pipeline/visuals.js` `buildThumbnailVariants` · `templates/cta-outro.js` |
 | Repurpose (aspect reflow) | `pipeline/repurpose.js` |
 | Publisher (B9, staging-first) | `src/publish/` · `pipeline/stages/publish.js` · `db/repositories/publishes.js` |
-| Trend autopilot + calendar + dashboard | `providers/trends.js` · `api/services/topic-autopilot.js` · `db/repositories/calendar.js` · `features/autopilot.js` |
-| Tests + CI | `tests/` (named test per P1–P15) · `.github/workflows/ci.yml` · `npm test` |
+| Trend autopilot + calendar + dashboard | `providers/trends.js` (RSS/Atom + feed packs) · `api/services/topic-autopilot.js` · `db/repositories/calendar.js` · `features/autopilot.js` |
+| Content assistant v2 (history + config sheet + series + plan-week) | `db/repositories/suggestions.js` · `api/services/assistant.js` · `features/{assistant-sheet,assistant-history}.js` |
+| Tests + CI | `tests/` (named test per P1–P16) · `.github/workflows/ci.yml` · `npm test` |
 
 ## 6. "Want to change X → go to file Y" table (will be updated to the new structure after refactor)
 
@@ -256,6 +257,7 @@ Hard-won fixes proven by real testing. Refactors may **relocate** these, but mus
 | P13 | recover zombie 'running'→'paused' at boot; **+v3 superset:** orphaned running JOBS requeue (`requeueZombieJobs`, attempts≥2 → terminal error); the clean review hold uses a DISTINCT `'review'` status so it is never mistaken for a crash | `db/repositories/projects.js` · `db/repositories/jobs.js` |
 | P14 | mask secrets at every egress + `applyMaskedUpdate` round-trips `••` | `util/secrets.js`, `core/config.js` |
 | P15 | `/api/file` path allowlist (data/ + channel roots + app bundle read-only) | `api/routes.js:426` |
+| P16 | Assistant proposals never auto-start a paid pipeline: `suggestTopics`/`buildSeries` persist DATA only; `planWeek` + recurrences create SLOTS only; the sole path from a suggestion to a running pipeline is `acceptSuggestion` behind an explicit owner click (slot promotion stays the owner-scheduled semantic) | `api/services/topic-autopilot.js` · `api/services/assistant.js` |
 
 Golden rule when refactoring: if a regex/constant/guard looks "redundant" → grep `docs/` + this table before touching it.
 
