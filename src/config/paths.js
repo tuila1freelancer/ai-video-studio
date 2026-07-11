@@ -65,6 +65,7 @@ export const DIRS = {
   brand: join(DATA_DIR, 'library', 'brand'),
   bgm: join(DATA_DIR, 'library', 'bgm'),
   sfx: join(DATA_DIR, 'library', 'sfx'),
+  font: join(DATA_DIR, 'library', 'fonts'),
   uploads: join(DATA_DIR, 'uploads'),
   tmp: join(DATA_DIR, 'tmp'),
 };

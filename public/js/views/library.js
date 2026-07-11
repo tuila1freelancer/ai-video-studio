@@ -4,7 +4,7 @@ import { toast } from '../ui/toast.js';
 import { api, fileUrl } from '../api.js';
 import { state } from '../state.js';
 import { registerPageHook } from './nav.js';
-import { loadBgmOptions } from './config.js';
+import { loadBgmOptions, loadFontFamilies } from './config.js';
 
 export function initLibrary() {
   registerPageHook('library', loadLibrary);
@@ -14,8 +14,9 @@ export function initLibrary() {
   }));
   $('#libUpload').addEventListener('change', async (e) => {
     const fd = new FormData(); [...e.target.files].forEach((f) => fd.append('files', f));
-    await api.upload('/library/' + state.libKind, fd);
-    loadLibrary(); loadBgmOptions(); toast('Đã tải lên ✓', 'success');
+    try { await api.upload('/library/' + state.libKind, fd); }
+    catch (err) { toast('✗ ' + err.message, 'error'); e.target.value = ''; return; }
+    loadLibrary(); loadBgmOptions(); loadFontFamilies(); toast('Đã tải lên ✓', 'success');
   });
 }
 
@@ -28,9 +29,10 @@ export async function loadLibrary() {
   items.forEach((it) => {
     const d = el('div', 'libitem');
     const isImg = /\.(png|jpg|jpeg|webp|gif)$/i.test(it.filename);
-    d.innerHTML = `<div class="lp">${isImg ? `<img src="${fileUrl(it.path)}" loading="lazy" decoding="async">` : icon(state.libKind === 'brand' ? 'image' : 'music', 26)}</div>
+    const kindIcon = state.libKind === 'brand' ? 'image' : state.libKind === 'font' ? 'edit' : 'music';
+    d.innerHTML = `<div class="lp">${isImg ? `<img src="${fileUrl(it.path)}" loading="lazy" decoding="async">` : icon(kindIcon, 26)}</div>
       <div class="ln">${esc(it.name)}</div><button class="btn sm danger" style="margin-top:6px;width:100%">${icon('trash', 13)} Xoá</button>`;
-    d.querySelector('button').addEventListener('click', async () => { await api.del('/library/' + it.id); loadLibrary(); loadBgmOptions(); });
+    d.querySelector('button').addEventListener('click', async () => { await api.del('/library/' + it.id); loadLibrary(); loadBgmOptions(); loadFontFamilies(); });
     grid.appendChild(d);
   });
 }
