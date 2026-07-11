@@ -378,18 +378,41 @@ export async function generateKeywords(topic) {
   return topNouns(topic, 6);
 }
 
+// Metadata 2.0 — per-platform SEO through the robust chatJson machinery. The returned
+// object keeps the OLD flat shape ({title, description, hashtags}) for every existing
+// consumer, and adds `platforms` with the full per-platform payload + pinnedComment.
 export async function generateMetadata(project, stylePrompt, { ai } = {}) {
   const llm = ai?.llm || null;
   const title = project?.title || project?.topic || 'Video';
   if (llmEnabled(llm)) {
     try {
-      const out = await chat([
-        { role: 'system', content: 'Trả về JSON thuần.' },
-        { role: 'user', content: `${stylePrompt || 'Tạo metadata mạng xã hội.'}\nXuất JSON {"title":"","description":"","hashtags":["#..."]}. Chủ đề: ${title}` },
-      ], { json: true, llm });
-      const p = safeJson(out, null);
-      if (p && p.title) return p;
-    } catch { /* ignore */ }
+      const p = await chatJson([
+        { role: 'system', content: 'Bạn là chuyên gia SEO YouTube/Shorts/TikTok. Trả về JSON thuần.' },
+        { role: 'user', content: `${stylePrompt || ''}
+Tạo metadata đa nền tảng cho video "${title}".
+Xuất JSON:
+{"youtube":{"title":"giật tít ≤100 ký tự, CHỨA từ khoá chính của chủ đề","description":"2-4 đoạn; 2 dòng đầu chứa từ khoá (phần hiển thị trước 'xem thêm'); kết bằng 3-5 hashtag","tags":["10-15 tag tìm kiếm, không dấu #"],"pinnedComment":"1 câu hỏi ghim mời người xem bình luận"},
+"shorts":{"title":"≤60 ký tự","hashtags":["#shorts","#..."]},
+"tiktok":{"title":"≤80 ký tự dạng câu móc","hashtags":["#..."]}}` },
+      ], { attempts: 2, llm, validate: (x) => typeof x?.youtube?.title === 'string' && x.youtube.title.length > 3 });
+      const yt = p.youtube;
+      // keyword guard: the SEO title must still carry a content word of the real topic —
+      // a clickbait rewrite that drops the topic entirely gets the topic prefixed back
+      const kws = topNouns(title, 3);
+      const flat = (s) => String(s || '').toLowerCase();
+      let seoTitle = String(yt.title).slice(0, 100);
+      if (kws.length && !kws.some((k) => flat(seoTitle).includes(flat(k)))) {
+        seoTitle = `${title.slice(0, 60)} — ${seoTitle}`.slice(0, 100);
+      }
+      const hashtags = (p.shorts?.hashtags?.length ? p.shorts.hashtags : (yt.tags || []).map((t) => '#' + String(t).replace(/^#/, '').replace(/\s+/g, ''))).slice(0, 12);
+      return {
+        title: seoTitle,
+        description: String(yt.description || ''),
+        hashtags,
+        pinnedComment: yt.pinnedComment || '',
+        platforms: p,
+      };
+    } catch { /* fall through to offline */ }
   }
   const tags = topNouns(title, 8).map((w) => '#' + w.replace(/\s+/g, ''));
   return {

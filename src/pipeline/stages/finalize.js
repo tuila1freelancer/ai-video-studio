@@ -8,7 +8,7 @@ import * as DB from '../../db/index.js';
 import { logger } from '../../util/log.js';
 import { renderAnimationScene, renderOutroScene } from '../../animation/index.js';
 import { resolveGuide } from '../../styleguide/index.js';
-import { buildThumbnail } from '../visuals.js';
+import { buildThumbnail, buildThumbnailVariants } from '../visuals.js';
 import { concatScenes, renderCard } from '../render.js';
 import { qcFinalVideo } from '../qc.js';
 import { masterAudio } from '../../media/master.js';
@@ -55,7 +55,13 @@ export async function finalize(projectId, { dir, size, config, _qcAttempt = 0 })
     if (config.outro !== false) {
       op(projectId, '🎬 Tạo outro…');
       const pp = progressPlan(scenes, config);
-      const o = await renderOutroScene(project, config, { dir: renderDir, progressStart: pp.outroStart, progressTotal: pp.total, duration: 2.6 });
+      // end-screen cross-promo: surface the channel's most recent finished video.
+      // Duration stays 2.6s — outroDur and QC expectDur (P6) remain in lockstep.
+      let related = null;
+      try {
+        related = DB.listProjects().find((p2) => p2.id !== projectId && p2.channel_id === project.channel_id && p2.status === 'done')?.title || null;
+      } catch { /* optional */ }
+      const o = await renderOutroScene(project, config, { dir: renderDir, progressStart: pp.outroStart, progressTotal: pp.total, duration: 2.6, related });
       clips = [...clips, o.path];
     }
   } else {
@@ -167,12 +173,20 @@ export async function finalize(projectId, { dir, size, config, _qcAttempt = 0 })
   }
 
   // Premium thumbnail (title over best image); keyed to the video's style guide in
-  // hyperframe mode so it matches the video. Falls back to the basic frame grab.
+  // hyperframe mode so it matches the video. config.thumbVariants (1-3) renders extra
+  // A/B compositions next to it (thumb_*_v1.jpg, _v2.jpg) at YouTube 1280x720.
   let thumb = res.thumb;
   try {
     const guide = visualMode === 'hyperframe' ? resolveGuide(config) : null;
-    const t = await buildThumbnail(project.title, firstImg, size, join(project.outputDir, `thumb_${Date.now()}.jpg`), { guide });
-    if (t) thumb = t;
+    const nVar = Math.max(1, Math.min(3, parseInt(config.thumbVariants, 10) || 1));
+    if (nVar > 1) {
+      const variants = await buildThumbnailVariants(project.title, firstImg, join(project.outputDir, `thumb_${Date.now()}.jpg`), { guide, count: nVar });
+      if (variants[0]) thumb = variants[0];
+      if (variants.length > 1) op(projectId, `🖼️ Đã tạo ${variants.length} biến thể thumbnail (A/B) trong thư mục xuất`);
+    } else {
+      const t = await buildThumbnail(project.title, firstImg, size, join(project.outputDir, `thumb_${Date.now()}.jpg`), { guide });
+      if (t) thumb = t;
+    }
   } catch { /* keep basic */ }
 
   DB.updateProject(projectId, { video_path: res.path, thumb_path: thumb, current_step: 'b7' });
