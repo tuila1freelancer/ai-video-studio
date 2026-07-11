@@ -5,6 +5,7 @@ import { toast } from '../ui/toast.js';
 import { api, fileUrl } from '../api.js';
 import { state } from '../state.js';
 import { prog, markProgressDirty } from './progress.js';
+import { openSceneStudio } from '../features/scene-studio.js';
 
 // perf instrumentation (asserted by the stress gate: fullRenders must not grow during WS bursts)
 export const scenePerf = { fullRenders: 0, patches: 0 };
@@ -33,6 +34,7 @@ function wireGrid() {
     const [, s] = sceneOf(btn); if (!s) return;
     const act = btn.dataset.act;
     if (act === 'live') openLivePreview(s);
+    else if (act === 'studio') openSceneStudio(s);
     else if (act === 'edit') openPropsEditor(s);
     else if (act === 'voice') regenScene(s.id, 'voice');
     else if (act === 'html') regenScene(s.id, 'html');
@@ -103,6 +105,7 @@ function sceneCard(s) {
   c.innerHTML = `<div class="sv"><input type="checkbox" class="chk">${poster}${vid}${s.duration ? `<span class="dur">${s.duration.toFixed(1)}s</span>` : ''}</div>
     <div class="si"><div class="n"><span>Cảnh ${s.idx + 1}${hfBadge}</span><span>${statusIcon(s.status)}</span></div><div class="vt">${esc(s.voice_text || '')}</div>${tplSelect}</div>
     <div class="sa">
+      ${animLike ? `<button class="btn sm" data-act="studio" title="Scene Studio: xem trước + sửa lời thoại/visual/HTML">🎬</button>` : ''}
       ${animLike ? `<button class="btn sm" data-act="live" title="Xem trước animation + tiếng">${icon('play', 13)}</button>` : ''}
       ${isAnim ? `<button class="btn sm" data-act="edit" title="Sửa chữ trên cảnh">${icon('edit', 13)}</button>` : ''}
       <button class="btn sm" data-act="voice" title="Tạo lại giọng">${icon('mic', 13)}</button>

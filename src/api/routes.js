@@ -547,6 +547,43 @@ export function mountRoutes(app, { version }) {
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
+  // Scene Studio: the scene's EFFECTIVE template source for the direct-HTML editor
+  r.get('/scenes/:id/template-source', async (req, res) => {
+    try {
+      const sc = DB.getScene(req.params.id);
+      if (!sc) return res.status(404).json({ error: 'not found' });
+      const p = DB.getProject(sc.project_id);
+      const { sceneTemplateSource } = await import('../animation/index.js');
+      res.json(sceneTemplateSource(sc, p, p.config || {}));
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+  // Scene Studio: apply (or reset) a direct edit of the scene's markup. Snapshots a take
+  // first, invalidates the clip, refreshes the poster — chrome (captions/brand) untouched.
+  r.post('/scenes/:id/custom-html', async (req, res) => {
+    try {
+      const sc = DB.getScene(req.params.id);
+      if (!sc) return res.status(404).json({ error: 'not found' });
+      const p = DB.getProject(sc.project_id);
+      try { DB.snapshotTake(sc, 'visual'); } catch { /* history is best-effort */ }
+      const props = { ...(sc.props || {}) };
+      if (req.body?.reset) {
+        delete props.__custom;
+      } else {
+        const html = typeof req.body?.html === 'string' ? req.body.html : null;
+        if (html == null || !html.trim()) return res.status(400).json({ error: 'thiếu nội dung HTML' });
+        props.__custom = { html, ...(typeof req.body?.css === 'string' && req.body.css.trim() ? { css: req.body.css } : {}) };
+      }
+      DB.updateScene(sc.id, { props, status: 'html', video_path: null, fp: { ...(sc.fp || {}), render: null } });
+      const { previewSceneFrame } = await import('../animation/index.js');
+      const out = join(DB.projectDirFor(p.id), 'render', `scene_${String(sc.idx).padStart(3, '0')}_preview.jpg`);
+      await previewSceneFrame(DB.getScene(sc.id), p, p.config || {}, { outPath: out });
+      DB.updateScene(sc.id, { image_path: out });
+      DB.snapshotTake(DB.getScene(sc.id), 'visual', { active: true });
+      hub.toProject(p.id, { type: 'scene', sceneId: sc.id, idx: sc.idx, status: 'html', image: `/api/file?path=${encodeURIComponent(out)}` });
+      res.json({ ok: true, hasCustom: !req.body?.reset, image: `/api/file?path=${encodeURIComponent(out)}` });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
   // ---- scenes ----
   r.put('/scenes/:id', (req, res) => {
     // Edit-aware invalidation: a USER edit through this route marks downstream artifacts

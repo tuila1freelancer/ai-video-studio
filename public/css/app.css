@@ -519,3 +519,13 @@ html.is-shell .center-narrow{padding-top:calc(30px + var(--pad-titlebar))}
 .as-radio input[type=radio]{accent-color:var(--accent,#6c8cff)}
 .as-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px}
 .as-grid label{display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--muted,#8b93b0)}
+/* ---- Scene Studio ---- */
+.ss-body{display:flex;gap:18px;align-items:flex-start}
+.ss-left{flex:0 0 auto}
+.ss-right{flex:1;min-width:0}
+.ss-frame{overflow:hidden;border-radius:12px;border:1px solid rgba(120,160,255,.18);background:#000}
+.ss-ta{width:100%;resize:vertical;line-height:1.45}
+.ss-code{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;line-height:1.5;tab-size:2;white-space:pre;overflow-x:auto}
+.ss-take{display:flex;gap:10px;align-items:center;padding:7px 10px;border:1px solid rgba(120,160,255,.1);border-radius:10px;margin-top:6px;font-size:13px}
+.ss-take span:first-child{flex:1}
+@media (max-width: 900px){.ss-body{flex-direction:column}.ss-left{width:100%}}

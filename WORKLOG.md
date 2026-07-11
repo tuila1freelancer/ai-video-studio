@@ -6,16 +6,17 @@ update immediately when anything is discovered — this file is the loop's only 
 ## State
 - Current-Branch: feat/ultra-loop
 - PR-URL: (opening after first push)
-- Item-Counter: 4
+- Item-Counter: 5
 - Sandbox: AVS_DATA_DIR=<scratchpad>/avs-loop, server managed per iteration
 
 ## In-Progress
-- M1 Scene Studio: analysis of scenes.js / player.js / regen.js / anim-html underway.
-  Next step: design the unified panel, implement, verify on the sandbox project
-  pmrg7imd7e1a8fef4 (has 1 rendered animation scene).
+- M1.2 Scene Studio polish: (a) prove single-scene re-render keeps other scenes'
+  fingerprints — needs a 2+ scene sandbox project (create one with a multi-sentence
+  topic); (b) syntax-highlight overlay for the code editor (vendored, no CDN);
+  (c) undo/redo in editors; (d) checkpoint screenshots/GIF for the UX bar.
 
 ## Backlog
-(see loop prompt M1-M4)
+- M1 acceptance run, then M2 → M3 → M4 (see loop prompt)
 - M1 Scene Studio (unified per-scene preview/edit panel) — see loop prompt for spec
 - M2 Visual HTML quality (text-overlap + contrast detectors, HARD_DEFECT extension, prompt polish)
 - M3 Brand fonts (per-channel/per-video selection, font upload kind, subtitleFont consistency)
@@ -38,6 +39,17 @@ update immediately when anything is discovered — this file is the loop's only 
   one-sentence topic). No pipeline errors in server log.
 - M0.4 Brand-logo upload through the real brandkit modal (#brandLogoFile): file lands and
   the preview renders back through /api/file. M0 milestone COMPLETE.
+- M1.1 Scene Studio v1 shipped: unified per-scene panel (🎬 button on scene cards) with
+  live iframe preview (same buildSceneHtml page the renderer uses — WYSIWYG by
+  construction), dialogue tab (PUT voice_text + regen-voice), visual-brief tab
+  (PUT visual_prompt + regen-html), DIRECT HTML tab backed by the new props.__custom
+  override lane (applied after buildTemplate in src/animation/index.js — captions/brand/
+  progress chrome stays system-managed) with new endpoints GET /scenes/:id/template-source
+  and POST /scenes/:id/custom-html (snapshot take → apply/reset → poster refresh), takes
+  tab with one-click rollback, ⌘/Ctrl+Enter apply, inline busy/error states everywhere.
+  Verified end-to-end on sandbox: template-source 516-char hero-title source; custom html
+  applied → anim-html page carries the edit → 2 visual takes recorded → reset restores
+  template; UI screenshot shows panel with live preview + 4 tabs + loaded takes.
 
 ## Metrics
 (none yet)
