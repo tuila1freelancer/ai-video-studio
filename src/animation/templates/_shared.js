@@ -182,6 +182,45 @@ var FX = {
   staggerGrid: function(tl, sel, o){ o=o||{}; if(!FX.q(sel).length) return;
     tl.from(sel, { opacity:0, scale:o.from==null?0.5:o.from, duration:o.dur||0.5, ease:'back.out(1.8)',
       stagger:{ each:o.each||0.05, grid:'auto', from:o.origin||'center' } }, o.at||0.2); },
+  // ---- voice-sync helpers: read the narration's word timings straight from S.captions ----
+  // flat word list [{start,end,word}] of the whole scene
+  allWords: function(){ var out=[], cues=S.captions||[];
+    for (var i=0;i<cues.length;i++){ var ws=cues[i].words||[]; for (var j=0;j<ws.length;j++) out.push(ws[j]); }
+    return out; },
+  // n accent times picked from long/number words with a minimum gap, LEAD before the word
+  // lands; falls back to even spacing when the scene carries no captions. Pure fn of S.
+  accents: function(n, o){ o=o||{}; var GAP=o.gap==null?1.2:o.gap, LEAD=0.12, d=S.duration;
+    var u0=Math.min(0.8, d*0.12), u1=d-Math.min(0.9, d*0.14);
+    var even=[]; for (var e=0;e<n;e++) even.push(+(u0+((e+0.5)*(u1-u0))/n).toFixed(2));
+    var ws=FX.allWords(); if(!ws.length||n<1) return even;
+    var scored=[]; for (var i=0;i<ws.length;i++){ var s=String(ws[i].word||'').replace(/[^0-9A-Za-zÀ-ỹ]/g,'');
+      if (s.length<2) continue; scored.push({ t:Math.max(0.15, ws[i].start-LEAD), sc:s.length+(/[0-9]/.test(s)?8:0) }); }
+    scored.sort(function(a,b){ return b.sc-a.sc || a.t-b.t; });
+    var picked=[];
+    for (var k=0;k<scored.length && picked.length<n;k++){ var c=scored[k];
+      if (c.t<u0||c.t>u1) continue;
+      var ok=true; for (var p=0;p<picked.length;p++) if (Math.abs(picked[p]-c.t)<GAP){ ok=false; break; }
+      if (ok) picked.push(c.t); }
+    for (var f=0;f<even.length && picked.length<n;f++){ var t=even[f];
+      var ok2=true; for (var q=0;q<picked.length;q++) if (Math.abs(picked[q]-t)<GAP*0.6){ ok2=false; break; }
+      if (ok2) picked.push(t); }
+    picked.sort(function(a,b){ return a-b; });
+    return picked; },
+  // duration-adaptive phase map so a 3s and a 12s scene both feel authored
+  phases: function(){ var d=S.duration;
+    return { intro: Math.min(0.9, d*0.15), outroStart: d - Math.min(0.9, d*0.14), dur: d }; },
+  // distribute elements across the narration's beats: element i enters on accent i and
+  // (unless keep:true) exits before the next enters — a beat-synced FX.beat fan-out
+  schedule: function(tl, sel, o){ o=o||{};
+    var els = typeof sel==='string' ? Array.prototype.slice.call(FX.q(sel)) : sel;
+    if (!els.length) return;
+    var ts = FX.accents(els.length, o), ph = FX.phases();
+    for (var i=0;i<els.length;i++){
+      var t0 = ts[i]!=null ? ts[i] : ph.intro + (i*(ph.outroStart-ph.intro))/els.length;
+      var t1 = o.keep ? ph.dur-0.1
+        : Math.min(ph.dur-0.1, (i+1<els.length && ts[i+1]!=null) ? ts[i+1]+0.15 : ph.dur-0.1);
+      FX.beat(tl, els[i], t0, Math.max(t0+0.6, t1), { 'in': o['in']||'rise', out: o.keep?'none':(o.out||'fade'), y: o.y, drift: o.drift });
+    } },
   // full beat lifecycle: hidden from t=0, entrance at t0, micro-drift hold, exit before t1.
   // in: 'rise'|'pop'|'carrier'|'glitch'|'flip'   out: 'fade'|'whip'|'flip'|'blur'|'none'
   beat: function(tl, sel, t0, t1, o){ o=o||{};
