@@ -14,6 +14,8 @@ let t = 0, playing = false, raf = 0, lastTs = 0, activeIdx = -1;
 const frames = new Map(); // idx -> { iframe, ready, audio }
 let sceneSize = { w: 1080, h: 1920 };
 let reviews = new Map(); // sceneId -> 'approved'|'rejected'
+const peaks = new Map(); // idx -> number[] (waveform buckets, lazy-loaded around playhead)
+const peaksLoading = new Set();
 
 const dur = (i) => Math.max(1.5, scenes[i]?.duration || 6);
 const fmt = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
@@ -34,6 +36,70 @@ export function initPlayer() {
     else if (e.key === 'ArrowLeft') seekTo(t - 5);
   });
   window.addEventListener('resize', fitStage);
+  // timeline lane: click/drag = scrub (read-only — reorder needs immutable-id path keying)
+  const tl = $('#rcTl');
+  if (tl) {
+    const toTime = (e) => { const r = tl.getBoundingClientRect(); return ((e.clientX - r.left) / r.width) * total; };
+    let scrubbing = false;
+    tl.addEventListener('pointerdown', (e) => { scrubbing = true; tl.setPointerCapture(e.pointerId); seekTo(toTime(e)); });
+    tl.addEventListener('pointermove', (e) => { if (scrubbing) seekTo(toTime(e)); });
+    tl.addEventListener('pointerup', () => { scrubbing = false; });
+  }
+}
+
+// lazy-load waveform peaks for scenes near the playhead
+function loadPeaksAround(idx) {
+  for (const i of [idx - 1, idx, idx + 1, idx + 2]) {
+    const sc = scenes[i];
+    if (!sc || peaks.has(i) || peaksLoading.has(i) || !sc.audio_path) continue;
+    peaksLoading.add(i);
+    api.get(`/scenes/${sc.id}/waveform?buckets=160`)
+      .then((r) => peaks.set(i, r.peaks || []))
+      .catch(() => peaks.set(i, []))
+      .finally(() => peaksLoading.delete(i));
+  }
+}
+
+// one canvas, three lanes: scene clips (top), waveform (middle), caption cues (bottom strip)
+function drawTimeline() {
+  const cv = $('#rcTl'); if (!cv) return;
+  const W = cv.clientWidth, H = cv.height;
+  if (cv.width !== W * devicePixelRatio) cv.width = W * devicePixelRatio;
+  const g = cv.getContext('2d');
+  g.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+  g.clearRect(0, 0, W, H);
+  if (!total) return;
+  const x = (time) => (time / total) * W;
+  for (let i = 0; i < scenes.length; i++) {
+    const x0 = x(starts[i]), x1 = x(starts[i] + dur(i));
+    // clip lane
+    g.fillStyle = i === activeIdx ? 'rgba(34,211,238,.22)' : i % 2 ? 'rgba(120,160,255,.10)' : 'rgba(120,160,255,.06)';
+    g.fillRect(x0 + 0.5, 4, Math.max(1, x1 - x0 - 1), 30);
+    const rv = reviews.get(scenes[i].id);
+    if (rv) { g.fillStyle = rv === 'approved' ? 'rgba(52,211,153,.9)' : 'rgba(255,77,94,.9)'; g.fillRect(x0 + 0.5, 4, Math.max(1, x1 - x0 - 1), 3); }
+    if (x1 - x0 > 26) {
+      g.fillStyle = 'rgba(234,242,255,.75)'; g.font = '10px ui-monospace,monospace';
+      g.fillText(String(i + 1), x0 + 4, 17);
+    }
+    // waveform lane
+    const pk = peaks.get(i);
+    if (pk?.length) {
+      g.fillStyle = i === activeIdx ? 'rgba(34,211,238,.75)' : 'rgba(139,147,176,.55)';
+      const bw = (x1 - x0) / pk.length;
+      for (let b = 0; b < pk.length; b++) {
+        const h = Math.max(1, pk[b] * 26);
+        g.fillRect(x0 + b * bw, 52 + (26 - h) / 2, Math.max(0.5, bw - 0.4), h);
+      }
+    }
+    // caption cue ticks
+    for (const c of scenes[i].srt_json || []) {
+      g.fillStyle = 'rgba(251,191,36,.5)';
+      g.fillRect(x(starts[i] + c.start), H - 5, Math.max(1, x(starts[i] + c.end) - x(starts[i] + c.start) - 0.5), 3);
+    }
+  }
+  // playhead
+  g.fillStyle = '#FF2E88';
+  g.fillRect(x(t) - 0.75, 0, 1.5, H);
 }
 
 async function reviewActive(status) {
@@ -151,6 +217,7 @@ function render() {
     frames.get(activeIdx)?.audio?.pause();
     activeIdx = idx;
     ensureWindow();
+    loadPeaksAround(idx);
     for (const [i, f] of frames) f.iframe.classList.toggle('on', i === activeIdx);
   }
   const f = frames.get(activeIdx);
@@ -164,4 +231,5 @@ function render() {
   $('#rcSeek').value = t.toFixed(2);
   $('#rcTime').textContent = `${fmt(t)} / ${fmt(total)}`;
   renderReviewState();
+  drawTimeline();
 }

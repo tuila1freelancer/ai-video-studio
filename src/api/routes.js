@@ -375,6 +375,17 @@ export function mountRoutes(app, { version }) {
     }
     res.json({ scene: DB.updateScene(req.params.id, body) });
   });
+  // ---- timeline waveform lane (read-only; peaks are numbers, not file contents) ----
+  r.get('/scenes/:id/waveform', async (req, res) => {
+    try {
+      const sc = DB.getScene(req.params.id);
+      if (!sc) return res.status(404).json({ error: 'not found' });
+      if (!sc.audio_path || !existsSync(sc.audio_path)) return res.json({ peaks: [], duration: sc.duration || 0 });
+      const { audioPeaks } = await import('../media/waveform.js');
+      res.json(await audioPeaks(sc.audio_path, { buckets: Math.min(1000, parseInt(req.query.buckets, 10) || 240) }));
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
   // ---- multi-take history ----
   r.get('/scenes/:id/takes', (req, res) => {
     if (!DB.getScene(req.params.id)) return res.status(404).json({ error: 'not found' });

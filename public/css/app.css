@@ -496,3 +496,5 @@ html.is-shell .center-narrow{padding-top:calc(30px + var(--pad-titlebar))}
 .input.sm{padding:4px 8px;font-size:12.5px}
 .srt-cues,.srt-takes{margin-top:6px;padding:8px;border:1px solid rgba(120,160,255,.12);border-radius:8px;background:rgba(10,14,26,.4)}
 .srt-cues.hidden,.srt-takes.hidden{display:none}
+.rc-timeline{padding:0 16px}
+.rc-timeline canvas{display:block;width:100%;height:86px;border:1px solid rgba(120,160,255,.14);border-radius:8px;background:rgba(8,11,20,.6);cursor:crosshair;touch-action:none}
