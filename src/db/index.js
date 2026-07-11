@@ -15,6 +15,7 @@ export * from './repositories/usage.js';
 export * from './repositories/reviews.js';
 export * from './repositories/takes.js';
 export * from './repositories/publishes.js';
+export * from './repositories/calendar.js';
 
 // ---- one-time bootstrap (runs on first import) ----
 // existing projects belong to Default

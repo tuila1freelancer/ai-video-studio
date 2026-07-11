@@ -79,6 +79,7 @@
               </select>
               <span class="flex-spacer"></span>
               <button class="btn big" id="heroBatch" title="Nhiều chủ đề — tự chạy lần lượt">Hàng loạt</button>
+              <button class="btn big" id="heroAutopilot" title="Gợi ý chủ đề theo xu hướng + lịch đăng + tổng quan hệ thống">🛰 Trợ lý</button>
               <button class="btn primary big" id="heroGo">Tạo video tự động</button>
             </div>
             <div class="hint">Tự động: dựng cảnh GSAP · giọng đọc neural · phụ đề karaoke · nhạc nền · intro/outro · metadata.</div>
@@ -481,6 +482,22 @@
     <h2><span id="cfgModalTitle">Cấu hình</span> <button class="x" data-close>×</button></h2>
     <div id="cfgModalBody"></div>
     <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn primary" data-close>Xong</button></div>
+  </div>
+</div>
+
+<div class="modal-bg" id="autopilotModal">
+  <div class="modal" style="max-width:760px">
+    <h2>🛰 Trợ lý nội dung <button class="x" data-close>×</button></h2>
+    <div class="ap-stats row" id="apStats" style="gap:14px;flex-wrap:wrap;margin-bottom:12px"></div>
+    <div class="label" style="margin:6px 0">💡 Gợi ý chủ đề theo xu hướng</div>
+    <div class="row" style="gap:8px;align-items:stretch">
+      <input class="input" id="apNiche" placeholder="Ngách của kênh (vd: AI cho freelancer)…" style="flex:1">
+      <button class="btn" id="apSuggest">Gợi ý</button>
+    </div>
+    <div id="apTopics" style="margin-top:8px"></div>
+    <div class="label" style="margin:14px 0 6px">🗓 Lịch sản xuất (đến hạn sẽ tự tạo video)</div>
+    <div id="apCalendar"></div>
+    <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn primary" data-close>Đóng</button></div>
   </div>
 </div>
 
