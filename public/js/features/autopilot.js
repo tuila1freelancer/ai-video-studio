@@ -5,12 +5,19 @@
 import { $, $$, esc } from '../ui/dom.js';
 import { api, withLock } from '../api.js';
 import { toast } from '../ui/toast.js';
-import { runSuggestionAction, slotConfigSheet, slotTimeDialog, planWeekDialog } from './assistant-sheet.js';
+import { menuDialog, confirmDialog } from '../ui/dialog.js';
+import { state } from '../state.js';
+import { gatherConfig } from '../views/config.js';
+import {
+  runSuggestionAction, slotConfigSheet, slotTimeDialog, planWeekDialog,
+  addRecurrenceDialog, channelAssistant,
+} from './assistant-sheet.js';
 import { initHistoryTab, renderHistory } from './assistant-history.js';
 
 const PACK_LABELS = { 'vn-news': '📰 Tin tức VN', 'vn-tech': '💻 Công nghệ VN', 'vn-business': '📈 Kinh doanh VN' };
 
 let pool = []; // pending suggestion rows shown in the suggest tab
+let recs = []; // fixed weekly production windows (templates)
 let sourcesLoaded = false;
 
 export function initAutopilot() {
@@ -24,8 +31,13 @@ export function initAutopilot() {
   $('#apTopics')?.addEventListener('click', onPoolAction);
   $('#apSaveSources')?.addEventListener('click', () => withLock($('#apSaveSources'), saveSources));
   $('#apPlanWeek')?.addEventListener('click', async () => {
-    if (await planWeekDialog()) { refreshOverview(); renderPool(); }
+    if (await planWeekDialog({ times: preferredTimes() })) { refreshOverview(); renderPool(); }
   });
+  $('#apAddRec')?.addEventListener('click', async () => { if (await addRecurrenceDialog()) renderRecs(); });
+  $('#apRecs')?.addEventListener('click', onRecAction);
+  $('#apPrefSave')?.addEventListener('click', () => withLock($('#apPrefSave'), savePrefs));
+  $('#apPrefCfgSave')?.addEventListener('click', () => withLock($('#apPrefCfgSave'), () => saveAssistantConfig(gatherConfig())));
+  $('#apPrefCfgClear')?.addEventListener('click', () => withLock($('#apPrefCfgClear'), () => saveAssistantConfig(null)));
   initHistoryTab();
   // cross-tab hooks: history's "🔁 similar" re-runs suggest; any decision refreshes the pool
   document.addEventListener('ap:resuggest', (e) => {
@@ -40,7 +52,54 @@ export function initAutopilot() {
 async function openAutopilot() {
   $('#autopilotModal').classList.add('open');
   switchTab('suggest');
-  await Promise.all([refreshOverview(), renderPool(), loadSources()]);
+  loadPrefs();
+  await Promise.all([refreshOverview(), renderPool(), loadSources(), renderRecs()]);
+}
+
+// ---- per-channel assistant preferences (channel.config.assistant — no secrets) ----
+function preferredTimes() {
+  const recTimes = (recs || []).map((r) => r.time);
+  const pref = channelAssistant()?.preferredTimes || [];
+  const merged = [...new Set([...recTimes, ...pref])];
+  return merged.length ? merged : null;
+}
+
+function loadPrefs() {
+  const a = channelAssistant() || {};
+  const niche = $('#apNiche');
+  if (niche && !niche.value.trim() && a.niche) niche.value = a.niche;
+  if ($('#apPrefNiche')) $('#apPrefNiche').value = a.niche || '';
+  if ($('#apPrefTimes')) $('#apPrefTimes').value = (a.preferredTimes || []).join(', ');
+  if ($('#apPrefCfgState')) {
+    $('#apPrefCfgState').textContent = a.defaultConfig
+      ? `✓ Đã có config trợ lý (${a.defaultConfig.visualMode || 'hyperframe'} · ${a.defaultConfig.aspectRatio || 'theo kênh'})`
+      : 'Chưa có config trợ lý riêng — video từ trợ lý dùng mặc định kênh.';
+  }
+}
+
+async function putChannelAssistant(patch) {
+  if (!state.activeChannel) { toast('Chưa có kênh đang hoạt động.', 'error'); return false; }
+  try {
+    const { channel } = await api.put(`/channels/${state.activeChannel}`, { config: { assistant: patch } });
+    const i = (state.channels || []).findIndex((c) => c.id === channel.id);
+    if (i >= 0) state.channels[i] = channel;
+    return true;
+  } catch (e) { toast('✗ ' + e.message, 'error'); return false; }
+}
+
+async function savePrefs() {
+  const times = $('#apPrefTimes').value.split(',').map((t) => t.trim()).filter((t) => /^\d{1,2}:\d{2}$/.test(t));
+  if (await putChannelAssistant({ niche: $('#apPrefNiche').value.trim(), preferredTimes: times })) {
+    toast('💾 Đã lưu cài đặt trợ lý của kênh.', 'success');
+    loadPrefs();
+  }
+}
+
+async function saveAssistantConfig(config) {
+  if (await putChannelAssistant({ defaultConfig: config })) {
+    toast(config ? '📋 Panel Studio hiện tại đã thành config trợ lý của kênh.' : '🗑 Đã xoá config trợ lý.', 'success');
+    loadPrefs();
+  }
 }
 
 // ---- trend source preferences (packs + custom feeds) ----
@@ -133,6 +192,7 @@ async function renderPool() {
       </div>
       <button class="btn sm" data-act="now" title="Chọn cấu hình rồi tạo ngay">▶ Làm ngay</button>
       <button class="btn sm" data-act="plan" title="Chọn cấu hình + thời điểm">🗓 Hẹn lịch</button>
+      <button class="btn sm" data-act="series" title="Phát triển thành mini-series nhiều tập">📚</button>
       <button class="btn sm" data-act="dismiss" title="Bỏ qua (khôi phục được trong Lịch sử)">✕</button>
     </div>`;
   }).join('');
@@ -143,8 +203,93 @@ async function onPoolAction(e) {
   if (!b) return;
   const row = pool.find((t) => t.id === b.closest('.ap-topic')?.dataset.id);
   if (!row) return;
+  if (b.dataset.act === 'series') { await seriesFlow(row); return; }
   const changed = await runSuggestionAction(row, b.dataset.act);
   if (changed) { await renderPool(); refreshOverview(); }
+}
+
+// ---- mini-series: LLM designs N connected episodes → pending suggestions ----
+async function seriesFlow(row) {
+  const n = await menuDialog({
+    title: `📚 Lên series từ: ${row.topic.slice(0, 60)}`,
+    items: [
+      { id: '3', label: '3 tập (gọn)' },
+      { id: '5', label: '5 tập (chuẩn)' },
+      { id: '7', label: '7 tập (sâu)' },
+    ],
+  });
+  if (!n) return;
+  const note = $('#apSuggestNote');
+  if (note) note.textContent = '⏳ AI đang thiết kế series…';
+  try {
+    const r = await api.post('/topics/series', { suggestionId: row.id, episodes: +n });
+    if (note) note.textContent = `✓ Series "${r.series.name}" — ${r.suggestions.length} tập đã vào pool.`;
+    await renderPool();
+    refreshOverview();
+    const times = preferredTimes() || ['08:00'];
+    if (await confirmDialog({
+      title: 'Xếp lịch cả series?',
+      body: `${r.suggestions.length} tập, mỗi ngày 1 tập lúc ${times[0]}, bắt đầu từ ngày mai.`,
+      okText: '🗓 Xếp lịch',
+    })) {
+      const p = await api.post('/calendar/plan', {
+        topicIds: r.suggestions.map((s) => s.id),
+        days: r.suggestions.length + 1, perDay: 1, times: [times[0]],
+      });
+      toast(`📅 Đã xếp ${p.planned} tập vào lịch.`, 'success');
+      renderPool(); refreshOverview();
+    }
+  } catch (e) { if (note) note.textContent = '✗ ' + e.message; }
+}
+
+// ---- fixed weekly windows (recurrences) ----
+const WEEKDAYS = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+function nextOccurrence(rec) {
+  const [hh, mm] = rec.time.split(':').map((n) => parseInt(n, 10));
+  const d = new Date();
+  d.setHours(hh, mm || 0, 0, 0);
+  let add = (rec.weekday - d.getDay() + 7) % 7;
+  if (add === 0 && d.getTime() <= Date.now()) add = 7;
+  d.setDate(d.getDate() + add);
+  return d.getTime();
+}
+
+async function renderRecs() {
+  const box = $('#apRecs');
+  if (!box) return;
+  try { ({ recurrences: recs } = await api.get('/calendar/recurrences')); }
+  catch { recs = []; }
+  if (!recs.length) { box.innerHTML = '<div class="hint">Chưa có khung giờ cố định nào.</div>'; return; }
+  box.innerHTML = recs.map((r) => `
+    <div class="ap-slot" data-id="${esc(r.id)}">
+      <span class="when">${WEEKDAYS[r.weekday]} · ${esc(r.time)}</span>
+      <span class="t hint" style="flex:1">kế tiếp: ${new Date(nextOccurrence(r)).toLocaleString('vi-VN')}</span>
+      <button class="btn sm" data-rec="fill">＋ Chọn chủ đề</button>
+      <button class="btn sm" data-rec="del" title="Xoá khung giờ">✕</button>
+    </div>`).join('');
+}
+
+async function onRecAction(e) {
+  const b = e.target.closest('button[data-rec]');
+  if (!b) return;
+  const rec = recs.find((r) => r.id === b.closest('.ap-slot')?.dataset.id);
+  if (!rec) return;
+  if (b.dataset.rec === 'del') {
+    await api.del(`/calendar/recurrences/${rec.id}`);
+    renderRecs();
+    return;
+  }
+  // fill the window: pick a pending suggestion, then the usual schedule sheet prefilled
+  if (!pool.length) await renderPool();
+  if (!pool.length) { toast('Pool trống — tạo gợi ý ở tab 💡 trước đã.', 'error'); return; }
+  const pick = await menuDialog({
+    title: `＋ Chủ đề cho ${WEEKDAYS[rec.weekday]} · ${rec.time}`,
+    items: pool.slice(0, 8).map((t) => ({ id: t.id, label: t.topic.slice(0, 70) })),
+  });
+  if (!pick) return;
+  const row = pool.find((t) => t.id === pick);
+  const changed = await runSuggestionAction(row, 'plan', { due: nextOccurrence(rec) });
+  if (changed) { renderPool(); refreshOverview(); }
 }
 
 async function suggest() {

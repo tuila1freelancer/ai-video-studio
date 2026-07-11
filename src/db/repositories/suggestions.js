@@ -114,3 +114,15 @@ export function linkSuggestionProject(slotId, projectId) {
   return db.prepare('UPDATE topic_suggestions SET project_id=? WHERE slot_id=? AND project_id IS NULL')
     .run(projectId, slotId).changes;
 }
+
+// ---- mini-series (a named group of episode suggestions) ----
+export function createSeries({ channelId = null, name, description = '' }) {
+  const id = newId('ser');
+  db.prepare('INSERT INTO suggestion_series(id,channel_id,name,description,created_at) VALUES(?,?,?,?,?)')
+    .run(id, channelId, String(name || 'Series').slice(0, 80), String(description || '').slice(0, 300), Date.now());
+  return db.prepare('SELECT * FROM suggestion_series WHERE id=?').get(id);
+}
+
+export function getSeries(id) {
+  return db.prepare('SELECT * FROM suggestion_series WHERE id=?').get(id) || null;
+}
