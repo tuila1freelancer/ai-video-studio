@@ -280,6 +280,18 @@ export function mountRoutes(app, { version }) {
     res.json({ summary: DB.usageSummary({ limit: Math.min(100, parseInt(req.query.limit, 10) || 30) }) });
   });
 
+  // ---- multi-aspect repurposing (16:9 <-> 9:16, no crop — full reflow re-render) ----
+  r.post('/projects/:id/repurpose', async (req, res) => {
+    try {
+      const { repurposeProject } = await import('../pipeline/repurpose.js');
+      const out = await repurposeProject(req.params.id, { aspectRatio: req.body?.aspectRatio });
+      // start the derived render as a resume run: voice/captions are already attached,
+      // so only visuals-for-dropped-scenes + the full re-render actually execute
+      Pipeline.startProject(out.project.id, { resume: true }).catch((e) => logger.error(e.message, { projectId: out.project.id }));
+      res.json(out);
+    } catch (e) { res.status(400).json({ error: e.message }); }
+  });
+
   // ---- durable job queue (run history + cancel) ----
   r.get('/jobs', (req, res) => {
     res.json({ jobs: DB.listJobs({ limit: Math.min(200, parseInt(req.query.limit, 10) || 50) }) });
