@@ -174,6 +174,14 @@ async function genMeta() {
 function onWsMessage(m) {
   if (m.type === '_status') { state.wsOpen = m.open; $('#wsDot').textContent = m.open ? '● realtime' : '● offline'; $('#wsDot').classList.toggle('on', m.open); return; }
   if (!state.current || (m.projectId && m.projectId !== state.current.id)) return;
+  if (m.type === 'replay') {
+    // buffered feed replayed on (re)subscribe: a page reload mid-run catches up instantly.
+    // 'op' spam is skipped except the last one (only the current activity line matters).
+    const events = m.events || [];
+    const lastOp = events.map((e, i) => (e.type === 'op' ? i : -1)).reduce((a, b) => Math.max(a, b), -1);
+    events.forEach((e, i) => { if (e.type !== 'op' || i === lastOp) onWsMessage(e); });
+    return;
+  }
   switch (m.type) {
     case 'step':
       flushSceneUpdates(); // coalesced patches must land before step transitions
