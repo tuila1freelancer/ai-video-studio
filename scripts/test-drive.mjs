@@ -1,5 +1,8 @@
 // GĐ5 test driver — boot server, run a fully-configured HyperFrame project, report timings.
 // Usage: node test-drive.mjs '<topic>' <videoDuration> <aspectRatio> <timeoutMs> [ttsProvider]
+// ttsProvider defaults to 'app': the project carries NO tts override, so the run uses the
+// owner's in-app AI settings exactly (preferred provider, per-language voices, lexicon…).
+// Pass an explicit provider id (e.g. 'edge') only when a test must avoid paid credits.
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, statSync } from 'node:fs';
 import WebSocket from 'ws';
@@ -8,7 +11,7 @@ const TOPIC = process.argv[2];
 const VIDEO_DURATION = parseInt(process.argv[3] || '60', 10);
 const AR = process.argv[4] || '9:16';
 const TIMEOUT_MS = parseInt(process.argv[5] || '1800000', 10);
-const TTS = process.argv[6] || 'edge';
+const TTS = process.argv[6] || 'app'; // 'app' = the in-app AI settings, untouched
 const HF_MODEL = process.argv[7] || ''; // optional stronger model for the codegen/direction pass
 
 function log(...a) { console.log('[drive]', ...a); }
@@ -35,7 +38,7 @@ const { project } = await api('/api/projects', { method: 'POST', body: JSON.stri
   config: {
     aspectRatio: AR, videoDuration: VIDEO_DURATION, sceneDuration: 7, enableSubtitles: true,
     visualMode: 'hyperframe', hyperframe: { styleId: 'tuila1-hud-cyber', density: 'balanced', ...(HF_MODEL ? { model: HF_MODEL, modelFallback: 'ag/gemini-3.1-pro-low' } : {}) },
-    language: 'vi', tts: { provider: TTS, voice: 'auto' },
+    language: 'vi', ...(TTS !== 'app' ? { tts: { provider: TTS, voice: 'auto' } } : {}),
     autoConcat: true, parallelTTS: true, ttsConcurrency: 4, renderConcurrency: 3, fps: 30,
     watermarkText: 'tuila1 freelancer',
   },
