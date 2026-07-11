@@ -528,4 +528,16 @@ html.is-shell .center-narrow{padding-top:calc(30px + var(--pad-titlebar))}
 .ss-code{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;line-height:1.5;tab-size:2;white-space:pre;overflow-x:auto}
 .ss-take{display:flex;gap:10px;align-items:center;padding:7px 10px;border:1px solid rgba(120,160,255,.1);border-radius:10px;margin-top:6px;font-size:13px}
 .ss-take span:first-child{flex:1}
+/* code editor: transparent textarea over a highlighted <pre> underlay (no deps) */
+.ss-editor{position:relative}
+.ss-editor pre{position:absolute;inset:0;margin:0;padding:10px 12px;overflow:hidden;pointer-events:none;
+  font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;line-height:1.5;tab-size:2;
+  white-space:pre;color:var(--text,#e8ecff);border:1px solid transparent;border-radius:10px}
+.ss-editor textarea{position:relative;background:transparent;color:transparent;caret-color:var(--text,#e8ecff);z-index:1}
+.ss-editor textarea::selection{background:rgba(124,140,255,.28)}
+.ss-editor pre i{font-style:normal}
+.ss-editor pre i.t{color:#7C8CFF}
+.ss-editor pre i.a{color:#69F0AE}
+.ss-editor pre i.s{color:#F7B500}
+.ss-editor pre i.c{color:#8b93b0;font-style:italic}
 @media (max-width: 900px){.ss-body{flex-direction:column}.ss-left{width:100%}}

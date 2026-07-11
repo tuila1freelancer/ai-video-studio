@@ -584,7 +584,10 @@
         </div>
         <div id="ssTabHtml" style="display:none">
           <div class="hint" style="margin-bottom:6px">Sửa trực tiếp markup của cảnh. Phụ đề, brand, progress bar vẫn do hệ thống quản — không sợ vỡ nhận diện. <b id="ssHtmlState"></b></div>
-          <textarea class="input ss-ta ss-code" id="ssHtml" rows="12" spellcheck="false" placeholder="&lt;div class=&quot;wrap&quot;&gt;…&lt;/div&gt;"></textarea>
+          <div class="ss-editor" title="⌘Z hoàn tác · ⇧⌘Z làm lại · ⌘↵ áp dụng">
+            <pre id="ssHtmlHl" aria-hidden="true"></pre>
+            <textarea class="input ss-ta ss-code" id="ssHtml" rows="12" spellcheck="false" placeholder="&lt;div class=&quot;wrap&quot;&gt;…&lt;/div&gt;"></textarea>
+          </div>
           <details style="margin-top:6px"><summary class="hint" style="cursor:pointer">+ CSS bổ sung (tuỳ chọn)</summary>
             <textarea class="input ss-ta ss-code" id="ssCss" rows="4" spellcheck="false" placeholder=".my-el{...}"></textarea>
           </details>

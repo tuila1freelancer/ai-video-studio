@@ -27,6 +27,12 @@ export function initSceneStudio() {
   ['#ssHtml', '#ssCss'].forEach((id) => $(id)?.addEventListener('keydown', (e) => {
     if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); $('#ssHtmlApply').click(); }
   }));
+  // syntax-highlight underlay stays in lockstep with the textarea (typing + scrolling)
+  $('#ssHtml')?.addEventListener('input', refreshHl);
+  $('#ssHtml')?.addEventListener('scroll', () => {
+    const hl = $('#ssHtmlHl'), ta = $('#ssHtml');
+    if (hl && ta) { hl.scrollTop = ta.scrollTop; hl.scrollLeft = ta.scrollLeft; }
+  });
   // stop preview audio when the modal closes
   document.addEventListener('click', (e) => {
     if (e.target.closest('#sceneStudioModal [data-close]') || e.target.id === 'sceneStudioModal') {
@@ -43,11 +49,26 @@ export function openSceneStudio(s) {
   $('#ssVoice').value = s.voice_text || '';
   $('#ssVisual').value = s.visual_prompt || '';
   $('#ssHtml').value = '';
+  refreshHl();
   $('#ssCss').value = s.props?.__custom?.css || '';
   note('');
   switchTab('voice');
   reloadPreview();
   $('#sceneStudioModal').classList.add('open');
+}
+
+// Single-pass HTML highlighter for the underlay — alternation with one replacer, so the
+// injected <i> spans can never be re-matched/corrupted by a later pass.
+const HL_RE = /(&lt;!--[\s\S]*?--&gt;)|(&lt;\/?[\w-]+)|(\/?&gt;)|("[^"\n]*"|'[^'\n]*')|([\w-]+)(?==)/g;
+function hlHtml(src) {
+  const e = String(src).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return e.replace(HL_RE, (m, cm, tag, gt, str, attr) =>
+    cm ? `<i class=c>${cm}</i>` : tag ? `<i class=t>${tag}</i>` : gt ? `<i class=t>${gt}</i>`
+      : str ? `<i class=s>${str}</i>` : `<i class=a>${attr}</i>`);
+}
+function refreshHl() {
+  const hl = $('#ssHtmlHl'), ta = $('#ssHtml');
+  if (hl && ta) hl.innerHTML = hlHtml(ta.value) + '\n';
 }
 
 function note(msg, isErr = false) {
@@ -121,6 +142,7 @@ async function loadHtml() {
   try {
     const src = await api.get(`/scenes/${cur.id}/template-source`);
     $('#ssHtml').value = src.html || '';
+    refreshHl();
     st.textContent = src.hasCustom ? '(đang dùng bản sửa tay)' : `(template: ${src.template})`;
     htmlLoaded = true;
   } catch (e) { st.textContent = '✗ ' + e.message; }

@@ -6,14 +6,15 @@ update immediately when anything is discovered — this file is the loop's only 
 ## State
 - Current-Branch: feat/ultra-loop
 - PR-URL: (opening after first push)
-- Item-Counter: 6
+- Item-Counter: 7
 - Sandbox: AVS_DATA_DIR=<scratchpad>/avs-loop, server managed per iteration
 
 ## In-Progress
-- M1.3 Scene Studio polish: (a) syntax-highlight overlay for the code editor (vendored,
-  no CDN; textarea + <pre> underlay); (b) editors rely on native textarea undo/redo —
-  document ⌘Z in a tooltip; (c) checkpoint screenshots/GIF for the UX bar, then M1
-  acceptance sign-off and on to M2.
+- M2 Visual-HTML quality gates: add text-vs-text overlap + low-contrast detectors to
+  renderValidate (src/hyperframe/validate.js), extend the HARD_DEFECT regex in
+  src/hyperframe/codegen.js with the new phrases (re-ask, not just lastGood fallback),
+  polish src/hyperframe/prompt.js for balanced layout. Then batch qaSpec on ≥10 sample
+  specs. Cap: ≤3 re-asks/scene. P11/P12 guards must stay green.
 
 ## Backlog
 - M1 acceptance run, then M2 → M3 → M4 (see loop prompt)
@@ -57,6 +58,13 @@ update immediately when anything is discovered — this file is the loop's only 
   the UI's "done" state lied and an immediate per-scene render raced the in-flight regen
   (render finished first, then regen re-nulled video_path — scene stuck looking stale).
   Routes now await regenOne and return the fresh scene row (src/api/routes.js).
+- M1.3 Editor syntax highlight + M1 SIGN-OFF. Dependency-free highlighter: transparent
+  textarea over a <pre> underlay, single-pass alternation regex (tags/attrs/strings/
+  comments — injected spans can never be re-matched), scroll-synced, 74 spans on the
+  sample scene, colors verified by screenshot. Undo/redo = native textarea history,
+  documented in the editor tooltip (⌘Z/⇧⌘Z/⌘↵). M1 acceptance complete: fingerprint
+  proof (M1.2), preview==render by construction (same buildSceneHtml), takes+rollback,
+  inline busy/error states, no blocking operations.
 
 ## Metrics
 (none yet)
