@@ -49,6 +49,7 @@ export function initStudio() {
   $('#checkAll').addEventListener('change', (e) => { $$('#sceneGrid .scene').forEach((c) => { c.classList.toggle('sel', e.target.checked); c.querySelector('.chk').checked = e.target.checked; }); updateSelCount(); });
   $('#btnSrt').addEventListener('click', openSrt);
   $('#btnRepurpose').addEventListener('click', () => withLock($('#btnRepurpose'), repurposeCurrent));
+  $('#btnExport')?.addEventListener('click', () => withLock($('#btnExport'), exportCurrent));
   $('#btnPublish')?.addEventListener('click', () => withLock($('#btnPublish'), publishCurrent));
   $('#btnMeta').addEventListener('click', genMeta);
   $('#logToggle').addEventListener('click', () => { const b = $('#logBody'); const open = b.style.display !== 'none'; b.style.display = open ? 'none' : 'block'; $('#logCaret').textContent = open ? '▸' : '▾'; });
@@ -93,6 +94,42 @@ async function repurposeCurrent() {
     await loadProjects();
     await openProject(r.project.id);
   } catch (e) { toast('Lỗi đổi tỉ lệ: ' + e.message, 'error'); }
+}
+
+// One-click platform export: fast remux when the master already fits; confirmed fade-trim
+// over the platform cap; aspect mismatch hands off to the repurpose flow (no silent crops).
+async function exportCurrent() {
+  if (!state.current) { toast('Mở một dự án trước đã.', 'error'); return; }
+  let presets = [];
+  try { presets = (await api.get('/export/presets')).presets || []; } catch (e) { toast('✗ ' + e.message, 'error'); return; }
+  const pick = await menuDialog({ title: '📤 Xuất cho nền tảng nào?', items: presets.map((p) => ({ id: p.id, label: p.label })) });
+  if (!pick) return;
+  try {
+    let r = await api.post(`/projects/${state.current.id}/export`, { preset: pick });
+    if (r.needsRepurpose) {
+      const ok = await confirmDialog({
+        title: `Video đang ${state.current.aspect_ratio} — nền tảng này cần ${r.targetAr}`,
+        body: 'Chạy Đổi tỉ lệ (dàn lại bố cục + render, không crop) rồi export từ bản mới nhé?',
+        okText: '📱 Đổi tỉ lệ ngay',
+      });
+      if (ok) {
+        const rp = await api.post(`/projects/${state.current.id}/repurpose`, { aspectRatio: r.targetAr });
+        toast(`Đã tạo bản ${r.targetAr} — export lại sau khi render xong 🎬`, 'success');
+        await loadProjects(); await openProject(rp.project.id);
+      }
+      return;
+    }
+    if (r.needsTrim) {
+      const ok = await confirmDialog({
+        title: `Video dài ${r.duration}s — nền tảng giới hạn ${r.maxDur}s`,
+        body: `Cắt còn ${r.maxDur}s với fade-out 0.6s cuối? (bản gốc giữ nguyên)`,
+        okText: `✂️ Cắt còn ${r.maxDur}s`,
+      });
+      if (!ok) return;
+      r = await api.post(`/projects/${state.current.id}/export`, { preset: pick, allowTrim: true });
+    }
+    toast(`📤 Đã xuất ${r.preset}${r.trimmed ? ' (đã cắt fade)' : ''} — ${r.path.split('/').pop()}`, 'success');
+  } catch (e) { toast('Lỗi export: ' + e.message, 'error'); }
 }
 
 // Manual publish — always an explicit choice; 'Riêng tư' (staging) is the safe default.
