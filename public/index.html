@@ -553,6 +553,54 @@
   </div>
 </div>
 
+<div class="modal-bg" id="sceneStudioModal">
+  <div class="modal" style="max-width:1080px">
+    <h2>🎬 Scene Studio — <span id="ssTitle"></span> <button class="x" data-close>×</button></h2>
+    <div class="ss-body">
+      <div class="ss-left">
+        <div class="ss-frame" id="ssFrameWrap"></div>
+        <div class="row" style="gap:8px;margin-top:8px;align-items:center">
+          <button class="btn sm" id="ssReload" title="Phát lại preview">↻ Phát lại</button>
+          <span class="hint" id="ssNote" style="flex:1"></span>
+          <button class="btn sm warn" id="ssRender">🎞 Render cảnh này</button>
+        </div>
+      </div>
+      <div class="ss-right">
+        <div class="gtabs" id="ssTabs" style="margin:0 0 10px">
+          <button class="gtab active" data-tab="voice">📝 Lời thoại</button>
+          <button class="gtab" data-tab="visual">✨ Visual</button>
+          <button class="gtab" data-tab="html">&lt;/&gt; HTML</button>
+          <button class="gtab" data-tab="takes">🕘 Takes</button>
+        </div>
+        <div id="ssTabVoice">
+          <textarea class="input ss-ta" id="ssVoice" rows="7" placeholder="Lời thoại của cảnh…"></textarea>
+          <div class="hint" style="margin:6px 0">Lưu sẽ tạo lại giọng đọc đúng cấu hình + phụ đề + timing; clip cũ được lưu thành take.</div>
+          <button class="btn primary" id="ssVoiceSave">🎙 Lưu + tạo lại giọng</button>
+        </div>
+        <div id="ssTabVisual" style="display:none">
+          <textarea class="input ss-ta" id="ssVisual" rows="7" placeholder="Visual brief (mô tả đồ hoạ cảnh)…"></textarea>
+          <div class="hint" style="margin:6px 0">AI sẽ dựng lại visual theo brief mới; bản cũ thành take để so sánh/rollback.</div>
+          <button class="btn primary" id="ssVisualSave">✨ Lưu + AI dựng lại visual</button>
+        </div>
+        <div id="ssTabHtml" style="display:none">
+          <div class="hint" style="margin-bottom:6px">Sửa trực tiếp markup của cảnh. Phụ đề, brand, progress bar vẫn do hệ thống quản — không sợ vỡ nhận diện. <b id="ssHtmlState"></b></div>
+          <textarea class="input ss-ta ss-code" id="ssHtml" rows="12" spellcheck="false" placeholder="&lt;div class=&quot;wrap&quot;&gt;…&lt;/div&gt;"></textarea>
+          <details style="margin-top:6px"><summary class="hint" style="cursor:pointer">+ CSS bổ sung (tuỳ chọn)</summary>
+            <textarea class="input ss-ta ss-code" id="ssCss" rows="4" spellcheck="false" placeholder=".my-el{...}"></textarea>
+          </details>
+          <div class="row" style="gap:8px;margin-top:8px">
+            <button class="btn primary" id="ssHtmlApply" title="⌘/Ctrl+Enter">💾 Áp dụng (⌘↵)</button>
+            <button class="btn" id="ssHtmlReset">↩ Bỏ bản sửa tay</button>
+          </div>
+        </div>
+        <div id="ssTabTakes" style="display:none">
+          <div id="ssTakes"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="rcOverlay" class="rc-overlay hidden">
   <div class="rc-top">
     <span class="rc-title">▶ Bản nháp <span class="rc-note">(preview trực tiếp — chưa phải bản render cuối)</span></span>
