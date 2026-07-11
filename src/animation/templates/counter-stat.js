@@ -55,19 +55,25 @@ export default {
         <div class="h1">${esc(p.heading)}</div>
         ${p.sub ? `<div class="sub">${esc(p.sub)}</div>` : ''}
       </div>`,
-      script: fx(`
+      script: (() => {
+        // the count-up + arc land ON the moment the number is spoken (first narration
+        // accent — numbers score highest), clamped so the 1.5s roll still fits the scene
+        const acc = ctx.accentTimes(1)[0] || 0.15;
+        const cAt = +Math.min(Math.max(0.15, acc), Math.max(0.15, ctx.duration - 2.0)).toFixed(2);
+        return fx(`
         FX.pop(tl, '.gauge', { at: 0.06, from: 0.6, dur: 0.6 });
         FX.drawIn(tl, '.arct', { at: 0.1, dur: 1.0, ease: 'power2.out' });
         ${pct > 0 ? (pct >= 100
-          ? `FX.drawIn(tl, '.arcv', { at: 0.15, dur: 1.5, ease: 'power2.inOut' });`
-          : `tl.fromTo('.arcv', { drawSVG: '0%' }, { drawSVG: '${pctStr}%', duration: 1.5, ease: 'power2.inOut' }, 0.15);`) : ''}
+          ? `FX.drawIn(tl, '.arcv', { at: ${cAt}, dur: 1.5, ease: 'power2.inOut' });`
+          : `tl.fromTo('.arcv', { drawSVG: '0%' }, { drawSVG: '${pctStr}%', duration: 1.5, ease: 'power2.inOut' }, ${cAt});`) : ''}
         FX.pop(tl, '.val', { at: 0.08, from: 0.55, dur: 0.55 });
-        ${canCount ? `FX.count(tl, '#statv', ${val}, { dur: 1.5, at: 0.15 });` : ''}
-        ${unit ? `FX.pop(tl, '.unit', { at: 1.6, from: 0.3, dur: 0.5 });` : ''}
+        ${canCount ? `FX.count(tl, '#statv', ${val}, { dur: 1.5, at: ${cAt} });` : ''}
+        ${unit ? `FX.pop(tl, '.unit', { at: ${+(cAt + 1.45).toFixed(2)}, from: 0.3, dur: 0.5 });` : ''}
         FX.splitIn(tl, '.h1', { at: 0.55, each: 0.026, y: ${u(4)}, persp: ${u(40)} });
         ${p.sub ? `FX.rise(tl, '.sub', { at: 1.15, y: ${u(2.5)} });` : ''}
         FX.loop(tl, '.gauge', { y: -${u(0.9)}, at: 2.3, dur: 3 });
-      `),
+      `);
+      })(),
     };
   },
 };

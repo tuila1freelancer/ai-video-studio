@@ -50,10 +50,12 @@ export function buildSceneHtml(scene, project, config, extras = {}) {
     : (config.visualMode === 'hyperframe'
       ? themeFromGuide(resolveGuide(config))
       : getTheme(config.theme || 'neon-tech'));
-  const ctx = makeCtx({ w, h, theme, seed: scene.idx + 1, duration, idx: scene.idx });
+  // captions resolve BEFORE the template builds: word timings feed ctx.accentTimes so
+  // template motion lands on the narration's beats (still deterministic — srt_json is data)
+  const captions = config.enableSubtitles !== false ? (scene.srt_json || []) : [];
+  const ctx = makeCtx({ w, h, theme, seed: scene.idx + 1, duration, idx: scene.idx, captions: scene.srt_json || [] });
   const tpl = buildTemplate(plan.template, plan.props, ctx);
   if (config.gsapFx === false) delete tpl.script; // safety valve: pure-CSS render
-  const captions = config.enableSubtitles !== false ? (scene.srt_json || []) : [];
   const placement = brand ? planBrandPlacement(brand, {
     templateId: plan.template, idx: scene.idx, total: extras.total || 9999, captionsOn: captions.length > 0,
   }) : null;

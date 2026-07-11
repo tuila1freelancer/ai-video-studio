@@ -55,6 +55,7 @@ ANIMATION CONTRACT (all times are ABSOLUTE seconds on tl)
 - FX.pop / FX.rise / FX.slide (tl, sel, {at, each}) — entrances. FX.staggerGrid — grid entrance for chips.
 - FX.drawIn(tl, 'svg path', {at}) — SVG stroke draw-on. FX.pulseGlow(tl, sel, {at, dur}) — breathing emphasis.
 - FX.whipOut / FX.glitchIn / FX.carrierIn / FX.flipSwap / FX.wiggle / FX.count / FX.scramble / FX.loop.
+- FX.accents(n) — n emphasis times derived from the narration's REAL word timings; use them as 'at'/t0 values so pops, reveals and counters land exactly on the spoken word. FX.schedule(tl, sel, {in, out, keep}) — distribute all matched elements across those beats automatically (keep:true for list build-ups that stay on screen).
 - tl.to/tl.fromTo/tl.set(target, vars, atSeconds) for anything custom. NEVER call gsap.* directly (the global timeline is paused — a gsap.to() tween would freeze).
 
 MANDATORY STRUCTURE of every scene script:
