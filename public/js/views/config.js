@@ -49,7 +49,7 @@ export function gatherConfig() {
   return {
     visualMode: $('#cfgVisualMode').value,
     hyperframe: {
-      styleId: state.hfStyleId || 'chrome-kinetic',
+      styleId: state.hfStyleId || 'tuila1-hud-cyber',
       ...(state.hfGuide ? { guide: state.hfGuide } : {}),
       density: $('#cfgHfDensity').value,
       direction: $('#cfgHfDirection').value.trim() || undefined,
@@ -88,8 +88,8 @@ export function gatherConfig() {
   };
 }
 export function applyConfig(cfg = {}) {
-  $('#cfgVisualMode').value = cfg.visualMode || 'animation';
-  state.hfStyleId = cfg.hyperframe?.styleId || 'chrome-kinetic';
+  $('#cfgVisualMode').value = cfg.visualMode || 'hyperframe';
+  state.hfStyleId = cfg.hyperframe?.styleId || 'tuila1-hud-cyber';
   state.hfGuide = cfg.hyperframe?.guide || null;
   if ($('#cfgHfDensity')) $('#cfgHfDensity').value = cfg.hyperframe?.density || 'balanced';
   if ($('#cfgHfDirection')) $('#cfgHfDirection').value = cfg.hyperframe?.direction || '';
