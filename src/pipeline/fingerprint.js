@@ -30,6 +30,7 @@ export function ttsFingerprint(scene, { config, channel, ai }) {
     v: String(scene.voice_text || '').trim(),
     ov: { p: o.provider || null, vo: o.voice || null },
     id: { p: t.provider || null, lv: t.langVoices || null, ev: t.edgeVoice || null, vo: t.voice || null, vid: t.voiceId || null, rate: t.rate || null, speed: t.speed || null },
+    lex: o.lexicon || t.lexicon || null, // pronunciation lexicon changes what is SPOKEN
     lang: config.language || 'auto',
     eng: ai?.subtitle?.engine || 'estimate',
   });

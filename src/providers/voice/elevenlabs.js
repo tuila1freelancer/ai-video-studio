@@ -46,7 +46,10 @@ export default {
 
   async synthesize(text, voiceId, cfg, outPath) {
     if (!voiceId) throw new Error('Chưa chọn voice ElevenLabs');
-    const body = JSON.stringify({ text, model_id: cfg?.model || 'eleven_multilingual_v2' });
+    // prosody hint from the pipeline (cfg._style): expressive voice_settings per mood
+    const vs = cfg?._style === 'energetic' ? { stability: 0.35, similarity_boost: 0.85, style: 0.55 }
+      : cfg?._style === 'calm' ? { stability: 0.7, similarity_boost: 0.85, style: 0.15 } : null;
+    const body = JSON.stringify({ text, model_id: cfg?.model || 'eleven_multilingual_v2', ...(vs ? { voice_settings: vs } : {}) });
     const headers = { 'Content-Type': 'application/json', 'xi-api-key': cfg?.apiKey };
     // with-timestamps returns character-level alignment alongside the audio — perfect
     // word timing for the exact script, no transcription pass needed downstream.
