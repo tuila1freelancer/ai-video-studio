@@ -40,14 +40,46 @@ export async function makeGradientImage(outPath, { w, h, c1 = '0x1e293b', c2 = '
   return outPath;
 }
 
-// Per-scene voice conditioning: loudness-normalize (EBU R128) so every scene sits at the same
-// level regardless of TTS provider, then pad a short trailing silence (the "breath" between
-// scenes — reference app uses 650ms vi / 400ms en). Returns { path, duration }.
+// Measure loudness (EBU R128) with a decode-only pass; loudnorm prints its JSON block on
+// stderr at info level, so this spawns ffmpeg directly instead of using the -loglevel error
+// wrapper above. Returns the measured values or null (caller falls back to single-pass).
+export function measureLoudness(inPath, { I = -16, TP = -1.5, LRA = 11 } = {}) {
+  return new Promise((resolve) => {
+    const ps = spawn(PATHS.ffmpeg, ['-hide_banner', '-nostats', '-i', inPath,
+      '-af', `loudnorm=I=${I}:TP=${TP}:LRA=${LRA}:print_format=json`, '-f', 'null', '-'],
+    { stdio: ['ignore', 'ignore', 'pipe'] });
+    let err = '';
+    ps.stderr.on('data', (d) => { err += d.toString(); });
+    ps.on('error', () => resolve(null));
+    ps.on('close', () => {
+      const m = err.match(/\{[^{}]*"input_i"[\s\S]*?\}/);
+      if (!m) return resolve(null);
+      try {
+        const j = JSON.parse(m[0]);
+        const ok = ['input_i', 'input_tp', 'input_lra', 'input_thresh', 'target_offset']
+          .every((k) => Number.isFinite(parseFloat(j[k])));
+        resolve(ok ? j : null);
+      } catch { resolve(null); }
+    });
+  });
+}
+
+// Per-scene voice conditioning: measured LINEAR loudness-normalize (EBU R128, two-pass) so
+// every scene sits at the same level regardless of TTS provider — a static gain, so it cannot
+// pump, and the whole-mix loudnorm at concat (the -16 LUFS authority, P9) barely has to move
+// an already-correct input. Then pad a short trailing silence (the "breath" between scenes —
+// reference app uses 650ms vi / 400ms en). Returns { path, duration }.
 export async function normalizeVoice(inPath, outPath, { padMs = 500 } = {}) {
   const pad = Math.max(0, padMs) / 1000;
+  let ln = 'loudnorm=I=-16:TP=-1.5:LRA=11'; // fallback: single-pass dynamic (previous behavior)
+  const m = await measureLoudness(inPath);
+  if (m) {
+    ln += `:measured_I=${m.input_i}:measured_TP=${m.input_tp}:measured_LRA=${m.input_lra}`
+      + `:measured_thresh=${m.input_thresh}:offset=${m.target_offset}:linear=true`;
+  }
   await ffmpeg([
     '-i', inPath,
-    '-af', `loudnorm=I=-16:TP=-1.5:LRA=11${pad ? `,apad=pad_dur=${pad}` : ''}`,
+    '-af', `${ln}${pad ? `,apad=pad_dur=${pad}` : ''}`,
     '-c:a', 'aac', '-b:a', '160k', '-ar', '44100', outPath,
   ]);
   const duration = await probeDuration(outPath);

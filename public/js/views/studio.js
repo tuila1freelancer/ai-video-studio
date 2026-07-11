@@ -1,6 +1,6 @@
 import { $, $$, el, esc, badgeText, statusIcon } from '../ui/dom.js';
 import { toast } from '../ui/toast.js';
-import { api, fileUrl, WS } from '../api.js';
+import { api, fileUrl, withLock, WS } from '../api.js';
 import { state } from '../state.js';
 import { PIPE, PHASE_W, PHASE_ORDER, prog, resetProgress, setProgress, recomputeProgress, setStep, showOp, hideOp, appendLog } from './progress.js';
 import { renderScenes, refreshScenes, onSceneUpdate, flushSceneUpdates, selectedIds, updateSelCount, regenScene, renderScenes2 } from './scenes.js';
@@ -34,16 +34,16 @@ export function initStudio() {
   const lt = $('#logToggle');
   if (lt?.firstElementChild) lt.firstElementChild.innerHTML = `${icon('book', 13)} Nhật ký xử lý`;
   $('#topic').addEventListener('input', detectType);
-  $('#btnStart').addEventListener('click', createAndStart);
+  $('#btnStart').addEventListener('click', () => withLock($('#btnStart'), createAndStart));
   $('#btnDelAll').addEventListener('click', async () => {
     const ok = await confirmDialog({ title: 'Xoá tất cả dự án?', body: 'Toàn bộ dự án của kênh hiện tại sẽ bị xoá khỏi danh sách.', okText: 'Xoá tất cả', danger: true });
     if (ok) { await api.del('/projects'); startNewProject(); loadProjects(); }
   });
   $('#btnStop').addEventListener('click', () => api.post(`/projects/${state.current.id}/stop`, {}));
   $('#btnResume').addEventListener('click', () => api.post(`/projects/${state.current.id}/resume`, {}));
-  $('#btnRender').addEventListener('click', () => renderScenes2('all'));
-  $('#btnRenderAll').addEventListener('click', () => renderScenes2('all'));
-  $('#btnRenderSel').addEventListener('click', () => renderScenes2('scenes', selectedIds()));
+  $('#btnRender').addEventListener('click', () => withLock($('#btnRender'), () => renderScenes2('all')));
+  $('#btnRenderAll').addEventListener('click', () => withLock($('#btnRenderAll'), () => renderScenes2('all')));
+  $('#btnRenderSel').addEventListener('click', () => withLock($('#btnRenderSel'), () => renderScenes2('scenes', selectedIds())));
   $('#btnRegenVoiceSel').addEventListener('click', () => selectedIds().forEach((id) => regenScene(id, 'voice')));
   $('#btnRegenHtmlSel').addEventListener('click', () => selectedIds().forEach((id) => regenScene(id, 'html')));
   $('#checkAll').addEventListener('change', (e) => { $$('#sceneGrid .scene').forEach((c) => { c.classList.toggle('sel', e.target.checked); c.querySelector('.chk').checked = e.target.checked; }); updateSelCount(); });
@@ -84,16 +84,27 @@ export function startNewProject() {
   renderProjectList();
 }
 
+// Module-level in-flight guard: createAndStart is reachable from two buttons (#btnStart and
+// the home hero) — whichever fires second must be a no-op, never a duplicate project.
+let creating = false;
 export async function createAndStart() {
+  if (creating) return;
   const topic = $('#topic').value.trim();
   if (!topic) { toast('Nhập chủ đề trước đã.', 'error'); return; }
-  resetProgress();
-  const config = gatherConfig();
-  const { project } = await api.post('/projects', { topic, config });
-  await loadProjects();
-  await openProject(project.id);
-  await api.post(`/projects/${project.id}/start`, { config });
-  toast('Đã bắt đầu pipeline 🚀', 'success');
+  creating = true;
+  try {
+    resetProgress();
+    const config = gatherConfig();
+    const { project } = await api.post('/projects', { topic, config });
+    await loadProjects();
+    await openProject(project.id);
+    await api.post(`/projects/${project.id}/start`, { config });
+    toast('Đã bắt đầu pipeline 🚀', 'success');
+  } catch (e) {
+    toast(`Không tạo được video: ${e.message}`, 'error');
+  } finally {
+    creating = false;
+  }
 }
 
 export async function openProject(id) {

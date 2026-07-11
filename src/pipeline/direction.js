@@ -96,7 +96,7 @@ export async function generateDirections(scenes, { title = '', total = 0, guide 
         batchPrompt({ batch, title, total: total || scenes.length, guide, language,
           hookSummary: batch.some((s) => s.idx >= (total || scenes.length) - 1) ? hookSummary : '' }),
         {
-          maxTokens: Math.min(8000, batch.length * 460 + 500), attempts: 2, llm,
+          maxTokens: batch.length * 460 + 500, attempts: 2, llm,
           validate: (p) => Array.isArray(p.scenes) && p.scenes.length > 0,
         },
       );

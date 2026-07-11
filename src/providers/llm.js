@@ -3,6 +3,7 @@
 import { aiSettings } from '../db/index.js';
 import { wordCount, safeJson } from '../util/util.js';
 import { detectLang } from '../util/lang.js';
+import { recordUsage } from '../util/usage.js';
 
 // llm param (optional) = a resolved settings.llm object (e.g. per-channel override);
 // omitted → global settings, exactly as before.
@@ -71,19 +72,25 @@ async function chatOnce(s, messages, { json, temperature, maxTokens, timeoutMs }
   const text = await res.text();
   try {
     const data = JSON.parse(text);
+    if (data.usage) {
+      recordUsage('llm', { model: body.model, promptTokens: data.usage.prompt_tokens, completionTokens: data.usage.completion_tokens });
+    }
     return data.choices?.[0]?.message?.content || '';
   } catch {
     // some proxies stream SSE regardless of stream:false — concatenate the delta chunks
     let out = '';
+    let usage = null; // some backends attach usage to the final SSE chunk
     for (const line of text.split(/\n/)) {
       const m = line.match(/^data:\s*(.+)$/);
       if (!m || m[1] === '[DONE]') continue;
       try {
         const j = JSON.parse(m[1]);
         out += j.choices?.[0]?.delta?.content ?? j.choices?.[0]?.message?.content ?? '';
+        if (j.usage) usage = j.usage;
       } catch { /* partial keep-alive line */ }
     }
     if (!out) throw new Error(`LLM unparseable response: ${text.slice(0, 200)}`);
+    if (usage) recordUsage('llm', { model: body.model, promptTokens: usage.prompt_tokens, completionTokens: usage.completion_tokens });
     return out;
   }
 }
@@ -280,7 +287,7 @@ Nội dung:\n${sourceText.slice(0, 6000)}`;
       // 60s brief, which silently halves the video. chatJson re-asks once on validate failure.
       const minScenes = Math.max(1, Math.ceil(sceneCount * 0.7));
       const parsed = await chatJson([{ role: 'system', content: sys }, { role: 'user', content: usr }],
-        { maxTokens: Math.min(8000, sceneCount * Math.max(130, wordsPerScene * 4) + 600), attempts: 3,
+        { maxTokens: sceneCount * Math.max(130, wordsPerScene * 4) + 600, attempts: 3,
           validate: (p) => Array.isArray(p.scenes) && p.scenes.filter((s) => s.voice || s.text).length >= minScenes, llm });
       return { title: parsed.title || title, scenes: parsed.scenes.map((s) => ({
         voice: s.voice || s.text || '', visualPrompt: s.visualPrompt || s.visual || '', keywords: s.keywords || [],
@@ -327,7 +334,7 @@ Nội dung:\n${sourceText.slice(0, 7000)}` },
 Các ý cần phủ đủ: ${(ch.points || []).join('; ')}.${prevTail ? `\nLời thoại KẾT chương trước (để nối mạch — KHÔNG lặp lại ý đã nói): "…${prevTail}"` : ''}
 Viết lời thoại chi tiết, tự nhiên như đang trò chuyện, có ví dụ cụ thể, không lặp tiêu đề chương.${persona}
 Xuất JSON {"scenes":[{"voice":"1-2 câu"}]} — PHẢI trả ĐÚNG ${perCh} phần tử (thiếu là sai đề bài), ${wordBudgetNote(wordsPerScene)}.` },
-      ], { maxTokens: Math.min(8000, perCh * Math.max(130, wordsPerScene * 4) + 400), attempts: 3,
+      ], { maxTokens: perCh * Math.max(130, wordsPerScene * 4) + 400, attempts: 3,
         validate: (p) => Array.isArray(p.scenes) && p.scenes.filter((s) => s.voice || s.text).length >= Math.max(1, Math.ceil(perCh * 0.6)), llm });
       const chScenes = det.scenes.map((s) => ({
         voice: s.voice || s.text || '', visualPrompt: (s.voice || '').slice(0, 90), keywords: topNouns(s.voice || '', 3),

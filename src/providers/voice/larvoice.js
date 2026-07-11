@@ -7,6 +7,7 @@ import { writeFileSync } from 'node:fs';
 import { probeDuration } from '../../media/ffmpeg.js';
 import { detectLang } from '../../util/lang.js';
 import { withRetry, sleep } from '../../util/retry.js';
+import { recordUsage } from '../../util/usage.js';
 
 const BASE = 'https://larvoice.com/api/v1';
 const ORIGIN = 'https://larvoice.com';
@@ -100,6 +101,7 @@ async function runTtsJob(text, voiceId, cfg, outPath, maxChars) {
   }, { tries: 2, label: 'larvoice submit' });
 
   let { status, output_url } = { status: String(job.status || '').toLowerCase(), output_url: job.output_url };
+  let cost = Number(job.cost) || 0; // per-job credit cost reported by the API — feed the meter
   // not done yet → poll GET /jobs/:id every 2s, capped at 5 minutes
   for (let i = 0; i < 150 && status !== 'completed'; i++) {
     if (status === 'failed') throw new Error(`LarVoice job failed: ${job.error || 'không rõ nguyên nhân'}`);
@@ -110,13 +112,15 @@ async function runTtsJob(text, voiceId, cfg, outPath, maxChars) {
       const d = (await st.json()).data || {};
       status = String(d.status || '').toLowerCase();
       output_url = d.output_url || output_url;
+      cost = Number(d.cost) || cost;
       if (status === 'failed') throw new Error(`LarVoice job failed: ${d.error || 'không rõ nguyên nhân'}`);
     } catch (e) { if (String(e.message).includes('job failed')) throw e; }
   }
   if (status !== 'completed') throw new Error('LarVoice: quá 5 phút chưa xong job');
   if (!output_url) throw new Error('LarVoice: job completed nhưng thiếu output_url');
   await downloadTo(output_url, outPath, cfg);
-  return { path: outPath, duration: await probeDuration(outPath) };
+  recordUsage('tts', { provider: 'larvoice', chars: String(text).slice(0, maxChars).length, credits: cost });
+  return { path: outPath, duration: await probeDuration(outPath), cost };
 }
 
 export default {

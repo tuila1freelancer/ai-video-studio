@@ -97,7 +97,12 @@ export async function runRender(ctx) {
   for (const sc of DB.getScenes(projectId)) {
     checkStop(projectId);
     const check = sc.video_path && existsSync(sc.video_path)
-      ? await qcSceneClip(sc.video_path, { expectDur: sc.duration || 0 })
+      ? await qcSceneClip(sc.video_path, {
+        expectDur: sc.duration || 0,
+        // narrated scene → the clip must carry actual speech, not just an audio stream;
+        // a scene rendered without audio_path is intentionally silent (manual render-only)
+        expectVoice: !!(sc.audio_path && (sc.voice_text || '').trim()),
+      })
       : { ok: false, reason: 'file thiếu' };
     if (!check.ok) {
       op(projectId, `🩹 Cảnh ${sc.idx + 1}: ${check.reason} — render lại…`);
