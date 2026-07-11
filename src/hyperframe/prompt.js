@@ -39,6 +39,7 @@ LAYOUT CONTRACT
 - Structure: <div class="hf-layer hf-mid">…decor/depth…</div> then <div class="hf-layer hf-near">…main elements…</div>.
 - Position every element with a slot wrapper: <div class="hf-slot" style="left:50%;top:42%">…element…</div> (the slot owns the centering transform). ANIMATE ONLY THE INNER ELEMENT, never the slot — GSAP x/y would clobber the slot's transform. For a full-center element use <div class="hf-center">…</div>.
 - Keep the bottom 22% of the frame EMPTY — karaoke subtitles live there. Keep 6% side margins.
+- Text must NEVER overlap other text: two readable text elements may not share the same frame area at the same time — separate them spatially or stagger their timing. Keep the composition balanced: the hero dominates, secondary elements breathe (≥4% frame spacing between text blocks).
 - Component classes (pre-styled to the style guide — use them, override sparingly):
   .hf-kw (hero keyword, treatment applied) · .hf-kw2 (medium keyword) · .hf-sub (supporting line) · .hf-label (small mono tag) · .hf-card (glass panel) · .hf-chip (pill) · .hf-stat > .hf-stat-v(+.hf-stat-u unit)/.hf-stat-l (big number block) · .hf-iconbox (glowing icon holder, .sm for small) · .hf-row / .hf-col (flex groups) · .hf-underline (accent bar) · .hf-accent/.hf-accent2/.hf-accent3 (accent colors).
 - Icons: write {{icon:name}} inside any element (it becomes an inline SVG sized by font-size). Pick ONLY from the icon list given by the user message.
