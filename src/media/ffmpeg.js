@@ -110,8 +110,13 @@ export async function makeSfxBed(outPath, { events = [], whooshPath, total = 0 }
   const evts = events.filter((e) => Number.isFinite(+e.at) && +e.at >= 0).slice(0, 60);
   if (!evts.length || !total) throw new Error('sfx bed: không có event/thời lượng');
   const args = [];
-  for (let i = 0; i < evts.length; i++) args.push('-i', whooshPath);
-  const fc = evts.map((e, i) => `[${i}:a]adelay=${Math.round(+e.at * 1000)}:all=1[d${i}]`);
+  // per-event source + gain (Scene Studio audio director); {at}-only events keep the
+  // legacy whoosh output byte-identical (no volume filter inserted)
+  for (const e of evts) args.push('-i', e.src || whooshPath);
+  const fc = evts.map((e, i) => {
+    const vol = Number.isFinite(+e.gain) && +e.gain !== 0 ? `volume=${(+e.gain).toFixed(1)}dB,` : '';
+    return `[${i}:a]${vol}adelay=${Math.round(+e.at * 1000)}:all=1[d${i}]`;
+  });
   const mix = evts.map((_, i) => `[d${i}]`).join('');
   fc.push(`${mix}amix=inputs=${evts.length}:duration=longest:normalize=0,apad=whole_dur=${total.toFixed(2)}[out]`);
   await ffmpeg([...args, '-filter_complex', fc.join(';'), '-map', '[out]', '-t', total.toFixed(2),
