@@ -110,7 +110,9 @@ export async function qaSpec(spec, { w = 1080, h = 1920, duration, beats, det = 
       }
     }
     if (!anyVisibleEver && !init.tplErr) defects.push({ code: 'NO_ELEMENTS', detail: 'không element nào hiển thị suốt cảnh' });
-    if (maxAtOnce > 6) warnings.push({ code: 'CROWDED', detail: `tối đa ${maxAtOnce} element cùng lúc` });
+    // rich density (prompt v5): a hero cluster + decor + settled builds standing together is
+    // the intended look — only flag genuinely swarming frames
+    if (maxAtOnce > 9) warnings.push({ code: 'CROWDED', detail: `tối đa ${maxAtOnce} element cùng lúc` });
     // dedupe offenders to one representative each
     if (offenders.OFFSCREEN.length) { const o = offenders.OFFSCREEN[0]; defects.push({ code: 'OFFSCREEN', detail: `"${o.txt||o.cls}" tràn ${o.overflow}px @${o.t}s (bbox ${o.x},${o.y} ${o.w}x${o.h})`, count: offenders.OFFSCREEN.length }); }
     if (offenders.SUBTITLE_COLLISION.length) { const o = offenders.SUBTITLE_COLLISION[0]; defects.push({ code: 'SUBTITLE_COLLISION', detail: `"${o.txt||o.cls}" ở đáy (cy=${o.cy}/${h}) @${o.t}s — đè phụ đề`, count: offenders.SUBTITLE_COLLISION.length }); }

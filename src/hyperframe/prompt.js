@@ -26,7 +26,8 @@ CONTENT RULES (non-negotiable):
 - Match the CINEMATIC DIRECTION energy: high/epic → huge type, fast punchy entrances, scale-overshoot, a flash/burst accent; low/clean → calmer, slower, elegant.
 
 REFERENCE — aim for this level of sophistication (distilled from a top HyperFrame channel). Build a real INFOGRAPHIC moment, not just a floating word:
-- Depth: far = grid/particles (already behind you) · mid = a slow-moving decorative graphic · near = ONE purposeful main object taking ~60% of the frame + a small label cluster beside it.
+- LAYERED DEPTH (mandatory): every scene carries FOUR planes — far = grid/particles (already behind you) · mid = AT LEAST TWO decorative depth pieces (a ghost ring, dashed orbit, faint oversized number/glyph, blurred orb, thin connector lines — low opacity, parallaxed, NEVER competing with text) · near = the hero cluster taking ~60% of the frame + its label cluster · plus ONE floating foreground accent (a drifting chip, a slow light streak). A scene with a bare background behind the hero reads cheap and flat.
+- DENSE BUT CALM: richness comes from LAYERS and CRAFT DETAIL, not from more simultaneous motion — reveals stay one-at-a-time and eases stay smooth while the standing composition grows dense.
 - Pick a main object that fits the meaning: an "answer card" with faux bullets; a node chain (Giả định → Bằng chứng → Kết luận) that lights up in order; scattered sticky-notes gathering into a workflow row; a scanner line sweeping a card; a context frame with an item sliding out; a big stat with a rising line/bar. Draw it with inline SVG / divs + line-art icons ({{icon:name}}) that have active vs dim states.
 - Beat-sync: reveal the pieces NODE-BY-NODE in the order the voice mentions them (that's what the beat times are for), keyword glows on the accent as it lands.
 - Examples of good ON-SCREEN TEXT sets: headline "Tự tin ≠ Đúng" + labels "Dữ kiện?"·"Nguồn?"·"Kiểm chứng"; headline "Việc rời rạc" + labels "Viết nội dung"·"Tóm tắt"·"Trả lời khách".
@@ -82,7 +83,7 @@ MANDATORY STRUCTURE of every scene script:
 1. FX.camPush matching the CAMERA direction (aggressive_zoom → scale 1.1 fast-ish; subtle_zoom → 1.05; pan → x/±40; push_in → 1.08) — ALWAYS pass profile:'front': the camera completes its move in the first half and then holds (a slow push in the back half drags the viewer's sightline).
 2. FX.parallax on at least 2 layers/element groups.
 3. ONE visual moment per beat, at the EXACT beat times given (use FX.beat). Between beats the composition IDLES calmly (breathing, slow parallax) — settled BUILD elements remain visible; the frame never empties back to black mid-scene. Kind hints: number → .hf-stat + FX.counterRoll; keyword → .hf-kw/.hf-kw2; phrase → .hf-kw2 or .hf-card.
-4. A flourish (beamSweep, chromeSweep, glitch accent…) at least once mid-scene.
+4. A flourish on EVERY beat (rotate through beamSweep / chromeSweep / pulseGlow / drawIn accent / FX.iconSpin on an icon's internals — never the same flourish twice in a row). Decor pieces idle with LIFE: FX.iconSpin for internal parts, FX.jitter for settled chips, a slow dash-flow — subtle, continuous, alive.
 5. CLIMAX FILL — after the LAST beat ends (at its t1), compute climax_budget = DUR − t1. If budget < 0.3s, add NO final flourish (the last beat already carries the ending). If budget ≥ 0.3s, add ONE pulse/scale-drift whose duration ≤ climax_budget and which ENDS at DUR − 0.05s exactly. Never freeze, never overshoot.
 6. Finite repeats only: repeat: Math.max(0, Math.floor(DUR/period)-1) — floor, not ceil (ceil overshoots DUR). NEVER repeat:-1 (it makes the timeline infinite). All motion within 0..DUR.
 
@@ -110,15 +111,15 @@ COMPOSITION GRID (harmonious, balanced — place elements in these zones, aligne
 - Breathing space is a feature: ≥4% frame gap between any two text blocks, ≥3% between the main object and its labels. When settled BUILD elements accumulate, arrange them into a deliberate row/column/grid — never let pieces pile up where they landed.
 
 QUALITY BAR
-- 2–4 main elements max. Every element has entrance → living hold (drift/pulse) → settle or exit. No plain opacity-only fades for main beats. Big confident type, generous spacing, palette colors only (plus white/black/transparent). This must feel like an Apple-keynote-grade animation, not a webpage.
+- 3–5 main elements + 2–3 mid-layer decor pieces. Every element has entrance → living hold (drift/pulse) → settle or exit. No plain opacity-only fades for main beats. Big confident type, generous spacing, palette colors only (plus white/black/transparent). This must feel like an Apple-keynote-grade animation, not a webpage.
 - SCALE CHECK before finishing: the main object/keyword must span ≥50% of the frame width at its peak (cards/diagrams included — make them LARGE). A composition where everything is small chips floating in darkness is a defect and will be rejected.
-- INFOGRAPHIC DETAIL: the main object must read as a crafted graphic, not a lone icon — give it ≥2 supporting details (a sub-label, faux data rows, tick marks, a unit chip, a thin progress track…). Icons always sit inside .hf-iconbox (never naked on the background). SVG you draw: consistent stroke width (2.5–3.5 at 1080-width scale), rounded caps/joins, palette strokes; animate strokes with FX.drawIn over ≥0.8s.
+- INFOGRAPHIC DETAIL: the main object must read as a crafted, data-textured graphic, not a lone icon — give it ≥3 supporting details (a sub-label, faux data rows, tick marks + scale numbers, a unit chip, a thin progress track, a mini sparkline, a ghost watermark number…). Icons always sit inside .hf-iconbox (never naked on the background). SVG you draw: consistent stroke width (2.5–3.5 at 1080-width scale), rounded caps/joins, palette strokes; animate strokes with FX.drawIn over ≥0.8s.
 - ACCENT DISCIPLINE: pick ONE dominant accent for the scene (+ at most one secondary for contrast); glow/drop-shadow lives on ONE hero element only. Consistent corner radius across cards/chips. Numbers use .hf-stat with the unit in .hf-stat-u — never bare text.`;
 
 const DENSITY_NOTE = {
   minimal: 'MOTION DENSITY: minimal — ONE clean hero element per beat, restrained motion, generous calm negative space. Skip decorative extras.',
   balanced: 'MOTION DENSITY: balanced — a hero element plus ONE supporting graphic per beat, with tasteful flourishes.',
-  rich: 'MOTION DENSITY: rich — layer the hero with a supporting graphic, ambient decor and a flourish each beat; maximise tasteful motion (still ≤4 main elements on screen at once, never cluttered).',
+  rich: 'MOTION DENSITY: rich — the full four-plane treatment: hero cluster + a supporting graphic per beat, ≥2 living mid-layer decor pieces, a foreground accent, and a flourish on every beat. The standing composition should feel HAND-CRAFTED and full (data textures, ticks, ghost glyphs) while reveals stay one-at-a-time and eases stay smooth — dense frame, calm motion, never cluttered text.',
 };
 
 // v2 guide blocks — semantic colors, concept→visual recipes, HUD vocabulary and per-video
@@ -137,7 +138,7 @@ function guideV2Block(guide) {
 
 export function buildCodegenPrompt({ scene, beats, direction, guide, w, h, duration, idx, total, density, creativeDirection, hookVisual = '' }) {
   const vertical = h > w;
-  const densityNote = DENSITY_NOTE[density] || DENSITY_NOTE.balanced;
+  const densityNote = DENSITY_NOTE[density] || DENSITY_NOTE.rich; // rich is the house default — sparse scenes read cheap
   const dirNote = (creativeDirection || '').trim()
     ? `\nCREATIVE DIRECTION (apply to every scene of this video): ${creativeDirection.trim()}` : '';
   const rhymeNote = direction.isClimax && (hookVisual || '').trim()
