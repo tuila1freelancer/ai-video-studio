@@ -138,11 +138,11 @@ export const SAMPLE_SPEC = {
   <div class="hf-layer hf-near">
     <div class="hf-slot" style="left:50%;top:9%"><div class="hf-label" id="lb1">HYPERFRAME · DEMO</div></div>
     <div class="hf-center"><div class="hf-kw" id="kw1">TĂNG TỐC ×10</div></div>
-    <div class="hf-slot" style="left:50%;top:52%"><div class="hf-stat" id="st1">
+    <div class="hf-slot" style="left:50%;top:68%"><div class="hf-stat" id="st1">
       <div class="hf-stat-v"><span id="st1v">0</span><span class="hf-stat-u">%</span></div>
       <div class="hf-stat-l">hiệu suất công việc</div>
     </div></div>
-    <div class="hf-slot" style="left:50%;top:48%"><div class="hf-iconbox" id="ic1">{{icon:rocket}}</div></div>
+    <div class="hf-slot" style="left:50%;top:24%"><div class="hf-iconbox" id="ic1">{{icon:rocket}}</div></div>
   </div>`,
   script: `
 FX.camPush(tl, { scale: 1.055 });

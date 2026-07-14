@@ -36,7 +36,13 @@ export function animSize(aspectRatio, scale = 1) {
  * extras: { progressStart, progressTotal, durationOverride }
  */
 export function buildSceneHtml(scene, project, config, extras = {}) {
-  const { w, h } = animSize(project.aspect_ratio, config.resolutionScale || 1);
+  // LOGICAL canvas: layout always happens in the 1080-class px space the LLM authored
+  // against (16:9 = 1920x1080, 9:16 = 1080x1920, …). Higher output resolutions upscale
+  // LOSSLESSLY via CSS zoom (extras.zoom, set by the renderer) — text/SVG re-rasterize at
+  // device resolution, so 4K is true 4K while every px the model wrote keeps its intended
+  // relative size. Building the page at physical 4K instead halves the relative size of
+  // every authored px (sparse layouts, weak motion, clipped labels).
+  const { w, h } = animSize(project.aspect_ratio, 1);
   const duration = extras.durationOverride || scene.duration || config.sceneDuration || 6;
   const brand = resolveBrandKit(config);
   let plan = scene.template && scene.props
@@ -58,12 +64,18 @@ export function buildSceneHtml(scene, project, config, extras = {}) {
   const ctx = makeCtx({ w, h, theme, seed: scene.idx + 1, duration, idx: scene.idx, captions: scene.srt_json || [] });
   const tpl = buildTemplate(plan.template, plan.props, ctx);
   applyCustomOverride(tpl, plan.props);
+  // Canvas provenance: a hyperframe spec authored on a different canvas (stamped at codegen)
+  // gets a compensating zoom on the camera wrapper so its px land at the intended relative
+  // size — spec content only; captions/progress/branding stay in the page's own space.
+  if (plan.template === 'hyperframe' && plan.props?.canvasW > 0 && plan.props.canvasW !== w) {
+    tpl.css = `${tpl.css || ''}\n.hf-cam{zoom:${(w / plan.props.canvasW).toFixed(4)}}`;
+  }
   if (config.gsapFx === false) delete tpl.script; // safety valve: pure-CSS render
   const placement = brand ? planBrandPlacement(brand, {
     templateId: plan.template, idx: scene.idx, total: extras.total || 9999, captionsOn: captions.length > 0,
   }) : null;
   return buildScenePage({
-    w, h, theme, seed: scene.idx + 1, duration,
+    w, h, zoom: Math.max(1, +extras.zoom || 1), theme, seed: scene.idx + 1, duration,
     // Time-warp (scenes-first order): a hyperframe script bakes absolute animation seconds
     // for the duration it was AUTHORED at (props.plannedDur — an estimate when visuals ran
     // before TTS). tplScale = planned/real lets the harness drive the template timeline in
@@ -134,7 +146,7 @@ function applyCustomOverride(tpl, props) {
  * Scene Studio direct-HTML editor. Same plan/theme/ctx derivation as buildSceneHtml.
  */
 export function sceneTemplateSource(scene, project, config) {
-  const { w, h } = animSize(project.aspect_ratio, config.resolutionScale || 1);
+  const { w, h } = animSize(project.aspect_ratio, 1); // editor source lives in the logical canvas
   const duration = scene.duration || config.sceneDuration || 6;
   const brand = resolveBrandKit(config);
   let plan = scene.template && scene.props
@@ -154,10 +166,11 @@ export function sceneTemplateSource(scene, project, config) {
 
 // Render a full scene → mp4 (+ mid-frame preview jpeg).
 export async function renderAnimationScene(scene, project, config, { dir, progressStart, progressTotal, total, onProgress, onLog } = {}) {
-  const { w, h } = animSize(project.aspect_ratio, config.resolutionScale || 1);
+  const k = (config.resolutionScale || 1) >= 2 ? 2 : 1;
+  const { w, h } = animSize(project.aspect_ratio, k); // PHYSICAL viewport (4K when k=2)
   const fps = parseInt(config.fps || 30, 10);
   const duration = Math.max(1.5, scene.duration || config.sceneDuration || 6);
-  const html = buildSceneHtml(scene, project, config, { progressStart, progressTotal, total, durationOverride: duration });
+  const html = buildSceneHtml(scene, project, config, { progressStart, progressTotal, total, durationOverride: duration, zoom: k });
   const outPath = join(dir, `scene_${String(scene.idx).padStart(3, '0')}.mp4`);
   const previewPath = join(dir, `scene_${String(scene.idx).padStart(3, '0')}_preview.jpg`);
   const res = await renderScenePage({

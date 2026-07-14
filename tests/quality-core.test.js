@@ -108,6 +108,28 @@ test('auto-duration verbatim mode: pasted script survives word-for-word, offline
   assert.ok(short.scenes.length >= 1, 'short topic still produces a script');
 });
 
+test('logical canvas + lossless zoom: LLM px space is resolution-independent', async () => {
+  const { buildSceneHtml } = await import('../src/animation/index.js');
+  const scene = { idx: 0, voice_text: 'x', duration: 6, template: 'hero-title', props: { heading: 'X' }, srt_json: [] };
+  const project = { aspect_ratio: '16:9', title: 't' };
+  // 4K render path: logical 1920x1080 body + zoom 2 + a 2x-backed bg canvas
+  const html4k = buildSceneHtml(scene, project, { visualMode: 'animation', resolutionScale: 2 }, { zoom: 2 });
+  assert.match(html4k, /width:1920px;height:1080px/, 'body stays in the logical canvas');
+  assert.match(html4k, /body\{zoom:2\}/, 'zoom upscales losslessly');
+  assert.match(html4k, /"zoom":2/, 'zoom rides into S for the crisp canvas backing store');
+  assert.match(html4k, /width="3840" height="2160"/, 'bg canvas backing store is 2x');
+  // 1080p path unchanged: no zoom rule, logical == physical
+  const html1080 = buildSceneHtml(scene, project, { visualMode: 'animation' }, {});
+  assert.ok(!/body\{zoom/.test(html1080), 'scale 1 emits no zoom rule');
+  assert.match(html1080, /width="1920" height="1080"/);
+  // codegen/validate stay logical regardless of resolutionScale
+  const visuals = readFileSync(new URL('../src/pipeline/stages/visuals.js', import.meta.url), 'utf8');
+  assert.match(visuals, /animSize\(project\.aspect_ratio, 1\); \/\/ codegen\/validate in the LOGICAL canvas/);
+  const prompt = readFileSync(new URL('../src/hyperframe/prompt.js', import.meta.url), 'utf8');
+  assert.match(prompt, /upscaled LOSSLESSLY/, 'canvas mandate stated to the model');
+  assert.match(prompt, /COMPLETE WORDS ONLY/, 'no truncated labels rule');
+});
+
 test('cinema pacing v3: FX floors, settle state, and the prompt contract', () => {
   const fx = readFileSync(new URL('../src/animation/templates/_shared.js', import.meta.url), 'utf8');
   assert.match(fx, /Math\.max\(Math\.min\(0\.45, hold\*0\.5\), Math\.min\(0\.8, hold\*0\.45\)\)/, 'entrance floor 0.45–0.8s');

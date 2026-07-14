@@ -163,7 +163,10 @@ var FX = {
   // light beam sweeping across the frame (pair with a .hf-beam element, which sits at
   // left:-14% — travel is in viewport widths so it fully crosses any aspect)
   beamSweep: function(tl, sel, o){ o=o||{};
-    tl.fromTo(sel, { x:0, opacity:0 }, { x:o.x||'165vw', opacity:o.op==null?0.55:o.op,
+    // travel in page px, NOT vw: viewport units resolve against the PHYSICAL viewport while
+    // the body is zoomed — '165vw' overshoots 2x at 4K. S.w is the logical page width.
+    var _bx = o.x != null ? o.x : (S.w ? S.w * 1.65 : '165vw');
+    tl.fromTo(sel, { x:0, opacity:0 }, { x:_bx, opacity:o.op==null?0.55:o.op,
       duration:o.dur||0.5, ease:o.ease||'power3.in' }, o.at||0.4); },
   // typewriter reveal — textContent is a pure function of tl time
   typeOn: function(tl, sel, text, o){ o=o||{}; var el=document.querySelector(sel); if(!el) return;

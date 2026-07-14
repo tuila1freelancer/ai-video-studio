@@ -53,7 +53,7 @@ export async function regenOne(sceneId, what) {
       const total = DB.getScenes(project.id).length;
       const channel = DB.channelOf(project.id);
       const guide = resolveGuide(config);
-      const { w, h } = animSize(project.aspect_ratio, config.resolutionScale || 1);
+      const { w, h } = animSize(project.aspect_ratio, 1) /* LOGICAL canvas — render upscales via zoom */;
       let plan;
       try {
         const baseAi = aiSettingsFor(channel);

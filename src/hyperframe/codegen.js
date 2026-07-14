@@ -34,7 +34,7 @@ export function parseSpec(raw) {
 }
 
 // A render defect is "hard" (wrong content/layout — never ship) vs "soft" (cosmetic timing).
-const HARD_DEFECT = /off-screen|bottom of the frame|wrong language|renders empty|goes empty|threw at runtime|overlap each other|unreadable/i;
+const HARD_DEFECT = /off-screen|bottom of the frame|wrong language|renders empty|goes empty|threw at runtime|overlap each other|unreadable|is clipped/i;
 
 function syntaxCheck(spec, guide, { w, h, duration }) {
   // compile the FULL assembled script (FX prelude + spec.script) exactly as the page will run it
@@ -99,7 +99,7 @@ export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, on
       // Scenes-first order generates specs against an ESTIMATED timeline; at render the
       // harness time-warps the template timeline by plannedDur/realDur (S.tplScale) so the
       // choreography fills the real voice duration instead of cutting or freezing.
-      return { props: { ...clean, guide, beats, plannedDur: duration }, beats, direction, warnings };
+      return { props: { ...clean, guide, beats, plannedDur: duration, canvasW: w, canvasH: h }, beats, direction, warnings };
     }
     lastErrors = allIssues;
     onLog(`cảnh ${idx + 1}: spec chưa đạt (lần ${attempt}/${maxAttempts}) — ${allIssues.join(' | ').slice(0, 240)}`);
@@ -113,7 +113,7 @@ export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, on
   // hard runtime error, ship it (a slightly-imperfect real scene beats a generic template).
   if (lastGood) {
     onLog(`cảnh ${idx + 1}: dùng spec tốt nhất đạt được (còn cảnh báo hình học sau ${maxAttempts} lần)`);
-    return { props: { ...lastGood, guide, beats, plannedDur: duration }, beats, direction, warnings: ['render-imperfect'] };
+    return { props: { ...lastGood, guide, beats, plannedDur: duration, canvasW: w, canvasH: h }, beats, direction, warnings: ['render-imperfect'] };
   }
   throw new Error(`codegen thất bại sau ${maxAttempts} lần: ${lastErrors?.join(' | ').slice(0, 200)}`);
 }
