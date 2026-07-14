@@ -86,6 +86,10 @@ async function buildFamilyCss(entry) {
     const b64 = await fetchB64(um[1]);
     out += `/* ${b.subset} */\n${b.block.replace(um[1], `data:font/woff2;base64,${b64}`)}\n`;
   }
+  // font-display: block — never paint fallback glyphs in a deterministic renderer; the
+  // harness force-loads every face before the timeline builds, so swap's "show fallback
+  // first" behavior could only ever produce a mid-video font flash.
+  out = out.replace(/font-display:\s*swap/g, 'font-display: block');
   return { css: out, faces: blocks.length };
 }
 
