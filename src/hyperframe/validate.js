@@ -58,6 +58,19 @@ const PROBE = `(() => {
     if(s.display==='none'||s.visibility==='hidden') return 0; o*=parseFloat(s.opacity||'1'); n=n.parentElement; } return o; }
   const W=innerWidth,H=innerHeight,cam=document.querySelector('.hf-cam'); if(!cam) return {W,H,els:[],overlaps:[],lowContrast:[]};
   const out=[],nodes=[],seen=new Set();
+  // decor: painted non-text elements (rings, ghost glyph boxes, cards, tracks) — they carry
+  // real visual presence, so mid-scene deadness must count them (prompt v5 mandates them)
+  let decorArea=0;
+  for(const el of cam.querySelectorAll('div,section,figure')){
+    if(el.closest('.hf-far'))continue;
+    const s=getComputedStyle(el);
+    const painted=(s.backgroundColor&&!/rgba\\((?:\\d+, ){2}\\d+, 0\\)/.test(s.backgroundColor)&&s.backgroundColor!=='transparent')
+      ||(s.backgroundImage&&s.backgroundImage!=='none')||(parseFloat(s.borderTopWidth)>0&&s.borderTopStyle!=='none');
+    if(!painted)continue;
+    const o=eff(el); if(o<0.12)continue;
+    const r=el.getBoundingClientRect();
+    if(r.width*r.height>=0.02*W*H&&r.left<W&&r.right>0&&r.top<H&&r.bottom>0) decorArea+=Math.min(r.width*r.height,0.2*W*H);
+  }
   for(const el of cam.querySelectorAll('*')){ if(seen.has(el))continue; seen.add(el);
     const ownText=[...el.childNodes].some(n=>n.nodeType===3&&n.textContent.trim().length);
     const isIcon=el.classList.contains('hf-iconbox')||el.tagName==='svg';
@@ -124,7 +137,7 @@ const PROBE = `(() => {
         break; // only the topmost relevant element decides this probe point
       } }
     if(cov>=3) occluded.push({txt:(n.el.textContent||'').trim().slice(0,20),by:coverBy}); }
-  return {W,H,els:out,overlaps,lowContrast,occluded};
+  return {W,H,els:out,overlaps,lowContrast,occluded,decorArea:+(decorArea/(W*H)).toFixed(4)};
 })()`;
 
 /**
@@ -154,14 +167,6 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
       return { ok: false, defects };
     }
     const tlDur = await page.evaluate(() => (window.__tl ? window.__tl.totalDuration() : 0));
-    // An infinite timeline (a repeat:-1 loop) has totalDuration = Infinity — it renders fine over
-    // 0..DUR (motion never freezes, nothing important lives past DUR), so skip the coverage checks.
-    // Only flag EGREGIOUS overshoot (well past DUR) — a weak model can't compress a mild overshoot
-    // and the real harm (a weak/empty ending) is detected directly below. Padded-tail timelines
-    // report totalDuration past DUR but still end weak, which the ending check catches.
-    if (Number.isFinite(tlDur) && tlDur > dur + Math.max(1.5, dur * 0.4)) {
-      defects.push(`the animation runs to ${tlDur.toFixed(1)}s, far past DUR=${dur.toFixed(1)}s — the climax lands outside the rendered window. Compress everything so the LAST tween ends at ≈${dur.toFixed(1)}s.`);
-    }
 
     // sample scene-open, each beat's ENTRANCE (t0) + peak + gap, and the tail
     const endT = +(dur - 0.1).toFixed(2);
@@ -208,7 +213,7 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
       else map.set(k, { ...data, n: 1 });
     };
     for (const t of T) {
-      const { W, H, els, overlaps = [], lowContrast = [], occluded = [] } = await page.evaluate((tt, probe) => { window.__seek(tt); return eval(probe); }, t, PROBE);
+      const { W, H, els, overlaps = [], lowContrast = [], occluded = [], decorArea = 0 } = await page.evaluate((tt, probe) => { window.__seek(tt); return eval(probe); }, t, PROBE);
       if (pairTimes.has(t)) snaps.set(t, els);
       for (const p of overlaps) bump(ovl, `${p.a}|${p.b}`, { t, ...p });
       for (const p of lowContrast) bump(lowc, p.txt, { t, ...p });
@@ -217,8 +222,10 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
       if (vis.length) anyVisible = true;
       // mid-scene deadness: judged ONLY between beats (gap centers) — sampling an entrance
       // moment would contradict the slow-pacing contract (0.5–0.9s eases). After the first
-      // entrance window (1.2s), SOMETHING substantial or visibly entering must be on screen.
+      // entrance window, SOMETHING substantial must be on screen: a meaning element OR the
+      // living mid-layer decor prompt v5 mandates (rings/ghost glyphs are real presence).
       if (deadAt == null && gapTimes.has(t) && t > 1.4 && t < dur - 0.3
+        && decorArea < 0.03
         && !els.some((e) => e.o >= 0.25 && e.w * e.h >= 0.015 * W * H)) deadAt = t;
       for (const e of vis) heroFrac = Math.max(heroFrac, e.w / W);
       // combined horizontal coverage (merged x-intervals): a split composition (object one
@@ -244,7 +251,10 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
     }
     if (!anyVisible) defects.push('no element is ever visible — the scene renders empty. Make each beat element visible during its window.');
     else if (deadAt != null) defects.push(`the frame goes empty at ${deadAt.toFixed(1)}s mid-scene — nothing substantial is on screen between beats. Keep the composition alive: give earlier BUILD elements out:'settle' (they stay dimmed) or hold the previous element until the next one enters; the screen must never drop back to bare decor mid-scene.`);
-    else if (!endStrong) defects.push(`the scene ends nearly empty (nothing prominent is on screen at ${endT.toFixed(1)}s) — keep the final keyword (or a climax element) clearly visible through the last second so the ending lands.`);
+    // A timeline running past DUR is harmless by itself (__seek samples only 0..DUR; idle
+    // loops may legitimately outlive the window) — it becomes actionable only when the
+    // ending is ALSO weak, i.e. the climax genuinely landed outside the rendered window.
+    else if (!endStrong) defects.push(`the scene ends nearly empty (nothing prominent is on screen at ${endT.toFixed(1)}s)${Number.isFinite(tlDur) && tlDur > dur + 1.5 ? ` while the animation runs to ${tlDur.toFixed(1)}s — the climax lands past DUR=${dur.toFixed(1)}s; pull it back so it ENDS at ≈${(dur - 0.05).toFixed(1)}s` : ' — keep the final keyword (or a climax element) clearly visible through the last second so the ending lands'}.`);
     // timid composition is a quality defect (cosmetic): the frame must be FILLED — either
     // one dominant hero (single-element width) or a split composition whose pieces together
     // cover most of the width (16:9 split layouts legitimately have no single wide element).
