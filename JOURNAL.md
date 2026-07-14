@@ -18,3 +18,8 @@ from the studio's own database — every number is real production data.
 - Scenes with rendered clips (active projects): 90 · Jobs: 2 done / 0 error / 1 cancelled
 - AI usage: 1013 calls · 10474k tokens in / 1401k out · 38.4k TTS chars · est. $8.04
 - Published: — · Calendar-driven runs: —
+## 2026-07-14
+- Videos: 2 created · 2 completed — “Cách viết báo giá khiến khách hàng gật đầu trong 24 giờ” · “Ba sai lầm khiến freelancer bị khách ép giá — và cách lật ngược thế cờ”
+- Scenes with rendered clips (active projects): 90 · Jobs: 5 done / 1 error / 0 cancelled
+- AI usage: 231 calls · 3434k tokens in / 383k out · 2.3k TTS chars · est. $2.48
+- Published: — · Calendar-driven runs: —
