@@ -45,8 +45,19 @@ LAYOUT CONTRACT
 - Icons: write {{icon:name}} inside any element (it becomes an inline SVG sized by font-size). Pick ONLY from the icon list given by the user message.
 - No images, no external fonts, no <script>/<iframe>. SVG shapes you draw inline are allowed (stroke them with palette colors; animate with FX.drawIn).
 
+PACING CONTRACT (this is what separates premium motion from cheap churn — follow it strictly):
+- Entrances are UNHURRIED: main elements ease in over 0.5–0.9s (power2.out/power3.out/expo.out). NEVER shorter than 0.35s except AT MOST ONE deliberate impact accent per scene (a hit, a stamp, a glitch) — and even that gets a follow-through (tiny overshoot + settle, or a slow ripple after the hit).
+- ONE thing moves in at a time. While an element enters, everything else only idles (breathing scale ≤1.03, slow drift). Two simultaneous entrances read as chaos.
+- Every element lives in three phases: ENTER (eased, gradual) → LIVE (subtle idle motion — never frozen, never bouncing) → then either SETTLE or EXIT (see persistence below). Exits, when used, are gentle (0.4–0.6s fade/blur down) — reserve whips/flips for at most one dramatic removal per scene.
+- The screen must NEVER cut hard between states: no elements popping in/out within <0.35s of each other; overlap transitions by easing the outgoing element down WHILE the next eases in.
+
+PERSISTENCE — elements may STAY (this is the default for meaning-carrying graphics):
+- BUILD elements (list items, diagram nodes, the scene's main object, anything the narration keeps referring to): after their beat, call their FX.beat with out:'settle' — they scale to ~0.94 and dim to ~72%, staying on screen as part of a GROWING composition. The scene should feel like ONE composition assembling piece by piece, not a slideshow of appearing/disappearing cards.
+- FLASH elements (a transient emphasis word, a one-off accent, something the narration mentions once and moves past): exit by t1 with a gentle out.
+- Decide per element by MEANING of the script. A 3-step list = 3 BUILD nodes that accumulate. A shocking stat mentioned once = FLASH. The scene's hero object is ALWAYS build — it anchors the frame until the scene ends.
+
 ANIMATION CONTRACT (all times are ABSOLUTE seconds on tl)
-- FX.beat(tl, sel, t0, t1, {in, out}) — the beat lifecycle: hidden from 0, enters at t0, micro-drifts, exits before t1. in: 'rise'|'pop'|'carrier'|'glitch'|'flip'; out: 'fade'|'whip'|'flip'|'blur'|'none'.
+- FX.beat(tl, sel, t0, t1, {in, out}) — the beat lifecycle: hidden from 0, enters at t0, micro-drifts. out: 'settle' (stay dimmed — BUILD elements) | 'fade'|'whip'|'flip'|'blur' (leave by t1 — FLASH elements) | 'none' (stay at full focus — the hero). in: 'rise'|'pop'|'carrier'|'glitch'|'flip'.
 - FX.camPush(tl, {scale, x, y}) — camera move across the whole scene (use per CAMERA direction).
 - FX.parallax(tl, sel, {amp}) — depth drift for layers (apply to '.hf-mid > *' at minimum).
 - FX.beamSweep(tl, '.hf-beam', {at}) — light sweep flourish (use between beats or at the climax).
@@ -62,7 +73,7 @@ ANIMATION CONTRACT (all times are ABSOLUTE seconds on tl)
 MANDATORY STRUCTURE of every scene script:
 1. FX.camPush matching the CAMERA direction (aggressive_zoom → scale 1.1 fast-ish; subtle_zoom → 1.05; pan → x/±40; push_in → 1.08).
 2. FX.parallax on at least 2 layers/element groups.
-3. ONE visual moment per beat, at the EXACT beat times given (use FX.beat). The screen between beats returns to ambient calm. Kind hints: number → .hf-stat + FX.counterRoll; keyword → .hf-kw/.hf-kw2; phrase → .hf-kw2 or .hf-card.
+3. ONE visual moment per beat, at the EXACT beat times given (use FX.beat). Between beats the composition IDLES calmly (breathing, slow parallax) — settled BUILD elements remain visible; the frame never empties back to black mid-scene. Kind hints: number → .hf-stat + FX.counterRoll; keyword → .hf-kw/.hf-kw2; phrase → .hf-kw2 or .hf-card.
 4. A flourish (beamSweep, chromeSweep, glitch accent…) at least once mid-scene.
 5. CLIMAX FILL — after the LAST beat ends (at its t1), compute climax_budget = DUR − t1. If budget < 0.3s, add NO final flourish (the last beat already carries the ending). If budget ≥ 0.3s, add ONE pulse/scale-drift whose duration ≤ climax_budget and which ENDS at DUR − 0.05s exactly. Never freeze, never overshoot.
 6. Finite repeats only: repeat: Math.max(1, Math.ceil(DUR/period)-1). NEVER repeat:-1 (it makes the timeline infinite). All motion within 0..DUR.
@@ -70,7 +81,8 @@ MANDATORY STRUCTURE of every scene script:
 HARD TIMING RULES (a frame is only rendered for t in 0..DUR — anything scheduled outside is invisible):
 - EVERY tween's (startTime + duration) must be ≤ DUR. The final tween should END at ≈ DUR (climax fill), never past it. Before finishing, mentally check the latest-ending tween is ≤ DUR.
 - Match the beat times EXACTLY — do not push a beat later than its given t0, or it may fall past DUR and never show.
-- SHORT scene (DUR < 5s): keep it tight — fewer, faster beats (entrances ~0.25s), no long loops; the whole story must land inside DUR.
+- NO DEAD AIR: from 0.6s to DUR−0.3s at least one meaning-carrying element (the hero or a settled BUILD element) must be on screen at opacity ≥0.6. When beats are far apart, bridge the gap: settle the previous element (out:'settle') instead of exiting it — a frame of bare background mid-scene is a rejected defect.
+- SHORT scene (DUR < 5s): keep it tight — FEWER beats (1–2), not faster motion; entrances still ≥0.4s (drop a beat before you rush one), no long loops; the whole story must land inside DUR.
 - LONG scene (DUR > 9s): space beats out and add ambient drift between them so the screen never sits static.
 
 HARD FRAME RULES (keep everything readable and inside the frame — dimensions are given in the user message):
@@ -78,9 +90,16 @@ HARD FRAME RULES (keep everything readable and inside the frame — dimensions a
 - Keep a 6% side margin. A hero keyword must fit within 88% of the width — if the text is long, LOWER its font-size (override .hf-kw font-size) so it never clips or wraps past the frame edge.
 - Animate the element INSIDE its .hf-slot, never the slot. Big offsets (carrierIn from:340, whipOut x:480) must return/exit within the frame during the visible window.
 
+COMPOSITION GRID (harmonious, balanced — place elements in these zones, aligned to a clear axis):
+- VERTICAL (9:16-class): kicker/label at ~10–14% height · headline zone at ~22–40% · MAIN OBJECT at ~44–72% (the visual center of gravity) · small label/chip row at ~72–77%. One central vertical axis unless the concept demands a split; symmetric spacing left/right of the axis.
+- HORIZONTAL (16:9-class): either centered-stack (headline upper third, object middle) or a split — object on one side at ~55% width, text column on the other; never both text and object crammed into one half.
+- Breathing space is a feature: ≥4% frame gap between any two text blocks, ≥3% between the main object and its labels. When settled BUILD elements accumulate, arrange them into a deliberate row/column/grid — never let pieces pile up where they landed.
+
 QUALITY BAR
-- 2–4 main elements max. Every element has entrance → living hold (drift/pulse) → exit. No plain opacity-only fades for main beats. Big confident type, generous spacing, palette colors only (plus white/black/transparent). This must feel like an Apple-keynote-grade animation, not a webpage.
-- SCALE CHECK before finishing: the main object/keyword must span ≥50% of the frame width at its peak (cards/diagrams included — make them LARGE). A composition where everything is small chips floating in darkness is a defect and will be rejected.`;
+- 2–4 main elements max. Every element has entrance → living hold (drift/pulse) → settle or exit. No plain opacity-only fades for main beats. Big confident type, generous spacing, palette colors only (plus white/black/transparent). This must feel like an Apple-keynote-grade animation, not a webpage.
+- SCALE CHECK before finishing: the main object/keyword must span ≥50% of the frame width at its peak (cards/diagrams included — make them LARGE). A composition where everything is small chips floating in darkness is a defect and will be rejected.
+- INFOGRAPHIC DETAIL: the main object must read as a crafted graphic, not a lone icon — give it ≥2 supporting details (a sub-label, faux data rows, tick marks, a unit chip, a thin progress track…). Icons always sit inside .hf-iconbox (never naked on the background). SVG you draw: consistent stroke width (2.5–3.5 at 1080-width scale), rounded caps/joins, palette strokes; animate strokes with FX.drawIn over ≥0.8s.
+- ACCENT DISCIPLINE: pick ONE dominant accent for the scene (+ at most one secondary for contrast); glow/drop-shadow lives on ONE hero element only. Consistent corner radius across cards/chips. Numbers use .hf-stat with the unit in .hf-stat-u — never bare text.`;
 
 const DENSITY_NOTE = {
   minimal: 'MOTION DENSITY: minimal — ONE clean hero element per beat, restrained motion, generous calm negative space. Skip decorative extras.',

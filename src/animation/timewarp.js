@@ -15,10 +15,12 @@ import { fold } from '../hyperframe/beats.js';
 
 const LEAD = 0.12; // element lands slightly before the word is fully spoken (mirror beats.js)
 // Per-segment authored-per-real slope limits: an anchor that would locally slow the
-// choreography below 0.4× or rush it above 2.5× is dropped — a mis-matched word must
-// degrade to the neighbors' pacing, never to visibly broken motion.
-const SLOPE_MIN = 0.4;
-const SLOPE_MAX = 2.5;
+// choreography below 0.6× or rush it above 1.8× is dropped — a mis-matched word must
+// degrade to the neighbors' pacing, never to visibly rushed/sluggish motion (tightened
+// from [0.4, 2.5] after the owner flagged fast-feeling playback: sync may bend pacing,
+// never break it).
+const SLOPE_MIN = 0.6;
+const SLOPE_MAX = 1.8;
 
 function flatWords(srtJson) {
   const out = [];
