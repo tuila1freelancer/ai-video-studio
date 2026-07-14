@@ -104,7 +104,43 @@ export async function renderScene(scene, project, { dir, size, subtitleStyle, re
   return { path: out, duration: d };
 }
 
+// ---- Transition planning (motion doctrine: 1-2 hero transitions per video, hard cuts as
+// the default — an every-boundary crossfade flattens the impact of all of them) ----
+// Returns one entry per clip boundary: { type: 'cut'|'fade'|'fadeblack'|'zoomin', dur }.
+// Role-driven when the art director stamped [ROLE] briefs (P4): the transition INTO a
+// payoff scene is a zoom-through ('zoomin'), INTO a cta scene / the outro card a clean
+// 'fadeblack', INTO a chapter-break a 'fade' (its whoosh SFX already lives there). Videos
+// with no roles anywhere (template/image modes, older projects) keep the legacy uniform
+// fade the owner's "smooth transitions" checkbox always produced.
+const ROLE_RE = /\[ROLE\]\s*(\w+)/i;
+export function planTransitions({ scenes, clipCount, nIntro = 0, nOutro = 0, legacyDur = 0.5 }) {
+  const n = Math.max(0, clipCount - 1);
+  const roles = scenes.map((s) => (ROLE_RE.exec(s.visual_prompt || '')?.[1] || '').toLowerCase());
+  const anyRole = roles.some(Boolean);
+  const plan = [];
+  let zoomLeft = 1; // at most ONE zoom-through hero transition per video
+  for (let b = 0; b < n; b++) {
+    const inClip = b + 1; // boundary b sits between clips b and b+1
+    const sceneIdx = inClip - nIntro; // index into `scenes` of the INCOMING clip
+    if (!anyRole) { plan.push({ type: 'fade', dur: legacyDur }); continue; }
+    if (inClip >= nIntro + scenes.length) { plan.push({ type: 'fadeblack', dur: 0.5 }); continue; } // into the outro card
+    if (sceneIdx < 0) { plan.push({ type: 'fade', dur: 0.4 }); continue; } // out of the intro card
+    const sc = scenes[sceneIdx];
+    if (sc?.template === 'chapter-break') { plan.push({ type: 'fade', dur: 0.4 }); continue; }
+    const role = roles[sceneIdx];
+    if (role === 'payoff' && zoomLeft > 0) { zoomLeft--; plan.push({ type: 'zoomin', dur: 0.45 }); continue; }
+    if (role === 'cta') { plan.push({ type: 'fadeblack', dur: 0.5 }); continue; }
+    plan.push({ type: 'cut', dur: 0 });
+  }
+  return plan;
+}
+export function transitionLoss(plan, uptoBoundary = Infinity) {
+  return (plan || []).slice(0, uptoBoundary).reduce((a, t) => a + (t.type === 'cut' ? 0 : t.dur), 0);
+}
+
 // Final assembly (B7): concat scene clips, mix BGM, overlay logo, make thumbnail.
+// `transitions` is either a plan array from planTransitions (selective, doctrine mode) or
+// boolean true (legacy uniform fade at every boundary).
 export async function concatScenes(sceneVideos, project, { dir, size, bgmPath, sfxPath, logo, transitions, onLog }) {
   if (!sceneVideos.length) throw new Error('Không có cảnh nào để ghép');
   const ow = size.w, oh = size.h;
@@ -114,25 +150,43 @@ export async function concatScenes(sceneVideos, project, { dir, size, bgmPath, s
   const TD = 0.5;
   const durs = [];
   for (const v of sceneVideos) durs.push(await probeDuration(v));
-  const useXfade = transitions && sceneVideos.length > 1 && sceneVideos.length <= 24;
-  const total = durs.reduce((a, b) => a + b, 0) - (useXfade ? TD * (sceneVideos.length - 1) : 0);
+  const plan = Array.isArray(transitions)
+    ? transitions.slice(0, sceneVideos.length - 1)
+    : (transitions ? sceneVideos.map(() => ({ type: 'fade', dur: TD })).slice(0, sceneVideos.length - 1) : null);
+  const anyBlend = !!plan && plan.some((t) => t.type !== 'cut');
+  const useGraph = anyBlend && sceneVideos.length > 1 && sceneVideos.length <= 24;
+  const total = durs.reduce((a, b) => a + b, 0) - (useGraph ? transitionLoss(plan) : 0);
   const fadeOut = Math.max(0.2, total - 0.6);
 
   const slug = (project.title || 'video').replace(/[^\p{L}\p{N}\- ]/gu, '').replace(/\s+/g, '_').slice(0, 40) || 'video';
   const finalOut = join(project.outputDir || dir, `${slug}_${newId('')}.mp4`);
 
-  // Single pass: (xfade | concat-demuxer) → BGM mix → logo → fades + loudnorm → encode.
+  // Single pass: (selective xfade/concat graph | concat-demuxer) → BGM mix → logo → fades → encode.
   const args = [];
   const fc = [];
   let vbase, abase, nextIdx;
-  if (useXfade) {
+  if (useGraph) {
     sceneVideos.forEach((v) => args.push('-i', v));
     nextIdx = sceneVideos.length;
-    let prevV = '0:v', prevA = '0:a', offset = durs[0] - TD;
+    // settb=AVTB on every video branch: xfade refuses mismatched timebases, and the concat
+    // filter re-times its output to 1/1000000 while raw mp4 streams sit at 1/15360.
+    fc.push('[0:v]settb=AVTB[vn0]');
+    for (let i = 1; i < sceneVideos.length; i++) fc.push(`[${i}:v]settb=AVTB[vn${i}]`);
+    let prevV = 'vn0', prevA = '0:a', acc = durs[0]; // acc = running duration of the assembled chain
     for (let i = 1; i < sceneVideos.length; i++) {
-      fc.push(`[${prevV}][${i}:v]xfade=transition=fade:duration=${TD}:offset=${offset.toFixed(3)}[vx${i}]`);
-      fc.push(`[${prevA}][${i}:a]acrossfade=d=${TD}[ax${i}]`);
-      prevV = `vx${i}`; prevA = `ax${i}`; offset += durs[i] - TD;
+      const tr = plan[i - 1] || { type: 'cut', dur: 0 };
+      if (tr.type === 'cut') {
+        // hard cut: the concat FILTER (inputs share codec/fps/size by construction)
+        fc.push(`[${prevV}][${prevA}][vn${i}][${i}:a]concat=n=2:v=1:a=1[vc${i}][ax${i}]`);
+        fc.push(`[vc${i}]settb=AVTB[vx${i}]`);
+        acc += durs[i];
+      } else {
+        const d = Math.min(tr.dur || TD, Math.max(0.2, durs[i] - 0.2), Math.max(0.2, acc - 0.2));
+        fc.push(`[${prevV}][vn${i}]xfade=transition=${tr.type}:duration=${d.toFixed(3)}:offset=${(acc - d).toFixed(3)}[vx${i}]`);
+        fc.push(`[${prevA}][${i}:a]acrossfade=d=${d.toFixed(3)}[ax${i}]`);
+        acc += durs[i] - d;
+      }
+      prevV = `vx${i}`; prevA = `ax${i}`;
     }
     vbase = `[${prevV}]`; abase = `[${prevA}]`;
   } else {

@@ -9,7 +9,7 @@ import { logger } from '../../util/log.js';
 import { renderAnimationScene, renderOutroScene } from '../../animation/index.js';
 import { resolveGuide } from '../../styleguide/index.js';
 import { buildThumbnail, buildThumbnailVariants } from '../visuals.js';
-import { concatScenes, renderCard } from '../render.js';
+import { concatScenes, renderCard, planTransitions, transitionLoss } from '../render.js';
 import { qcFinalVideo } from '../qc.js';
 import { masterAudio } from '../../media/master.js';
 import { makeAmbientBed, probeDuration, makeWhoosh, makeSfxBed } from '../../media/ffmpeg.js';
@@ -45,6 +45,7 @@ export async function finalize(projectId, { dir, size, config, _qcAttempt = 0 })
   }
   const scenes = DB.getScenes(projectId).filter((s) => s.video_path && existsSync(s.video_path)).sort((a, b) => a.idx - b.idx);
   let clips = scenes.map((s) => s.video_path);
+  let nIntro = 0, nOutro = 0; // card counts — the transition plan is indexed by CLIP boundary
   const firstImg = scenes.find((s) => s.image_path && existsSync(s.image_path))?.image_path;
   const lastImg = [...scenes].reverse().find((s) => s.image_path && existsSync(s.image_path))?.image_path;
 
@@ -63,17 +64,28 @@ export async function finalize(projectId, { dir, size, config, _qcAttempt = 0 })
       } catch { /* optional */ }
       const o = await renderOutroScene(project, config, { dir: renderDir, progressStart: pp.outroStart, progressTotal: pp.total, duration: 2.6, related });
       clips = [...clips, o.path];
+      nOutro = 1;
     }
   } else {
     if (config.intro !== false) {
       op(projectId, '🎬 Tạo intro…');
       clips = [await renderCard(project.title, 'AI VIDEO STUDIO', { dir: renderDir, size, bgImage: firstImg, duration: 2.6, idx: 'intro' }), ...clips];
+      nIntro = 1;
     }
     if (config.outro !== false) {
       op(projectId, '🎬 Tạo outro…');
       clips = [...clips, await renderCard('Cảm ơn đã xem ❤', 'Theo dõi để xem thêm', { dir: renderDir, size, bgImage: lastImg, duration: 2.4, idx: 'outro' })];
+      nOutro = 1;
     }
   }
+
+  // Doctrine transition plan (P5): hard cuts by default, role-driven hero transitions.
+  // Computed BEFORE the SFX bed and QC so their timelines account for xfade overlaps exactly.
+  const transPlan = config.transitions === true && clips.length > 1
+    ? planTransitions({ scenes, clipCount: clips.length, nIntro, nOutro })
+    : null;
+  // cumulative xfade loss BEFORE scene k's clip starts (scene k's clip index = k + nIntro)
+  const lossBeforeScene = (k) => (transPlan ? transitionLoss(transPlan, k + nIntro) : 0);
 
   // Image mode: brand-kit logo maps onto the legacy whole-video overlay. Animation/hyperframe
   // must NOT get this — their brand layer is already composited into every scene page.
@@ -100,14 +112,17 @@ export async function finalize(projectId, { dir, size, config, _qcAttempt = 0 })
   let sfxPath = null;
   if (visualMode !== 'image' && expectDur > 0) {
     let t = 0; const events = [];
-    for (const s of scenes) {
-      if (config.autoSfx !== false && s.template === 'chapter-break' && t > 0.5) events.push({ at: t });
+    scenes.forEach((s, k) => {
+      // event times land on the FINAL timeline: material time minus the xfade overlap
+      // consumed by every transition before this scene's clip
+      const start = Math.max(0, t - lossBeforeScene(k));
+      if (config.autoSfx !== false && s.template === 'chapter-break' && start > 0.5) events.push({ at: start });
       const au = s.props?.audio;
       if (au?.sfx && existsSync(au.sfx)) {
-        events.push({ at: Math.max(0, t + (Number.isFinite(+au.sfxAt) ? +au.sfxAt : 0)), src: au.sfx, gain: +au.sfxGain || 0 });
+        events.push({ at: Math.max(0, start + (Number.isFinite(+au.sfxAt) ? +au.sfxAt : 0)), src: au.sfx, gain: +au.sfxGain || 0 });
       }
       t += s.duration || 0;
-    }
+    });
     if (events.length) {
       try {
         op(projectId, `🔊 Đặt ${events.length} SFX…`);
@@ -121,7 +136,7 @@ export async function finalize(projectId, { dir, size, config, _qcAttempt = 0 })
   const res = await withRetry(async () => {
     const r = await concatScenes(clips, project, {
       dir: renderDir, size, bgmPath, sfxPath, logo: config.logo,
-      transitions: config.transitions === true, onLog: (s) => logger.debug(s, { projectId }),
+      transitions: transPlan || false, onLog: (s) => logger.debug(s, { projectId }),
     });
     // Output must exist and cover the scene material (10% tolerance + transition losses).
     const got = await probeDuration(r.path);
@@ -146,13 +161,19 @@ export async function finalize(projectId, { dir, size, config, _qcAttempt = 0 })
   // lands in qc_report.json so a run is never silently "done" with known defects.
   if (config.qcGate !== false) {
     op(projectId, '🔬 QC video thành phẩm (black-frame / khoảng câm / thời lượng)…');
-    let t0 = 0;
-    const sceneSpans = scenes.map((s) => { const span = { idx: s.idx, t0, t1: t0 + (s.duration || 0) }; t0 = span.t1; return span; });
+    // scene spans on the FINAL timeline: material times shifted by the exact xfade overlaps
+    // the transition plan consumed before each scene (contiguous by construction)
+    let mat = 0;
+    const sceneSpans = scenes.map((s, k) => {
+      const a = Math.max(0, mat - lossBeforeScene(k));
+      mat += s.duration || 0;
+      return { idx: s.idx, t0: a, t1: Math.max(a, mat - lossBeforeScene(k + 1)) };
+    });
     // expected FINAL duration = scene material + intro/outro cards − xfade overlaps
     const outroDur = visualMode !== 'image'
       ? (config.outro !== false ? 2.6 : 0)
       : (config.intro !== false ? 2.6 : 0) + (config.outro !== false ? 2.4 : 0);
-    const xfadeLoss = config.transitions === true && clips.length > 1 && clips.length <= 24 ? 0.5 * (clips.length - 1) : 0;
+    const xfadeLoss = transPlan && clips.length <= 24 ? transitionLoss(transPlan) : 0;
     const qc = await qcFinalVideo(res.path, { expectDur: expectDur + outroDur - xfadeLoss, sceneSpans, tolerancePct: 8, tailAllowance: outroDur });
     writeFileSync(join(dir, 'qc_report.json'), JSON.stringify({
       ...qc, loudness: { lufs: mastered.lufs, truePeak: mastered.truePeak, corrected: mastered.corrected },
