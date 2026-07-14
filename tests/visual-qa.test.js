@@ -34,5 +34,16 @@ test('overlap + unreadable defects are HARD (trigger codegen re-ask, not just la
   assert.ok(rx.test('the text "X" is unreadable at 2.0s'), 'contrast phrase is hard');
   assert.ok(rx.test('the frame goes empty at 4.4s mid-scene'), 'mid-scene deadness phrase is hard');
   assert.ok(rx.test('the text "VIẾT RÕ KẾT" is clipped at 2.1s'), 'clipped-text phrase is hard');
+  assert.ok(rx.test('the text "X" is covered by an opaque element ("hf-card") at 3.0s'), 'occlusion phrase is hard');
   assert.ok(rx.test('element runs 40px off-screen'), 'existing phrases intact (P-guard parity)');
+  // beat misses stay SOFT: a beat-blind hyperframe scene still beats a heuristic-template
+  // fallback for AV sync, so lastGood must remain shippable while re-asks improve it
+  assert.ok(!rx.test('the beats at 2.1s, 4.3s produce no visual response'), 'beat-miss phrase is soft');
+});
+
+test('persistence tiering: one-sample transients are dropped, held findings survive', async () => {
+  const { heldAcrossSamples } = await import('../src/hyperframe/validate.js');
+  assert.equal(heldAcrossSamples({ n: 1 }), false, 'entrance/exit transient ignored');
+  assert.equal(heldAcrossSamples({ n: 2 }), true, 'held across two samples is real');
+  assert.equal(heldAcrossSamples(undefined), false, 'missing entry is not a defect');
 });
