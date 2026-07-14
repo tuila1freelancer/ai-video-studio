@@ -140,7 +140,7 @@ export async function chatJson(messages, { maxTokens = 2048, attempts = 2, tempe
 }
 
 // ---- Sentence splitting (Vietnamese + Latin aware) ----
-function splitSentences(text) {
+export function splitSentences(text) {
   return (text || '')
     .replace(/\s+/g, ' ')
     .split(/(?<=[.!?…。])\s+|(?<=[।。！？])/)
@@ -228,9 +228,35 @@ function scriptLang(config, sourceText) {
   if (c && c !== 'auto') return c;
   return detectLang(String(sourceText || '').slice(0, 400));
 }
-// The word-budget line every script prompt carries — scenes must FILL their time slot.
-function wordBudgetNote(wordsPerScene) {
-  return `mỗi cảnh ${wordsPerScene - 3}–${wordsPerScene + 5} từ (mục tiêu ~${wordsPerScene}; TTS đọc nhanh hơn bạn nghĩ — viết ĐỦ chữ, tuyệt đối không cụt ngủn dưới ${wordsPerScene - 3} từ)`;
+// THE canonical per-scene word budget. One formula shared by the script prompts, the
+// editorial rewrite target, the duration-fit gate and the UI estimate — if these ever use
+// different math, a fully compliant script audits as over/under and gets mangled.
+// Model: a sceneDuration slot holds (slot − breath pad) seconds of SPEECH at the measured
+// delivery rate (LANG_WPS budget × 0.95 spoken ratio — mirrors providers/subtitle.js).
+export function wordsForSlot(sceneDuration, language) {
+  const wps = LANG_WPS[language] || 3.0;
+  const pad = language === 'vi' ? 0.65 : 0.4;
+  return Math.max(8, Math.round((Math.max(2, sceneDuration) - pad) * wps * 0.95));
+}
+
+// The word-budget line every script prompt carries — scenes must FILL their time slot,
+// and must never overflow it: overruns compound across scenes into a video far longer
+// than the owner asked for (the duration-adherence gate then has to cut).
+function wordBudgetNote(wordsPerScene, wps = 4.4) {
+  return `mỗi cảnh ${wordsPerScene - 3}–${wordsPerScene + 4} từ, KHÔNG hơn (mục tiêu ~${wordsPerScene}; TTS đọc ~${(+wps).toFixed(1)} từ/giây — viết ĐỦ chữ, không cụt ngủn dưới ${wordsPerScene - 3} từ, không tràn quá ${wordsPerScene + 4} từ; cắt phăng mọi câu đệm "như mình đã nói", "thật ra thì"…)`;
+}
+
+const CJK_LANGS = new Set(['ja', 'zh']); // no whitespace word boundaries — word math is meaningless
+
+// Soft budget validator for chatJson: only GROSS overruns re-ask (mean words/scene > 1.5×
+// target) — a strict gate here would push good-but-chatty replies into the offline
+// fallback; the deterministic budget-fit pass (stages/budget.js) owns fine trimming.
+function scriptBudgetOk(scenes, wordsPerScene, language) {
+  if (CJK_LANGS.has(language)) return true; // whitespace counting would misfire wildly
+  const arr = (scenes || []).map((s) => String(s.voice || s.text || '')).filter(Boolean);
+  if (!arr.length) return false;
+  const mean = arr.reduce((a, v) => a + v.trim().split(/\s+/).filter(Boolean).length, 0) / arr.length;
+  return mean <= wordsPerScene * 1.5;
 }
 
 // Additive Show-Bible block (channel persona + anti-repeat ledger). Purely appended to
@@ -253,7 +279,7 @@ export async function generateScript({ topic, inputType, fetched, config, ai, me
   const sceneCount = Math.max(1, Math.round(videoDuration / sceneDuration));
   const language = scriptLang(config, (fetched && fetched.text) || topic);
   const wps = LANG_WPS[language] || 3.0;
-  const wordsPerScene = Math.max(10, Math.round(sceneDuration * wps));
+  const wordsPerScene = wordsForSlot(sceneDuration, language);
 
   // 1) JSON script provided directly
   if (inputType === 'json') {
@@ -274,6 +300,17 @@ export async function generateScript({ topic, inputType, fetched, config, ai, me
   const firstSentence = (splitSentences(sourceText)[0] || sourceText.split('\n')[0] || topic).trim();
   const title = ((fetched && fetched.title) || (firstSentence.length > 6 ? firstSentence : topic) || 'Video mới').slice(0, 64);
 
+  // 1b) auto-duration mode: a DETAILED pasted/fetched script is the deliverable — keep the
+  // owner's words verbatim (never rewritten, never compressed to a target length); the
+  // video's duration follows the content. The LLM only decorates (title/visuals/keywords).
+  // Too little text to be a real script → fall through to target mode.
+  if (config.durationMode === 'auto' && sourceText.trim().split(/\s+/).filter(Boolean).length >= 80) {
+    return verbatimScript(sourceText, {
+      title, wordsPerScene, language, llm,
+      hf: config.visualMode === 'hyperframe',
+    });
+  }
+
   // assistant-accepted topics carry the angle the owner approved — the script must honor it
   const angleLine = config.assistantBrief?.angle ? `\nGóc tiếp cận BẮT BUỘC của video: ${config.assistantBrief.angle}` : '';
 
@@ -292,17 +329,27 @@ Yêu cầu cho "visualPrompt" — mô tả BRIEF cho một cảnh INFOGRAPHIC ch
 [MAIN OBJECT] một đồ hoạ chính hợp nghĩa chiếm ~60% khung (vd: answer card có bullet giả; chuỗi node Giả định→Bằng chứng→Kết luận sáng dần; sticky-notes gom thành workflow; scanner line quét qua card; stat lớn kèm đường/bar tăng) — vẽ bằng SVG/div + icon line-art.
 [ON-SCREEN TEXT] 1 headline ngắn 2-4 từ + 2-3 nhãn ngắn, CHỌN THEO NGHĨA (không bê nguyên câu voice), ĐÚNG NGÔN NGỮ lời thoại (thoại tiếng Việt → chữ tiếng Việt).
 [MOTION] entry → reveal từng phần theo thứ tự ý voice (beat-sync) → giữ → thoát nhẹ. [MOOD] 1-2 từ.
+ĐA DẠNG: KHÔNG lặp cùng kiểu MAIN OBJECT ở 2 cảnh liền nhau (xoay vòng: card / node-chain / stat lớn / list / split-compare / scanner…).
 CẤM: "display text", layout tĩnh, mô tả mơ hồ, bịa chữ, chèn tiếng Anh vào video tiếng Việt.`;
       const usr = `Tạo kịch bản video từ nội dung sau. Xuất JSON dạng {"title":"...","scenes":[{"voice":"lời thoại đọc","visualPrompt":"${hf ? 'cinematic motion-graphics description in English' : 'mô tả hình ảnh tiếng Anh'}","keywords":["..."]}]}.
-Yêu cầu: PHẢI tạo ĐÚNG ${sceneCount} cảnh (video ${videoDuration}s cần đủ ${sceneCount} cảnh — trả thiếu cảnh là sai đề bài), ${wordBudgetNote(wordsPerScene)}, giọng tự nhiên${language === 'vi' ? ', xưng hô cố định "mình – các bạn"' : ''}, toàn bộ lời thoại bằng ${LANG_NAME[language] || language}.
-Cảnh mở đầu là HOOK theo công thức NỖI ĐAU → LỜI HỨA: 1-2 câu gọi đúng vấn đề người xem đang gặp, rồi hứa lợi ích cụ thể (có con số/khung thời gian) khi xem hết video. Cảnh cuối chốt giá trị + kêu gọi đăng ký + một câu hỏi cụ thể mời trả lời dưới comment.${hf ? hfVisualRules : ''}${bibleBlock(memory)}${angleLine}
+KỶ LUẬT THỜI LƯỢNG (quan trọng nhất): video ${videoDuration}s = PHẢI tạo ĐÚNG ${sceneCount} cảnh × ~${sceneDuration}s (trả thiếu cảnh là sai đề bài), ${wordBudgetNote(wordsPerScene, wps)}. Tổng toàn bộ lời thoại ~${sceneCount * wordsPerScene} từ — vượt tổng này là video dài quá thời lượng đặt hàng, coi như hỏng.
+KIẾN TRÚC GIỮ CHÂN NGƯỜI XEM:
+- Cảnh 1 = HOOK NỖI ĐAU → LỜI HỨA: 1-2 câu gọi đúng vấn đề người xem đang gặp, rồi hứa lợi ích cụ thể (có con số/khung thời gian) khi xem hết — vào thẳng, không chào hỏi. Đồng thời MỞ MỘT VÒNG LẶP: úp mở một điều bất ngờ sẽ được tiết lộ ở gần cuối video.
+- MỖI CẢNH đúng MỘT Ý duy nhất. Câu CUỐI mỗi cảnh là MICRO-HOOK bắc cầu sang cảnh sau (câu hỏi ngắn, úp mở, "nhưng…", "và đây mới là phần hay…").
+- Khoảng giữa video: MỘT pattern-interrupt — câu hỏi trực tiếp hoặc thử thách nhỏ cho người xem.
+- Số liệu CỤ THỂ thay cho từ chung chung ("87%", "3 bước", "5 phút" — cấm "rất nhiều", "hầu hết", "đa số").
+- Cảnh cuối: chốt giá trị + ĐÓNG vòng lặp đã mở + kêu gọi đăng ký + MỘT câu hỏi cụ thể mời trả lời dưới comment.
+Giọng tự nhiên như trò chuyện${language === 'vi' ? ', xưng hô cố định "mình – các bạn"' : ''}, toàn bộ lời thoại bằng ${LANG_NAME[language] || language}.
+"keywords": 2-4 từ/cụm NGUYÊN VĂN có mặt trong "voice" của CHÍNH cảnh đó — chọn từ đắt nhất (số liệu, danh từ mạnh); đồ hoạ sẽ nhấn đúng các từ này ĐÚNG KHOẢNH KHẮC chúng được đọc, nên chọn sai từ là hình lệch tiếng.${hf ? hfVisualRules : `
+"visualPrompt" phải minh hoạ đúng Ý của cảnh đó (không generic), và KHÔNG lặp cùng kiểu bố cục ở 2 cảnh liền nhau.`}${bibleBlock(memory)}${angleLine}
 Nội dung:\n${sourceText.slice(0, 6000)}`;
       // enforce the scene count (≥70% of target) — lazy models love returning 2 scenes for a
       // 60s brief, which silently halves the video. chatJson re-asks once on validate failure.
       const minScenes = Math.max(1, Math.ceil(sceneCount * 0.7));
       const parsed = await chatJson([{ role: 'system', content: sys }, { role: 'user', content: usr }],
         { maxTokens: sceneCount * Math.max(130, wordsPerScene * 4) + 600, attempts: 3,
-          validate: (p) => Array.isArray(p.scenes) && p.scenes.filter((s) => s.voice || s.text).length >= minScenes, llm });
+          validate: (p) => Array.isArray(p.scenes) && p.scenes.filter((s) => s.voice || s.text).length >= minScenes
+            && scriptBudgetOk(p.scenes, wordsPerScene, language), llm });
       return { title: parsed.title || title, scenes: parsed.scenes.map((s) => ({
         voice: s.voice || s.text || '', visualPrompt: s.visualPrompt || s.visual || '', keywords: s.keywords || [],
       })).filter((s) => s.voice) };
@@ -310,7 +357,63 @@ Nội dung:\n${sourceText.slice(0, 6000)}`;
   }
 
   // 3) offline deterministic (with chapter structure for long videos)
-  return offlineScript(sourceText, { title, sceneCount, wordsPerScene, structure: videoDuration >= 240 });
+  const off = offlineScript(sourceText, { title, sceneCount, wordsPerScene, structure: videoDuration >= 240 });
+  // Honor the ordered duration offline too: a long source must not balloon the scene count
+  // (auto mode is the verbatim path — reaching here means the owner asked for a TARGET).
+  if (off.scenes.length > sceneCount * 1.25) off.scenes = off.scenes.slice(0, Math.max(1, Math.round(sceneCount * 1.25)));
+  return off;
+}
+
+// Auto-duration verbatim mode: sentence-pack the owner's script into scenes WITHOUT touching
+// a single word, then (LLM on) one bounded decoration pass for title/visualPrompt/keywords.
+// Decoration failure degrades to the offline heuristics — the owner's text always survives.
+async function verbatimScript(sourceText, { title, wordsPerScene, language, llm, hf }) {
+  // NOT splitSentences: its length>1 filter drops one-char fragments — verbatim mode must
+  // preserve the paste exactly, so keep every non-empty piece.
+  const sentences = String(sourceText || '').replace(/\s+/g, ' ')
+    .split(/(?<=[.!?…。])\s+|(?<=[।。！？])/).map((x) => x.trim()).filter(Boolean);
+  const scenes = [];
+  let buf = [];
+  let bufWords = 0;
+  const flush = () => {
+    if (!buf.length) return;
+    const voice = buf.join(' ').trim();
+    scenes.push({ voice, visualPrompt: voice.slice(0, 90), keywords: topNouns(voice, 3) });
+    buf = []; bufWords = 0;
+  };
+  for (const sent of sentences) {
+    const w = sent.trim().split(/\s+/).filter(Boolean).length;
+    if (bufWords && bufWords + w > wordsPerScene + 5) flush();
+    buf.push(sent.trim()); bufWords += w;
+  }
+  flush();
+  if (!scenes.length) scenes.push({ voice: sourceText.trim().slice(0, 400), visualPrompt: sourceText.slice(0, 90), keywords: topNouns(sourceText, 3) });
+
+  if (llmEnabled(llm)) {
+    try {
+      const MAX_DECOR = 40; // idx-addressed merge below makes partial coverage safe
+      const listing = scenes.slice(0, MAX_DECOR).map((s, i) => `${i + 1}. ${s.voice.slice(0, 220)}`).join('\n');
+      const deco = await chatJson([
+        { role: 'system', content: hf
+          ? 'Bạn là motion designer cho video đồ hoạ chuyển động cao cấp. Trả về JSON thuần.'
+          : 'Bạn là đạo diễn hình ảnh video. Trả về JSON thuần.' },
+        { role: 'user', content: `Kịch bản dưới đây là NGUYÊN VĂN của chủ kênh — TUYỆT ĐỐI không viết lại lời thoại. Chỉ tạo phần trang trí. Xuất JSON {"title":"tiêu đề giật tít ≤60 ký tự","scenes":[{"idx":số thứ tự cảnh (1-based),"visualPrompt":"${hf ? 'motion-graphics brief in English theo khung [MAIN OBJECT]/[ON-SCREEN TEXT]/[MOTION]/[MOOD]' : 'mô tả hình ảnh tiếng Anh'}","keywords":["2-4 từ NGUYÊN VĂN đắt nhất của cảnh đó"]}]} — mỗi phần tử PHẢI mang đúng "idx" của cảnh nó mô tả. KHÔNG lặp cùng kiểu bố cục ở 2 cảnh liền nhau. Chữ trên hình ĐÚNG ngôn ngữ lời thoại (${LANG_NAME[language] || language}).
+Kịch bản:\n${listing.slice(0, 6500)}` },
+      ], { maxTokens: scenes.length * 90 + 500, attempts: 2,
+        validate: (p) => Array.isArray(p.scenes) && p.scenes.length >= Math.ceil(scenes.length * 0.6), llm });
+      // idx-addressed: a skipped/short reply decorates only the scenes it names — visuals
+      // can never shift onto the wrong narration.
+      deco.scenes.forEach((d, i) => {
+        const at = Number.isFinite(+d?.idx) ? (+d.idx | 0) - 1 : i;
+        const sc = scenes[at];
+        if (!sc) return;
+        if (d?.visualPrompt) sc.visualPrompt = String(d.visualPrompt);
+        if (Array.isArray(d?.keywords) && d.keywords.length) sc.keywords = d.keywords;
+      });
+      return { title: (deco.title || title).slice(0, 64), scenes };
+    } catch { /* decoration is optional — verbatim scenes stand on their own */ }
+  }
+  return { title, scenes };
 }
 
 // Two-stage generation: (1) outline — pain→promise hook, chapters, mid-roll CTA, comment-bait

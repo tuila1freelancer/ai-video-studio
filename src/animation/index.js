@@ -6,6 +6,7 @@ import { buildTemplate, makeCtx, listTemplates } from './templates.js';
 import { getTheme } from './themes.js';
 import { themeFromGuide, resolveGuide, normalizeGuide } from '../styleguide/index.js';
 import { planScene, planScenes } from './planner.js';
+import { beatWarpMap } from './timewarp.js';
 import { renderScenePage, renderPreviewFrame } from './renderer.js';
 import { resolveBrandKit, planBrandPlacement, buildBrandLayer, imgDataUri } from './branding.js';
 import { captionStyleFrom } from '../subtitles/presets.js';
@@ -68,10 +69,15 @@ export function buildSceneHtml(scene, project, config, extras = {}) {
     // before TTS). tplScale = planned/real lets the harness drive the template timeline in
     // authored coordinates while captions/progress/audio stay on real time, so the
     // choreography stretches/compresses to fill the real voice instead of cutting or
-    // freezing. HYPERFRAME ONLY: regular templates rebuild their script against the real
-    // duration at render time, and a template switch keeps the old hyperframe props —
-    // warping those scripts by the stale plannedDur would slow-motion authored-real motion.
+    // freezing. tplWarp upgrades that to PER-WORD sync: each baked beat's authored time is
+    // pinned to the real moment its word is spoken (beatWarpMap), so beat-timed elements
+    // land exactly on the narration. HYPERFRAME ONLY: regular templates rebuild their
+    // script against the real duration at render time, and a template switch keeps the old
+    // hyperframe props — warping those scripts would slow-motion authored-real motion.
     tplScale: plan.template === 'hyperframe' ? templateTimeScale(plan.props?.plannedDur, duration) : 1,
+    tplWarp: plan.template === 'hyperframe' && plan.props?.plannedDur
+      ? beatWarpMap(plan.props.beats, plan.props.plannedDur, duration, scene.srt_json)
+      : null,
     progressStart: extras.progressStart || 0, progressTotal: extras.progressTotal || 0,
     template: tpl, captions,
     live: !!extras.live, liveAudioUrl: extras.liveAudioUrl || null,

@@ -118,12 +118,28 @@ const RUNTIME = `
     window.__seek(0);
     return { n: anims.length, gsap: !!window.__tl, tplErr: window.__tplErr };
   };
+  // Real-time → authored-timeline map. S.tplWarp ([[authored, real], ...] control points,
+  // strictly increasing on both axes) pins each baked beat to the real moment its word is
+  // spoken — per-word sync. Without a warp the map degrades to the plain tplScale ratio.
+  window.__r2a = (t) => {
+    const W = S.tplWarp;
+    if (!W || W.length < 2) return t * (S.tplScale || 1);
+    if (t <= W[0][1]) return W[0][0];
+    for (let i = 1; i < W.length; i++) {
+      if (t <= W[i][1]) {
+        const a0 = W[i-1][0], r0 = W[i-1][1];
+        return a0 + ((t - r0) / (W[i][1] - r0)) * (W[i][0] - a0);
+      }
+    }
+    return W[W.length - 1][0]; // past the end: hold the authored endpoint
+  };
+  // authored end of the template timeline (== plannedDur under a warp/scale)
+  window.__authoredDur = S.tplWarp && S.tplWarp.length ? S.tplWarp[S.tplWarp.length - 1][0] : S.duration * (S.tplScale || 1);
   window.__seek = (t) => {
     // Template layers (GSAP timeline + the spec's CSS/WAAPI animations) run in AUTHORED
-    // timeline coordinates: st = t * tplScale warps a spec authored for plannedDur across
-    // the real duration. Captions/progress/background stay on REAL time — they are built
-    // from the real voice timeline at page build.
-    const st = t * (S.tplScale || 1);
+    // timeline coordinates via __r2a. Captions/progress/background stay on REAL time —
+    // they are built from the real voice timeline at page build.
+    const st = window.__r2a(t);
     const ms = st*1000;
     for (const a of anims) { try { a.currentTime = ms; } catch(e){} }
     // suppressEvents MUST be false: onUpdate-driven content (FX.count/typeOn counters) is a
@@ -203,7 +219,9 @@ export function buildScenePage(opts) {
     // tplScale (planned/real): template-timeline coordinates per real second. __seek drives
     // the GSAP/WAAPI template layers at t*tplScale while captions/progress/bg stay on real t
     // — reconciles specs authored against an estimated duration (scenes-first pipeline).
+    // tplWarp upgrades the single ratio to a beat-anchored piecewise map (per-word sync).
     tplScale: opts.tplScale && opts.tplScale !== 1 ? opts.tplScale : 1,
+    tplWarp: Array.isArray(opts.tplWarp) && opts.tplWarp.length >= 3 ? opts.tplWarp : null,
     progressStart: opts.progressStart || 0, progressTotal: opts.progressTotal || 0,
     captions: opts.captions || [],
     theme: { particles: theme.particles, streak: theme.streak, accents: theme.accents },

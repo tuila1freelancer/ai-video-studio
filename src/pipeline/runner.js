@@ -13,6 +13,7 @@ import { op } from './progress.js';
 import { seedEstimatedTiming } from './estimate.js';
 import { runScript } from './stages/script.js';
 import { runEditorial } from './stages/editorial.js';
+import { runBudgetFit } from './stages/budget.js';
 import { runTts } from './stages/tts.js';
 import { runVisuals } from './stages/visuals.js';
 import { runRender } from './stages/render.js';
@@ -37,6 +38,7 @@ export async function runPipeline(projectId, { resume = false, _auto = 0 } = {})
   try {
     await runScript(ctx);                                   // B2
     await runEditorial(ctx);                                // b2.5 — quality gate (B2 banner)
+    await runBudgetFit(ctx);                                // b2.75 — total narration ≈ ordered duration
     // Scenes-first order: visuals are planned/generated BEFORE the paid voice, against an
     // estimated timeline (seedEstimatedTiming); real TTS then overwrites duration + srt_json
     // and the hyperframe time-warp (props.plannedDur → S.tplScale) reconciles baked

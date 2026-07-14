@@ -90,7 +90,11 @@ const FX_SRC = `
 // still fires at the intended REAL moment. TSCALE is 1 everywhere except hyperframe specs
 // whose estimated duration differs from the real voice.
 var TSCALE = (S.tplScale || 1);
-var TD = S.duration * TSCALE;
+// R2A: real seconds -> authored coordinates. Under a beat warp (window.__r2a from the
+// harness) this is piecewise — caption word stamps land EXACTLY where the authored
+// timeline expects them; without one it is the plain TSCALE ratio.
+var R2A = (typeof window !== 'undefined' && window.__r2a) ? window.__r2a : function(t){ return t * TSCALE; };
+var TD = (typeof window !== 'undefined' && window.__authoredDur != null) ? window.__authoredDur : S.duration * TSCALE;
 var FX = {
   q: function(sel){ return document.querySelectorAll(sel); },
   split: function(sel, type){ return new SplitText(FX.q(sel), { type: type || 'chars,words' }); },
@@ -193,7 +197,7 @@ var FX = {
   // ---- voice-sync helpers: read the narration's word timings straight from S.captions ----
   // flat word list [{start,end,word}] of the whole scene
   allWords: function(){ var out=[], cues=S.captions||[];
-    for (var i=0;i<cues.length;i++){ var ws=cues[i].words||[]; for (var j=0;j<ws.length;j++) out.push(TSCALE===1?ws[j]:{start:ws[j].start*TSCALE,end:ws[j].end*TSCALE,word:ws[j].word}); }
+    for (var i=0;i<cues.length;i++){ var ws=cues[i].words||[]; for (var j=0;j<ws.length;j++) out.push((TSCALE===1&&!S.tplWarp)?ws[j]:{start:R2A(ws[j].start),end:R2A(ws[j].end),word:ws[j].word}); }
     return out; },
   // n accent times picked from long/number words with a minimum gap, LEAD before the word
   // lands; falls back to even spacing when the scene carries no captions. Pure fn of S.

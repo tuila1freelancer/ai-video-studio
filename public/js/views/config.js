@@ -76,6 +76,9 @@ export function gatherConfig() {
     autoConcat: $('#cfgAutoConcat').checked,
     requireReview: $('#cfgReview')?.checked || false,
     sceneGate: $('#cfgSceneGate')?.checked || false,
+    // ALWAYS explicit: an omitted key would let a channel/preset 'auto' silently win the
+    // config merge while the panel shows target mode.
+    durationMode: $('#cfgDurMode')?.value === 'auto' ? 'auto' : 'target',
     richAnimation: $('#cfgRich').checked,
     transitions: $('#cfgTrans').checked,
     intro: $('#cfgIntro').checked,
@@ -117,6 +120,7 @@ export function applyConfig(cfg = {}) {
   if ('autoConcat' in cfg) $('#cfgAutoConcat').checked = cfg.autoConcat !== false;
   if ('requireReview' in cfg && $('#cfgReview')) $('#cfgReview').checked = cfg.requireReview === true;
   if ('sceneGate' in cfg && $('#cfgSceneGate')) $('#cfgSceneGate').checked = cfg.sceneGate === true;
+  if ($('#cfgDurMode')) $('#cfgDurMode').value = cfg.durationMode === 'auto' ? 'auto' : 'target';
   if ('richAnimation' in cfg) $('#cfgRich').checked = cfg.richAnimation !== false;
   if ('transitions' in cfg) $('#cfgTrans').checked = !!cfg.transitions;
   if ('intro' in cfg) $('#cfgIntro').checked = cfg.intro !== false;
@@ -136,18 +140,30 @@ function wireConfig() {
   wireHfStyle();
   $('#cfgVd').addEventListener('input', updateEstimate);
   $('#cfgSd').addEventListener('input', updateEstimate);
+  $('#cfgDurMode')?.addEventListener('change', updateEstimate);
   $('#cfgAr').addEventListener('change', updateEstimate);
   ['#cfgSub', '#cfgSubFont', '#cfgSubSize', '#cfgSubCase', '#cfgSubPos'].forEach((id) => $(id).addEventListener('change', updateSubPreview));
   $('#cfgSub').addEventListener('change', () => $('#subStyle').style.display = $('#cfgSub').checked ? 'block' : 'none');
 }
 export function updateEstimate() {
   const vd = +$('#cfgVd').value, sd = +$('#cfgSd').value;
-  $('#cfgVdL').textContent = vd >= 60 ? `${Math.round(vd / 60 * 10) / 10} phút` : `${vd} giây`;
+  const auto = $('#cfgDurMode')?.value === 'auto';
+  $('#cfgVd').disabled = auto;
+  $('#cfgVd').closest('.field')?.classList.toggle('durmode-auto', auto);
+  $('#cfgVdL').textContent = auto ? 'tự động' : (vd >= 60 ? `${Math.round(vd / 60 * 10) / 10} phút` : `${vd} giây`);
   $('#cfgSdL').textContent = `${sd} giây`;
+  if (auto) {
+    const hfAuto = $('#cfgVisualMode').value === 'hyperframe'
+      ? ' ⚠ HyperFrame gọi AI theo TỪNG cảnh — kịch bản dài sẽ tốn chi phí tương ứng.' : '';
+    $('#cfgEst').textContent = `🪄 Giữ NGUYÊN VĂN kịch bản bạn dán vào — thời lượng video = tổng lời thoại (cần ≥80 từ, nếu ngắn hơn sẽ chạy theo mục tiêu).${hfAuto}`;
+    return;
+  }
   const scenes = Math.max(1, Math.round(vd / sd));
   const hfWarn = $('#cfgVisualMode').value === 'hyperframe' && scenes > 40
     ? ` — ⚠ HyperFrame gọi AI cho từng cảnh (${scenes} lần): video dài sẽ tốn thời gian + chi phí` : '';
-  $('#cfgEst').textContent = `Ước tính ${scenes} cảnh, ~${Math.round(sd * 2.6)} từ/cảnh${hfWarn}`;
+  // (sd − 0.65s nghỉ) × 4.4 wps × 0.95 — đúng công thức wordsForSlot của máy viết kịch bản (vi)
+  const wpsScene = Math.max(8, Math.round((sd - 0.65) * 4.4 * 0.95));
+  $('#cfgEst').textContent = `Ước tính ${scenes} cảnh, ~${wpsScene} từ/cảnh, tổng ~${scenes * wpsScene} từ${hfWarn}`;
 }
 export function buildSubColors() {
   const box = $('#cfgSubColors'); if (!box) return; box.innerHTML = '';
@@ -340,7 +356,8 @@ export function updateCfgChips() {
   const theme = vm === 'animation' ? ` · ${selText('#cfgTheme').replace(' (mặc định)', '')}`
     : vm === 'hyperframe' ? ` · ${hfCurrentStyle().name || 'Chrome Kinetic'}` : '';
   const res = $('#cfgRes').value === '2' ? '4K' : '1080p';
-  set('format', `${mode}${theme} — ${$('#cfgAr').value} · ${$('#cfgFps').value}fps · ${res} · ${fmtDur(+$('#cfgVd').value)} · cảnh ${$('#cfgSd').value}s`);
+  const durTxt = $('#cfgDurMode')?.value === 'auto' ? '🪄 tự động' : fmtDur(+$('#cfgVd').value);
+  set('format', `${mode}${theme} — ${$('#cfgAr').value} · ${$('#cfgFps').value}fps · ${res} · ${durTxt} · cảnh ${$('#cfgSd').value}s`);
   const bk = activeChannelBrand();
   set('brand', bk
     ? `${bk.channelName || 'Brand kit (chỉ logo)'} · chèn ${bk.placement === 'always' ? 'cố định' : bk.placement === 'off' ? 'tắt' : 'thông minh'}${bk.logo ? ' · có logo' : ''}`
