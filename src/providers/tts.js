@@ -22,6 +22,42 @@ function resolveTarget(s, lang) {
   return { pid, voice };
 }
 
+// The user's pinned per-language voice, but only when it belongs to the given provider.
+function pinnedVoice(s, pid, lang) {
+  const lv = s.langVoices && s.langVoices[lang];
+  return lv && lv.provider === pid && lv.voice ? lv.voice : null;
+}
+
+/**
+ * Resolve (provider, voice) for a synthesis call. A per-project/per-channel override wins on
+ * the PROVIDER, but a provider-only override (channel says "use larvoice", no voice picked)
+ * must NOT discard the user's pinned per-language voice for that SAME provider — dropping to
+ * 'auto' hands the pick to catalog order, i.e. an arbitrary voice.
+ */
+export function resolveVoiceTarget(s, lang, override) {
+  if (override?.provider) {
+    return {
+      pid: override.provider,
+      voice: override.voice || pinnedVoice(s, override.provider, lang) || legacyVoice(s, override.provider) || 'auto',
+    };
+  }
+  return resolveTarget(s, lang);
+}
+
+/**
+ * Plausibility bounds (seconds) for synthesized speech of `text`. Duration-inferring TTS
+ * models (LarVoice/F5 style) can glitch into stretched or repeated audio many times longer
+ * than the text — accepting one turns a 10s scene into 2 minutes of slow-motion voice.
+ * Floor rates sit far below real speech (latin ≥3.5 chars/s spoken vs ~15 normal; CJK ≥1.5),
+ * so a healthy slow voice or a 0.5× speed setting never trips the gate.
+ */
+export function ttsDurationBounds(text) {
+  const raw = String(text || '');
+  const chars = raw.replace(/\s+/g, '').length;
+  const cjk = /[぀-ヿ㐀-鿿가-힣]/.test(raw);
+  return { min: Math.min(2, chars / 60), max: Math.max(12, chars / (cjk ? 1.5 : 3.5)) };
+}
+
 async function synthWith(pid, voice, text, s, outPath, style) {
   const provider = getProvider(pid);
   // _style: optional prosody hint ('energetic'|'calm') — read only by providers with
@@ -46,10 +82,10 @@ export async function synthesizeVoice(text, outPath, opts = {}) {
   const s = { ...aiSettings().tts, ...(opts.ttsOverride || {}) };
   const lang = detectLang(text);
   // An EXPLICIT per-project/per-channel provider pick beats the per-language default —
-  // langVoices are defaults, not vetoes; the user's per-video choice must win.
-  const target = opts.ttsOverride?.provider
-    ? { pid: opts.ttsOverride.provider, voice: opts.ttsOverride.voice || legacyVoice(s, opts.ttsOverride.provider) || 'auto' }
-    : resolveTarget(s, lang);
+  // langVoices are defaults, not vetoes; the user's per-video choice must win. But a
+  // provider-only override still inherits the pinned voice for that provider (see
+  // resolveVoiceTarget) instead of degrading to catalog order.
+  const target = resolveVoiceTarget(s, lang, opts.ttsOverride);
 
   // Timbre-preserving fallback: instead of an arbitrary default voice, the fallback
   // provider picks its cached voice closest to the primary's language + gender, so a
@@ -67,6 +103,13 @@ export async function synthesizeVoice(text, outPath, opts = {}) {
     for (let a = 0; a < tries; a++) {
       try {
         const r = await synthWith(pid, voice, text, s, outPath, opts.style);
+        // Reject implausibly long/short audio as a FAILED attempt: same-voice retries get
+        // a fresh shot first, then the timbre-preserving fallback chain — a glitched
+        // stretched take must never be accepted into the video.
+        const { min, max } = ttsDurationBounds(text);
+        if (r.duration > max || r.duration < min) {
+          throw new Error(`giọng đọc dài bất thường (${r.duration.toFixed(1)}s cho ${String(text).length} ký tự — hợp lý: ${min.toFixed(1)}–${max.toFixed(0)}s)`);
+        }
         return { ...r, provider: pid, fallback: ci > 0 };
       } catch (e) {
         lastErr = e;
