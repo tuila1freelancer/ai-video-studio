@@ -108,15 +108,15 @@ export async function runBudgetFit(ctx) {
       const rows = DB.getScenes(projectId);
       const listing = offenders.map((o) => {
         const sc = rows.find((r) => r.id === o.id);
-        return `#${o.idx + 1} (hiện ${o.words} từ, cần ~${a.quotaWords}): "${String(sc?.voice_text || '').slice(0, 700)}"`;
+        return `#${o.idx + 1} (now ${o.words} words, needs ~${a.quotaWords}): "${String(sc?.voice_text || '').slice(0, 700)}"`;
       }).join('\n');
       try {
         const fix = await chatJson([
-          { role: 'system', content: 'Bạn là biên tập viên kịch bản video. Trả về JSON thuần.' },
+          { role: 'system', content: 'You are a video script editor. Reply with pure JSON.' },
           { role: 'user', content: `${over
-            ? `Các cảnh sau DÀI QUÁ ngân sách. Viết lại NGẮN LẠI còn đúng ~${a.quotaWords} từ mỗi cảnh: giữ nguyên Ý, giữ câu micro-hook cuối cảnh, cắt câu đệm/lặp/rào đón.`
-            : `Các cảnh sau NGẮN QUÁ ngân sách. Viết lại DÀI RA đúng ~${a.quotaWords} từ mỗi cảnh: thêm ví dụ/số liệu cụ thể, không lan man.`}
-Giữ đúng ngôn ngữ gốc và xưng hô hiện có. Xuất JSON {"fixes":[{"idx":số cảnh (1-based),"voice":"lời thoại mới"}]} — chỉ các cảnh được liệt kê.
+            ? `The scenes below are OVER their word budget. Rewrite each one SHORTER to ~${a.quotaWords} words: keep the meaning, keep the closing micro-hook sentence, cut filler/repetition/hedging.`
+            : `The scenes below are UNDER their word budget. Rewrite each one LONGER to ~${a.quotaWords} words: add concrete examples/numbers, no rambling.`}
+Keep the original language and the existing forms of address. Output JSON {"fixes":[{"idx":scene number (1-based),"voice":"the new narration"}]} — only the scenes listed.
 ${listing}` },
         ], { maxTokens: offenders.length * a.quotaWords * 4 + 400, attempts: 2, temperature: 0.5,
           validate: (p) => Array.isArray(p.fixes) && p.fixes.length > 0, llm: ai.llm });

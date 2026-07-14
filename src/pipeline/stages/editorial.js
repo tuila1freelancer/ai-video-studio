@@ -45,16 +45,16 @@ export async function runEditorial(ctx) {
   try {
     // ONE bounded rewrite pass — no loops (the same discipline as the QC repair cycle)
     const parsed = await chatJson([
-      { role: 'system', content: 'Bạn là biên tập viên kịch bản video. Trả về JSON thuần.' },
-      { role: 'user', content: `Video "${project.title}". Viết lại CHỈ các câu thoại lỗi dưới đây (giữ đúng ý, sửa lỗi trong ngoặc):
-- lang-leak: viết lại HOÀN TOÀN bằng ${lang === 'vi' ? 'tiếng Việt' : lang}
-- truncated: hoàn thiện câu bị cắt cụt thành câu trọn vẹn
-- under-budget: viết ĐỦ ~${target} từ (câu đang quá ngắn so với thời lượng cảnh)
-- over-budget: rút gọn về ~${target} từ, giữ ý chính
-- repetition: diễn đạt lại bằng góc nhìn/ví dụ KHÁC, không lặp cảnh trước${lang === 'vi' ? '\nXưng hô cố định "mình – các bạn".' : ''}
-Các câu (idx. [lỗi] "thoại"):
+      { role: 'system', content: 'You are a video script editor. Reply with pure JSON.' },
+      { role: 'user', content: `Video "${project.title}". Rewrite ONLY the flawed narration lines below (keep the meaning, fix the bracketed issue):
+- lang-leak: rewrite ENTIRELY in ${lang === 'vi' ? 'Vietnamese' : lang}
+- truncated: complete the cut-off sentence into a whole one
+- under-budget: write it UP to ~${target} words (the line is too short for its scene duration)
+- over-budget: tighten it DOWN to ~${target} words, keep the core idea
+- repetition: re-express it with a DIFFERENT angle/example, never repeating the previous scene${lang === 'vi' ? '\nUse the fixed Vietnamese forms of address "mình" (speaker) – "các bạn" (audience).' : ''}
+Lines (idx. [issue] "narration"):
 ${list}
-JSON: {"scenes":[{"idx":${flagged[0].idx},"voice":"..."}]} — đúng ${flagged.length} phần tử, idx giữ nguyên.` },
+JSON: {"scenes":[{"idx":${flagged[0].idx},"voice":"..."}]} — exactly ${flagged.length} elements, idx unchanged.` },
     ], { maxTokens: flagged.length * Math.max(130, target * 4) + 400, attempts: 2, temperature: 0.5, llm: ai.llm,
       validate: (p) => Array.isArray(p.scenes) && p.scenes.length > 0 });
 

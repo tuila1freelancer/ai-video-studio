@@ -91,10 +91,10 @@ export async function buildSeries({ suggestionId = null, seed = '', episodes = 5
   const memory = channel ? DB.getChannelMemory(channel.id) : { bible: '', topics: [] };
   const n = Math.min(10, Math.max(2, parseInt(episodes, 10) || 5));
   const parsed = await chatJson([
-    { role: 'system', content: 'Bạn là chiến lược gia nội dung YouTube. Trả về JSON thuần.' },
-    { role: 'user', content: `Từ chủ đề gốc: "${seedTopic}"${seedAngle ? ` (góc tiếp cận: ${seedAngle})` : ''}.${memory.bible ? `\nBối cảnh kênh: ${memory.bible.slice(0, 400)}` : ''}
-Thiết kế MỘT MINI-SERIES ${n} tập cho YouTube: mỗi tập đứng độc lập nhưng móc nối sang tập sau (open loop cuối tập), phủ các khía cạnh KHÁC NHAU của chủ đề, không trùng lặp.
-JSON: {"series":{"name":"tên series ≤60 ký tự","description":"1-2 câu","episodes":[{"order":1,"topic":"tiêu đề tập ≤80 ký tự","angle":"góc riêng của tập, 1 câu","hook":"câu mở 1 dòng"}]}}` },
+    { role: 'system', content: 'You are a YouTube content strategist. Reply with pure JSON.' },
+    { role: 'user', content: `From the seed topic: "${seedTopic}"${seedAngle ? ` (angle: ${seedAngle})` : ''}.${memory.bible ? `\nChannel context: ${memory.bible.slice(0, 400)}` : ''}
+Design ONE ${n}-episode YouTube MINI-SERIES in the same language as the seed topic: each episode stands alone but hooks into the next (an open loop at the end of each episode), covering DIFFERENT facets of the topic, no overlap.
+JSON: {"series":{"name":"series name ≤60 chars","description":"1-2 sentences","episodes":[{"order":1,"topic":"episode title ≤80 chars","angle":"the episode's unique angle, 1 sentence","hook":"one-line opener"}]}}` },
   ], { attempts: 2, llm, validate: (p) => Array.isArray(p.series?.episodes) && p.series.episodes.length >= 2 });
   const block = DB.suggestionBlockSet(channelId, { includePending: true });
   const eps = parsed.series.episodes

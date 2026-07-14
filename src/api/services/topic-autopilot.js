@@ -30,17 +30,17 @@ export async function suggestTopics({ channelId = null, niche = '', count = 8, a
       .map((t) => ({ topic: t.title, angle: '', source: t.source })), 'trends-only');
   }
   const parsed = await chatJson([
-    { role: 'system', content: 'Bạn là chiến lược gia nội dung YouTube. Trả về JSON thuần.' },
-    { role: 'user', content: `Kênh: ${channel?.name || 'kênh Việt'}.${memory.bible ? `\nBối cảnh kênh: ${memory.bible.slice(0, 500)}` : ''}${niche ? `\nNgách: ${niche}` : ''}
-Tín hiệu xu hướng hôm nay:\n${trends.slice(0, 20).map((t) => `- ${t.title}`).join('\n') || '(không lấy được — tự đề xuất theo ngách)'}
-Các chủ đề ĐÃ làm (tuyệt đối không lặp): ${[...past].slice(0, 25).join('; ') || '(chưa có)'}
-Đề xuất ${count} CHỦ ĐỀ VIDEO tiếng Việt đúng giọng kênh. Với MỖI chủ đề, chấm điểm khách quan:
-- viral: 1-10 (độ bám xu hướng / khả năng lan truyền hôm nay)
-- evergreen: 1-10 (giá trị xem lại lâu dài)
-- difficulty: 1-10 (độ khó sản xuất cho video đồ hoạ tự động: cần số liệu hiếm / hình phức tạp → điểm cao)
-- why: 1 câu ≤120 ký tự giải thích điểm số
-và 2 phương án tiêu đề click-worthy ≤70 ký tự (một thiên cảm xúc, một thiên lợi ích cụ thể).
-JSON: {"topics":[{"topic":"tiêu đề chủ đề ≤80 ký tự","angle":"góc tiếp cận 1 câu","source":"trend đã dựa vào hoặc 'evergreen'","score":{"viral":8,"evergreen":4,"difficulty":3,"why":"..."},"titles":["...","..."]}]}` },
+    { role: 'system', content: 'You are a YouTube content strategist. Reply with pure JSON.' },
+    { role: 'user', content: `Channel: ${channel?.name || 'Vietnamese channel'}.${memory.bible ? `\nChannel context: ${memory.bible.slice(0, 500)}` : ''}${niche ? `\nNiche: ${niche}` : ''}
+Today's trend signals:\n${trends.slice(0, 20).map((t) => `- ${t.title}`).join('\n') || '(unavailable — propose from the niche yourself)'}
+Topics ALREADY covered (never repeat any): ${[...past].slice(0, 25).join('; ') || '(none yet)'}
+Propose ${count} VIDEO TOPICS in Vietnamese, in the channel's voice (topic, angle, why and titles all in Vietnamese). For EACH topic, score it objectively:
+- viral: 1-10 (how strongly it rides today's trends / spread potential)
+- evergreen: 1-10 (long-term rewatch value)
+- difficulty: 1-10 (production difficulty for an automated motion-graphics video: rare data / complex visuals → higher)
+- why: 1 sentence ≤120 chars explaining the scores
+plus 2 click-worthy title options ≤70 chars (one emotional, one concrete-benefit).
+JSON: {"topics":[{"topic":"topic title ≤80 chars","angle":"one-sentence angle","source":"the trend it rides, or 'evergreen'","score":{"viral":8,"evergreen":4,"difficulty":3,"why":"..."},"titles":["...","..."]}]}` },
   ], { attempts: 2, llm, validate: (p) => Array.isArray(p.topics) && p.topics.length > 0 });
   const topics = parsed.topics
     .filter((t) => t?.topic && !past.has(fold(t.topic)))

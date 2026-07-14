@@ -179,14 +179,14 @@ async function llmPlan(scenes, title, llm) {
   const list = scenes.map((s, i) => `${i}: ${s.voice_text}`).join('\n');
   const tplDoc = Object.values(TEMPLATES).map((t) => `${t.id} — ${t.desc}`).join('\n');
   const out = await chat([
-    { role: 'system', content: 'Bạn là motion designer. Trả về JSON thuần.' },
-    { role: 'user', content: `Video: "${title}". Chọn template + props cho từng cảnh (giọng đọc bên dưới).
+    { role: 'system', content: 'You are a motion designer. Reply with pure JSON.' },
+    { role: 'user', content: `Video: "${title}". Pick a template + props for every scene (narration below).
 Templates:\n${tplDoc}
-Props theo template: hero-title{label,heading,sub,icon} · kinetic-statement{pre,heading,heading2,sub} · number-highlight{label,number,heading,sub} · list-reveal{label,heading,items:[{title}]} · card-compare{label,heading,items:[{title,sub,icon,tag}]} · timeline-steps{label,heading,items:[{title,icon}]} · mindmap-radial{label,heading,icon,items:[{title}]} · chat-demo{heading,messages:[{from:'user'|'ai',text}]} · terminal-scan{label,heading,lines,tag} · icon-focus{label,icon,heading,sub,chips} · dual-keyword{a,b,iconA,iconB,sub} · rating-criteria{label,heading,sub,count} · chapter-break{chapter,heading} · cta-outro{heading,sub,cta} · split-cascade{label,heading,accentWord,sub} · counter-stat{label,value(0-100),unit('%'|'x'|''),heading,sub} · orbit-3d{label,heading,icon,items:[{title}]} · physics-burst{label,heading,keyword,sub} · draw-diagram{label,heading,icon,items:[{title,icon}]} · bar-race{label,heading,items:[{title,value(0-100),suffix}]}.
-Icon hợp lệ: ${ICON_NAMES.join(', ')}.
-Quy tắc: cảnh 0 = hero-title; heading ≤ 38 ký tự, TIẾNG VIỆT, giật tít; đa dạng template; items ≤ 5.
-Xuất JSON {"plan":[{"i":0,"template":"...","props":{...}}, ...]} đúng ${scenes.length} phần tử.
-Cảnh:\n${list.slice(0, 7000)}` },
+Props per template: hero-title{label,heading,sub,icon} · kinetic-statement{pre,heading,heading2,sub} · number-highlight{label,number,heading,sub} · list-reveal{label,heading,items:[{title}]} · card-compare{label,heading,items:[{title,sub,icon,tag}]} · timeline-steps{label,heading,items:[{title,icon}]} · mindmap-radial{label,heading,icon,items:[{title}]} · chat-demo{heading,messages:[{from:'user'|'ai',text}]} · terminal-scan{label,heading,lines,tag} · icon-focus{label,icon,heading,sub,chips} · dual-keyword{a,b,iconA,iconB,sub} · rating-criteria{label,heading,sub,count} · chapter-break{chapter,heading} · cta-outro{heading,sub,cta} · split-cascade{label,heading,accentWord,sub} · counter-stat{label,value(0-100),unit('%'|'x'|''),heading,sub} · orbit-3d{label,heading,icon,items:[{title}]} · physics-burst{label,heading,keyword,sub} · draw-diagram{label,heading,icon,items:[{title,icon}]} · bar-race{label,heading,items:[{title,value(0-100),suffix}]}.
+Valid icons: ${ICON_NAMES.join(', ')}.
+Rules: scene 0 = hero-title; headings ≤ 38 chars, punchy, in the SAME LANGUAGE as the narration below; vary the templates; items ≤ 5.
+Output JSON {"plan":[{"i":0,"template":"...","props":{...}}, ...]} with exactly ${scenes.length} elements.
+Scenes:\n${list.slice(0, 7000)}` },
   ], { json: true, maxTokens: 4096, llm });
   const parsed = safeJson(out, null);
   if (!parsed || !Array.isArray(parsed.plan)) throw new Error('LLM plan invalid');

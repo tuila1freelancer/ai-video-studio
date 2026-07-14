@@ -15,25 +15,25 @@ function cleanHex(c, fallback) { return HEX.test(String(c || '').trim()) ? Strin
  */
 export async function generateStyleGuide({ topic = '', describe = '', llm = null } = {}) {
   if (!llmEnabled(llm)) return { guide: normalizeGuide(HF_DEFAULT_GUIDE), source: 'preset' };
-  const sys = 'Bạn là art director cho video motion graphics. Trả về JSON thuần, không giải thích.';
-  const usr = `Thiết kế "style guide" cho một video motion graphics.
-Chủ đề video: ${topic || '(không rõ)'}
-Yêu cầu phong cách từ người dùng: ${describe || '(tự do sáng tạo, sang trọng, hiện đại)'}
+  const sys = 'You are an art director for motion-graphics videos. Reply with pure JSON, no commentary.';
+  const usr = `Design a style guide for a motion-graphics video.
+Video topic: ${topic || '(unknown)'}
+The user's style request: ${describe || '(free rein — premium, modern)'}
 
-Trả về JSON đúng schema:
+Return JSON with exactly this schema:
 {
-  "name": "tên phong cách ngắn (tiếng Việt, ≤24 ký tự)",
-  "palette": { "bg": "#RRGGBB nền tối hoặc sáng", "bg2": "#RRGGBB nền phụ gần bg", "ink": "#RRGGBB chữ chính tương phản mạnh với bg", "muted": "#RRGGBB chữ phụ", "accents": ["#RRGGBB chủ đạo", "#RRGGBB bổ trợ", "#RRGGBB nhấn"] },
+  "name": "short style name in the same language as the user's request (≤24 chars)",
+  "palette": { "bg": "#RRGGBB dark or light background", "bg2": "#RRGGBB secondary background near bg", "ink": "#RRGGBB primary text with strong contrast on bg", "muted": "#RRGGBB secondary text", "accents": ["#RRGGBB primary", "#RRGGBB support", "#RRGGBB highlight"] },
   "displayFont": "oswald" | "montserrat" | "be vietnam pro",
   "motif": "mesh" | "bokeh" | "grid" | "particles" | "grain",
   "textTreatment": "chrome" | "neon" | "solid" | "outline",
   "motionPersonality": "kinetic" | "energetic" | "smooth" | "calm" | "punchy" | "slow-burn",
   "semantics": { "good": "#RRGGBB", "bad": "#RRGGBB", "warn": "#RRGGBB" },
-  "conceptMap": ["khái niệm thường gặp của chủ đề → công thức hình ảnh cụ thể (8-12 dòng, vd 'so sánh → SPLIT 2 cột, bên đạt viền good')"],
-  "hud": { "kickers": ["tiền tố label mono ngắn, vd //"], "statuses": ["chuỗi HUD trang trí góc màn, vd SYSTEM: ACTIVE"] },
-  "sceneRules": ["3-5 quy tắc cứng áp mọi cảnh, vd 'mỗi cảnh đúng 1 focal element'"]
+  "conceptMap": ["recurring concept of this topic → concrete visual recipe, in English (8-12 lines, e.g. 'comparison → SPLIT 2 columns, winning side gets the good border')"],
+  "hud": { "kickers": ["short mono label prefix, e.g. //"], "statuses": ["decorative corner HUD strings, e.g. SYSTEM: ACTIVE"] },
+  "sceneRules": ["3-5 hard rules applied to every scene, in English, e.g. 'exactly 1 focal element per scene'"]
 }
-Quy tắc: bg/ink phải đủ tương phản (WCAG AA); accents rực rỡ nổi trên bg; nền sáng thì textTreatment="solid"; semantics là màu NGỮ NGHĨA cố định (đúng/sai/cảnh báo) dùng nhất quán mọi cảnh; conceptMap phải bám DOMAIN của chủ đề video.`;
+Rules: bg/ink must clear WCAG AA contrast; accents must pop on bg; on a light bg use textTreatment="solid"; semantics are FIXED meaning colors (good/bad/warning) used consistently in every scene; conceptMap must be grounded in the DOMAIN of the video topic.`;
   try {
     const out = await chatJson([{ role: 'system', content: sys }, { role: 'user', content: usr }], { maxTokens: 1600, llm });
     const p = out.palette || {};

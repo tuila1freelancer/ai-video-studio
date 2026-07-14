@@ -153,7 +153,7 @@ test('prompt v2 + budget stage source anchors (P4/P5 intact, gate wired pre-seed
   assert.match(llm, /Math\.ceil\(sceneCount\s*\*\s*0\.7\)/, 'P4 anchor survives prompt v2');
   assert.match(llm, /Math\.ceil\(perCh\s*\*\s*0\.6\)/, 'P4 chapter anchor survives');
   assert.match(llm, /LANG_WPS\s*=\s*\{\s*vi:\s*4\.4/, 'P5 anchor survives');
-  assert.match(llm, /KỶ LUẬT THỜI LƯỢNG/, 'duration discipline block present');
+  assert.match(llm, /DURATION DISCIPLINE/, 'duration discipline block present');
   assert.match(llm, /MICRO-HOOK/, 'retention architecture present');
   assert.match(llm, /scriptBudgetOk\(p\.scenes, wordsPerScene, language\)/, 'gross-overrun re-ask wired into validate');
   assert.match(llm, /export function wordsForSlot/, 'canonical per-scene budget formula exported');
