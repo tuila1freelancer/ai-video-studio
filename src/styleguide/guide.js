@@ -128,19 +128,28 @@ export const SAMPLE_SPEC = {
   .hf-orb{position:absolute;border-radius:50%;filter:blur(2px);border:1px solid rgba(255,255,255,.14)}
   .o1{left:16%;top:24%;width:9%;padding-top:9%;background:radial-gradient(circle at 35% 30%,rgba(124,140,255,.5),rgba(124,140,255,.06))}
   .o2{left:78%;top:66%;width:6%;padding-top:6%;background:radial-gradient(circle at 35% 30%,rgba(34,211,238,.45),rgba(34,211,238,.05))}
+  .ring1{position:absolute;left:50%;top:44%;width:46%;padding-top:46%;transform:translate(-50%,-50%);border:2px dashed rgba(124,140,255,.20);border-radius:50%}
+  .ghost1{position:absolute;right:5%;top:10%;font-weight:800;font-size:200px;line-height:1;color:rgba(242,245,255,0.055);letter-spacing:-.02em}
+  .hud-st{position:absolute;left:4.5%;top:5%;font-size:15px;letter-spacing:.26em;color:rgba(138,147,173,0.5);text-transform:uppercase}
+  .hf-track{width:180px;height:4px;margin:10px auto 0;border-radius:2px;background:rgba(255,255,255,.10);overflow:hidden}
+  .hf-track i{display:block;width:100%;height:100%;transform-origin:0 50%;background:linear-gradient(90deg,#7C8CFF,#22D3EE)}
   #kw1{white-space:nowrap}
   `,
   html: `
   <div class="hf-layer hf-mid">
     <div class="hf-orb o1"></div>
     <div class="hf-orb o2"></div>
+    <div class="ring1"></div>
+    <div class="ghost1">×10</div>
   </div>
   <div class="hf-layer hf-near">
+    <div class="hud-st" id="hud1">SYSTEM · LIVE</div>
     <div class="hf-slot" style="left:50%;top:9%"><div class="hf-label" id="lb1">HYPERFRAME · DEMO</div></div>
     <div class="hf-center"><div class="hf-kw" id="kw1">TĂNG TỐC ×10</div></div>
     <div class="hf-slot" style="left:50%;top:68%"><div class="hf-stat" id="st1">
       <div class="hf-stat-v"><span id="st1v">0</span><span class="hf-stat-u">%</span></div>
       <div class="hf-stat-l">hiệu suất công việc</div>
+      <div class="hf-track"><i id="tk1"></i></div>
     </div></div>
     <div class="hf-slot" style="left:50%;top:24%"><div class="hf-iconbox" id="ic1">{{icon:rocket}}</div></div>
   </div>`,
@@ -148,6 +157,9 @@ export const SAMPLE_SPEC = {
 // camera completes its move in the FIRST half, then holds (no back-half drift)
 FX.camPush(tl, { scale: 1.055, profile: 'front' });
 FX.parallax(tl, '.hf-mid > *', { amp: 14 });
+// living mid-layer decor: the dashed ring spins slowly for the whole scene
+tl.to('.ring1', { rotation: 360, duration: DUR, ease: 'none' }, 0);
+FX.beat(tl, '#hud1', 0.5, DUR, { 'in': 'rise', out: 'none', drift: false, y: 10 });
 FX.beat(tl, '#lb1', 0.35, DUR, { 'in': 'rise', out: 'none', drift: false, y: 22 });
 // hero keyword: unhurried entrance, then SETTLES into the composition (build element —
 // the scene assembles around it; nothing whips away)
@@ -159,6 +171,9 @@ FX.beamSweep(tl, '.hf-beam', { at: 2.95 });
 // stat block: smooth long-tail pop on its spoken beat (no bounce), counter grows with the value
 FX.beat(tl, '#st1', 3.05, 4.8, { 'in': 'pop', ease: 'power3.out', out: 'settle' });
 FX.counterRoll(tl, '#st1v', 87, { at: 3.25, dur: 1.2, grow: true });
+// data texture: the mini progress track fills alongside the counter
+tl.set('#tk1', { scaleX: 0 }, 0);
+tl.to('#tk1', { scaleX: 0.87, duration: 1.2, ease: 'power2.out' }, 3.25);
 // closing accent: the icon joins the assembled composition and holds focus to the end
 FX.beat(tl, '#ic1', 4.9, DUR - 0.1, { 'in': 'rise', out: 'none' });
 FX.pulseGlow(tl, '#ic1', { at: 5.4, dur: 0.9, repeat: 1 });
