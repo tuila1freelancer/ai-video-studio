@@ -6,7 +6,7 @@
 // after TTS would silently desync audio from script).
 import * as DB from '../../db/index.js';
 import { logger } from '../../util/log.js';
-import { chatJson, llmEnabled, LANG_WPS } from '../../providers/llm.js';
+import { chatJson, llmEnabled, LANG_WPS, wordsForSlot } from '../../providers/llm.js';
 import { scoreScript } from '../../content/scorer.js';
 import { checkStop } from '../stop.js';
 import { op } from '../progress.js';
@@ -35,7 +35,7 @@ export async function runEditorial(ctx) {
 
   const lang = (config.language && config.language !== 'auto') ? config.language : 'vi';
   const wps = LANG_WPS[lang] || 3.0;
-  const target = Math.round(Math.max(3, config.sceneDuration || 7) * wps);
+  const target = wordsForSlot(config.sceneDuration || 7, lang);
   const flagged = scenes.filter((s) => flaggedIdx.includes(s.idx)).slice(0, 20);
   const list = flagged.map((s) => {
     const its = issues.filter((x) => x.idx === s.idx).map((x) => x.type).join('+');

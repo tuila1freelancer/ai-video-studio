@@ -359,7 +359,12 @@ function detectType() {
   let t = 'văn bản';
   if (/^https?:\/\/\S+$/i.test(v.split(/\s+/)[0]) && v.split(/\s+/).length <= 3) t = 'link 🔗';
   else if ((v.startsWith('{') || v.startsWith('['))) t = 'JSON';
-  $('#inputTypeHint').textContent = 'Nhận diện: ' + t;
+  // a long paste is almost certainly a finished script — suggest keeping it verbatim
+  const words = v.split(/\s+/).filter(Boolean).length;
+  const auto = $('#cfgDurMode')?.value === 'auto';
+  const hint = t === 'văn bản' && words >= 120 && !auto
+    ? ` · 📜 ${words} từ — kịch bản chi tiết? Bật thời lượng 🪄 Tự động để giữ NGUYÊN VĂN lời thoại` : '';
+  $('#inputTypeHint').textContent = 'Nhận diện: ' + t + hint;
 }
 async function fetchLink() {
   const url = $('#topic').value.trim().split(/\s+/)[0];

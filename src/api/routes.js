@@ -10,7 +10,7 @@ import { logger } from '../util/log.js';
 import { detectInputType, newId, ratioToSize, wordCount } from '../util/util.js';
 import { fetchLink } from '../providers/fetchlink.js';
 import { imageSearch } from '../providers/imagesearch.js';
-import { generateMetadata } from '../providers/llm.js';
+import { generateMetadata, wordsForSlot } from '../providers/llm.js';
 import * as Pipeline from '../pipeline/queue.js';
 import { resolveProjectConfig, maskSecrets, applyMaskedUpdate, ttsOverrideFor } from '../core/config.js';
 import { estimateCost } from '../core/pricing.js';
@@ -871,9 +871,10 @@ export function mountRoutes(app, { version }) {
 
   // duration estimate helper used by the UI
   r.post('/estimate', (req, res) => {
-    const { videoDuration = 60, sceneDuration = 7 } = req.body || {};
+    const { videoDuration = 60, sceneDuration = 7, language } = req.body || {};
     const scenes = Math.max(1, Math.round(videoDuration / sceneDuration));
-    const wordsPerScene = Math.round(sceneDuration * 2.6);
+    // same formula the script generator budgets with — the UI estimate must never disagree
+    const wordsPerScene = wordsForSlot(sceneDuration, (language && language !== 'auto') ? language : 'vi');
     res.json({ scenes, wordsPerScene, size: ratioToSize(req.body.aspectRatio || '9:16') });
   });
 

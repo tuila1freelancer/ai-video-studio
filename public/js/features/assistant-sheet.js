@@ -132,7 +132,7 @@ export function configSheet({ row, mode, due = null }) {
         }
         const v = (a) => dlg.querySelector(`[data-a=${a}]`)?.value || '';
         if (v('ar')) config.aspectRatio = v('ar');
-        if (v('vd')) config.videoDuration = +v('vd');
+        if (v('vd')) config.videoDuration = +v('vd'); config.durationMode = 'target'; // an explicit duration pick must beat an inherited 'auto'
         if (v('vm')) config.visualMode = v('vm');
         if (v('sub')) config.enableSubtitles = v('sub') === 'on';
         if (v('voice')) {

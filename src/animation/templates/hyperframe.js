@@ -150,7 +150,7 @@ const hyperframe = {
     // written for props.plannedDur. With the scenes-first time-warp (S.tplScale = planned/
     // real) the harness seeks the timeline at t*tplScale, so DUR must equal the authored
     // span (real*scale = planned) for end-of-scene positioning to stay correct.
-    const script = fx('var DUR = S.duration * (S.tplScale || 1);\n' + (p.script && String(p.script).trim() ? p.script : DEFAULT_AMBIENT));
+    const script = fx('var DUR = (typeof window!=="undefined" && window.__authoredDur!=null) ? window.__authoredDur : S.duration * (S.tplScale || 1);\n' + (p.script && String(p.script).trim() ? p.script : DEFAULT_AMBIENT));
     return { css, html, script };
   },
 };

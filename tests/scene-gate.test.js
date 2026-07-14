@@ -44,10 +44,12 @@ test('harness + FX run template layers in authored coordinates, captions on real
   };
   const html = buildSceneHtml(scene, { aspect_ratio: '9:16', title: 't' }, { visualMode: 'hyperframe' }, {});
   assert.match(html, /"tplScale":0\.8/, 'planned 8s over real 10s rides into S');
-  assert.match(html, /const st = t \* \(S\.tplScale \|\| 1\)/, '__seek warps template time');
+  // relocated: the single-ratio seek became the piecewise-capable __r2a map (per-word sync)
+  assert.match(html, /window\.__r2a = \(t\)/, 'real→authored map defined');
+  assert.match(html, /const st = window\.__r2a\(t\)/, '__seek warps template time through the map');
   assert.match(html, /window\.__drawBg\(t\); window\.__drawCaption\(t\); window\.__drawProgress\(t\)/, 'captions/progress stay on real t');
   assert.match(html, /var TSCALE = \(S\.tplScale \|\| 1\);/, 'FX prelude exposes the authored-coordinate scale');
-  assert.match(html, /var DUR = S\.duration \* \(S\.tplScale \|\| 1\);/, 'DUR equals the authored span');
+  assert.match(html, /var DUR = \(typeof window!=="undefined" && window\.__authoredDur!=null\) \? window\.__authoredDur/, 'DUR equals the authored span (warp-aware)');
   // a same-duration scene (or legacy props) carries scale 1
   const html2 = buildSceneHtml({ ...scene, props: { ...scene.props, plannedDur: undefined } },
     { aspect_ratio: '9:16', title: 't' }, { visualMode: 'hyperframe' }, {});

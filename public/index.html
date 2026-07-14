@@ -273,7 +273,10 @@
                 <div class="seg block" data-target="cfgAr"><button type="button" data-v="9:16">9:16</button><button type="button" data-v="16:9">16:9</button><button type="button" data-v="1:1">1:1</button><button type="button" data-v="4:5">4:5</button></div>
               </div>
               <div class="field">
-                <label class="label">Thời lượng video: <strong id="cfgVdL">1 phút</strong></label>
+                <label class="label">Chế độ thời lượng</label>
+                <select class="input hidden" id="cfgDurMode"><option value="target" selected>Theo mục tiêu</option><option value="auto">Tự động theo kịch bản</option></select>
+                <div class="seg block" data-target="cfgDurMode"><button type="button" data-v="target" title="Kịch bản được viết vừa khít thời lượng bạn chọn (±12%)">🎯 Mục tiêu</button><button type="button" data-v="auto" title="Dán kịch bản chi tiết — giữ NGUYÊN VĂN lời thoại, thời lượng video theo nội dung">🪄 Tự động theo kịch bản</button></div>
+                <label class="label" style="margin-top:8px">Thời lượng video: <strong id="cfgVdL">1 phút</strong></label>
                 <input type="range" class="range" id="cfgVd" min="15" max="1800" step="15" value="60">
                 <label class="label" style="margin-top:8px">Thời lượng cảnh: <strong id="cfgSdL">7 giây</strong></label>
                 <input type="range" class="range" id="cfgSd" min="4" max="12" step="1" value="7">

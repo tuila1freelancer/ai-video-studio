@@ -1,0 +1,127 @@
+// Quality core: beat-anchored time warp (per-word AV sync), duration-fit budget gate, and
+// the auto-duration verbatim script mode.
+import './_env.mjs';
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { beatWarpMap, warpTime } from '../src/animation/timewarp.js';
+import { auditBudget, trimToBudget } from '../src/pipeline/stages/budget.js';
+import { LANG_WPS } from '../src/providers/llm.js';
+
+const cues = (words) => [{ start: words[0][1], end: words[words.length - 1][1] + 0.4, text: words.map((w) => w[0]).join(' '),
+  words: words.map(([word, start]) => ({ word, start, end: start + 0.3 })) }];
+
+test('beatWarpMap: pins each beat to the real spoken word; endpoints span the durations', () => {
+  // authored: 8s estimate, beats at 2.0 ("tăng giá") and 5.0 ("87%")
+  const beats = [
+    { t0: 2.0, t1: 3.5, text: 'tăng giá', kind: 'keyword' },
+    { t0: 5.0, t1: 6.5, text: '87%', kind: 'number' },
+  ];
+  // real voice: 10s, the same words land at 3.0s and 7.4s
+  const real = cues([['Muốn', 0.3], ['tăng', 3.0], ['giá', 3.4], ['phải', 4.2], ['nhớ', 5.0], ['con', 6.4], ['số', 6.9], ['87%', 7.4]]);
+  const pts = beatWarpMap(beats, 8, 10, real);
+  assert.ok(pts, 'map built');
+  assert.deepEqual(pts[0], [0, 0]);
+  assert.deepEqual(pts[pts.length - 1], [8, 10]);
+  // beat 1: authored 2.0 → real 3.0-0.12 lead
+  const b1 = pts.find((p) => p[0] === 2);
+  assert.ok(b1 && Math.abs(b1[1] - 2.88) < 0.001, `beat 1 pinned to the real word (${JSON.stringify(b1)})`);
+  const b2 = pts.find((p) => p[0] === 5);
+  assert.ok(b2 && Math.abs(b2[1] - 7.28) < 0.001, 'number beat matched verbatim (captions keep digits)');
+  // the in-page inverse: at the real word moment, the authored timeline sits exactly on the beat
+  assert.ok(Math.abs(warpTime(2.88, pts) - 2.0) < 0.001, 'seek at real word time hits authored beat time');
+  assert.ok(Math.abs(warpTime(7.28, pts) - 5.0) < 0.001);
+  assert.equal(warpTime(11, pts), 8, 'past the end holds the authored endpoint');
+});
+
+test('beatWarpMap: degrades safely — no srt, no beats, non-monotone anchors, crazy slopes', () => {
+  assert.equal(beatWarpMap([], 8, 10, []), null, 'nothing to anchor');
+  assert.equal(beatWarpMap([{ t0: 2, t1: 3, text: '', kind: 'phrase' }], 8, 10, cues([['xin', 1]])), null, 'phrase beats carry no text');
+  // word appears BEFORE the previous anchor in real time → dropped, not zig-zag
+  const beats = [
+    { t0: 2, t1: 3, text: 'một', kind: 'keyword' },
+    { t0: 5, t1: 6, text: 'hai', kind: 'keyword' },
+  ];
+  const shuffled = cues([['hai', 1.0], ['một', 6.0]]); // reversed order in real speech
+  const pts = beatWarpMap(beats, 8, 10, shuffled);
+  if (pts) for (let i = 1; i < pts.length; i++) {
+    assert.ok(pts[i][0] > pts[i - 1][0] && pts[i][1] > pts[i - 1][1], 'strictly increasing on both axes');
+  }
+  // a slope beyond [0.4, 2.5] must not survive
+  const extreme = beatWarpMap([{ t0: 7.5, t1: 8, text: 'cuối', kind: 'keyword' }], 8, 10, cues([['cuối', 0.5]]));
+  assert.equal(extreme, null, 'an anchor demanding a 15x local stretch is rejected (endpoints only → null)');
+});
+
+test('auditBudget + trimToBudget: a 50s script for a 35s order is cut to tolerance at sentence boundaries', () => {
+  const wps = LANG_WPS.vi;
+  const mk = (n, idx) => ({ id: 's' + idx, idx, voice_text: Array.from({ length: n }, (_, i) => `Câu thứ ${i + 1} có đúng bảy từ nhé bạn.`).join(' ') });
+  // 5 scenes × 5 sentences × 8 words = 200 words ≈ 48s narration vs a 35s order
+  const scenes = Array.from({ length: 5 }, (_, i) => mk(5, i));
+  const opts = { videoDuration: 35, sceneDuration: 7, lang: 'vi', wps };
+  const before = auditBudget(scenes, opts);
+  assert.ok(before.drift > 0.12, `starts over tolerance (${(before.drift * 100).toFixed(0)}%)`);
+  const trims = trimToBudget(scenes, opts);
+  assert.ok(trims.size > 0, 'something was trimmed');
+  const after = scenes.map((s) => ({ ...s, voice_text: trims.get(s.id) ?? s.voice_text }));
+  const audit = auditBudget(after, opts);
+  assert.ok(audit.drift <= 0.12 + 0.001, `lands within tolerance (${(audit.drift * 100).toFixed(0)}%)`);
+  for (const [, v] of trims) {
+    assert.match(v.trim(), /[.!?…]$/, 'trims cut at sentence boundaries only');
+    assert.ok(v.trim().length > 0, 'never trims a scene to nothing');
+  }
+});
+
+test('quota consistency: a fully prompt-compliant script audits INSIDE tolerance', async () => {
+  // the review-confirmed bug: quotaWords derived from sceneDuration*wps while estSec divides
+  // by wps*0.95 and adds the pad — a perfect script audited 15-21% over and got trimmed.
+  const { wordsForSlot } = await import('../src/providers/llm.js');
+  const wps = LANG_WPS.vi;
+  const quota = wordsForSlot(7, 'vi');
+  const word = 'chữ ';
+  const scenes = Array.from({ length: 5 }, (_, i) => ({ id: 'c' + i, idx: i, voice_text: (word.repeat(quota).trim() + '.') }));
+  const a = auditBudget(scenes, { videoDuration: 35, sceneDuration: 7, lang: 'vi', wps });
+  assert.ok(Math.abs(a.drift) <= 0.12, `compliant script drift ${(a.drift * 100).toFixed(1)}% must sit inside ±12%`);
+  assert.equal(a.quotaWords, quota, 'audit quota equals the prompt budget formula');
+});
+
+test('trimToBudget never cuts below one sentence per scene', () => {
+  const scenes = [{ id: 'a', idx: 0, voice_text: 'Chỉ có một câu duy nhất ở đây thôi.' }];
+  const trims = trimToBudget(scenes, { videoDuration: 1, sceneDuration: 7, lang: 'vi', wps: LANG_WPS.vi });
+  assert.equal(trims.size, 0, 'a one-sentence scene is untouchable even when over budget');
+});
+
+test('auto-duration verbatim mode: pasted script survives word-for-word, offline', async () => {
+  const { generateScript } = await import('../src/providers/llm.js');
+  const paste = Array.from({ length: 15 }, (_, i) => `Đây là câu số ${i + 1} trong kịch bản chi tiết mà chủ kênh đã soạn sẵn từ trước.`).join(' ');
+  const out = await generateScript({
+    topic: paste, inputType: 'text', fetched: null,
+    config: { durationMode: 'auto', videoDuration: 15, sceneDuration: 7, language: 'vi' }, ai: null,
+  });
+  assert.ok(out.scenes.length >= 4, `content-driven scene count (got ${out.scenes.length}), not videoDuration/sceneDuration = 2`);
+  const rebuilt = out.scenes.map((s) => s.voice).join(' ').replace(/\s+/g, ' ').trim();
+  assert.equal(rebuilt, paste.replace(/\s+/g, ' ').trim(), 'narration is byte-identical to the paste');
+  // a SHORT auto-mode topic falls back to target behavior (offline generator)
+  const short = await generateScript({
+    topic: 'Ba mẹo tiết kiệm', inputType: 'text', fetched: null,
+    config: { durationMode: 'auto', videoDuration: 14, sceneDuration: 7, language: 'vi' }, ai: null,
+  });
+  assert.ok(short.scenes.length >= 1, 'short topic still produces a script');
+});
+
+test('prompt v2 + budget stage source anchors (P4/P5 intact, gate wired pre-seed)', () => {
+  const llm = readFileSync(new URL('../src/providers/llm.js', import.meta.url), 'utf8');
+  assert.match(llm, /Math\.ceil\(sceneCount\s*\*\s*0\.7\)/, 'P4 anchor survives prompt v2');
+  assert.match(llm, /Math\.ceil\(perCh\s*\*\s*0\.6\)/, 'P4 chapter anchor survives');
+  assert.match(llm, /LANG_WPS\s*=\s*\{\s*vi:\s*4\.4/, 'P5 anchor survives');
+  assert.match(llm, /KỶ LUẬT THỜI LƯỢNG/, 'duration discipline block present');
+  assert.match(llm, /MICRO-HOOK/, 'retention architecture present');
+  assert.match(llm, /scriptBudgetOk\(p\.scenes, wordsPerScene, language\)/, 'gross-overrun re-ask wired into validate');
+  assert.match(llm, /export function wordsForSlot/, 'canonical per-scene budget formula exported');
+  const runner = readFileSync(new URL('../src/pipeline/runner.js', import.meta.url), 'utf8');
+  const iBudget = runner.indexOf('runBudgetFit(ctx)');
+  const iSeed = runner.indexOf('seedEstimatedTiming(ctx)');
+  assert.ok(iBudget > 0 && iSeed > iBudget, 'budget fit runs BEFORE the timing seed');
+  const budget = readFileSync(new URL('../src/pipeline/stages/budget.js', import.meta.url), 'utf8');
+  assert.match(budget, /durationMode === 'auto'\) return/, 'auto mode is never trimmed');
+  assert.match(budget, /input_type === 'json'\) return/, 'pasted JSON is never trimmed');
+});
