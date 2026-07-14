@@ -82,7 +82,7 @@ MANDATORY STRUCTURE of every scene script:
 HARD TIMING RULES (a frame is only rendered for t in 0..DUR — anything scheduled outside is invisible):
 - EVERY tween's (startTime + duration) must be ≤ DUR. The final tween should END at ≈ DUR (climax fill), never past it. Before finishing, mentally check the latest-ending tween is ≤ DUR.
 - Match the beat times EXACTLY — do not push a beat later than its given t0, or it may fall past DUR and never show.
-- NO DEAD AIR: from 0.6s to DUR−0.3s at least one meaning-carrying element (the hero or a settled BUILD element) must be on screen at opacity ≥0.6. When beats are far apart, bridge the gap: settle the previous element (out:'settle') instead of exiting it — a frame of bare background mid-scene is a rejected defect.
+- NO DEAD AIR: from 1.2s to DUR−0.3s at least one meaning-carrying element (the hero or a settled BUILD element) must be on screen at opacity ≥0.6 — checked BETWEEN beats. When beats are far apart, bridge the gap: settle the previous element (out:'settle') instead of exiting it — a frame of bare background mid-scene is a rejected defect.
 - SHORT scene (DUR < 5s): keep it tight — FEWER beats (1–2), not faster motion; entrances still ≥0.4s (drop a beat before you rush one), no long loops; the whole story must land inside DUR.
 - LONG scene (DUR > 9s): space beats out and add ambient drift between them so the screen never sits static.
 
