@@ -212,6 +212,7 @@ Rationale for each layer:
 | Trend autopilot + calendar + dashboard | `providers/trends.js` (RSS/Atom + feed packs) · `api/services/topic-autopilot.js` · `db/repositories/calendar.js` · `features/autopilot.js` |
 | Content assistant v2 (history + config sheet + series + plan-week) | `db/repositories/suggestions.js` · `api/services/assistant.js` · `features/{assistant-sheet,assistant-history}.js` |
 | Tests + CI | `tests/` (named test per P1–P16) · `.github/workflows/ci.yml` · `npm test` |
+| HyperFrames adoption (doctrine + gates) | `docs/reference/hyperframes-notes.md` (source map) · `hyperframe/lint.js` (static pre-render gate) · `hyperframe/validate.js` (persistence tiering, occlusion, beat adherence) · `animation/templates/_shared.js` (zoomThrough/jitter/targetZoom/dofBlur/streakIn/iconSpin, camPush `profile:'front'`) · `animation/harness.js` `__fitText` · `pipeline/direction.js` (roles + choreography verbs + blueprint layouts) · `pipeline/render.js` `planTransitions` (role-driven cuts/blends; `config.transitions` = smart mode, legacy uniform fade when no roles) · `GET /projects/:id/contact-sheet` |
 
 ## 6. "Want to change X → go to file Y" table (will be updated to the new structure after refactor)
 
