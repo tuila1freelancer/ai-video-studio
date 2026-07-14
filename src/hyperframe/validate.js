@@ -196,7 +196,7 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
     const T = [...times].filter((t) => t >= 0 && t <= dur).sort((a, c) => a - c);
     const narrWords = narrationWordSet(narration);
     const narrLang = detectLang(narration || '');
-    let anyVisible = false, endStrong = false, heroFrac = 0, deadAt = null;
+    let anyVisible = false, endStrong = false, heroFrac = 0, unionFrac = 0, deadAt = null;
     // Every geometry accumulator carries an occurrence count `n` — persistence tiering
     // (heldAcrossSamples) later drops one-sample transients instead of re-asking on them.
     const off = new Map(), sub = new Map(), bad = new Map(), ovl = new Map(), lowc = new Map(), clip = new Map(), occ = new Map();
@@ -218,9 +218,20 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
       // mid-scene deadness: judged ONLY between beats (gap centers) — sampling an entrance
       // moment would contradict the slow-pacing contract (0.5–0.9s eases). After the first
       // entrance window (1.2s), SOMETHING substantial or visibly entering must be on screen.
-      if (deadAt == null && gapTimes.has(t) && t > 1.2 && t < dur - 0.3
+      if (deadAt == null && gapTimes.has(t) && t > 1.4 && t < dur - 0.3
         && !els.some((e) => e.o >= 0.25 && e.w * e.h >= 0.015 * W * H)) deadAt = t;
       for (const e of vis) heroFrac = Math.max(heroFrac, e.w / W);
+      // combined horizontal coverage (merged x-intervals): a split composition (object one
+      // side, text column the other) fills the frame without any single dominant element
+      const iv = vis.filter((e) => e.o > 0.35).map((e) => [Math.max(0, e.x), Math.min(W, e.x + e.w)])
+        .filter(([a, b]) => b > a).sort((a, b) => a[0] - b[0]);
+      let cov = 0, curA = -1, curB = -1;
+      for (const [a, b] of iv) {
+        if (a > curB) { cov += Math.max(0, curB - curA); curA = a; curB = b; }
+        else curB = Math.max(curB, b);
+      }
+      cov += Math.max(0, curB - curA);
+      unionFrac = Math.max(unionFrac, cov / W);
       // a scene must not fade to (near) nothing at the end — the last frame should still carry a hero
       if (t >= endT - 0.001 && els.some((e) => e.o > 0.35 && e.w > 0.06 * W)) endStrong = true;
       for (const e of vis) {
@@ -234,9 +245,11 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
     if (!anyVisible) defects.push('no element is ever visible — the scene renders empty. Make each beat element visible during its window.');
     else if (deadAt != null) defects.push(`the frame goes empty at ${deadAt.toFixed(1)}s mid-scene — nothing substantial is on screen between beats. Keep the composition alive: give earlier BUILD elements out:'settle' (they stay dimmed) or hold the previous element until the next one enters; the screen must never drop back to bare decor mid-scene.`);
     else if (!endStrong) defects.push(`the scene ends nearly empty (nothing prominent is on screen at ${endT.toFixed(1)}s) — keep the final keyword (or a climax element) clearly visible through the last second so the ending lands.`);
-    // timid composition is a quality defect (cosmetic): the hero must dominate the frame
-    if (anyVisible && heroFrac > 0 && heroFrac < 0.42) {
-      defects.push(`the scene reads timid — the widest element ever visible spans only ${Math.round(heroFrac * 100)}% of the frame width. Scale the hero element up to DOMINATE (~55-75% of the width): bigger type, bigger main graphic.`);
+    // timid composition is a quality defect (cosmetic): the frame must be FILLED — either
+    // one dominant hero (single-element width) or a split composition whose pieces together
+    // cover most of the width (16:9 split layouts legitimately have no single wide element).
+    if (anyVisible && heroFrac > 0 && heroFrac < 0.42 && unionFrac < 0.58) {
+      defects.push(`the scene reads timid — the widest element spans ${Math.round(heroFrac * 100)}% and all elements together cover only ${Math.round(unionFrac * 100)}% of the frame width. Scale the hero up to DOMINATE (~55-75%) or spread the composition so its pieces fill the frame.`);
     }
     // beat adherence: compare the snapshot before each beat with one after its entrance
     // window — some element must ENTER (newly visible) or take EMPHASIS (opacity/size jump).
