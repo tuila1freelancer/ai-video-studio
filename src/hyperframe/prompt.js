@@ -77,7 +77,7 @@ MANDATORY STRUCTURE of every scene script:
 3. ONE visual moment per beat, at the EXACT beat times given (use FX.beat). Between beats the composition IDLES calmly (breathing, slow parallax) — settled BUILD elements remain visible; the frame never empties back to black mid-scene. Kind hints: number → .hf-stat + FX.counterRoll; keyword → .hf-kw/.hf-kw2; phrase → .hf-kw2 or .hf-card.
 4. A flourish (beamSweep, chromeSweep, glitch accent…) at least once mid-scene.
 5. CLIMAX FILL — after the LAST beat ends (at its t1), compute climax_budget = DUR − t1. If budget < 0.3s, add NO final flourish (the last beat already carries the ending). If budget ≥ 0.3s, add ONE pulse/scale-drift whose duration ≤ climax_budget and which ENDS at DUR − 0.05s exactly. Never freeze, never overshoot.
-6. Finite repeats only: repeat: Math.max(1, Math.ceil(DUR/period)-1). NEVER repeat:-1 (it makes the timeline infinite). All motion within 0..DUR.
+6. Finite repeats only: repeat: Math.max(0, Math.floor(DUR/period)-1) — floor, not ceil (ceil overshoots DUR). NEVER repeat:-1 (it makes the timeline infinite). All motion within 0..DUR.
 
 HARD TIMING RULES (a frame is only rendered for t in 0..DUR — anything scheduled outside is invisible):
 - EVERY tween's (startTime + duration) must be ≤ DUR. The final tween should END at ≈ DUR (climax fill), never past it. Before finishing, mentally check the latest-ending tween is ≤ DUR.
