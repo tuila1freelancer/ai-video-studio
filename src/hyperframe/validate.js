@@ -147,10 +147,14 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
     // gap centers between consecutive beats (and after the last beat): the exact places a
     // scene goes dead when every beat FLASH-exits and the next one is late
     const sb = [...beats].sort((a, c) => (a.t0 || 0) - (c.t0 || 0));
+    const gapTimes = new Set([+(dur * 0.5).toFixed(2)]);
     for (let i = 0; i < sb.length; i++) {
       const nextStart = i + 1 < sb.length ? sb[i + 1].t0 : dur;
       const gapMid = ((sb[i].t1 || 0) + nextStart) / 2;
-      if (gapMid > sb[i].t1 && gapMid < nextStart) times.add(+Math.min(dur - 0.05, gapMid).toFixed(2));
+      if (gapMid > sb[i].t1 && gapMid < nextStart) {
+        const gt = +Math.min(dur - 0.05, gapMid).toFixed(2);
+        times.add(gt); gapTimes.add(gt);
+      }
     }
     const T = [...times].filter((t) => t >= 0 && t <= dur).sort((a, c) => a - c);
     const narrWords = narrationWordSet(narration);
@@ -163,10 +167,11 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
       for (const p of lowContrast) { if (!lowc.has(p.txt)) lowc.set(p.txt, { t, ...p }); }
       const vis = els.filter((e) => e.o > 0.15);
       if (vis.length) anyVisible = true;
-      // mid-scene deadness: inside the scene's body, SOMETHING substantial must be on screen
-      // (a settled build element or the hero) — a frame of only ghost decor reads as a cut
-      if (deadAt == null && t > 0.6 && t < dur - 0.3
-        && !els.some((e) => e.o >= 0.5 && e.w * e.h >= 0.02 * W * H)) deadAt = t;
+      // mid-scene deadness: judged ONLY between beats (gap centers) — sampling an entrance
+      // moment would contradict the slow-pacing contract (0.5–0.9s eases). After the first
+      // entrance window (1.2s), SOMETHING substantial or visibly entering must be on screen.
+      if (deadAt == null && gapTimes.has(t) && t > 1.2 && t < dur - 0.3
+        && !els.some((e) => e.o >= 0.25 && e.w * e.h >= 0.015 * W * H)) deadAt = t;
       for (const e of vis) heroFrac = Math.max(heroFrac, e.w / W);
       // a scene must not fade to (near) nothing at the end — the last frame should still carry a hero
       if (t >= endT - 0.001 && els.some((e) => e.o > 0.35 && e.w > 0.06 * W)) endStrong = true;
