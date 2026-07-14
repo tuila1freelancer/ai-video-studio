@@ -593,6 +593,46 @@ export function mountRoutes(app, { version }) {
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
+  // 📸 Contact sheet — the mid-frame of every scene tiled into one JPEG: approve the whole
+  // storyboard at a glance at the scene gate, or eyeball the final render. Rendered clips
+  // contribute their REAL frame; unrendered scenes render a live preview frame. Cached by a
+  // scene-set signature (?fresh=1 forces a rebuild).
+  r.get('/projects/:id/contact-sheet', async (req, res) => {
+    try {
+      const p = DB.getProject(req.params.id);
+      if (!p) return res.status(404).json({ error: 'not found' });
+      const scenes = DB.getScenes(p.id).filter((s) => s.template || s.image_path || s.video_path);
+      if (!scenes.length) return res.status(400).json({ error: 'chưa có cảnh nào để chụp' });
+      const { createHash } = await import('node:crypto');
+      const dir = join(DB.projectDirFor(p.id), 'contact');
+      mkdirSync(dir, { recursive: true });
+      const sig = createHash('md5').update(JSON.stringify(scenes.map((s) =>
+        [s.id, s.video_path || '', s.status, s.duration, s.template || '']))).digest('hex').slice(0, 10);
+      const out = join(dir, `sheet-${sig}.jpg`);
+      if (!existsSync(out) || req.query.fresh) {
+        const { ffmpeg } = await import('../media/ffmpeg.js');
+        const { previewSceneFrame } = await import('../animation/index.js');
+        for (let i = 0; i < scenes.length; i++) {
+          const sc = scenes[i];
+          const frame = join(dir, `f-${String(i).padStart(3, '0')}.jpg`);
+          const mid = Math.max(0.4, (sc.duration || 6) / 2);
+          if (sc.video_path && existsSync(sc.video_path)) {
+            await ffmpeg(['-ss', String(mid), '-i', sc.video_path, '-frames:v', '1', '-q:v', '4', frame]);
+          } else {
+            await previewSceneFrame(sc, p, p.config || {}, { outPath: frame, t: mid });
+          }
+        }
+        const cols = scenes.length <= 4 ? 2 : scenes.length <= 9 ? 3 : 4;
+        // tile pads any short final row with the background color, so cols×rows never has to
+        // match the scene count exactly
+        await ffmpeg(['-framerate', '1', '-i', join(dir, 'f-%03d.jpg'), '-vf',
+          `scale=480:-2,tile=${cols}x${Math.ceil(scenes.length / cols)}:padding=6:color=0x0B0B12`,
+          '-frames:v', '1', '-q:v', '4', out]);
+      }
+      res.sendFile(out);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
   // Scene Studio: the scene's EFFECTIVE template source for the direct-HTML editor
   r.get('/scenes/:id/template-source', async (req, res) => {
     try {
