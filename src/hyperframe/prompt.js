@@ -153,7 +153,7 @@ SCENE ${idx + 1}/${total} — CANVAS ${w}x${h} CSS px (${vertical ? 'vertical 9:
 (The page body is EXACTLY ${w}x${h}px and is upscaled LOSSLESSLY to the output resolution — author every absolute px against THIS canvas; never assume any other resolution.)
 NARRATION (voice, shown as karaoke subtitles at the bottom — do NOT repeat it verbatim on screen):
 "${(scene.voice_text || '').trim()}"
-VISUAL CONCEPT (art-director brief — when it is structured [LAYOUT]/[ENVIRONMENT]/[MAIN FOCUS]/[CAMERA]/[MOTION FLOW]/[LIGHTING & FX]/[MOOD], FOLLOW it: build ITS main object as your near-layer hero, honor its layout pattern, camera and entry/idle/exit flow — the beat times below still rule WHEN things appear):
+VISUAL CONCEPT (art-director brief — when it is structured [ROLE]/[LAYOUT]/[ENVIRONMENT]/[MAIN FOCUS]/[CAMERA]/[MOTION FLOW]/[CHOREOGRAPHY]/[LIGHTING & FX]/[MOOD], FOLLOW it: build ITS main object as your near-layer hero, honor its layout pattern, camera, entry/idle/exit flow AND each element's choreography VERB (SLAMS ≠ FLOATS ≠ TYPES ON — the verb decides the ease and energy); a [ROLE] titlecard/cta brief means restraint, a hook brief means maximum striking power — the beat times below still rule WHEN things appear):
 "${(scene.visual_prompt || '').trim() || '(design freely from the narration keywords)'}"
 
 CINEMATIC DIRECTION:
