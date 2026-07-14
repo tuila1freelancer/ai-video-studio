@@ -168,6 +168,19 @@ test('motion doctrine v4: new FX vocabulary + smooth/sequential/no-breathing pro
   assert.match(sample, /FX\.jitter/, 'worked example models jitter aliveness');
 });
 
+test('blueprint layouts + narrative roles wired into the direction pass', () => {
+  const d = readFileSync(new URL('../src/pipeline/direction.js', import.meta.url), 'utf8');
+  for (const l of ['kinetic-type-beats', 'ticker-takeover', 'overwhelm-surround', 'pan-stations', 'titlecard-reveal']) {
+    assert.ok(d.includes(`'${l}'`), `layout ${l} present`);
+  }
+  assert.match(d, /ROLE → LAYOUT menu/, 'role→layout menu present');
+  assert.match(d, /\[CHOREOGRAPHY\]/, 'per-element motion verbs demanded');
+  assert.match(d, /at least ONE titlecard-reveal/, 'breather rule present');
+  assert.match(d, /\[ROLE\] \$\{role\}/, 'role rides at the top of the brief');
+  const p = readFileSync(new URL('../src/hyperframe/prompt.js', import.meta.url), 'utf8');
+  assert.match(p, /\[CHOREOGRAPHY\]/, 'codegen honors the choreography section');
+});
+
 test('prompt v2 + budget stage source anchors (P4/P5 intact, gate wired pre-seed)', () => {
   const llm = readFileSync(new URL('../src/providers/llm.js', import.meta.url), 'utf8');
   assert.match(llm, /Math\.ceil\(sceneCount\s*\*\s*0\.7\)/, 'P4 anchor survives prompt v2');
