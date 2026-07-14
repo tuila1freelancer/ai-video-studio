@@ -101,9 +101,32 @@ const RUNTIME = `
     pbar.style.width = (p*100).toFixed(3) + '%';
   };
 
+  // fitText guard-rail (ported idea: HyperFrames fitTextFontSize): a single-line label whose
+  // box can't hold its text — or that outgrows 88% of the frame — shrinks its font in 2px
+  // steps to a floor, then may wrap as the last resort. Mechanical insurance against
+  // truncated/overflowing labels, independent of what the LLM authored. Runs BEFORE the
+  // template script builds so SplitText measures the final glyph sizes. hf-* classes are
+  // hyperframe vocabulary, so heuristic templates render untouched.
+  window.__fitText = () => {
+    const maxW = 0.88 * (S.w || innerWidth);
+    const z = (typeof S.zoom === 'number' && S.zoom > 0) ? S.zoom : 1;
+    for (const el of document.querySelectorAll('.hf-kw, .hf-kw2, .hf-sub, .hf-label, .hf-chip, .hf-stat-l')) {
+      if (!el.textContent || !el.textContent.trim()) continue;
+      const cs = getComputedStyle(el);
+      let size = parseFloat(cs.fontSize) || 0;
+      if (!size) continue;
+      const floor = Math.max(12, size * 0.55);
+      const over = () => (el.scrollWidth - el.clientWidth > 3) || (el.getBoundingClientRect().width / z > maxW);
+      let guard = 40;
+      while (over() && size - 2 >= floor && guard-- > 0) { size -= 2; el.style.fontSize = size + 'px'; }
+      if (over() && cs.whiteSpace === 'nowrap') el.style.whiteSpace = 'normal'; // wrapping beats clipping
+    }
+  };
+
   // ---- init + seek ----
   window.__init = async () => {
     try { if (document.fonts && document.fonts.ready) await document.fonts.ready; } catch(e){}
+    try { window.__fitText(); } catch(e){}
     // GSAP template timeline: build AFTER fonts (SplitText measures glyphs) with seeded randomness.
     window.__tplErr = null;
     if (window.gsap && window.__tplScript) {

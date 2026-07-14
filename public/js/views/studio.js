@@ -246,6 +246,10 @@ async function renderSceneGate(p) {
   const show = p && p.status === 'scenes';
   bar.classList.toggle('hidden', !show);
   if (!show) return;
+  const sheetBtn = $('#btnContactSheet');
+  if (sheetBtn) {
+    sheetBtn.onclick = () => window.open(`/api/projects/${p.id}/contact-sheet`, '_blank');
+  }
   try {
     const est = await api.get(`/projects/${p.id}/voice-estimate`);
     const cost = est.credits != null ? `≈ ${est.credits.toLocaleString('vi-VN')} credits LarVoice`
@@ -263,6 +267,8 @@ function renderFinal() {
     $('#finalVideo').src = fileUrl(p.video_path);
     $('#btnDownload').href = fileUrl(p.video_path);
     $('#btnDownloadSrt').href = '/api/projects/' + p.id + '/srt';
+    const sheet = $('#btnFinalContactSheet');
+    if (sheet) sheet.href = '/api/projects/' + p.id + '/contact-sheet';
   }
 }
 export function renderMeta() {
