@@ -125,7 +125,18 @@ const RUNTIME = `
 
   // ---- init + seek ----
   window.__init = async () => {
-    try { if (document.fonts && document.fonts.ready) await document.fonts.ready; } catch(e){}
+    // Force-load EVERY declared face — all families, weights AND unicode-range subsets.
+    // fonts.ready only covers loads already TRIGGERED by rendered text; a subset/weight
+    // first used mid-timeline (typeOn/scramble content, a caption cue with a new diacritic)
+    // would otherwise load lazily and SWAP mid-video — the "wrong font for a beat" flash.
+    try {
+      if (document.fonts && document.fonts.forEach) {
+        const loads = [];
+        document.fonts.forEach((f) => { try { loads.push(f.load()); } catch(e){} });
+        await Promise.allSettled(loads);
+      }
+      if (document.fonts && document.fonts.ready) await document.fonts.ready;
+    } catch(e){}
     try { window.__fitText(); } catch(e){}
     // GSAP template timeline: build AFTER fonts (SplitText measures glyphs) with seeded randomness.
     window.__tplErr = null;

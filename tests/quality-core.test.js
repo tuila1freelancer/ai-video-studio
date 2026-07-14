@@ -168,6 +168,21 @@ test('motion doctrine v4: new FX vocabulary + smooth/sequential/no-breathing pro
   assert.match(sample, /FX\.jitter/, 'worked example models jitter aliveness');
 });
 
+test('font-swap flash fix: every face force-loaded before the timeline builds, no font-display swap', () => {
+  // fonts.ready only waits for loads already TRIGGERED — 23/32 faces stayed unloaded and
+  // could swap in mid-video (measured in Chrome). __init must force-load all of them.
+  const h = readFileSync(new URL('../src/animation/harness.js', import.meta.url), 'utf8');
+  assert.match(h, /document\.fonts\.forEach\(\(f\) => \{ try \{ loads\.push\(f\.load\(\)\); \}/, 'force-load of every declared face');
+  assert.ok(h.indexOf('Promise.allSettled(loads)') < h.indexOf('window.__fitText()'), 'faces load BEFORE fitText/SplitText measure');
+  // vendor/ is gitignored (fonts are built locally) — assert only when present
+  try {
+    const css = readFileSync(new URL('../vendor/fonts/fonts.css', import.meta.url), 'utf8');
+    assert.ok(!/font-display:\s*swap/.test(css), 'vendored fonts.css never paints fallback (block, not swap)');
+  } catch (e) { if (e.code !== 'ENOENT') throw e; }
+  const gen = readFileSync(new URL('../scripts/build-fonts.mjs', import.meta.url), 'utf8');
+  assert.match(gen, /font-display: block/, 'the generator keeps emitting block on rebuilds');
+});
+
 test('blueprint layouts + narrative roles wired into the direction pass', () => {
   const d = readFileSync(new URL('../src/pipeline/direction.js', import.meta.url), 'utf8');
   for (const l of ['kinetic-type-beats', 'ticker-takeover', 'overwhelm-surround', 'pan-stations', 'titlecard-reveal']) {
