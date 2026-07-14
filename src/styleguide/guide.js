@@ -145,17 +145,20 @@ export const SAMPLE_SPEC = {
     <div class="hf-slot" style="left:50%;top:24%"><div class="hf-iconbox" id="ic1">{{icon:rocket}}</div></div>
   </div>`,
   script: `
-FX.camPush(tl, { scale: 1.055 });
+// camera completes its move in the FIRST half, then holds (no back-half drift)
+FX.camPush(tl, { scale: 1.055, profile: 'front' });
 FX.parallax(tl, '.hf-mid > *', { amp: 14 });
 FX.beat(tl, '#lb1', 0.35, DUR, { 'in': 'rise', out: 'none', drift: false, y: 22 });
 // hero keyword: unhurried entrance, then SETTLES into the composition (build element —
 // the scene assembles around it; nothing whips away)
 FX.beat(tl, '#kw1', 0.9, 3.0, { 'in': 'carrier', out: 'settle', from: 340 });
 FX.chromeSweep(tl, '#kw1', { at: 1.7 });
+// settled hero stays alive with a subtle seeded jitter — never a breathing scale loop
+FX.jitter(tl, '#kw1', { at: 3.2, amp: 2 });
 FX.beamSweep(tl, '.hf-beam', { at: 2.95 });
-// stat block: eased pop on its spoken beat, counter rolls slowly, then settles dimmed
-FX.beat(tl, '#st1', 3.05, 4.8, { 'in': 'pop', out: 'settle' });
-FX.counterRoll(tl, '#st1v', 87, { at: 3.25, dur: 1.2 });
+// stat block: smooth long-tail pop on its spoken beat (no bounce), counter grows with the value
+FX.beat(tl, '#st1', 3.05, 4.8, { 'in': 'pop', ease: 'power3.out', out: 'settle' });
+FX.counterRoll(tl, '#st1v', 87, { at: 3.25, dur: 1.2, grow: true });
 // closing accent: the icon joins the assembled composition and holds focus to the end
 FX.beat(tl, '#ic1', 4.9, DUR - 0.1, { 'in': 'rise', out: 'none' });
 FX.pulseGlow(tl, '#ic1', { at: 5.4, dur: 0.9, repeat: 1 });

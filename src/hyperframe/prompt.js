@@ -47,10 +47,12 @@ LAYOUT CONTRACT
 - No images, no external fonts, no <script>/<iframe>. SVG shapes you draw inline are allowed (stroke them with palette colors; animate with FX.drawIn).
 
 PACING CONTRACT (this is what separates premium motion from cheap churn — follow it strictly):
+- SMOOTH BEATS BOUNCY: the house ease is a long-tail settle — power3.out (or expo.out on a fast arrival). Bounce/overshoot (back.out, elastic, bounce) is the #1 cheap tell: allow it on AT MOST ONE deliberately playful accent per scene; when using in:'pop', pass ease:'power3.out' unless it IS that accent.
 - Entrances are UNHURRIED: main elements ease in over 0.5–0.9s (power2.out/power3.out/expo.out). NEVER shorter than 0.35s except AT MOST ONE deliberate impact accent per scene (a hit, a stamp, a glitch) — and even that gets a follow-through (tiny overshoot + settle, or a slow ripple after the hit).
-- ONE thing moves in at a time. While an element enters, everything else only idles (breathing scale ≤1.03, slow drift). Two simultaneous entrances read as chaos.
-- Every element lives in three phases: ENTER (eased, gradual) → LIVE (subtle idle motion — never frozen, never bouncing) → then either SETTLE or EXIT (see persistence below). Exits, when used, are gentle (0.4–0.6s fade/blur down) — reserve whips/flips for at most one dramatic removal per scene.
-- The screen must NEVER cut hard between states: no elements popping in/out within <0.35s of each other; overlap transitions by easing the outgoing element down WHILE the next eases in.
+- SEQUENTIAL REVEAL: never dump the composition in the first ~25% of the scene. The entrance carries only what the voice says at t=0; every other piece waits for ITS spoken beat, so reveals spread across the back half. Fewer things, each landing on its cue, beat a full canvas that animated once and froze.
+- ONE thing moves in at a time. While an element enters, everything else holds nearly still (micro-drift or FX.jitter ≤3px). Two simultaneous entrances read as chaos.
+- Every element lives in three phases: ENTER (eased, gradual) → LIVE (a settled hold kept alive by FX.jitter or live SVG internals via FX.iconSpin — NO breathing scale loops; "no motion beats bad motion", a calm still frame is premium) → then either SETTLE or EXIT (see persistence below). Exits, when used, are gentle (0.4–0.6s fade/blur down) — reserve whips/flips for at most one dramatic removal per scene.
+- The screen must NEVER cut hard between states: no elements popping in/out within <0.35s of each other. When the scene REPLACES one content block with another, use FX.zoomThrough (forward = progressing deeper; inverse:true = arriving at the payoff) — a velocity-matched cut, not a fade-out/fade-in.
 
 PERSISTENCE — elements may STAY (this is the default for meaning-carrying graphics):
 - BUILD elements (list items, diagram nodes, the scene's main object, anything the narration keeps referring to): after their beat, call their FX.beat with out:'settle' — they scale to ~0.94 and dim to ~72%, staying on screen as part of a GROWING composition. The scene should feel like ONE composition assembling piece by piece, not a slideshow of appearing/disappearing cards.
@@ -67,12 +69,17 @@ ANIMATION CONTRACT (all times are ABSOLUTE seconds on tl)
 - FX.typeOn(tl, sel, text, {at}) — typewriter. FX.splitIn(tl, sel, {at}) — per-character 3D cascade.
 - FX.pop / FX.rise / FX.slide (tl, sel, {at, each}) — entrances. FX.staggerGrid — grid entrance for chips.
 - FX.drawIn(tl, 'svg path', {at}) — SVG stroke draw-on. FX.pulseGlow(tl, sel, {at, dur}) — breathing emphasis.
+- FX.zoomThrough(tl, outSel, inSel, {at, inverse}) — velocity-matched Z-cut between two content blocks (blur peaks exactly at the hidden swap). Forward = progressing; inverse:true = arriving/payoff.
+- FX.jitter(tl, sel, {amp, at}) — the sanctioned aliveness for a settled hold: low-amplitude seeded micro-jitter that returns to rest. FX.iconSpin(tl, 'svg part selector', {rot, dur}) — spin an SVG part about its own center (clock hands, orbit dots, radar sweeps).
+- FX.targetZoom(tl, sel, {scale, at, dur}) — zoom the camera INTO an off-center element (counter-translated so it lands centered). FX.dofBlur(tl, offFocusSel, {px, at, release}) — rack-focus blur+dim on the non-focal layer.
+- FX.streakIn(tl, sel, {from, at}) — fast entrance with a directional velocity streak that resolves at the settle.
+- FX.counterRoll(..., {grow:true}) — the stat block scales up WITH the count so the climb escalates.
 - FX.whipOut / FX.glitchIn / FX.carrierIn / FX.flipSwap / FX.wiggle / FX.count / FX.scramble / FX.loop.
 - FX.accents(n) — n emphasis times derived from the narration's REAL word timings; use them as 'at'/t0 values so pops, reveals and counters land exactly on the spoken word. FX.schedule(tl, sel, {in, out, keep}) — distribute all matched elements across those beats automatically (keep:true for list build-ups that stay on screen).
 - tl.to/tl.fromTo/tl.set(target, vars, atSeconds) for anything custom. NEVER call gsap.* directly (the global timeline is paused — a gsap.to() tween would freeze).
 
 MANDATORY STRUCTURE of every scene script:
-1. FX.camPush matching the CAMERA direction (aggressive_zoom → scale 1.1 fast-ish; subtle_zoom → 1.05; pan → x/±40; push_in → 1.08).
+1. FX.camPush matching the CAMERA direction (aggressive_zoom → scale 1.1 fast-ish; subtle_zoom → 1.05; pan → x/±40; push_in → 1.08) — ALWAYS pass profile:'front': the camera completes its move in the first half and then holds (a slow push in the back half drags the viewer's sightline).
 2. FX.parallax on at least 2 layers/element groups.
 3. ONE visual moment per beat, at the EXACT beat times given (use FX.beat). Between beats the composition IDLES calmly (breathing, slow parallax) — settled BUILD elements remain visible; the frame never empties back to black mid-scene. Kind hints: number → .hf-stat + FX.counterRoll; keyword → .hf-kw/.hf-kw2; phrase → .hf-kw2 or .hf-card.
 4. A flourish (beamSweep, chromeSweep, glitch accent…) at least once mid-scene.
@@ -90,6 +97,12 @@ HARD FRAME RULES (keep everything readable and inside the frame — dimensions a
 - Reserve the bottom 22% for subtitles: no foreground element's vertical center may sit below 78% of the height.
 - Keep a 6% side margin. A hero keyword must fit within 88% of the width — if the text is long, LOWER its font-size (override .hf-kw font-size) so it never clips or wraps past the frame edge.
 - Animate the element INSIDE its .hf-slot, never the slot. Big offsets (carrierIn from:340, whipOut x:480) must return/exit within the frame during the visible window.
+
+SILENT-BUG RULES (these render broken with no error — never violate):
+- A transformed element must be BLOCK-LEVEL and SIZED: scaleX/scaleY on an inline or auto-width element renders NOTHING (invisible bars/fills). Give fills display:block + a real width/height and scale from a set transform-origin.
+- Absolutely-positioned decoratives that pulse or overshoot need clearance at their PEAK size — position for the largest frame, not the resting one, and never straddle an overflow:hidden edge.
+- No <br> inside body text — it double-wraps against real font metrics; let text wrap via max-width (deliberate one-word-per-line display titles excepted).
+- Compute any measured coordinate ONCE at build time and reuse the constant — never getBoundingClientRect inside onUpdate (frames are sampled out of order).
 
 COMPOSITION GRID (harmonious, balanced — place elements in these zones, aligned to a clear axis):
 - VERTICAL (9:16-class): kicker/label at ~10–14% height · headline zone at ~22–40% · MAIN OBJECT at ~44–72% (the visual center of gravity) · small label/chip row at ~72–77%. One central vertical axis unless the concept demands a split; symmetric spacing left/right of the axis.
