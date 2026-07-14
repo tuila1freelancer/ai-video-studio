@@ -74,7 +74,7 @@ export async function runVisuals(ctx) {
         DB.updateScene(sc.id, { visual_prompt: d.visual });
         sc.visual_prompt = d.visual;
       }
-      logger.info(`direction pass: ${dirs.size}/${undirected.length} cảnh`, { projectId });
+      logger.info(`direction pass: ${dirs.size}/${undirected.length} scenes`, { projectId });
     }
     const hookVisual = scenes[0]?.visual_prompt || '';
     // Concurrency 2: each codegen now also renders (renderValidate) on the shared headless
