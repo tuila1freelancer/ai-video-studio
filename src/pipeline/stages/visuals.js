@@ -47,7 +47,7 @@ export async function runVisuals(ctx) {
     DB.updateProject(projectId, { current_step: 'b5' });
     op(projectId, '✨ HyperFrame: AI dàn dựng đồ hoạ theo lời thoại…');
     const guide = resolveGuide(config);
-    const hfSize = animSize(project.aspect_ratio, config.resolutionScale || 1);
+    const hfSize = animSize(project.aspect_ratio, 1); // codegen/validate in the LOGICAL canvas — output upscales losslessly
     const totalHf = scenes.length;
     // optional per-video model override for the codegen step (a stronger model → nicer scenes);
     // modelFallback rides along so a rate-limited strong model degrades to a decent one

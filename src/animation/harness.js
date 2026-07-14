@@ -38,7 +38,9 @@ const RUNTIME = `
   let px = [];
   if (cv) {
     const ctx = cv.getContext('2d');
-    const W = cv.width, H = cv.height;
+    const Z = S.zoom || 1;
+    ctx.scale(Z, Z); // draw in logical coords on the Z× backing store — crisp at any output
+    const W = cv.width / Z, H = cv.height / Z;
     const rnd = mulberry32(1337 + (S.seed|0));
     const N = S.theme.particles|0;
     for (let i=0;i<N;i++) px.push({ x:rnd()*W, y:rnd()*H, r:(0.6+rnd()*1.9)*(W/1080), v:6+rnd()*22, tw:rnd()*6.28, c:rnd()<0.72?S.theme.accents[0]:(rnd()<0.5?S.theme.accents[1]:'#FFFFFF') });
@@ -186,6 +188,10 @@ const RUNTIME = `
  */
 export function buildScenePage(opts) {
   const { w, h, theme, template } = opts;
+  // Lossless upscale: layout stays in the logical w×h px space; zoom re-rasterizes text/SVG
+  // at device resolution (renderer viewport = w*Z × h*Z). The bg canvas gets a Z× backing
+  // store with a scaled context so particles stay crisp too.
+  const Z = Math.max(1, +opts.zoom || 1);
   const capFS = Math.round((opts.captionStyle?.fontSizePx) || Math.min(w, h) * 0.052);
   const capBottom = opts.captionStyle?.bottomPct ?? (h > w ? 10 : 7);
   const capColor = opts.captionStyle?.color || theme.accents[0];
@@ -215,7 +221,7 @@ export function buildScenePage(opts) {
     : '';
 
   const sceneData = {
-    duration: opts.duration, seed: opts.seed || 0,
+    duration: opts.duration, seed: opts.seed || 0, zoom: Z, w, h,
     // tplScale (planned/real): template-timeline coordinates per real second. __seek drives
     // the GSAP/WAAPI template layers at t*tplScale while captions/progress/bg stay on real t
     // — reconciles specs authored against an estimated duration (scenes-first pipeline).
@@ -241,9 +247,10 @@ ${fontsCss()}
 ${userFontsCss()}
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{width:${w}px;height:${h}px;overflow:hidden;background:${theme.bg}}
+${Z !== 1 ? `body{zoom:${Z}}` : ''}
 body{font-family:${theme.font};color:${theme.ink};-webkit-font-smoothing:antialiased}
 .stage{position:absolute;inset:0;background:radial-gradient(130% 110% at 28% 6%, ${theme.bg2} 0%, ${theme.bg} 62%)}
-#bgCanvas{position:absolute;inset:0}
+#bgCanvas{position:absolute;inset:0;width:${w}px;height:${h}px}
 ${grid}
 ${vig}
 .wm{position:absolute;top:${Math.round(h*0.028)}px;right:${Math.round(w*0.03)}px;z-index:40;opacity:.85}
@@ -260,7 +267,7 @@ img.wm{width:${Math.round(Math.min(w,h)*0.085)}px;height:auto}
 ${template.css}${opts.brand ? opts.brand.css : ''}
 </style></head><body>
 <div class="stage">
-  <canvas id="bgCanvas" width="${w}" height="${h}"></canvas>
+  <canvas id="bgCanvas" width="${w * Z}" height="${h * Z}"></canvas>
   <div class="grid"></div>
   <div class="tpl">${template.html}</div>
   <div class="vig"></div>

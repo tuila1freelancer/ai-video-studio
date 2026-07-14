@@ -62,6 +62,10 @@ const PROBE = `(() => {
     if(r.width<1&&r.height<1)continue;
     out.push({o:+o.toFixed(3),x:Math.round(r.left),y:Math.round(r.top),w:Math.round(r.width),h:Math.round(r.height),
       cx:Math.round(r.left+r.width/2),cy:Math.round(r.top+r.height/2),
+      clip:(function(){ if(!ownText||o<=0.35||el.clientWidth<=0) return 0; const cs=getComputedStyle(el);
+        const hides=cs.overflowX==='hidden'||cs.overflowY==='hidden'||cs.overflow==='hidden'||cs.textOverflow==='ellipsis';
+        if(!hides) return 0; // overflow:visible text PAINTS outside — off-screen/overlap checks own that
+        return (el.scrollWidth-el.clientWidth>3||el.scrollHeight-el.clientHeight>3)?1:0; })(),
       cls:(el.className&&el.className.baseVal!==undefined?el.className.baseVal:String(el.className||'')).slice(0,32),
       txt:(el.textContent||'').trim().slice(0,22)});
     nodes.push({el,ownText,o,r}); }
@@ -152,7 +156,7 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
     const narrWords = narrationWordSet(narration);
     const narrLang = detectLang(narration || '');
     let anyVisible = false, endStrong = false, heroFrac = 0, deadAt = null;
-    const off = [], sub = [], bad = new Map(), ovl = new Map(), lowc = new Map();
+    const off = [], sub = [], bad = new Map(), ovl = new Map(), lowc = new Map(), clip = new Map();
     for (const t of T) {
       const { W, H, els, overlaps = [], lowContrast = [] } = await page.evaluate((tt, probe) => { window.__seek(tt); return eval(probe); }, t, PROBE);
       for (const p of overlaps) { const k = `${p.a}|${p.b}`; if (!ovl.has(k)) ovl.set(k, { t, ...p }); }
@@ -167,6 +171,7 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
       // a scene must not fade to (near) nothing at the end — the last frame should still carry a hero
       if (t >= endT - 0.001 && els.some((e) => e.o > 0.35 && e.w > 0.06 * W)) endStrong = true;
       for (const e of vis) {
+        if (e.clip && !clip.has(e.txt)) clip.set(e.txt, { t, ...e });
         const overflow = Math.max(-e.x, e.x + e.w - W, -e.y, e.y + e.h - H);
         if (overflow > 0.10 * Math.max(W, H)) off.push({ t, ...e, overflow: Math.round(overflow) });
         if (e.y + e.h > 0.80 * H) sub.push({ t, ...e }); // element BOTTOM edge intrudes on the caption band
@@ -185,6 +190,7 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
     if (bad.size) { const o = [...bad.values()][0]; defects.push(`the on-screen text "${o.txt}" is in the wrong language — the narration is ${narrLang === 'vi' ? 'Vietnamese' : narrLang}, and every keyword must be in the narration's language. Semantic (non-verbatim) keywords are fine; translating or mixing languages is not.`); }
     if (ovl.size) { const o = [...ovl.values()][0]; defects.push(`the texts "${o.a}" and "${o.b}" overlap each other at ${o.t.toFixed(1)}s (${Math.round(o.frac * 100)}% of the smaller box) — text must NEVER sit on top of other text; separate them spatially or stagger their timing so only one occupies that area at a time.`); }
     if (lowc.size) { const o = [...lowc.values()][0]; defects.push(`the text "${o.txt}" is unreadable at ${o.t.toFixed(1)}s — contrast ratio ${o.ratio}:1 against its background. Use the guide's ink color (or a bright accent) so readable text reaches at least 4.5:1.`); }
+    if (clip.size) { const o = [...clip.values()][0]; defects.push(`the text "${o.txt}" is clipped at ${o.t.toFixed(1)}s — its box is smaller than its content, cutting words off. Remove fixed widths/heights and overflow:hidden from text elements; shorten the label or let the element size itself.`); }
     return { ok: defects.length === 0, defects, tlDur: Number.isFinite(tlDur) ? +tlDur.toFixed(2) : null };
   } catch (e) {
     return { ok: true, skipped: true, defects: [], error: String(e.message || e) }; // never block codegen on a harness hiccup

@@ -56,6 +56,8 @@ export default {
         FX.drawIn(tl, '.rail line', { at: 0.35, dur: 1.2, each: 0.08 });
         var railEl = document.querySelector('.rail');
         var rb = railEl ? railEl.getBoundingClientRect() : { width: 0, height: 0 };
+        // getBoundingClientRect returns VISUAL (zoomed) px — divide back to page coords
+        var _z = (S && S.zoom) || 1; rb = { width: rb.width / _z, height: rb.height / _z };
         tl.fromTo('.spark', { ${vertical ? 'y' : 'x'}: -rb.${vertical ? 'height' : 'width'} },
           { ${vertical ? 'y' : 'x'}: 0, duration: 1.2, ease: 'power2.inOut' }, 0.35);
         tl.from('.spark', { opacity: 0, duration: 0.25, ease: 'power1.out' }, 0.35);

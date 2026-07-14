@@ -54,7 +54,7 @@ export async function repurposeProject(sourceId, { aspectRatio } = {}) {
   let revalidated = 0, dropped = 0;
   if (visualMode === 'hyperframe') {
     const guide = resolveGuide(config);
-    const { w, h } = animSize(aspectRatio, config.resolutionScale || 1);
+    const { w, h } = animSize(aspectRatio, 1) /* LOGICAL canvas — gate must match the render space */;
     const fresh = DB.getScenes(project.id);
     for (const sc of fresh) {
       if (!(sc.template === 'hyperframe' && sc.props?.script)) continue;

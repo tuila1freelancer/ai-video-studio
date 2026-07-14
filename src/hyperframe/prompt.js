@@ -21,6 +21,7 @@ OUTPUT FORMAT — reply with EXACTLY these three fenced blocks and NOTHING else 
 CONTENT RULES (non-negotiable):
 - ON-SCREEN TEXT is taken FROM THE NARRATION — a short HEADLINE (2–4 words) plus 2–3 short LABELS, chosen SEMANTICALLY from the meaning of what's said (e.g. narration about a trustworthy-looking AI answer → headline "Nhìn rất đáng tin", labels "Mượt" · "Gọn" · "Tự tin"). Use the beat words as the anchor. NEVER dump the full sentence (it's already the subtitle), and NEVER invent slogans/CTAs/brand names/decorative English ("THE REAL KEY", "SUBSCRIBE", "CHIẾN NGAY"…).
 - LANGUAGE = the narration's language, always. Vietnamese narration → EVERY on-screen word is Vietnamese (keep numbers/%/units as-is). Never translate to English on screen. Mixed/wrong language is a defect.
+- COMPLETE WORDS ONLY: every label/headline is a complete, meaningful word or phrase (≤3 words). NEVER truncated fragments ("VIẾT RÕ KẾT", "KHÁCH MUA GIẢI" are defects — write "VIẾT RÕ KẾT QUẢ" or shorten to "KẾT QUẢ"). Never give a text element a fixed width/height or overflow:hidden that can cut its text — let text size itself; use white-space:nowrap only on labels of ≤2 words.
 - BE BOLD. The hero keyword/headline must DOMINATE the frame (~60–85% width), not float small in a sea of black. Fill the composition. Timid, tiny, mostly-empty scenes are a failure — this is a keynote, not a lock screen.
 - Match the CINEMATIC DIRECTION energy: high/epic → huge type, fast punchy entrances, scale-overshoot, a flash/burst accent; low/clean → calmer, slower, elegant.
 
@@ -135,7 +136,8 @@ export function buildCodegenPrompt({ scene, beats, direction, guide, w, h, durat
 - Motion personality: ${guide.motionPersonality}${guideV2Block(guide)}
 ${densityNote}${dirNote}${rhymeNote}
 
-SCENE ${idx + 1}/${total} — ${w}x${h} (${vertical ? 'vertical 9:16-class' : 'horizontal'}), DUR = ${(+duration).toFixed(3)}s
+SCENE ${idx + 1}/${total} — CANVAS ${w}x${h} CSS px (${vertical ? 'vertical 9:16-class' : 'horizontal'}), DUR = ${(+duration).toFixed(3)}s
+(The page body is EXACTLY ${w}x${h}px and is upscaled LOSSLESSLY to the output resolution — author every absolute px against THIS canvas; never assume any other resolution.)
 NARRATION (voice, shown as karaoke subtitles at the bottom — do NOT repeat it verbatim on screen):
 "${(scene.voice_text || '').trim()}"
 VISUAL CONCEPT (art-director brief — when it is structured [LAYOUT]/[ENVIRONMENT]/[MAIN FOCUS]/[CAMERA]/[MOTION FLOW]/[LIGHTING & FX]/[MOOD], FOLLOW it: build ITS main object as your near-layer hero, honor its layout pattern, camera and entry/idle/exit flow — the beat times below still rule WHEN things appear):
