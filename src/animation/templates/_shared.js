@@ -156,8 +156,11 @@ var FX = {
       .to(sel, { keyframes:[
         { opacity:1, x:9, skewX:-5, duration:0.05 }, { x:-6, skewX:3, duration:0.05 },
         { x:3, skewX:-1.5, duration:0.05 }, { x:0, skewX:0, duration:0.07 } ] }, at); },
-  // counter with an end pulse (odometer feel)
+  // counter with an end pulse (odometer feel). grow:true scales the block up WITH the value
+  // (counting-dynamic-scale) so the climb itself escalates.
   counterRoll: function(tl, sel, end, o){ o=o||{}; FX.count(tl, sel, end, o);
+    if (o.grow) tl.fromTo(sel, { scale:o.growFrom==null?0.8:o.growFrom }, { scale:1,
+      duration:o.dur||1.4, ease:o.ease||'power2.out' }, o.at||0.3);
     tl.fromTo(sel, { scale:1 }, { scale:o.pulse==null?1.14:o.pulse, duration:0.2,
       ease:'back.out(1.3)', yoyo:true, repeat:1 }, (o.at||0.3) + (o.dur||1.4)); },
   // light beam sweeping across the frame (pair with a .hf-beam element, which sits at
@@ -184,11 +187,75 @@ var FX = {
     for (var i=0;i<els.length;i++){ var amp=(o.amp==null?16:o.amp)*(1+i*0.7)*((i%2)?-1:1);
       tl.to(els[i], { x:amp, y:amp*0.55, duration:dur/2, yoyo:true, repeat:1, ease:'sine.inOut' }, 0);
     } },
-  // simulated camera move on the .hf-cam wrapper (slow push/pan across the whole scene)
+  // simulated camera move on the .hf-cam wrapper (slow push/pan across the whole scene).
+  // profile:'front' completes the move in the first ~55% and then HOLDS — a slow push in the
+  // back half of a scene drags the viewer's sightline (motion doctrine); default keeps the
+  // legacy full-duration drift so existing templates render unchanged.
   camPush: function(tl, o){ o=o||{};
+    var front = o.profile === 'front';
     tl.fromTo('.hf-cam', { scale:o.fromScale==null?1:o.fromScale, x:0, y:0 },
-      { scale:o.scale==null?1.06:o.scale, x:o.x||0, y:o.y||0, duration:o.dur||TD,
-        ease:o.ease||'none', transformOrigin:o.origin||'50% 50%' }, o.at||0); },
+      { scale:o.scale==null?1.06:o.scale, x:o.x||0, y:o.y||0,
+        duration:o.dur||(front?TD*0.55:TD),
+        ease:o.ease||(front?'power2.out':'none'), transformOrigin:o.origin||'50% 50%' }, o.at||0); },
+  // velocity-matched Z-axis content swap (zoom-through cut): the outgoing element accelerates
+  // toward the viewer while blur+dim peak exactly at the hidden swap, and the incoming element
+  // continues the same motion from behind, decelerating into the focal plane. inverse:true
+  // moves AWAY from the viewer — reads as "arriving at" (payoff beats). Both sides share the
+  // same peak blur (10px at text scale); blur rides the elements' own wrapper.
+  zoomThrough: function(tl, outSel, inSel, o){ o=o||{};
+    if (!FX.q(outSel).length || !FX.q(inSel).length) return;
+    var at=o.at==null?1:o.at, px=o.blur==null?10:o.blur, inv=!!o.inverse;
+    var d1=o.dur||0.2, d2=d1*1.8;
+    tl.to(outSel, { scale:inv?0.8:1.2, filter:'blur('+px+'px)', duration:d1, ease:'power3.in' }, at)
+      .to(outSel, { opacity:0.15, duration:d1, ease:'none' }, at)
+      .set(outSel, { opacity:0 }, at+d1);
+    tl.set(inSel, { opacity:0 }, 0);
+    tl.fromTo(inSel, { scale:inv?1.25:0.8, opacity:0.15, filter:'blur('+px+'px)' },
+      { scale:1, opacity:1, filter:'blur(0px)', duration:d2, ease:'power3.out' }, at+d1*0.85); },
+  // sanctioned aliveness during a hold: a low-amplitude seeded positional jitter — keeps a
+  // settled frame from feeling dead without the cheap "breathing scale" tell. Deterministic
+  // (offsets come from rng at build time) and returns to rest.
+  jitter: function(tl, sel, o){ o=o||{};
+    var els=FX.q(sel); if(!els.length) return;
+    var amp=o.amp==null?2.2:o.amp, at=o.at==null?0.6:o.at;
+    var total=(o.total!=null?o.total:TD-at-0.15); if (total<0.8) return;
+    var seg=o.seg||0.55, n=Math.max(2, Math.min(24, Math.floor(total/seg)));
+    var kf=[]; for (var i=0;i<n-1;i++) kf.push({ x:(rng()*2-1)*amp, y:(rng()*2-1)*amp, duration:seg, ease:'sine.inOut' });
+    kf.push({ x:0, y:0, duration:seg*0.7, ease:'sine.out' });
+    tl.to(sel, { keyframes:kf }, at); },
+  // zoom the camera INTO a non-centered element: scale about frame center + counter-translate
+  // so the target lands centered (T = (C − e)·S). Measures ONCE at build time (legal — the
+  // script body runs once); divide by the body zoom so 4K physical px become logical px.
+  targetZoom: function(tl, sel, o){ o=o||{};
+    var el=document.querySelector(sel); if(!el) return;
+    var sc=o.scale==null?1.18:o.scale, at=o.at==null?0.5:o.at;
+    var dur=o.dur||Math.max(1.0, ((o.until!=null?o.until:TD)-at));
+    var z=(typeof S.zoom==='number'&&S.zoom>0)?S.zoom:1;
+    var r=el.getBoundingClientRect(), W=S.w||window.innerWidth/z, H=S.h||window.innerHeight/z;
+    var ex=(r.left+r.width/2)/z, ey=(r.top+r.height/2)/z;
+    tl.to('.hf-cam', { scale:sc, x:(W/2-ex)*sc, y:(H/2-ey)*sc, duration:dur,
+      ease:o.ease||'power2.inOut', transformOrigin:'50% 50%' }, at); },
+  // rack focus: blur + dim the off-focus layer(s) so the focal element pops; optional release
+  dofBlur: function(tl, sel, o){ o=o||{};
+    var px=o.px==null?5:o.px, at=o.at==null?0.5:o.at, d=o.dur||0.6;
+    tl.to(sel, { filter:'blur('+px+'px)', opacity:o.dim==null?0.6:o.dim, duration:d, ease:'power2.inOut' }, at);
+    if (o.release!=null) tl.to(sel, { filter:'blur(0px)', opacity:1, duration:d, ease:'power2.inOut' }, o.release); },
+  // fast entrance with a directional velocity streak: blur/skew peak at max speed, resolve at settle
+  streakIn: function(tl, sel, o){ o=o||{};
+    var at=o.at==null?0.2:o.at, from=o.from==null?260:o.from;
+    tl.set(sel, { opacity:0 }, 0);
+    tl.fromTo(sel, { x:from, opacity:0, skewX:from>0?-12:12, filter:'blur(6px)' },
+      { x:0, opacity:1, skewX:0, filter:'blur(0px)', duration:o.dur||0.5, ease:'expo.out' }, at); },
+  // spin an SVG part about its OWN bbox center (svgOrigin) — CSS transform-origin misplaces
+  // thin shapes (fill-box coords). For clock hands, fan blades, orbiting dots, radar sweeps.
+  iconSpin: function(tl, sel, o){ o=o||{};
+    var els=FX.q(sel);
+    for (var i=0;i<els.length;i++){ var el=els[i], bb;
+      try { bb=el.getBBox(); } catch(e){ continue; }
+      var at=o.at==null?0.6:o.at, d=o.dur||2.2;
+      tl.to(el, { rotation:o.rot==null?360:o.rot, svgOrigin:(bb.x+bb.width/2)+' '+(bb.y+bb.height/2),
+        duration:d, repeat:o.repeat==null?Math.max(0, Math.floor((TD-at)/d)-1):o.repeat, ease:o.ease||'none' }, at);
+    } },
   // scale breathing (glow stays in CSS — tweening the filter would clobber drop-shadow classes)
   pulseGlow: function(tl, sel, o){ o=o||{}; var d=o.dur||1.4;
     tl.to(sel, { scale:o.scale==null?1.06:o.scale, duration:d, yoyo:true,
@@ -251,13 +318,15 @@ var FX = {
         .to(sel, { keyframes:[ { opacity:1, x:9, skewX:-5, duration:inD*0.3 }, { x:-6, skewX:3, duration:inD*0.25 },
           { x:0, skewX:0, opacity:1, duration:inD*0.45 } ] }, t0);
     } else if (o['in'] === 'carrier') {
-      tl.fromTo(sel, { x:(o.from==null?300:o.from)*(o.dir||1), opacity:0 }, { x:0, opacity:1, duration:inD, ease:'expo.out' }, t0);
+      tl.fromTo(sel, { x:(o.from==null?300:o.from)*(o.dir||1), opacity:0 }, { x:0, opacity:1, duration:inD, ease:o.ease||'expo.out' }, t0);
     } else if (o['in'] === 'pop') {
-      tl.fromTo(sel, { scale:0.55, opacity:0 }, { scale:1, opacity:1, duration:inD, ease:'back.out(1.5)' }, t0);
+      // smooth-beats-bouncy: pass ease:'power3.out' for the doctrine settle; the back.out(1.5)
+      // default stays for template compatibility and the one deliberate playful accent
+      tl.fromTo(sel, { scale:0.55, opacity:0 }, { scale:1, opacity:1, duration:inD, ease:o.ease||'back.out(1.5)' }, t0);
     } else if (o['in'] === 'flip') {
-      tl.fromTo(sel, { rotationX:-86, opacity:0, transformPerspective:620 }, { rotationX:0, opacity:1, duration:inD, ease:'power2.out' }, t0);
+      tl.fromTo(sel, { rotationX:-86, opacity:0, transformPerspective:620 }, { rotationX:0, opacity:1, duration:inD, ease:o.ease||'power2.out' }, t0);
     } else {
-      tl.fromTo(sel, { y:o.y==null?46:o.y, opacity:0 }, { y:0, opacity:1, duration:inD, ease:'power3.out' }, t0);
+      tl.fromTo(sel, { y:o.y==null?46:o.y, opacity:0 }, { y:0, opacity:1, duration:inD, ease:o.ease||'power3.out' }, t0);
     }
     if (o.drift !== false && hold > 1.1) {
       tl.to(sel, { y:'-=6', duration:Math.min(1.2,(hold-inD-outD)/2), yoyo:true, repeat:1, ease:'sine.inOut' }, t0+inD);

@@ -148,6 +148,26 @@ test('cinema pacing v3: FX floors, settle state, and the prompt contract', () =>
   assert.match(sample, /out: 'settle'/, 'worked example models the settle style');
 });
 
+test('motion doctrine v4: new FX vocabulary + smooth/sequential/no-breathing prompt contract', () => {
+  const fx = readFileSync(new URL('../src/animation/templates/_shared.js', import.meta.url), 'utf8');
+  assert.match(fx, /zoomThrough: function/, 'velocity-matched Z-cut exists');
+  assert.match(fx, /jitter: function/, 'sanctioned-aliveness jitter exists');
+  assert.match(fx, /targetZoom: function/, 'counter-translated target zoom exists');
+  assert.match(fx, /dofBlur: function/, 'rack-focus blur exists');
+  assert.match(fx, /iconSpin: function/, 'svgOrigin icon spin exists');
+  assert.match(fx, /profile === 'front'/, 'camPush front-half profile exists');
+  assert.match(fx, /ease:o\.ease\|\|'back\.out\(1\.5\)'/, 'beat pop ease is overridable (smooth by prompt, compat by default)');
+  const prompt = readFileSync(new URL('../src/hyperframe/prompt.js', import.meta.url), 'utf8');
+  assert.match(prompt, /SMOOTH BEATS BOUNCY/, 'ease doctrine stated');
+  assert.match(prompt, /SEQUENTIAL REVEAL/, 'anti-front-loading rule stated');
+  assert.match(prompt, /SILENT-BUG RULES/, 'silent-bug block present');
+  assert.match(prompt, /profile:'front'/, 'camera front-profile mandated');
+  assert.match(prompt, /FX\.zoomThrough/, 'seam-cut vocabulary taught');
+  const sample = readFileSync(new URL('../src/styleguide/guide.js', import.meta.url), 'utf8');
+  assert.match(sample, /profile: 'front'/, 'worked example uses the front camera profile');
+  assert.match(sample, /FX\.jitter/, 'worked example models jitter aliveness');
+});
+
 test('prompt v2 + budget stage source anchors (P4/P5 intact, gate wired pre-seed)', () => {
   const llm = readFileSync(new URL('../src/providers/llm.js', import.meta.url), 'utf8');
   assert.match(llm, /Math\.ceil\(sceneCount\s*\*\s*0\.7\)/, 'P4 anchor survives prompt v2');
