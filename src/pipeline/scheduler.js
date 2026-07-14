@@ -48,6 +48,7 @@ async function executeInner(job) {
       const p = DB.getProject(projectId);
       if (p?.status === 'done') return { status: 'done' };
       if (p?.status === 'review') return { status: 'done' }; // clean hold at the review gate
+      if (p?.status === 'scenes') return { status: 'done' }; // clean hold at the scene gate
       if (p?.status === 'paused') return { status: 'cancelled', error: 'stopped by user' };
       return { status: 'error', error: p?.error || 'pipeline ended in error' };
     }

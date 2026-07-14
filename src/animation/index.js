@@ -63,6 +63,15 @@ export function buildSceneHtml(scene, project, config, extras = {}) {
   }) : null;
   return buildScenePage({
     w, h, theme, seed: scene.idx + 1, duration,
+    // Time-warp (scenes-first order): a hyperframe script bakes absolute animation seconds
+    // for the duration it was AUTHORED at (props.plannedDur — an estimate when visuals ran
+    // before TTS). tplScale = planned/real lets the harness drive the template timeline in
+    // authored coordinates while captions/progress/audio stay on real time, so the
+    // choreography stretches/compresses to fill the real voice instead of cutting or
+    // freezing. HYPERFRAME ONLY: regular templates rebuild their script against the real
+    // duration at render time, and a template switch keeps the old hyperframe props —
+    // warping those scripts by the stale plannedDur would slow-motion authored-real motion.
+    tplScale: plan.template === 'hyperframe' ? templateTimeScale(plan.props?.plannedDur, duration) : 1,
     progressStart: extras.progressStart || 0, progressTotal: extras.progressTotal || 0,
     template: tpl, captions,
     live: !!extras.live, liveAudioUrl: extras.liveAudioUrl || null,
@@ -70,6 +79,19 @@ export function buildSceneHtml(scene, project, config, extras = {}) {
     brand: placement ? buildBrandLayer(brand, placement, { w, h, theme }) : null,
     captionStyle: captionStyleFrom(config, theme, { w, h }),
   });
+}
+
+/**
+ * planned/real timeline ratio for the harness. Snaps to 1 inside ±4% (imperceptible; keeps
+ * legacy pixel-identical), clamps to [0.5, 2] so a wild estimate can never slow-motion or
+ * chipmunk the choreography beyond recognition.
+ */
+export function templateTimeScale(plannedDur, actualDur) {
+  const p = +plannedDur, a = +actualDur;
+  if (!Number.isFinite(p) || !Number.isFinite(a) || p <= 0 || a <= 0) return 1;
+  const k = p / a;
+  if (Math.abs(k - 1) < 0.04) return 1;
+  return Math.min(2, Math.max(0.5, +k.toFixed(4)));
 }
 
 // Brand-font override (config.fonts.display, layered per-channel/per-video through the

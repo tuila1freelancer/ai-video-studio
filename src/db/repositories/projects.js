@@ -41,7 +41,7 @@ export function recoverZombieProjects() {
 }
 
 export function updateProject(id, fields) {
-  const allowed = ['title', 'topic', 'aspect_ratio', 'status', 'current_step', 'config', 'metadata', 'video_path', 'thumb_path', 'error'];
+  const allowed = ['title', 'topic', 'aspect_ratio', 'status', 'current_step', 'config', 'metadata', 'video_path', 'thumb_path', 'error', 'scenes_approved_at'];
   const sets = [], vals = {};
   for (const k of allowed) {
     if (k in fields) {

@@ -146,7 +146,11 @@ const hyperframe = {
     </div>
     <div class="hf-layer hf-vig"></div>
     <div class="hf-layer hf-grain"></div>`;
-    const script = fx('var DUR = S.duration;\n' + (p.script && String(p.script).trim() ? p.script : DEFAULT_AMBIENT));
+    // DUR is in AUTHORED-timeline coordinates: the LLM script's absolute seconds were
+    // written for props.plannedDur. With the scenes-first time-warp (S.tplScale = planned/
+    // real) the harness seeks the timeline at t*tplScale, so DUR must equal the authored
+    // span (real*scale = planned) for end-of-scene positioning to stay correct.
+    const script = fx('var DUR = S.duration * (S.tplScale || 1);\n' + (p.script && String(p.script).trim() ? p.script : DEFAULT_AMBIENT));
     return { css, html, script };
   },
 };

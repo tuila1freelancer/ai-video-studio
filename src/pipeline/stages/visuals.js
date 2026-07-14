@@ -79,8 +79,13 @@ export async function runVisuals(ctx) {
     const hookVisual = scenes[0]?.visual_prompt || '';
     // Concurrency 2: each codegen now also renders (renderValidate) on the shared headless
     // browser — 2 keeps throughput up without thrashing Chrome with too many parallel pages.
+    // Scene-gate freeze: once the owner approved the storyboard, EVERY scene that carries a
+    // plan is kept verbatim — without this, heuristic-fallback scenes re-enter codegen on the
+    // continue run and silently replace visuals the owner just signed off on.
+    const approved = !!DB.getProject(projectId).scenes_approved_at;
     await mapPool(scenes, 2, async (sc) => {
       checkStop(projectId);
+      if (approved && sc.template && sc.props) return;
       if (sc.template === 'hyperframe' && sc.props?.script) return; // resume / user-kept spec
       // chapter-break cards stay as-is: they render on the guide theme (one visual identity),
       // keep the channel's section-title punch, and anchor the transition SFX bed.

@@ -167,6 +167,15 @@
               <div class="curop hidden" id="curOp"><span class="spin">⟳</span> <span id="curOpText"></span></div>
             </div>
 
+            <div class="scene-gate hidden" id="sceneGateBar" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:12px 14px;border:1px solid var(--accent);border-radius:10px;margin:10px 0;background:color-mix(in srgb, var(--accent) 8%, transparent)">
+              <div style="flex:1;min-width:240px">
+                <b>🎬 Cảnh đã dựng xong — chưa tốn phí lồng tiếng.</b>
+                <div style="color:var(--muted2);font-size:.9em">Duyệt / chỉnh từng cảnh (Scene Studio, Xem nháp) thoải mái. Ưng ý rồi bấm nút để lồng tiếng + render.</div>
+                <div id="sceneGateCost" style="color:var(--muted2);font-size:.9em;margin-top:2px"></div>
+              </div>
+              <button class="btn success" id="btnApproveScenes">🎙 Lồng tiếng &amp; Render</button>
+            </div>
+
             <div class="logp">
               <div class="logp-h" id="logToggle"><span>📋 Nhật ký xử lý</span><span id="logCaret">▾</span></div>
               <div class="logp-b" id="logBody"></div>
@@ -346,6 +355,7 @@
               <label class="switch-row"><span class="switch"><input type="checkbox" id="cfgMeta" checked><span class="sl"></span></span> 📊 Tạo Metadata</label>
               <label class="switch-row"><span class="switch"><input type="checkbox" id="cfgAutoConcat" checked><span class="sl"></span></span> Tự động ghép (B7)</label>
               <label class="switch-row" title="Dừng trước khi ghép để bạn duyệt từng cảnh trong Xem nháp"><span class="switch"><input type="checkbox" id="cfgReview"><span class="sl"></span></span> 🧐 Duyệt từng cảnh trước khi ghép</label>
+              <label class="switch-row" title="Dựng toàn bộ cảnh trước rồi DỪNG — bạn duyệt/chỉnh từng cảnh thoải mái, chưa tốn phí lồng tiếng; bấm Lồng tiếng &amp; Render khi ưng ý"><span class="switch"><input type="checkbox" id="cfgSceneGate"><span class="sl"></span></span> 🎬 Dựng cảnh trước — duyệt xong mới lồng tiếng</label>
               <label class="switch-row" style="margin-top:6px"><span class="switch"><input type="checkbox" id="cfgPTts"><span class="sl"></span></span> TTS song song</label>
               <label class="switch-row"><span class="switch"><input type="checkbox" id="cfgPRender"><span class="sl"></span></span> Render song song</label>
               <div class="grid2" style="margin-top:6px">

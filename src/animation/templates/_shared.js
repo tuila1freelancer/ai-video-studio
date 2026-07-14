@@ -83,6 +83,14 @@ export function headingStyle(ctx, sizeU, color) {
 // Runs in-page. All motion is added to `tl` (paused root timeline) → deterministic scrub.
 // rng is the seeded PRNG — NEVER use Math.random in scripts (it is reseeded, but rng is explicit).
 const FX_SRC = `
+// Authored-timeline coordinates: with S.tplScale (scenes-first time-warp) the template
+// timeline was authored for plannedDur = S.duration * TSCALE and the harness seeks it at
+// st = t*TSCALE. Every FX time derived from REAL seconds (S.duration, caption word stamps)
+// must therefore be converted into authored coordinates — multiply by TSCALE — so the event
+// still fires at the intended REAL moment. TSCALE is 1 everywhere except hyperframe specs
+// whose estimated duration differs from the real voice.
+var TSCALE = (S.tplScale || 1);
+var TD = S.duration * TSCALE;
 var FX = {
   q: function(sel){ return document.querySelectorAll(sel); },
   split: function(sel, type){ return new SplitText(FX.q(sel), { type: type || 'chars,words' }); },
@@ -165,19 +173,19 @@ var FX = {
     tl.fromTo(inSel, { rotationX:-88, opacity:0, transformPerspective:620 },
       { rotationX:0, opacity:1, duration:d, ease:'power2.out' }, at + d*0.85); },
   // depth-layer drift: each matched layer drifts at a different speed/direction for the scene
-  parallax: function(tl, sel, o){ o=o||{}; var els=FX.q(sel), dur=(o.dur||S.duration);
+  parallax: function(tl, sel, o){ o=o||{}; var els=FX.q(sel), dur=(o.dur||TD);
     for (var i=0;i<els.length;i++){ var amp=(o.amp==null?16:o.amp)*(1+i*0.7)*((i%2)?-1:1);
       tl.to(els[i], { x:amp, y:amp*0.55, duration:dur/2, yoyo:true, repeat:1, ease:'sine.inOut' }, 0);
     } },
   // simulated camera move on the .hf-cam wrapper (slow push/pan across the whole scene)
   camPush: function(tl, o){ o=o||{};
     tl.fromTo('.hf-cam', { scale:o.fromScale==null?1:o.fromScale, x:0, y:0 },
-      { scale:o.scale==null?1.06:o.scale, x:o.x||0, y:o.y||0, duration:o.dur||S.duration,
+      { scale:o.scale==null?1.06:o.scale, x:o.x||0, y:o.y||0, duration:o.dur||TD,
         ease:o.ease||'none', transformOrigin:o.origin||'50% 50%' }, o.at||0); },
   // scale breathing (glow stays in CSS — tweening the filter would clobber drop-shadow classes)
   pulseGlow: function(tl, sel, o){ o=o||{}; var d=o.dur||1.4;
     tl.to(sel, { scale:o.scale==null?1.06:o.scale, duration:d, yoyo:true,
-      repeat:o.repeat==null?Math.max(1, Math.ceil((o.total||S.duration)/d)-1):o.repeat, ease:'sine.inOut' }, o.at==null?0.5:o.at); },
+      repeat:o.repeat==null?Math.max(1, Math.ceil((o.total||TD)/d)-1):o.repeat, ease:'sine.inOut' }, o.at==null?0.5:o.at); },
   // grid-aware stagger entrance for groups of chips/cards
   staggerGrid: function(tl, sel, o){ o=o||{}; if(!FX.q(sel).length) return;
     tl.from(sel, { opacity:0, scale:o.from==null?0.5:o.from, duration:o.dur||0.5, ease:'back.out(1.8)',
@@ -185,11 +193,11 @@ var FX = {
   // ---- voice-sync helpers: read the narration's word timings straight from S.captions ----
   // flat word list [{start,end,word}] of the whole scene
   allWords: function(){ var out=[], cues=S.captions||[];
-    for (var i=0;i<cues.length;i++){ var ws=cues[i].words||[]; for (var j=0;j<ws.length;j++) out.push(ws[j]); }
+    for (var i=0;i<cues.length;i++){ var ws=cues[i].words||[]; for (var j=0;j<ws.length;j++) out.push(TSCALE===1?ws[j]:{start:ws[j].start*TSCALE,end:ws[j].end*TSCALE,word:ws[j].word}); }
     return out; },
   // n accent times picked from long/number words with a minimum gap, LEAD before the word
   // lands; falls back to even spacing when the scene carries no captions. Pure fn of S.
-  accents: function(n, o){ o=o||{}; var GAP=o.gap==null?1.2:o.gap, LEAD=0.12, d=S.duration;
+  accents: function(n, o){ o=o||{}; var GAP=o.gap==null?1.2:o.gap, LEAD=0.12, d=TD;
     var u0=Math.min(0.8, d*0.12), u1=d-Math.min(0.9, d*0.14);
     var even=[]; for (var e=0;e<n;e++) even.push(+(u0+((e+0.5)*(u1-u0))/n).toFixed(2));
     var ws=FX.allWords(); if(!ws.length||n<1) return even;
@@ -207,7 +215,7 @@ var FX = {
     picked.sort(function(a,b){ return a-b; });
     return picked; },
   // duration-adaptive phase map so a 3s and a 12s scene both feel authored
-  phases: function(){ var d=S.duration;
+  phases: function(){ var d=TD;
     return { intro: Math.min(0.9, d*0.15), outroStart: d - Math.min(0.9, d*0.14), dur: d }; },
   // distribute elements across the narration's beats: element i enters on accent i and
   // (unless keep:true) exits before the next enters — a beat-synced FX.beat fan-out

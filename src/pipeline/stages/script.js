@@ -26,7 +26,10 @@ export async function runScript(ctx) {
       { tries: 2, label: 'b2 script', onRetry: retryHook(projectId, 'b2'), fatal: notStopped },
     );
     project.title = (script.title || project.title || '').trim() || project.title;
-    DB.updateProject(projectId, { title: project.title });
+    // A regenerated script replaces the whole storyboard — any previous scene-gate approval
+    // covered scenes that no longer exist, so it must be revoked (P17: the gate can never
+    // silently auto-spend on a never-reviewed storyboard).
+    DB.updateProject(projectId, { title: project.title, scenes_approved_at: null });
     scenes = DB.replaceScenes(projectId, script.scenes);
     logger.info(`Script: ${scenes.length} scenes`, { projectId });
     step(projectId, 'b2', 'done', `${scenes.length} cảnh`);

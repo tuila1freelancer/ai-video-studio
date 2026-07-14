@@ -10,7 +10,7 @@ AI Video Studio is a macOS app that generates videos automatically: enter a topi
 
 - **Stack**: Pure Node.js 22 ESM. `express` (REST) + `ws` (realtime progress, replay buffer + heartbeat) + `better-sqlite3` (persistence, versioned migrations) + `puppeteer-core` (render HTML→frame) + `ffmpeg`/`ffprobe` (media) + `whisper-cli` (subtitles, forced alignment). The FE is vanilla ESM in `public/js/`.
 - **Entry**: `src/server.js` → cost-meter subscribe → zombie/job recovery → scheduler start → REST (`api/routes.js`) + WebSocket hub + static SPA.
-- **Pipeline (step codes used throughout the codebase)**: `B2` script → `b2.5` editorial gate → `B34` TTS+SRT → `B5` visuals → `B6` scene render → *(review gate)* → `B7` concat/mix + master → `B8` QC gate → metadata → `B9` publish (opt-in).
+- **Pipeline (step codes used throughout the codebase)**: `B2` script → `b2.5` editorial gate → *(estimated timing seed, `pipeline/estimate.js`)* → `B5` visuals → *(scene gate, opt-in `config.sceneGate` — P17)* → `B34` TTS+SRT (overwrites estimated duration/srt with real) → `B6` scene render (hyperframe time-warp `props.plannedDur`→`S.tplScale`) → *(review gate)* → `B7` concat/mix + master → `B8` QC gate → metadata → `B9` publish (opt-in). Scenes-first: visuals exist before any TTS credit is spent.
 - **Orchestration**: REST enqueues durable jobs (`jobs` table) → `pipeline/scheduler.js` single-tick loop claims per-kind lanes → executors (`runPipeline`/`renderOnly`); `pipeline/governor.js` counting semaphores bound Chrome+ffmpeg across ALL concurrent runs; the content calendar promotes due slots on the same tick.
 
 Two visual modes run in parallel; this is the crux of the entire architecture:
@@ -258,6 +258,7 @@ Hard-won fixes proven by real testing. Refactors may **relocate** these, but mus
 | P14 | mask secrets at every egress + `applyMaskedUpdate` round-trips `••` | `util/secrets.js`, `core/config.js` |
 | P15 | `/api/file` path allowlist (data/ + channel roots + app bundle read-only) | `api/routes.js:426` |
 | P16 | Assistant proposals never auto-start a paid pipeline: `suggestTopics`/`buildSeries` persist DATA only; `planWeek` + recurrences create SLOTS only; the sole path from a suggestion to a running pipeline is `acceptSuggestion` behind an explicit owner click (slot promotion stays the owner-scheduled semantic) | `api/services/topic-autopilot.js` · `api/services/assistant.js` |
+| P17 | Scene gate never auto-spends: with `config.sceneGate` the run holds after B5 at the DISTINCT `'scenes'` status via a clean return (mirrors the review hold — never `'paused'`/error path, so P13/P10 stay inert); the ONLY writer of `projects.scenes_approved_at` is the explicit owner route `POST /projects/:id/approve-scenes`; TTS resume-skip requires a real `audio_path`, so estimated timing (`pipeline/estimate.js`) can never suppress synthesis; scheduler settles a `'scenes'` hold as job `done` | `pipeline/runner.js` · `api/routes.js` · `pipeline/scheduler.js` |
 
 Golden rule when refactoring: if a regex/constant/guard looks "redundant" → grep `docs/` + this table before touching it.
 

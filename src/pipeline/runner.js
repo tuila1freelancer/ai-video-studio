@@ -1,6 +1,7 @@
-// Pipeline orchestrator: B2 script → B3+4 TTS/SRT → B5 visuals → B6 render → B7 concat/mix
-// → B8 QC. Each stage lives in its own module and receives the shared context; this file only
-// sequences them, emits the lifecycle WS events, and owns the macro self-heal (one auto-resume).
+// Pipeline orchestrator: B2 script → B5 visuals (against estimated timing) → [scene gate]
+// → B3+4 TTS/SRT → B6 render → B7 concat/mix → B8 QC. Each stage lives in its own module and
+// receives the shared context; this file only sequences them, emits the lifecycle WS events,
+// and owns the macro self-heal (one auto-resume).
 import * as DB from '../db/index.js';
 import { hub } from '../ws/hub.js';
 import { logger } from '../util/log.js';
@@ -9,6 +10,7 @@ import { classifyError } from '../core/errors.js';
 import { buildContext } from './context.js';
 import { requestStop, clearStop, isStopped } from './stop.js';
 import { op } from './progress.js';
+import { seedEstimatedTiming } from './estimate.js';
 import { runScript } from './stages/script.js';
 import { runEditorial } from './stages/editorial.js';
 import { runTts } from './stages/tts.js';
@@ -35,8 +37,30 @@ export async function runPipeline(projectId, { resume = false, _auto = 0 } = {})
   try {
     await runScript(ctx);                                   // B2
     await runEditorial(ctx);                                // b2.5 — quality gate (B2 banner)
-    await runTts(ctx);                                      // B3+4
+    // Scenes-first order: visuals are planned/generated BEFORE the paid voice, against an
+    // estimated timeline (seedEstimatedTiming); real TTS then overwrites duration + srt_json
+    // and the hyperframe time-warp (props.plannedDur → S.tplScale) reconciles baked
+    // animation times with the real duration at render.
+    seedEstimatedTiming(ctx);
     await runVisuals(ctx);                                  // B5
+
+    // Scene gate: with config.sceneGate the run holds at a DISTINCT 'scenes' status after
+    // visuals, BEFORE any TTS credit is spent — the owner reviews/edits every scene, then
+    // POST /projects/:id/approve-scenes stamps scenes_approved_at and resumes. Same clean-
+    // return pattern as the review gate below: never 'paused' (P13 must not mistake a hold
+    // for a crash) and never the error path (P10 auto-resume can never skip the gate).
+    if (config.sceneGate === true && !DB.getProject(projectId).scenes_approved_at
+      && DB.getScenes(projectId).some((s) => !s.audio_path)) {
+      // The unvoiced check keeps the gate purposeful: a repurposed/fully-voiced project has
+      // no TTS credit left to protect, so holding it would only stall a one-click flow.
+      DB.updateProject(projectId, { status: 'scenes' });
+      hub.toProject(projectId, { type: 'status', status: 'scenes' });
+      op(projectId, `🎬 Cảnh đã dựng xong ${DB.getScenes(projectId).length} cảnh — duyệt/chỉnh sửa rồi bấm "Lồng tiếng & Render" để tiếp tục`);
+      logger.info('scene gate: holding for owner approval', { projectId });
+      return;
+    }
+
+    await runTts(ctx);                                      // B3+4
     await runRender(ctx);                                   // B6
 
     // Review gate: with config.requireReview the run holds at a DISTINCT 'review' status
