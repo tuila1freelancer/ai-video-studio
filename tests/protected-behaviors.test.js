@@ -49,7 +49,11 @@ test('P6: QC constants — blackdetect pix_th=0.04, probeStreams trailing-comma 
 
 test('P7: TTS voice lock — explicit override beats langVoices, 3 tries on the primary voice', () => {
   const s = src('src/providers/tts.js');
-  assert.match(s, /opts\.ttsOverride\?\.provider/, 'explicit per-project provider must win');
+  // relocated into resolveVoiceTarget: an explicit override still wins on the provider,
+  // and a provider-only override inherits the pinned per-language voice for that provider
+  assert.match(s, /resolveVoiceTarget\(s,\s*lang,\s*opts\.ttsOverride\)/, 'explicit per-project provider must win');
+  assert.match(s, /override\?\.provider/, 'override provider beats langVoices inside resolveVoiceTarget');
+  assert.match(s, /pinnedVoice\(s,\s*override\.provider,\s*lang\)/, 'provider-only override keeps the pinned voice');
   assert.match(s, /ci\s*===\s*0\s*\?\s*3\s*:\s*1/, 'primary voice gets 3 tries before the chain switches');
 });
 
