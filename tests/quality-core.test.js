@@ -108,6 +108,24 @@ test('auto-duration verbatim mode: pasted script survives word-for-word, offline
   assert.ok(short.scenes.length >= 1, 'short topic still produces a script');
 });
 
+test('cinema pacing v3: FX floors, settle state, and the prompt contract', () => {
+  const fx = readFileSync(new URL('../src/animation/templates/_shared.js', import.meta.url), 'utf8');
+  assert.match(fx, /Math\.max\(Math\.min\(0\.45, hold\*0\.5\), Math\.min\(0\.8, hold\*0\.45\)\)/, 'entrance floor 0.45–0.8s');
+  assert.match(fx, /o\.out === 'settle'/, 'persistent settle state exists');
+  assert.match(fx, /back\.out\(1\.5\)/, 'pop spring softened');
+  const prompt = readFileSync(new URL('../src/hyperframe/prompt.js', import.meta.url), 'utf8');
+  assert.match(prompt, /PACING CONTRACT/, 'pacing contract present');
+  assert.match(prompt, /PERSISTENCE/, 'persistence semantics present');
+  assert.match(prompt, /COMPOSITION GRID/, 'per-aspect layout zones present');
+  assert.match(prompt, /INFOGRAPHIC DETAIL/, 'detail bar present');
+  assert.match(prompt, /NEVER shorter than 0\.35s/, 'hard entrance floor stated');
+  const warp = readFileSync(new URL('../src/animation/timewarp.js', import.meta.url), 'utf8');
+  assert.match(warp, /SLOPE_MIN = 0\.6/, 'gentler warp slope floor');
+  assert.match(warp, /SLOPE_MAX = 1\.8/, 'gentler warp slope cap');
+  const sample = readFileSync(new URL('../src/styleguide/guide.js', import.meta.url), 'utf8');
+  assert.match(sample, /out: 'settle'/, 'worked example models the settle style');
+});
+
 test('prompt v2 + budget stage source anchors (P4/P5 intact, gate wired pre-seed)', () => {
   const llm = readFileSync(new URL('../src/providers/llm.js', import.meta.url), 'utf8');
   assert.match(llm, /Math\.ceil\(sceneCount\s*\*\s*0\.7\)/, 'P4 anchor survives prompt v2');

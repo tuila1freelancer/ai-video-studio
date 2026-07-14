@@ -32,5 +32,6 @@ test('overlap + unreadable defects are HARD (trigger codegen re-ask, not just la
   const rx = new RegExp(re.slice(1, -2), 'i');
   assert.ok(rx.test('the texts "A" and "B" overlap each other at 1.0s'), 'overlap phrase is hard');
   assert.ok(rx.test('the text "X" is unreadable at 2.0s'), 'contrast phrase is hard');
+  assert.ok(rx.test('the frame goes empty at 4.4s mid-scene'), 'mid-scene deadness phrase is hard');
   assert.ok(rx.test('element runs 40px off-screen'), 'existing phrases intact (P-guard parity)');
 });

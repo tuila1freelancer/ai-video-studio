@@ -237,7 +237,10 @@ var FX = {
   // in: 'rise'|'pop'|'carrier'|'glitch'|'flip'   out: 'fade'|'whip'|'flip'|'blur'|'none'
   beat: function(tl, sel, t0, t1, o){ o=o||{};
     var hold = Math.max(0.45, (t1==null?t0+1.6:t1) - t0);
-    var inD = Math.min(0.45, hold*0.38), outD = Math.min(0.3, hold*0.25);
+    // Cinema pacing: entrances land between 0.45–0.8s (sub-0.35s flashes read as jitter);
+    // only very tight holds compress below the floor.
+    var inD = Math.max(Math.min(0.45, hold*0.5), Math.min(0.8, hold*0.45));
+    var outD = Math.min(0.5, hold*0.28);
     var outAt = t0 + hold - outD;
     tl.set(sel, { opacity:0 }, 0);
     if (o['in'] === 'glitch') {
@@ -247,7 +250,7 @@ var FX = {
     } else if (o['in'] === 'carrier') {
       tl.fromTo(sel, { x:(o.from==null?300:o.from)*(o.dir||1), opacity:0 }, { x:0, opacity:1, duration:inD, ease:'expo.out' }, t0);
     } else if (o['in'] === 'pop') {
-      tl.fromTo(sel, { scale:0.45, opacity:0 }, { scale:1, opacity:1, duration:inD, ease:'back.out(2.2)' }, t0);
+      tl.fromTo(sel, { scale:0.55, opacity:0 }, { scale:1, opacity:1, duration:inD, ease:'back.out(1.5)' }, t0);
     } else if (o['in'] === 'flip') {
       tl.fromTo(sel, { rotationX:-86, opacity:0, transformPerspective:620 }, { rotationX:0, opacity:1, duration:inD, ease:'power2.out' }, t0);
     } else {
@@ -256,7 +259,11 @@ var FX = {
     if (o.drift !== false && hold > 1.1) {
       tl.to(sel, { y:'-=6', duration:Math.min(1.2,(hold-inD-outD)/2), yoyo:true, repeat:1, ease:'sine.inOut' }, t0+inD);
     }
-    if (o.out === 'whip') {
+    if (o.out === 'settle') {
+      // persistent composition: the element STAYS after its beat — eased down to a calm
+      // supporting state so the next beat can take focus without the screen ever emptying
+      tl.to(sel, { scale:0.94, opacity:o.dim==null?0.72:o.dim, duration:Math.min(0.6, outD+0.2), ease:'power2.inOut' }, outAt);
+    } else if (o.out === 'whip') {
       tl.to(sel, { x:-40, duration:outD*0.4, ease:'power2.out' }, outAt - outD*0.4)
         .to(sel, { x:o.exitX==null?480:o.exitX, opacity:0, skewX:-8, duration:outD, ease:'power3.in' }, outAt);
     } else if (o.out === 'flip') {

@@ -148,12 +148,16 @@ export const SAMPLE_SPEC = {
 FX.camPush(tl, { scale: 1.055 });
 FX.parallax(tl, '.hf-mid > *', { amp: 14 });
 FX.beat(tl, '#lb1', 0.35, DUR, { 'in': 'rise', out: 'none', drift: false, y: 22 });
-FX.beat(tl, '#kw1', 0.9, 2.9, { 'in': 'carrier', out: 'whip', from: 340 });
-FX.chromeSweep(tl, '#kw1', { at: 1.5 });
+// hero keyword: unhurried entrance, then SETTLES into the composition (build element —
+// the scene assembles around it; nothing whips away)
+FX.beat(tl, '#kw1', 0.9, 3.0, { 'in': 'carrier', out: 'settle', from: 340 });
+FX.chromeSweep(tl, '#kw1', { at: 1.7 });
 FX.beamSweep(tl, '.hf-beam', { at: 2.95 });
-FX.beat(tl, '#st1', 3.05, 4.55, { 'in': 'pop', out: 'blur' });
-FX.counterRoll(tl, '#st1v', 87, { at: 3.15, dur: 1.0 });
-FX.beat(tl, '#ic1', 4.7, DUR - 0.1, { 'in': 'glitch', out: 'fade' });
-FX.pulseGlow(tl, '#ic1', { at: 5.0, dur: 0.7, repeat: 1 });
+// stat block: eased pop on its spoken beat, counter rolls slowly, then settles dimmed
+FX.beat(tl, '#st1', 3.05, 4.8, { 'in': 'pop', out: 'settle' });
+FX.counterRoll(tl, '#st1v', 87, { at: 3.25, dur: 1.2 });
+// closing accent: the icon joins the assembled composition and holds focus to the end
+FX.beat(tl, '#ic1', 4.9, DUR - 0.1, { 'in': 'rise', out: 'none' });
+FX.pulseGlow(tl, '#ic1', { at: 5.4, dur: 0.9, repeat: 1 });
 `,
 };

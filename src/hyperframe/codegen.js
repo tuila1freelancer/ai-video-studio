@@ -34,7 +34,7 @@ export function parseSpec(raw) {
 }
 
 // A render defect is "hard" (wrong content/layout — never ship) vs "soft" (cosmetic timing).
-const HARD_DEFECT = /off-screen|bottom of the frame|wrong language|renders empty|threw at runtime|overlap each other|unreadable/i;
+const HARD_DEFECT = /off-screen|bottom of the frame|wrong language|renders empty|goes empty|threw at runtime|overlap each other|unreadable/i;
 
 function syntaxCheck(spec, guide, { w, h, duration }) {
   // compile the FULL assembled script (FX prelude + spec.script) exactly as the page will run it

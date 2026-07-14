@@ -140,10 +140,18 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
       times.add(+Math.min(dur - 0.05, b.t0 + 0.25).toFixed(2));
       times.add(+Math.min(dur - 0.05, (b.t0 + b.t1) / 2).toFixed(2));
     }
+    // gap centers between consecutive beats (and after the last beat): the exact places a
+    // scene goes dead when every beat FLASH-exits and the next one is late
+    const sb = [...beats].sort((a, c) => (a.t0 || 0) - (c.t0 || 0));
+    for (let i = 0; i < sb.length; i++) {
+      const nextStart = i + 1 < sb.length ? sb[i + 1].t0 : dur;
+      const gapMid = ((sb[i].t1 || 0) + nextStart) / 2;
+      if (gapMid > sb[i].t1 && gapMid < nextStart) times.add(+Math.min(dur - 0.05, gapMid).toFixed(2));
+    }
     const T = [...times].filter((t) => t >= 0 && t <= dur).sort((a, c) => a - c);
     const narrWords = narrationWordSet(narration);
     const narrLang = detectLang(narration || '');
-    let anyVisible = false, endStrong = false, heroFrac = 0;
+    let anyVisible = false, endStrong = false, heroFrac = 0, deadAt = null;
     const off = [], sub = [], bad = new Map(), ovl = new Map(), lowc = new Map();
     for (const t of T) {
       const { W, H, els, overlaps = [], lowContrast = [] } = await page.evaluate((tt, probe) => { window.__seek(tt); return eval(probe); }, t, PROBE);
@@ -151,6 +159,10 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
       for (const p of lowContrast) { if (!lowc.has(p.txt)) lowc.set(p.txt, { t, ...p }); }
       const vis = els.filter((e) => e.o > 0.15);
       if (vis.length) anyVisible = true;
+      // mid-scene deadness: inside the scene's body, SOMETHING substantial must be on screen
+      // (a settled build element or the hero) — a frame of only ghost decor reads as a cut
+      if (deadAt == null && t > 0.6 && t < dur - 0.3
+        && !els.some((e) => e.o >= 0.5 && e.w * e.h >= 0.02 * W * H)) deadAt = t;
       for (const e of vis) heroFrac = Math.max(heroFrac, e.w / W);
       // a scene must not fade to (near) nothing at the end — the last frame should still carry a hero
       if (t >= endT - 0.001 && els.some((e) => e.o > 0.35 && e.w > 0.06 * W)) endStrong = true;
@@ -162,6 +174,7 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
       }
     }
     if (!anyVisible) defects.push('no element is ever visible — the scene renders empty. Make each beat element visible during its window.');
+    else if (deadAt != null) defects.push(`the frame goes empty at ${deadAt.toFixed(1)}s mid-scene — nothing substantial is on screen between beats. Keep the composition alive: give earlier BUILD elements out:'settle' (they stay dimmed) or hold the previous element until the next one enters; the screen must never drop back to bare decor mid-scene.`);
     else if (!endStrong) defects.push(`the scene ends nearly empty (nothing prominent is on screen at ${endT.toFixed(1)}s) — keep the final keyword (or a climax element) clearly visible through the last second so the ending lands.`);
     // timid composition is a quality defect (cosmetic): the hero must dominate the frame
     if (anyVisible && heroFrac > 0 && heroFrac < 0.42) {
