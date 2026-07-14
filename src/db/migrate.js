@@ -41,6 +41,19 @@ const MIGRATIONS = [
       if (!scols.includes('fp')) db.exec('ALTER TABLE scenes ADD COLUMN fp TEXT');
     },
   },
+  {
+    id: 3,
+    name: 'scene-gate-approval',
+    // Scene gate (visuals-first pipeline): timestamp of the owner's explicit "scenes look
+    // good — go voice + render" approval. NULL = not approved; a project with
+    // config.sceneGate holds at status 'scenes' after B5 until this is set. Durable so a
+    // crash/auto-resume AFTER approval never re-holds, and one BEFORE approval always
+    // re-holds (the gate can never auto-spend TTS credits).
+    up(db) {
+      const pcols = db.prepare('PRAGMA table_info(projects)').all().map((c) => c.name);
+      if (!pcols.includes('scenes_approved_at')) db.exec('ALTER TABLE projects ADD COLUMN scenes_approved_at INTEGER');
+    },
+  },
 ];
 
 function backupBefore(db) {

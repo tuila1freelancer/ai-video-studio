@@ -119,11 +119,16 @@ const RUNTIME = `
     return { n: anims.length, gsap: !!window.__tl, tplErr: window.__tplErr };
   };
   window.__seek = (t) => {
-    const ms = t*1000;
+    // Template layers (GSAP timeline + the spec's CSS/WAAPI animations) run in AUTHORED
+    // timeline coordinates: st = t * tplScale warps a spec authored for plannedDur across
+    // the real duration. Captions/progress/background stay on REAL time — they are built
+    // from the real voice timeline at page build.
+    const st = t * (S.tplScale || 1);
+    const ms = st*1000;
     for (const a of anims) { try { a.currentTime = ms; } catch(e){} }
     // suppressEvents MUST be false: onUpdate-driven content (FX.count/typeOn counters) is a
     // pure function of tl time, but suppressing events froze it at its initial value.
-    if (window.__tl) { try { window.__tl.time(t, false); } catch(e){} }
+    if (window.__tl) { try { window.__tl.time(st, false); } catch(e){} }
     window.__drawBg(t); window.__drawCaption(t); window.__drawProgress(t);
     return true;
   };
@@ -195,6 +200,10 @@ export function buildScenePage(opts) {
 
   const sceneData = {
     duration: opts.duration, seed: opts.seed || 0,
+    // tplScale (planned/real): template-timeline coordinates per real second. __seek drives
+    // the GSAP/WAAPI template layers at t*tplScale while captions/progress/bg stay on real t
+    // — reconciles specs authored against an estimated duration (scenes-first pipeline).
+    tplScale: opts.tplScale && opts.tplScale !== 1 ? opts.tplScale : 1,
     progressStart: opts.progressStart || 0, progressTotal: opts.progressTotal || 0,
     captions: opts.captions || [],
     theme: { particles: theme.particles, streak: theme.streak, accents: theme.accents },

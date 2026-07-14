@@ -41,6 +41,14 @@ export function initStudio() {
   });
   $('#btnStop').addEventListener('click', () => api.post(`/projects/${state.current.id}/stop`, {}));
   $('#btnResume').addEventListener('click', () => api.post(`/projects/${state.current.id}/resume`, {}));
+  $('#btnApproveScenes')?.addEventListener('click', () => withLock($('#btnApproveScenes'), async () => {
+    try {
+      const r = await api.post(`/projects/${state.current.id}/approve-scenes`, {});
+      if (r?.error) { toast(r.error, 'error'); return; }
+      $('#sceneGateBar').classList.add('hidden');
+      toast('🎙 Đã duyệt cảnh — bắt đầu lồng tiếng + render', 'success');
+    } catch (e) { toast('Không duyệt được: ' + (e?.message || e), 'error'); }
+  }));
   $('#btnRender').addEventListener('click', () => withLock($('#btnRender'), () => renderScenes2('all')));
   $('#btnRenderAll').addEventListener('click', () => withLock($('#btnRenderAll'), () => renderScenes2('all')));
   $('#btnRenderSel').addEventListener('click', () => withLock($('#btnRenderSel'), () => renderScenes2('scenes', selectedIds())));
@@ -208,6 +216,7 @@ export function renderProjectView() {
   $('#pvDate').textContent = new Date(p.updated_at).toLocaleString('vi-VN');
   $('#btnStop').classList.toggle('hidden', p.status !== 'running');
   $('#btnResume').classList.toggle('hidden', !['paused', 'error', 'review'].includes(p.status));
+  renderSceneGate(p);
   // reset pipeline visuals from scene statuses
   resetPipeFromState();
   renderScenes();
@@ -220,10 +229,29 @@ function resetPipeFromState() {
   const p = state.current;
   if (!p) return;
   if (state.scenes.length) { setStep('b2', 'done'); }
+  // scenes-first order: template/props (visuals) can exist before any audio does.
+  // every(): B2 two-stage pre-assigns plans to SOME scenes (chapter breaks) — b5 is only
+  // done once the whole storyboard carries one.
+  if (state.scenes.length && state.scenes.every((s) => s.image_path || (s.template && s.props))) setStep('b5', 'done');
   if (state.scenes.some((s) => s.audio_path)) setStep('b34', 'done');
-  if (state.scenes.some((s) => s.image_path)) setStep('b5', 'done');
   if (state.scenes.some((s) => s.video_path)) setStep('b6', 'done');
   if (p.video_path) setStep('b7', 'done');
+}
+
+// Scene-gate banner: visible only while the run holds at status 'scenes'. State-derived
+// (not event-derived) so WS replays and reloads render it idempotently.
+async function renderSceneGate(p) {
+  const bar = $('#sceneGateBar');
+  if (!bar) return;
+  const show = p && p.status === 'scenes';
+  bar.classList.toggle('hidden', !show);
+  if (!show) return;
+  try {
+    const est = await api.get(`/projects/${p.id}/voice-estimate`);
+    const cost = est.credits != null ? `≈ ${est.credits.toLocaleString('vi-VN')} credits LarVoice`
+      : est.usd ? `≈ $${est.usd.toFixed(3)} (${est.provider})` : `${est.provider} (miễn phí)`;
+    $('#sceneGateCost').textContent = `Lồng tiếng ${est.scenes} cảnh · ${est.chars.toLocaleString('vi-VN')} ký tự · ${cost}`;
+  } catch { $('#sceneGateCost').textContent = ''; }
 }
 
 // ---------------- final + meta ----------------
@@ -312,7 +340,9 @@ function updateStatusBadge(status) {
   if (state.current) state.current.status = status;
   $('#pvStatus').textContent = badgeText(status); $('#pvStatus').className = 'badge ' + status;
   $('#btnStop').classList.toggle('hidden', status !== 'running');
-  $('#btnResume').classList.toggle('hidden', status !== 'paused' && status !== 'error');
+  // 'review' included: a live WS hold must reveal the continue button without a reload
+  $('#btnResume').classList.toggle('hidden', !['paused', 'error', 'review'].includes(status));
+  renderSceneGate(state.current);
 }
 async function onDone(m) {
   hideOp(); setProgress(100); toast('Video hoàn thành ✓', 'success');

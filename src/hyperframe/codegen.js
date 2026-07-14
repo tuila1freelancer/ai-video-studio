@@ -95,7 +95,11 @@ export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, on
     const allIssues = [...errors, ...renderDefects];
     if (!allIssues.length) {
       if (warnings.length) onLog(`cảnh ${idx + 1}: cảnh báo lint — ${warnings.join('; ')}`);
-      return { props: { ...clean, guide, beats }, beats, direction, warnings };
+      // plannedDur: the duration this spec's absolute animation times were authored for.
+      // Scenes-first order generates specs against an ESTIMATED timeline; at render the
+      // harness time-warps the template timeline by plannedDur/realDur (S.tplScale) so the
+      // choreography fills the real voice duration instead of cutting or freezing.
+      return { props: { ...clean, guide, beats, plannedDur: duration }, beats, direction, warnings };
     }
     lastErrors = allIssues;
     onLog(`cảnh ${idx + 1}: spec chưa đạt (lần ${attempt}/${maxAttempts}) — ${allIssues.join(' | ').slice(0, 240)}`);
@@ -109,7 +113,7 @@ export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, on
   // hard runtime error, ship it (a slightly-imperfect real scene beats a generic template).
   if (lastGood) {
     onLog(`cảnh ${idx + 1}: dùng spec tốt nhất đạt được (còn cảnh báo hình học sau ${maxAttempts} lần)`);
-    return { props: { ...lastGood, guide, beats }, beats, direction, warnings: ['render-imperfect'] };
+    return { props: { ...lastGood, guide, beats, plannedDur: duration }, beats, direction, warnings: ['render-imperfect'] };
   }
   throw new Error(`codegen thất bại sau ${maxAttempts} lần: ${lastErrors?.join(' | ').slice(0, 200)}`);
 }

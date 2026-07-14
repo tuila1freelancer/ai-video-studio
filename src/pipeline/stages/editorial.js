@@ -16,7 +16,14 @@ export async function runEditorial(ctx) {
   const { projectId, project, config, ai } = ctx;
   if (config.editorial === false) return;
   const scenes = DB.getScenes(projectId);
-  if (!scenes.length || scenes.some((s) => s.audio_path)) return; // post-TTS: never rewrite
+  // Never rewrite once downstream artifacts are bound to this text: after TTS (the voice
+  // speaks it), after the timing seed (srt_json set — scenes-first order means visuals were
+  // planned from this text on any resume past the seed, including animation templates whose
+  // on-screen words bake the script), after hyperframe codegen, or after the owner approved
+  // the scenes at the gate. On a FIRST pass the seed hasn't run yet, so editorial still runs
+  // — including for B2 two-stage pre-assigned plans, same as before the reorder.
+  if (!scenes.length || project.scenes_approved_at
+    || scenes.some((s) => s.audio_path || s.srt_json || (s.template === 'hyperframe' && s.props?.script))) return;
 
   const { issues, flaggedIdx } = scoreScript(scenes, config);
   if (!issues.length) { op(projectId, '🪶 Biên tập: kịch bản đạt — không lỗi ngôn ngữ/cụt câu/lặp'); return; }

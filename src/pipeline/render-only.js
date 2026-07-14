@@ -24,11 +24,29 @@ export async function renderOnly(projectId, { mode = 'all', sceneIds = [] }) {
   DB.updateProject(projectId, { status: 'running' });
   hub.toProject(projectId, { type: 'status', status: 'running' });
   try {
-    step(projectId, 'b6', 'running', 'Render');
     const visualMode = config.visualMode || 'animation';
     const allScenes = DB.getScenes(projectId);
     let scenes = allScenes;
     if (mode === 'scenes' && sceneIds.length) scenes = scenes.filter((s) => sceneIds.includes(s.id));
+    // Scenes-first order: an unvoiced scene only carries an ESTIMATED duration — rendering
+    // it would bake a silent clip cut to the estimate, which the real TTS then invalidates.
+    // Voice first (continue past the scene gate or regen-voice), render after.
+    const unvoiced = scenes.filter((s) => !s.audio_path);
+    if (unvoiced.length) {
+      scenes = scenes.filter((s) => s.audio_path);
+      op(projectId, `⏭️ Bỏ qua ${unvoiced.length} cảnh chưa có lồng tiếng — hãy lồng tiếng trước rồi render`);
+      if (!scenes.length) {
+        // Nothing renderable — exit CLEANLY (before any b6 step event, so the progress bar
+        // never jumps) and restore the entry status: flipping a scene-gate hold to 'error'
+        // would read as a crashed run in the UI.
+        op(projectId, '🎙 Chưa cảnh nào có lồng tiếng — bấm "Lồng tiếng & Render" (hoặc tạo giọng từng cảnh) trước');
+        const back = project.status === 'running' ? 'paused' : project.status;
+        DB.updateProject(projectId, { status: back });
+        hub.toProject(projectId, { type: 'status', status: back });
+        return;
+      }
+    }
+    step(projectId, 'b6', 'running', 'Render');
     const subtitleStyle = subtitleStyleFrom(config);
     const animLike = visualMode !== 'image';
     const rC = animLike
@@ -56,11 +74,28 @@ export async function renderOnly(projectId, { mode = 'all', sceneIds = [] }) {
       hub.toProject(projectId, { type: 'scene', sceneId: sc.id, idx: sc.idx, status: 'rendered', video: `/api/file?path=${encodeURIComponent(path)}`, ...(preview ? { image: `/api/file?path=${encodeURIComponent(preview)}` } : {}) });
     }, { pool: 'render' }); // same process-wide bound as pipeline renders
     step(projectId, 'b6', 'done');
-    if (mode !== 'scenes') await finalize(projectId, { dir, size, config });
-    DB.updateProject(projectId, { status: 'done' });
-    const fin = DB.getProject(projectId);
-    hub.toProject(projectId, { type: 'done', video: fin.video_path ? `/api/file?path=${encodeURIComponent(fin.video_path)}` : null,
-      thumb: fin.thumb_path ? `/api/file?path=${encodeURIComponent(fin.thumb_path)}` : null });
+    // finalize's missing-clip repair renders EVERY clip-less scene — including unvoiced
+    // ones, as silent clips cut to their estimate — so concat is only allowed once every
+    // scene carries a real voice. Otherwise a partially-voiced gate hold would ship a
+    // half-silent "final" video.
+    const stillUnvoiced = DB.getScenes(projectId).some((s) => !s.audio_path);
+    if (mode !== 'scenes' && stillUnvoiced) {
+      op(projectId, '⏭️ Bỏ qua ghép — còn cảnh chưa có lồng tiếng; hoàn tất lồng tiếng rồi ghép sau');
+    } else if (mode !== 'scenes') {
+      await finalize(projectId, { dir, size, config });
+    }
+    // A render during a hold (scene gate 'scenes' / review gate 'review') must not destroy
+    // the hold: 'done' here would let the owner think the video finished prematurely.
+    const endStatus = ['scenes', 'review'].includes(project.status) ? project.status
+      : (mode !== 'scenes' && stillUnvoiced ? 'paused' : 'done');
+    DB.updateProject(projectId, { status: endStatus });
+    if (endStatus !== 'done') {
+      hub.toProject(projectId, { type: 'status', status: endStatus });
+    } else {
+      const fin = DB.getProject(projectId);
+      hub.toProject(projectId, { type: 'done', video: fin.video_path ? `/api/file?path=${encodeURIComponent(fin.video_path)}` : null,
+        thumb: fin.thumb_path ? `/api/file?path=${encodeURIComponent(fin.thumb_path)}` : null });
+    }
   } catch (e) {
     if (e.stopped) { DB.updateProject(projectId, { status: 'paused' }); hub.toProject(projectId, { type: 'status', status: 'paused' }); }
     else { DB.updateProject(projectId, { status: 'error', error: e.message }); hub.toProject(projectId, { type: 'error', msg: e.message }); }

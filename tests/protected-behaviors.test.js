@@ -130,3 +130,23 @@ test('P16: assistant proposals never auto-start a paid pipeline', () => {
   assert.ok(suggestHandler.length > 0 && !/startBatch|enqueueJob|createProject/.test(suggestHandler),
     'POST /topics/suggest returns proposals, never projects');
 });
+
+test('P17: scene gate holds cleanly and only the explicit owner route approves it', () => {
+  const runner = src('src/pipeline/runner.js');
+  // hold pattern mirrors the review gate: distinct status + clean return (P13/P10 stay inert)
+  assert.match(runner, /config\.sceneGate === true && !DB\.getProject\(projectId\)\.scenes_approved_at/, 'gate checks the durable approval stamp');
+  assert.match(runner, /status:\s*'scenes'/, "hold uses the distinct 'scenes' status, never 'paused'");
+  const gateBlock = runner.slice(runner.indexOf("config.sceneGate === true"), runner.indexOf('await runTts'));
+  assert.match(gateBlock, /return;/, 'gate exits via a clean return, not the error path');
+  // the approval stamp has exactly one writer: the explicit owner route
+  const routes = src('src/api/routes.js');
+  assert.match(routes, /approve-scenes/, 'explicit approve route exists');
+  const writers = [runner, src('src/pipeline/scheduler.js'), src('src/pipeline/estimate.js'),
+    src('src/api/services/topic-autopilot.js'), src('src/api/services/assistant.js')];
+  for (const w of writers) assert.ok(!/scenes_approved_at:\s*Date\.now/.test(w), 'only the route stamps approval');
+  // TTS resume-skip requires REAL audio — estimated timing can never suppress synthesis
+  assert.match(src('src/pipeline/stages/tts.js'), /sc\.audio_path && existsSync\(sc\.audio_path\) && sc\.srt_json/);
+  assert.match(src('src/pipeline/estimate.js'), /if \(sc\.audio_path\) continue/, 'estimate seeds unvoiced scenes only');
+  // a scenes hold settles the durable job as done (not error)
+  assert.match(src('src/pipeline/scheduler.js'), /status === 'scenes'\) return \{ status: 'done' \}/);
+});

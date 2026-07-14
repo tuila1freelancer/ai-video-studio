@@ -75,6 +75,7 @@ export function gatherConfig() {
     ...($('#cfgBrandFont')?.value ? { fonts: { display: $('#cfgBrandFont').value } } : {}),
     autoConcat: $('#cfgAutoConcat').checked,
     requireReview: $('#cfgReview')?.checked || false,
+    sceneGate: $('#cfgSceneGate')?.checked || false,
     richAnimation: $('#cfgRich').checked,
     transitions: $('#cfgTrans').checked,
     intro: $('#cfgIntro').checked,
@@ -115,6 +116,7 @@ export function applyConfig(cfg = {}) {
   if ($('#cfgBrandFont')) $('#cfgBrandFont').value = cfg.fonts?.display || '';
   if ('autoConcat' in cfg) $('#cfgAutoConcat').checked = cfg.autoConcat !== false;
   if ('requireReview' in cfg && $('#cfgReview')) $('#cfgReview').checked = cfg.requireReview === true;
+  if ('sceneGate' in cfg && $('#cfgSceneGate')) $('#cfgSceneGate').checked = cfg.sceneGate === true;
   if ('richAnimation' in cfg) $('#cfgRich').checked = cfg.richAnimation !== false;
   if ('transitions' in cfg) $('#cfgTrans').checked = !!cfg.transitions;
   if ('intro' in cfg) $('#cfgIntro').checked = cfg.intro !== false;
@@ -352,6 +354,7 @@ export function updateCfgChips() {
   const voice = lv ? `${lv.voice} (${lv.provider})` : (state.settings?.tts?.provider ? `provider ${state.settings.tts.provider}` : 'tự chọn');
   set('audio', `Giọng: ${voice} · ${$('#cfgBgm').value ? `BGM: ${selText('#cfgBgm')}` : ($('#cfgBgmAuto').checked ? 'BGM tự động' : 'không BGM')}`);
   const flags = [
+    $('#cfgSceneGate')?.checked && 'Duyệt cảnh trước 🎬', $('#cfgReview')?.checked && 'Duyệt trước ghép',
     $('#cfgIntro').checked && 'Intro/Outro', $('#cfgTrans').checked && 'Xfade', $('#cfgRich').checked && 'Ảnh AI',
     $('#cfgMeta').checked && 'Metadata', $('#cfgPTts').checked && `TTS ×${$('#cfgTtsC').value}`, $('#cfgPRender').checked && `Render ×${$('#cfgRenderC').value}`,
   ].filter(Boolean).join(' · ');

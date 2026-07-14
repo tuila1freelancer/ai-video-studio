@@ -2,15 +2,17 @@ import { $, el } from '../ui/dom.js';
 import { icon } from '../ui/icons.js';
 
 // Pipeline progress engine: weighted B2→B7 percent + step badges + current-op line + log.
+// Scenes-first order: visuals (b5) run BEFORE the voice (b34) so the owner can review the
+// storyboard at the scene gate without spending TTS credits.
 export const PIPE = [
   { k: 'b2', icn: 'edit', n: 'Kịch bản' },
-  { k: 'b34', icn: 'mic', n: 'TTS + Phụ đề' },
   { k: 'b5', icn: 'wand', n: 'Dựng cảnh' },
+  { k: 'b34', icn: 'mic', n: 'TTS + Phụ đề' },
   { k: 'b6', icn: 'film', n: 'Render' },
   { k: 'b7', icn: 'scissors', n: 'Ghép & Mix' },
 ];
-export const PHASE_W = { b2: 8, b34: 32, b5: 25, b6: 25, b7: 10 };
-export const PHASE_ORDER = ['b2', 'b34', 'b5', 'b6', 'b7'];
+export const PHASE_W = { b2: 8, b5: 25, b34: 32, b6: 25, b7: 10 };
+export const PHASE_ORDER = ['b2', 'b5', 'b34', 'b6', 'b7'];
 export let prog = { total: 0, counts: { tts: 0, html: 0, rendered: 0 }, step: 'b2' };
 
 export function resetProgress() { prog = { total: 0, counts: { tts: 0, html: 0, rendered: 0 }, step: 'b2' }; setProgress(0); }

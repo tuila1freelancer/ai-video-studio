@@ -10,6 +10,26 @@ import { transcribeWords, whisperAvailable, groupWordsIntoCues } from '../media/
 import { alignWords } from '../media/align.js';
 import { logger } from '../util/log.js';
 
+// Ratio of ACTUAL spoken pace to the LANG_WPS writing budget. LANG_WPS (vi 4.4) sizes how
+// much text fits a slot; measured LarVoice vi delivery runs at ~4.29 words/s (36 words →
+// 8.39s speech), i.e. ~97% of budget — 0.95 leaves a touch of slack for slower voices.
+// One constant, applied to every language, so the estimator can never drift from the
+// P5-pinned budget table on its own.
+const SPOKEN_VS_BUDGET = 0.95;
+
+/**
+ * Estimate how long a voice line will take to SPEAK, before any audio exists (scenes-first
+ * pipeline: visuals are planned against this, then real TTS overwrites it). Includes the
+ * per-language trailing breath pad so the number is comparable to scenes.duration as
+ * written by the TTS stage. Clamped to [2.5, 40]s.
+ */
+export function estimateSpeechDuration(text, lang, wpsTable) {
+  const words = (String(text || '').match(/[\p{L}\p{N}]+/gu) || []).length;
+  const wps = ((wpsTable || {})[lang] || 3.0) * SPOKEN_VS_BUDGET;
+  const padS = (lang === 'vi' ? 650 : 400) / 1000; // mirror stages/tts.js padMsFor
+  return Math.min(40, Math.max(2.5, +(words / Math.max(1, wps) + padS).toFixed(3)));
+}
+
 // Distribute words across [0, duration] weighted by word length (offline fallback).
 export function estimateWordTiming(text, duration) {
   const tokens = (text || '').trim().split(/\s+/).filter(Boolean);

@@ -102,7 +102,7 @@ function sceneCard(s) {
   const nBeats = s.hfBeats ?? (Array.isArray(s.props?.beats) ? s.props.beats.length : null);
   const hfBadge = isHf && s.template === 'hyperframe' && nBeats
     ? ` <span class="hf-badge" title="visual bám theo ${nBeats} beat của lời thoại">✨${nBeats}</span>` : '';
-  c.innerHTML = `<div class="sv"><input type="checkbox" class="chk">${poster}${vid}${s.duration ? `<span class="dur">${s.duration.toFixed(1)}s</span>` : ''}</div>
+  c.innerHTML = `<div class="sv"><input type="checkbox" class="chk">${poster}${vid}${s.duration ? (() => { const voiced = s.audio_path || ['tts', 'rendered'].includes(s.status); return `<span class="dur"${voiced ? '' : ' title="thời lượng ước lượng — sẽ chốt khi lồng tiếng"'}>${voiced ? '' : '~'}${s.duration.toFixed(1)}s</span>`; })() : ''}</div>
     <div class="si"><div class="n"><span>Cảnh ${s.idx + 1}${hfBadge}</span><span>${statusIcon(s.status)}</span></div><div class="vt">${esc(s.voice_text || '')}</div>${tplSelect}</div>
     <div class="sa">
       ${animLike ? `<button class="btn sm" data-act="studio" title="Scene Studio: xem trước + sửa lời thoại/visual/HTML">🎬</button>` : ''}
@@ -124,8 +124,10 @@ export function patchScene(card, s) {
   if (s.duration) {
     let dur = sv.querySelector('.dur');
     if (!dur) { dur = el('span', 'dur'); sv.appendChild(dur); }
-    const txt = s.duration.toFixed(1) + 's';
-    if (dur.textContent !== txt) dur.textContent = txt;
+    // WS scene events never carry audio_path — a post-TTS status is the voiced signal
+    const voiced = s.audio_path || ['tts', 'rendered'].includes(s.status);
+    const txt = (voiced ? '' : '~') + s.duration.toFixed(1) + 's';
+    if (dur.textContent !== txt) { dur.textContent = txt; if (voiced) dur.removeAttribute('title'); }
   }
   const imgUrl = s.image_path ? fileUrl(s.image_path) : '';
   if (imgUrl && card.dataset.img !== imgUrl) {

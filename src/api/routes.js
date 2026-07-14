@@ -12,7 +12,9 @@ import { fetchLink } from '../providers/fetchlink.js';
 import { imageSearch } from '../providers/imagesearch.js';
 import { generateMetadata } from '../providers/llm.js';
 import * as Pipeline from '../pipeline/queue.js';
-import { resolveProjectConfig, maskSecrets, applyMaskedUpdate } from '../core/config.js';
+import { resolveProjectConfig, maskSecrets, applyMaskedUpdate, ttsOverrideFor } from '../core/config.js';
+import { estimateCost } from '../core/pricing.js';
+import { resolveVoiceTarget } from '../providers/tts.js';
 import { inAllowedRoots } from './services/file-access.js';
 import { synthPreview } from './services/voice-preview.js';
 import { startBatch } from './services/batch.js';
@@ -259,6 +261,37 @@ export function mountRoutes(app, { version }) {
   r.post('/projects/:id/resume', (req, res) => {
     Pipeline.startProject(req.params.id, { resume: true }).catch((e) => logger.error(e.message, { projectId: req.params.id }));
     res.json({ ok: true });
+  });
+  // Scene gate continue: the owner's EXPLICIT "scenes look good — voice + render" click.
+  // Stamps scenes_approved_at (durable: a crash/auto-resume after this never re-holds) and
+  // resumes the run past the gate into TTS. This is the ONLY writer of the stamp — nothing
+  // automated ever sets it, so the gate can never auto-spend TTS credits.
+  r.post('/projects/:id/approve-scenes', (req, res) => {
+    const p = DB.getProject(req.params.id);
+    if (!p) return res.status(404).json({ error: 'not found' });
+    // Only a project actually holding at the gate may be approved — stamping any other
+    // status would permanently disarm a gate the owner never saw.
+    if (p.status !== 'scenes') return res.status(409).json({ error: 'dự án không ở bước duyệt cảnh' });
+    DB.updateProject(p.id, { scenes_approved_at: Date.now() });
+    Pipeline.startProject(p.id, { resume: true }).catch((e) => logger.error(e.message, { projectId: p.id }));
+    res.json({ ok: true });
+  });
+  // Voice cost preview for the gate CTA: characters still to be synthesized + the resolved
+  // provider. LarVoice bills ~1 credit/char (opaque credits — USD only for metered providers).
+  r.get('/projects/:id/voice-estimate', (req, res) => {
+    const p = DB.getProject(req.params.id);
+    if (!p) return res.status(404).json({ error: 'not found' });
+    const pending = DB.getScenes(p.id).filter((s) => !s.audio_path);
+    const chars = pending.reduce((a, s) => a + String(s.voice_text || '').trim().length, 0);
+    const ch = p.channel_id ? DB.getChannel(p.channel_id) : null;
+    const o = ttsOverrideFor(ch, p.config);
+    const s = { ...(DB.aiSettings().tts || {}), ...(o || {}) };
+    const lang = (p.config?.language && p.config.language !== 'auto') ? p.config.language : 'vi';
+    // the REAL synthesis resolver — the cost line must never disagree with what will be billed
+    const { pid: provider } = resolveVoiceTarget(s, lang, o);
+    res.json({ chars, scenes: pending.length, provider,
+      credits: provider === 'larvoice' ? chars : null,
+      usd: estimateCost({ kind: 'tts', provider, chars }) || null });
   });
   r.post('/projects/:id/render', async (req, res) => {
     const { mode = 'all', sceneIds = [] } = req.body || {};
