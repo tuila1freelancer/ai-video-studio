@@ -129,7 +129,11 @@ function baseCss(guide, ctx) {
   .hf-cam{position:absolute;inset:0;transform-origin:50% 50%}
   .hf-layer{position:absolute;inset:0}
   .hf-far,.hf-mid,.hf-near{position:absolute;inset:0}
-  .hf-slot{position:absolute;transform:translate(-50%,-50%);display:grid;place-items:center;text-align:center}
+  /* flex-COLUMN (was grid place-items:center): a weak model routinely groups a kicker + headline
+     (+ sublabel) as siblings inside ONE slot; a single-cell grid STACKS them on top of each other
+     (the #1 overlap defect), whereas a column stacks them vertically with a gap. A single-child
+     slot is centered identically to before, so existing scenes are unaffected. */
+  .hf-slot{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:${u(1.4)}px;text-align:center}
   .hf-center{position:absolute;inset:0;display:grid;place-items:center;text-align:center}
   .hf-kw{font-family:${guide.fonts.display};font-weight:800;font-size:${u(11)}px;line-height:1.02;letter-spacing:.005em;text-transform:uppercase;white-space:pre-line;${kwTreatment(guide, ctx)}}
   .hf-kw2{font-family:${guide.fonts.display};font-weight:700;font-size:${u(6.2)}px;line-height:1.08;text-transform:uppercase;color:${p.ink};text-shadow:0 ${u(0.3)}px ${u(1.4)}px rgba(0,0,0,.7)}
