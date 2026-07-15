@@ -114,8 +114,8 @@ export async function runBudgetFit(ctx) {
         const fix = await chatJson([
           { role: 'system', content: 'You are a video script editor. Reply with pure JSON.' },
           { role: 'user', content: `${over
-            ? `The scenes below are OVER their word budget. Rewrite each one SHORTER to ~${a.quotaWords} words: keep the meaning, keep the closing micro-hook sentence, cut filler/repetition/hedging.`
-            : `The scenes below are UNDER their word budget. Rewrite each one LONGER to ~${a.quotaWords} words: add concrete examples/numbers, no rambling.`}
+            ? `The scenes below are OVER their word budget. Rewrite each one SHORTER to ~${a.quotaWords} words: keep the concrete takeaway and its named example; FIRST drop any trailing filler tag-question ("còn bạn?", "muốn thử không?", "right?"), then cut repetition/hedging.`
+            : `The scenes below are UNDER their word budget. Rewrite each one LONGER to ~${a.quotaWords} words: add a concrete detail or a named example the viewer can use (NEVER invent a statistic), no rambling.`}
 Keep the original language and the existing forms of address. Output JSON {"fixes":[{"idx":scene number (1-based),"voice":"the new narration"}]} — only the scenes listed.
 ${listing}` },
         ], { maxTokens: offenders.length * a.quotaWords * 4 + 400, attempts: 2, temperature: 0.5,
