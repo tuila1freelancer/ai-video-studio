@@ -98,6 +98,28 @@ export async function qcFinalVideo(path, { expectDur = 0, tolerancePct = 5, scen
   return { ok: issues.length === 0, duration, expectDur, issues };
 }
 
+// Summarize the per-scene visual quality tiers B5 persisted on scene.props.qtier, so the
+// finalize gate can SURFACE degraded/unverified scenes instead of shipping a silent "green".
+//   premium    — rendered clean by the headless validator
+//   repaired   — shipped after a deterministic contrast fix (or a fallback-model rescue)
+//   imperfect  — a real bespoke scene kept with a residual cosmetic geometry warning
+//   fallback   — dropped to a generic heuristic template (below the bespoke bar)
+//   unverified — no headless verdict (Chrome-less run) — must never read as fully verified
+export function summarizeVisualTiers(scenes) {
+  const rows = (scenes || [])
+    .map((s) => ({ idx: s.idx, tier: (s.props && s.props.qtier) || (s.template === 'hyperframe' ? 'premium' : null) }))
+    .filter((r) => r.tier);
+  const degraded = rows.filter((r) => r.tier === 'imperfect' || r.tier === 'fallback');
+  const unverified = rows.filter((r) => r.tier === 'unverified');
+  return {
+    tiers: rows,
+    degraded,
+    unverified,
+    visualQc: unverified.length ? 'skipped' : 'verified', // 'skipped' → never claim full verification
+    ok: degraded.length === 0 && unverified.length === 0,
+  };
+}
+
 // Per-scene clip check used in B6 verification: exists → probes → carries BOTH streams.
 // expectVoice: the scene has narration (voice_text + audio_path), so the clip's audio must
 // actually CARRY speech — stream presence alone is not enough. Scene clips are the pre-mix

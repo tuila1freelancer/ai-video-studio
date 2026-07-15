@@ -10,7 +10,7 @@ import { renderAnimationScene, renderOutroScene } from '../../animation/index.js
 import { resolveGuide } from '../../styleguide/index.js';
 import { buildThumbnail, buildThumbnailVariants } from '../visuals.js';
 import { concatScenes, renderCard, planTransitions, transitionLoss } from '../render.js';
-import { qcFinalVideo } from '../qc.js';
+import { qcFinalVideo, summarizeVisualTiers } from '../qc.js';
 import { masterAudio } from '../../media/master.js';
 import { makeAmbientBed, probeDuration, makeWhoosh, makeSfxBed } from '../../media/ffmpeg.js';
 import { withRetry } from '../../util/retry.js';
@@ -175,8 +175,12 @@ export async function finalize(projectId, { dir, size, config, _qcAttempt = 0 })
       : (config.intro !== false ? 2.6 : 0) + (config.outro !== false ? 2.4 : 0);
     const xfadeLoss = transPlan && clips.length <= 24 ? transitionLoss(transPlan) : 0;
     const qc = await qcFinalVideo(res.path, { expectDur: expectDur + outroDur - xfadeLoss, sceneSpans, tolerancePct: 8, tailAllowance: outroDur });
+    // Visual quality (G2/G3/G8): fold the per-scene render-validation verdicts B5 persisted
+    // into the report, so a "done" run is never silently green over a degraded/unverified scene.
+    const vis = summarizeVisualTiers(all);
     writeFileSync(join(dir, 'qc_report.json'), JSON.stringify({
-      ...qc, loudness: { lufs: mastered.lufs, truePeak: mastered.truePeak, corrected: mastered.corrected },
+      ...qc, visualQc: vis.visualQc, visualDegraded: vis.degraded, visualUnverified: vis.unverified.map((u) => u.idx),
+      loudness: { lufs: mastered.lufs, truePeak: mastered.truePeak, corrected: mastered.corrected },
       at: new Date().toISOString(), attempt: _qcAttempt,
     }, null, 2));
     if (!qc.ok) {
@@ -198,6 +202,17 @@ export async function finalize(projectId, { dir, size, config, _qcAttempt = 0 })
       op(projectId, `⚠️ QC còn ${qc.issues.length} cảnh báo (xem qc_report.json) — video vẫn được xuất`);
     } else {
       op(projectId, '✅ QC đạt: không black-frame, không khoảng câm, thời lượng khớp');
+    }
+    // Never a SILENT green: name any scene below the bespoke bar or left unverified so the
+    // owner knows exactly where to look instead of scrubbing the whole video.
+    if (vis.degraded.length) {
+      op(projectId, `⚠️ ${vis.degraded.length} cảnh chưa đạt chuẩn bespoke (${vis.degraded.map((d) => `#${d.idx + 1}:${d.tier}`).join(', ')}) — xem qc_report.json`);
+    }
+    if (vis.unverified.length) {
+      op(projectId, `🔎 ${vis.unverified.length} cảnh CHƯA kiểm tra được hình (không có Chrome) — chưa xác minh: ${vis.unverified.map((u) => `#${u.idx + 1}`).join(', ')}`);
+    }
+    if (visualMode === 'hyperframe' && !vis.degraded.length && !vis.unverified.length && vis.tiers.length) {
+      op(projectId, '✨ Mọi cảnh HyperFrame đạt chuẩn bespoke (đã kiểm tra hình)');
     }
   }
 
