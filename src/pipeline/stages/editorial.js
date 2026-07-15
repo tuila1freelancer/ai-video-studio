@@ -36,10 +36,17 @@ export async function runEditorial(ctx) {
   const lang = (config.language && config.language !== 'auto') ? config.language : 'vi';
   const wps = LANG_WPS[lang] || 3.0;
   const target = wordsForSlot(config.sceneDuration || 7, lang);
+  // neighbor context so a per-scene rewrite stays CONTINUOUS with its scenes (a rewrite in
+  // isolation can otherwise sever the setup→payoff bridge and fracture the whole-script flow)
+  const byIdx = new Map(scenes.map((s) => [s.idx, s]));
+  const tailOf = (t) => String(t || '').trim().slice(-90);
+  const headOf = (t) => String(t || '').trim().slice(0, 90);
   const flagged = scenes.filter((s) => flaggedIdx.includes(s.idx)).slice(0, 20);
   const list = flagged.map((s) => {
     const its = issues.filter((x) => x.idx === s.idx).map((x) => x.type).join('+');
-    return `${s.idx}. [${its}] "${String(s.voice_text || '').slice(0, 400)}"`;
+    const prev = byIdx.get(s.idx - 1), next = byIdx.get(s.idx + 1);
+    const ctx = [prev ? `follows: "…${tailOf(prev.voice_text)}"` : '', next ? `leads into: "${headOf(next.voice_text)}…"` : ''].filter(Boolean).join(' | ');
+    return `${s.idx}. [${its}] "${String(s.voice_text || '').slice(0, 400)}"${ctx ? `\n   (continuity — this scene ${ctx})` : ''}`;
   }).join('\n');
 
   try {
@@ -54,7 +61,8 @@ export async function runEditorial(ctx) {
 - repetition: re-express it with a DIFFERENT angle/example, never repeating the previous scene
 - formulaic-hook: DELETE the closing filler question; end instead on a concrete, useful statement that lands this scene's takeaway
 - device-monotony: rewrite so the scene ends on a STATEMENT, not a question (the video keeps at most one question, in the final scene only)
-- thin: this scene is just a rhetorical question — rewrite it to TEACH one concrete, non-obvious thing with a specific named example the viewer can copy (never invent a statistic)${lang === 'vi' ? '\nUse the fixed Vietnamese forms of address "mình" (speaker) – "các bạn" (audience).' : ''}
+- thin: this scene is just a rhetorical question — rewrite it to TEACH one concrete, non-obvious thing with a specific named example the viewer can copy (never invent a statistic)
+CONTINUITY (always): each rewrite must still FOLLOW the previous scene and LEAD INTO the next (see each line's continuity note) — keep it part of one flowing talk, never a detached standalone sentence.${lang === 'vi' ? '\nUse the fixed Vietnamese forms of address "mình" (speaker) – "các bạn" (audience).' : ''}
 Lines (idx. [issue] "narration"):
 ${list}
 JSON: {"scenes":[{"idx":${flagged[0].idx},"voice":"..."}]} — exactly ${flagged.length} elements, idx unchanged.` },
