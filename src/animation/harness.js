@@ -128,9 +128,10 @@ const RUNTIME = `
       if (el.matches('.hf-kw, .hf-kw2')) {
         const wNow = () => el.getBoundingClientRect().width / z;
         const botOk = () => (el.getBoundingClientRect().bottom / z) < 0.80 * frameH;
+        const topOk = () => (el.getBoundingClientRect().top / z) > 0.07 * frameH; // a tall wrapped headline must not clip the top
         let g = 40;
-        while (wNow() < 0.66 * frameW && !over() && botOk() && g-- > 0) { size += 2; el.style.fontSize = size + 'px'; }
-        if (over() || !botOk()) { size -= 2; el.style.fontSize = size + 'px'; } // step back one on overshoot
+        while (wNow() < 0.66 * frameW && !over() && botOk() && topOk() && g-- > 0) { size += 2; el.style.fontSize = size + 'px'; }
+        if (over() || !botOk() || !topOk()) { size -= 2; el.style.fontSize = size + 'px'; } // step back one on overshoot
       }
     }
   };
