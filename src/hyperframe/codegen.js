@@ -56,6 +56,7 @@ export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, on
 
   let lastErrors = null, lastGood = null;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    let rvRan = false, contrastRepaired = false; // per-attempt verification state (→ quality tier)
     let raw;
     try {
       raw = await chat(messages, { maxTokens: 6500, temperature: attempt === 1 ? 0.7 : 0.45, llm: ai?.llm || null });
@@ -83,6 +84,7 @@ export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, on
     if (!errors.length && renderCheck) {
       try {
         const rv = await renderValidate({ spec: { ...clean, guide }, guide, w, h, duration, beats, narration: scene.voice_text || '' });
+        if (!rv.skipped) rvRan = true; // Chrome-less runs return skipped:true → tier stays 'unverified'
         if (!rv.ok) renderDefects = rv.defects;
         // Auto-contrast repair: unreadable text is a deterministic colour mistake — force the
         // named element(s) to the guide ink + drop-shadow and re-validate ONCE, rather than
@@ -98,6 +100,8 @@ export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, on
           if (!rv2.defects.some((d) => /unreadable/.test(d))) {
             clean.css = candidateCss;
             renderDefects = rv2.defects;
+            contrastRepaired = true; // shipped after a deterministic repair → tier 'repaired'
+            if (!rv2.skipped) rvRan = true;
             onLog(`cảnh ${idx + 1}: auto-contrast repair (${rv.contrastFix.length} phần tử) — ${rv2.ok ? 'đạt' : 'còn ' + rv2.defects.length + ' vấn đề khác'}`);
           }
         }
@@ -116,7 +120,10 @@ export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, on
       // Scenes-first order generates specs against an ESTIMATED timeline; at render the
       // harness time-warps the template timeline by plannedDur/realDur (S.tplScale) so the
       // choreography fills the real voice duration instead of cutting or freezing.
-      return { props: { ...clean, guide, beats, plannedDur: duration, canvasW: w, canvasH: h }, beats, direction, warnings };
+      // quality tier persisted per scene (G2): 'premium' = rendered clean; 'repaired' = shipped
+      // after the deterministic contrast fix; 'unverified' = no headless verdict (Chrome-less).
+      const tier = !renderCheck ? 'unverified' : (contrastRepaired ? 'repaired' : (rvRan ? 'premium' : 'unverified'));
+      return { props: { ...clean, guide, beats, plannedDur: duration, canvasW: w, canvasH: h }, beats, direction, warnings, tier };
     }
     lastErrors = allIssues;
     onLog(`cảnh ${idx + 1}: spec chưa đạt (lần ${attempt}/${maxAttempts}) — ${allIssues.join(' | ').slice(0, 240)}`);
@@ -130,7 +137,7 @@ export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, on
   // hard runtime error, ship it (a slightly-imperfect real scene beats a generic template).
   if (lastGood) {
     onLog(`cảnh ${idx + 1}: dùng spec tốt nhất đạt được (còn cảnh báo hình học sau ${maxAttempts} lần)`);
-    return { props: { ...lastGood, guide, beats, plannedDur: duration, canvasW: w, canvasH: h }, beats, direction, warnings: ['render-imperfect'] };
+    return { props: { ...lastGood, guide, beats, plannedDur: duration, canvasW: w, canvasH: h }, beats, direction, warnings: ['render-imperfect'], tier: 'imperfect' };
   }
   throw new Error(`codegen thất bại sau ${maxAttempts} lần: ${lastErrors?.join(' | ').slice(0, 200)}`);
 }

@@ -51,3 +51,36 @@ test('normalizeVoice lands near -16 LUFS via the measured linear pass and keeps 
   const after = await measureLoudness(join(dir, 'norm.m4a'));
   assert.ok(after && Math.abs(parseFloat(after.input_i) + 16) < 3, `should sit near -16 LUFS, got ${after?.input_i}`);
 });
+
+// ---- summarizeVisualTiers: the publish-readiness surfacing gate (no ffmpeg needed) ----
+test('summarizeVisualTiers: an all-premium hyperframe video is verified + not degraded', async () => {
+  const { summarizeVisualTiers } = await import('../src/pipeline/qc.js');
+  const scenes = [
+    { idx: 0, template: 'hyperframe', props: { qtier: 'premium' } },
+    { idx: 1, template: 'hyperframe', props: { qtier: 'repaired' } },
+  ];
+  const v = summarizeVisualTiers(scenes);
+  assert.equal(v.ok, true);
+  assert.equal(v.visualQc, 'verified');
+  assert.equal(v.degraded.length, 0);
+});
+
+test('summarizeVisualTiers: a fallback/imperfect scene is surfaced as degraded', async () => {
+  const { summarizeVisualTiers } = await import('../src/pipeline/qc.js');
+  const scenes = [
+    { idx: 0, template: 'hyperframe', props: { qtier: 'premium' } },
+    { idx: 1, template: 'kinetic-statement', props: { qtier: 'fallback' } },
+    { idx: 2, template: 'hyperframe', props: { qtier: 'imperfect' } },
+  ];
+  const v = summarizeVisualTiers(scenes);
+  assert.equal(v.ok, false);
+  assert.deepEqual(v.degraded.map((d) => d.idx).sort(), [1, 2]);
+});
+
+test('summarizeVisualTiers: an unverified (Chrome-less) scene marks visualQc skipped, never a false green', async () => {
+  const { summarizeVisualTiers } = await import('../src/pipeline/qc.js');
+  const v = summarizeVisualTiers([{ idx: 0, template: 'hyperframe', props: { qtier: 'unverified' } }]);
+  assert.equal(v.visualQc, 'skipped');
+  assert.equal(v.ok, false, 'an unverified run is not fully OK');
+  assert.equal(v.unverified.length, 1);
+});

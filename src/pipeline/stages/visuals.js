@@ -92,23 +92,48 @@ export async function runVisuals(ctx) {
       if (sc.template === 'chapter-break' && sc.props) return;
       op(projectId, `🎨 AI dựng cảnh ${sc.idx + 1}/${totalHf}`);
       try {
-        const { props, beats } = await generateSceneSpec({
+        const { props, beats, tier } = await generateSceneSpec({
           scene: sc, guide, w: hfSize.w, h: hfSize.h, idx: sc.idx, total: totalHf, ai: hfAi,
           density: config.hyperframe?.density, creativeDirection: config.hyperframe?.direction,
           hookVisual: sc.idx > 0 ? hookVisual : '',
           onLog: (m) => logger.warn(m, { projectId }),
         });
-        // clear any stale clip: on resume a scene that just got FRESH visuals must re-render
-        DB.updateScene(sc.id, { template: 'hyperframe', props, status: 'html', video_path: null });
-        hub.toProject(projectId, { type: 'scene', sceneId: sc.id, idx: sc.idx, status: 'html', template: 'hyperframe', beats: beats.length });
+        // clear any stale clip: on resume a scene that just got FRESH visuals must re-render.
+        // qtier persists the render-validation verdict so finalize can surface degraded scenes.
+        DB.updateScene(sc.id, { template: 'hyperframe', props: { ...props, qtier: tier || 'premium' }, status: 'html', video_path: null });
+        hub.toProject(projectId, { type: 'scene', sceneId: sc.id, idx: sc.idx, status: 'html', template: 'hyperframe', beats: beats.length, tier });
       } catch (e) {
         if (e.stopped) throw e;
-        logger.warn(`hyperframe scene ${sc.idx}: ${e.message} — fallback heuristic template`, { projectId });
+        logger.warn(`hyperframe scene ${sc.idx}: ${e.message} — escalating before fallback`, { projectId });
         hub.toProject(projectId, { type: 'retry', scope: 'scene', step: 'b5', idx: sc.idx, attempt: 1, msg: e.message });
+        // Escalation ladder (G1/G9): before dropping to a generic template, give the fallback
+        // model ONE shot at a real bespoke scene — a weak primary model missing is the #1 cause
+        // of a lone plain scene in an otherwise premium video. Only when a distinct fallback
+        // model is configured (bounded: 2 attempts).
+        let rescued = null;
+        const fbModel = config.hyperframe?.modelFallback;
+        if (fbModel && hfAi?.llm && fbModel !== hfAi.llm.model) {
+          try {
+            op(projectId, `🩹 Cảnh ${sc.idx + 1}: thử lại bằng model dự phòng…`);
+            rescued = await generateSceneSpec({
+              scene: sc, guide, w: hfSize.w, h: hfSize.h, idx: sc.idx, total: totalHf,
+              ai: { ...hfAi, llm: { ...hfAi.llm, model: fbModel } },
+              density: config.hyperframe?.density, creativeDirection: config.hyperframe?.direction,
+              hookVisual: sc.idx > 0 ? hookVisual : '', maxAttempts: 2,
+              onLog: (m) => logger.warn(m, { projectId }),
+            });
+          } catch (e2) { logger.warn(`hyperframe scene ${sc.idx}: fallback-model retry failed: ${e2.message}`, { projectId }); }
+        }
+        if (rescued) {
+          op(projectId, `✅ Cảnh ${sc.idx + 1}: model dự phòng dựng lại thành công`);
+          DB.updateScene(sc.id, { template: 'hyperframe', props: { ...rescued.props, qtier: rescued.tier || 'premium' }, status: 'html', video_path: null });
+          hub.toProject(projectId, { type: 'scene', sceneId: sc.id, idx: sc.idx, status: 'html', template: 'hyperframe', tier: rescued.tier });
+          return;
+        }
         op(projectId, `🩹 Cảnh ${sc.idx + 1}: AI visual lỗi — dùng template dự phòng`);
         const plan = planScene(sc, { idx: sc.idx, total: totalHf, title: project.title, brand: resolveBrandKit(config) });
-        DB.updateScene(sc.id, { template: plan.template, props: plan.props, status: 'html' });
-        hub.toProject(projectId, { type: 'scene', sceneId: sc.id, idx: sc.idx, status: 'html', template: plan.template });
+        DB.updateScene(sc.id, { template: plan.template, props: { ...plan.props, qtier: 'fallback' }, status: 'html' });
+        hub.toProject(projectId, { type: 'scene', sceneId: sc.id, idx: sc.idx, status: 'html', template: plan.template, tier: 'fallback' });
       }
     });
   } else {
