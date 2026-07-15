@@ -24,6 +24,16 @@ test('labelIsFragment: single token / number labels are never fragments', () => 
   assert.equal(labelIsFragment('KẾT QUẢ'), false);
 });
 
+test('labelIsFragment: diacritics distinguish content words from function words (no fold collision)', () => {
+  // "đăng" must NOT collide with the particle "đang", nor "tự" with the preposition "từ" —
+  // folding away tone/vowel marks previously false-flagged these real headlines.
+  assert.equal(labelIsFragment('ĐĂNG KÝ KÊNH'), false, '"đăng" (register) ≠ "đang" (particle)');
+  assert.equal(labelIsFragment('TỰ ĐÁNH GIÁ'), false, '"tự" (self) ≠ "từ" (from)');
+  // the genuine function words still flag
+  assert.equal(labelIsFragment('đang chạy nhanh'), true, '"đang" is a real particle lead');
+  assert.equal(labelIsFragment('học từ'), true, '"từ" is a real trailing preposition');
+});
+
 test('sanitizeLabel: strips leading/trailing stopwords into a clean phrase', () => {
   const out = sanitizeLabel('và điều quan trọng nhất');
   assert.ok(out.length > 0);

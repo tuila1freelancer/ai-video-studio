@@ -38,10 +38,12 @@ export function sanitizeLabel(raw, { maxWords = 5 } = {}) {
 // True grammatical function words (conjunctions/prepositions/articles/particles). NARROWER
 // than STOP on purpose: STOP also drops content nouns ("cách/người/việc") to keep them out of
 // keyword beats, but "Cách hỏi ChatGPT" is a perfectly good headline — the fragment gate must
-// not flag it. A label that STARTS or ENDS on one of these reads as a mid-sentence slice.
+// not flag it. Stored diacritics-INTACT (lowercased, NOT folded): folding collapses tone/vowel
+// distinctions that separate a function word from a content word — "đăng"→"dang"=="đang",
+// "tự"→"tu"=="từ" — which false-flagged real headlines like "ĐĂNG KÝ KÊNH" / "TỰ ĐÁNH GIÁ".
 const FUNC = new Set(`and or but of to in on for with as at by from that this the a an is are was were be
 và hoặc hay nhưng mà của cho với trong khi để thì rằng nên vì bởi từ về theo bằng như tại ở là
-một các những này kia đó ấy đã sẽ đang mọi mỗi lại nữa cùng còn thêm`.split(/\s+/).map(fold));
+một các những này kia đó ấy đã sẽ đang mọi mỗi lại nữa cùng còn thêm`.split(/\s+/).map((w) => w.toLowerCase()));
 
 // A label is a FRAGMENT when it begins or ends on a function word — a mid-phrase slice rather
 // than a self-contained noun phrase or headline. Single-token / number labels are never
@@ -49,7 +51,7 @@ một các những này kia đó ấy đã sẽ đang mọi mỗi lại nữa c�
 export function labelIsFragment(text) {
   const toks = (String(text || '').match(/[\p{L}\p{N}%]+/gu) || []);
   if (toks.length < 2) return false;
-  const isFn = (w) => FUNC.has(fold(w));
+  const isFn = (w) => FUNC.has(w.toLowerCase()); // lowercase only — folding would collide đăng/đang
   return isFn(toks[0]) || isFn(toks[toks.length - 1]);
 }
 
