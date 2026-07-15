@@ -126,9 +126,21 @@ export const SAMPLE_SPEC = {
   guide: HF_DEFAULT_GUIDE,
   css: `
   .hf-orb{position:absolute;border-radius:50%;filter:blur(2px);border:1px solid rgba(255,255,255,.14)}
-  .o1{left:16%;top:24%;width:9%;padding-top:9%;background:radial-gradient(circle at 35% 30%,rgba(124,140,255,.5),rgba(124,140,255,.06))}
-  .o2{left:78%;top:66%;width:6%;padding-top:6%;background:radial-gradient(circle at 35% 30%,rgba(34,211,238,.45),rgba(34,211,238,.05))}
-  .hf-track{width:180px;height:4px;margin:10px auto 0;border-radius:2px;background:rgba(255,255,255,.10);overflow:hidden}
+  .o1{left:14%;top:22%;width:9%;padding-top:9%;background:radial-gradient(circle at 35% 30%,rgba(124,140,255,.5),rgba(124,140,255,.06))}
+  .o2{left:82%;top:60%;width:6%;padding-top:6%;background:radial-gradient(circle at 35% 30%,rgba(34,211,238,.45),rgba(34,211,238,.05))}
+  /* faint oversized watermark glyph = far-depth texture */
+  .hf-ghost{position:absolute;right:6%;top:12%;font-family:'Oswald',sans-serif;font-weight:800;font-size:300px;line-height:.8;color:rgba(255,255,255,.05);letter-spacing:-.03em}
+  /* BESPOKE HERO CONSTRUCTION — a self-built glass "verdict card" HUD instrument (not a bare component) */
+  .hf-vcard{position:relative;width:560px;padding:24px 30px 28px;border-radius:18px;background:linear-gradient(160deg,rgba(20,22,40,.72),rgba(12,13,26,.72));border:1px solid rgba(124,140,255,.34);box-shadow:0 30px 80px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.06);backdrop-filter:blur(9px)}
+  .hf-vcard::before,.hf-vcard::after{content:'';position:absolute;width:16px;height:16px;border:2px solid #22D3EE}
+  .hf-vcard::before{left:-1px;top:-1px;border-right:none;border-bottom:none;border-radius:6px 0 0 0}
+  .hf-vcard::after{right:-1px;bottom:-1px;border-left:none;border-top:none;border-radius:0 0 6px 0}
+  .hf-vhead{display:flex;align-items:center;gap:12px;font-family:'JetBrains Mono',monospace;font-size:15px;letter-spacing:.22em;text-transform:uppercase;color:#8A93AD}
+  .hf-vhead b{width:9px;height:9px;border-radius:50%;background:#22D3EE;box-shadow:0 0 12px #22D3EE;display:block}
+  .hf-vrow{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-top:16px;padding-bottom:12px;border-bottom:1px solid rgba(255,255,255,.08);opacity:0}
+  .hf-vrow .k{font-family:'Be Vietnam Pro',sans-serif;font-weight:600;font-size:26px;color:#F2F5FF}
+  .hf-vrow .v{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:24px;color:#7C8CFF}
+  .hf-track{width:100%;height:5px;margin-top:16px;border-radius:3px;background:rgba(255,255,255,.10);overflow:hidden}
   .hf-track i{display:block;width:100%;height:100%;transform-origin:0 50%;background:linear-gradient(90deg,#7C8CFF,#22D3EE)}
   #kw1{white-space:nowrap}
   `,
@@ -136,41 +148,52 @@ export const SAMPLE_SPEC = {
   <div class="hf-layer hf-mid">
     <div class="hf-orb o1"></div>
     <div class="hf-orb o2"></div>
+    <div class="hf-ghost">01</div>
   </div>
   <div class="hf-layer hf-near">
-    <div class="hf-slot" style="left:50%;top:9%"><div class="hf-label" id="lb1">HYPERFRAME · DEMO</div></div>
-    <div class="hf-center"><div class="hf-kw" id="kw1">TĂNG TỐC ×10</div></div>
-    <div class="hf-slot" style="left:50%;top:68%"><div class="hf-stat" id="st1">
-      <div class="hf-stat-v"><span id="st1v">0</span><span class="hf-stat-u">%</span></div>
-      <div class="hf-stat-l">hiệu suất công việc</div>
+    <div class="hf-slot" style="left:50%;top:11%"><div class="hf-label" id="lb1">HYPERFRAME · KIỂM CHỨNG</div></div>
+    <div class="hf-slot" style="left:50%;top:27%"><div class="hf-kw" id="kw1">TỰ TIN ≠ ĐÚNG</div></div>
+    <!-- the hero: a bespoke glass instrument whose rows light up in the order the voice names them -->
+    <div class="hf-slot" style="left:32%;top:60%"><div class="hf-vcard" id="vc1">
+      <div class="hf-vhead"><b></b><span>Đối chiếu sự thật</span></div>
+      <div class="hf-vrow" id="vr1"><span class="k">Có nguồn?</span><span class="v">CHƯA</span></div>
+      <div class="hf-vrow" id="vr2"><span class="k">Dữ kiện khớp?</span><span class="v">37%</span></div>
       <div class="hf-track"><i id="tk1"></i></div>
     </div></div>
-    <div class="hf-slot" style="left:50%;top:24%"><div class="hf-iconbox" id="ic1">{{icon:rocket}}</div></div>
+    <div class="hf-slot" style="left:78%;top:57%"><div class="hf-stat" id="st1">
+      <div class="hf-stat-v"><span id="st1v">0</span><span class="hf-stat-u">%</span></div>
+      <div class="hf-stat-l">độ tin cậy thực</div>
+    </div></div>
+    <div class="hf-slot" style="left:78%;top:33%"><div class="hf-iconbox sm" id="ic1">{{icon:shield}}</div></div>
   </div>`,
   script: `
 // camera completes its move in the FIRST half, then holds (no back-half drift).
 // The living backdrop (rings / ghost number / HUD / beat pulses) is ALREADY on stage —
-// every element below is spent on the hero story.
+// every element below is spent on a BESPOKE hero construction, not ambient decor.
 FX.camPush(tl, { scale: 1.055, profile: 'front' });
 FX.parallax(tl, '.hf-mid > *', { amp: 14 });
 FX.beat(tl, '#lb1', 0.35, DUR, { 'in': 'rise', out: 'none', drift: false, y: 22 });
-// hero keyword: unhurried entrance, then SETTLES into the composition (build element —
-// the scene assembles around it; nothing whips away)
+// hero keyword: unhurried entrance, then SETTLES into the composition (build element)
 FX.beat(tl, '#kw1', 0.9, 3.0, { 'in': 'carrier', out: 'settle', from: 340 });
 FX.chromeSweep(tl, '#kw1', { at: 1.7 });
-// settled hero stays alive with a subtle seeded jitter — never a breathing scale loop
-FX.jitter(tl, '#kw1', { at: 3.2, amp: 2 });
+FX.jitter(tl, '#kw1', { at: 3.2, amp: 2 });   // settled hero kept alive — never a breathing scale loop
 FX.beamSweep(tl, '.hf-beam', { at: 2.95 });
-// stat block: smooth long-tail pop on its spoken beat (no bounce), counter grows with the value
-FX.beat(tl, '#st1', 3.05, 4.8, { 'in': 'pop', ease: 'power3.out', out: 'settle' });
-FX.counterRoll(tl, '#st1v', 87, { at: 3.25, dur: 1.2, grow: true });
-// data texture: the mini progress track fills alongside the counter
+// the bespoke glass verdict-card enters as ONE unit, then its rows light up node-by-node on their
+// beats — rows start HIDDEN (opacity:0) and enter at FULL near-white color, never dim/low-contrast
+FX.beat(tl, '#vc1', 3.05, DUR, { 'in': 'pop', ease: 'power3.out', out: 'none' });
+tl.set('#vr1', { x: -16 }, 0);
+tl.set('#vr2', { x: -16 }, 0);
+tl.to('#vr1', { opacity: 1, x: 0, duration: 0.4, ease: 'power2.out' }, 3.5);
+tl.to('#vr2', { opacity: 1, x: 0, duration: 0.4, ease: 'power2.out' }, 4.05);
+// data texture: the confidence track fills as the rows resolve (scaleX from a set width — never a width tween)
 tl.set('#tk1', { scaleX: 0 }, 0);
-tl.to('#tk1', { scaleX: 0.87, duration: 1.2, ease: 'power2.out' }, 3.25);
-// the money beat: the stat lands with a shock ring + sparks (exactly once per scene)
-FX.impact(tl, '#st1', { at: 4.45, color: '#22D3EE' });
-// closing accent: the icon joins the assembled composition and holds focus to the end
-FX.beat(tl, '#ic1', 4.9, DUR - 0.1, { 'in': 'rise', out: 'none' });
-FX.pulseGlow(tl, '#ic1', { at: 5.4, dur: 0.9, repeat: 1 });
+tl.to('#tk1', { scaleX: 0.37, duration: 1.0, ease: 'power2.out' }, 4.05);
+// secondary readout: smooth long-tail pop, counter grows with the value
+FX.beat(tl, '#st1', 4.3, DUR, { 'in': 'pop', ease: 'power3.out', out: 'settle' });
+FX.counterRoll(tl, '#st1v', 37, { at: 4.5, dur: 1.1, grow: true });
+FX.beat(tl, '#ic1', 3.15, DUR, { 'in': 'rise', out: 'none' });
+// the money beat: the readout lands with a shock ring + sparks (exactly once per scene)
+FX.impact(tl, '#st1', { at: 5.45, color: '#22D3EE' });
+FX.pulseGlow(tl, '#ic1', { at: 5.5, dur: 0.9, repeat: 1 });
 `,
 };
