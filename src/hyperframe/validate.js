@@ -113,7 +113,8 @@ const PROBE = `(() => {
     if(cm.length>3&&parseFloat(cm[3])<0.99)continue;
     const L1=lum(cs.color),L2=lum(bgOf(n.el));
     const ratio=(Math.max(L1,L2)+0.05)/(Math.min(L1,L2)+0.05);
-    if(ratio<2.2) lowContrast.push({txt:(n.el.textContent||'').trim().slice(0,20),ratio:+ratio.toFixed(2)}); }
+    if(ratio<2.2) lowContrast.push({txt:(n.el.textContent||'').trim().slice(0,20),ratio:+ratio.toFixed(2),
+      id:n.el.id||'', cls:((n.el.className&&n.el.className.baseVal!==undefined?n.el.className.baseVal:String(n.el.className||'')).trim().split(/\\s+/)[0]||'')}); }
   // text occlusion: readable text with an OPAQUE non-related element painted on top of it.
   // elementsFromPoint walks the paint stack top-down; harness overlays (vignette/grain, outside
   // .hf-cam) are skipped, glass panels (low-alpha backgrounds) don't count as cover.
@@ -292,7 +293,15 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
     if (lowcH.length) { const o = lowcH[0]; defects.push(`the text "${o.txt}" is unreadable at ${o.t.toFixed(1)}s — contrast ratio ${o.ratio}:1 against its background. Use the guide's ink color (or a bright accent) so readable text reaches at least 4.5:1.`); }
     if (clipH.length) { const o = clipH[0]; defects.push(`the text "${o.txt}" is clipped at ${o.t.toFixed(1)}s — its box is smaller than its content, cutting words off. Remove fixed widths/heights and overflow:hidden from text elements; shorten the label or let the element size itself.`); }
     if (occH.length) { const o = occH[0]; defects.push(`the text "${o.txt}" is covered by an opaque element ("${o.by}") at ${o.t.toFixed(1)}s — nothing may paint on top of readable text; move the decor behind it (DOM order/z-index) or offset it.`); }
-    return { ok: defects.length === 0, defects, tlDur: Number.isFinite(tlDur) ? +tlDur.toFixed(2) : null };
+    // Deterministic contrast repair target: unreadable text on a dark stage is a colour mistake
+    // the codegen loop can auto-fix (force ink) instead of dropping the whole bespoke scene to
+    // the plain fallback. Emit a targetable selector (#id preferred, else .class) per element.
+    const contrastFix = [];
+    for (const o of lowcH) {
+      const sel = o.id ? `#${o.id}` : (o.cls ? `.${o.cls}` : '');
+      if (sel && !contrastFix.some((c) => c.sel === sel)) contrastFix.push({ sel, txt: o.txt, ratio: o.ratio });
+    }
+    return { ok: defects.length === 0, defects, tlDur: Number.isFinite(tlDur) ? +tlDur.toFixed(2) : null, contrastFix };
   } catch (e) {
     return { ok: true, skipped: true, defects: [], error: String(e.message || e) }; // never block codegen on a harness hiccup
   } finally { await page.close().catch(() => {}); }
