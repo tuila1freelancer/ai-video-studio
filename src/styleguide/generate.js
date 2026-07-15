@@ -30,7 +30,7 @@ Return JSON with exactly this schema:
   "motionPersonality": "kinetic" | "energetic" | "smooth" | "calm" | "punchy" | "slow-burn",
   "semantics": { "good": "#RRGGBB", "bad": "#RRGGBB", "warn": "#RRGGBB" },
   "conceptMap": ["recurring concept of this topic → concrete visual recipe, in English (8-12 lines, e.g. 'comparison → SPLIT 2 columns, winning side gets the good border')"],
-  "hud": { "kickers": ["short mono label prefix, e.g. //"], "statuses": ["decorative corner HUD strings, e.g. SYSTEM: ACTIVE"] },
+  "hud": { "kickers": ["short mono label prefix, e.g. //"], "statuses": ["decorative corner HUD tokens — NUMERIC/SYMBOLIC ONLY so they never leak a foreign language on screen, e.g. // or 100% or 01 / 99 or ◦◦◦"] },
   "sceneRules": ["3-5 hard rules applied to every scene, in English, e.g. 'exactly 1 focal element per scene'"]
 }
 Rules: bg/ink must clear WCAG AA contrast; accents must pop on bg; on a light bg use textTreatment="solid"; semantics are FIXED meaning colors (good/bad/warning) used consistently in every scene; conceptMap must be grounded in the DOMAIN of the video topic.`;

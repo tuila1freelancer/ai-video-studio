@@ -108,7 +108,8 @@ const RUNTIME = `
   // template script builds so SplitText measures the final glyph sizes. hf-* classes are
   // hyperframe vocabulary, so heuristic templates render untouched.
   window.__fitText = () => {
-    const maxW = 0.88 * (S.w || innerWidth);
+    const frameW = (S.w || innerWidth), frameH = (S.h || innerHeight);
+    const maxW = 0.88 * frameW;
     const z = (typeof S.zoom === 'number' && S.zoom > 0) ? S.zoom : 1;
     for (const el of document.querySelectorAll('.hf-kw, .hf-kw2, .hf-sub, .hf-label, .hf-chip, .hf-stat-l')) {
       if (!el.textContent || !el.textContent.trim()) continue;
@@ -120,6 +121,40 @@ const RUNTIME = `
       let guard = 40;
       while (over() && size - 2 >= floor && guard-- > 0) { size -= 2; el.style.fontSize = size + 'px'; }
       if (over() && cs.whiteSpace === 'nowrap') el.style.whiteSpace = 'normal'; // wrapping beats clipping
+      // GROW branch (two-sided fit): a weak model often builds a TINY hero headline floating in
+      // black (the 'timid' defect). If the hero text is well under the frame, step it UP toward
+      // ~72% width — bounded by the 88% width ceiling AND stopping before its bottom crosses the
+      // subtitle-safe line (0.80*h), so growth can never manufacture overflow. Hero classes only.
+      if (el.matches('.hf-kw, .hf-kw2')) {
+        const wNow = () => el.getBoundingClientRect().width / z;
+        const botOk = () => (el.getBoundingClientRect().bottom / z) < 0.80 * frameH;
+        let g = 40;
+        while (wNow() < 0.72 * frameW && !over() && botOk() && g-- > 0) { size += 2; el.style.fontSize = size + 'px'; }
+        if (over() || !botOk()) { size -= 2; el.style.fontSize = size + 'px'; } // step back one on overshoot
+      }
+    }
+  };
+
+  // Deterministic caption-safe clamp: a weak model routinely rests a tall hero slot so low its
+  // bottom crosses into the subtitle band (the #2 defect). On the resting layout (before the
+  // timeline builds), lift ONLY the slots that actually intrude — no coordinate-system remap, so
+  // a scene that was already safe never moves. Mutates the slot wrapper's top (never the inner
+  // element the timeline animates), and refuses to push a slot above the header zone.
+  window.__safeZone = () => {
+    const frameH = (S.h || innerHeight);
+    const z = (typeof S.zoom === 'number' && S.zoom > 0) ? S.zoom : 1;
+    const limit = 0.80 * frameH;
+    for (const slot of document.querySelectorAll('.hf-near .hf-slot')) {
+      let guard = 24;
+      while (guard-- > 0) {
+        const r = slot.getBoundingClientRect();
+        const over = (r.bottom / z) - limit;
+        if (over <= 2) break;
+        const curTop = parseFloat(slot.style.top);
+        if (!Number.isFinite(curTop) || curTop <= 12) break; // never push into the top header zone
+        const stepPct = Math.min(curTop - 12, (over / frameH) * 100 + 0.5);
+        slot.style.top = (curTop - stepPct) + '%';
+      }
     }
   };
 
@@ -138,6 +173,7 @@ const RUNTIME = `
       if (document.fonts && document.fonts.ready) await document.fonts.ready;
     } catch(e){}
     try { window.__fitText(); } catch(e){}
+    try { window.__safeZone(); } catch(e){}
     // GSAP template timeline: build AFTER fonts (SplitText measures glyphs) with seeded randomness.
     window.__tplErr = null;
     if (window.gsap && window.__tplScript) {
@@ -312,6 +348,10 @@ img.wm{width:${Math.round(Math.min(w,h)*0.085)}px;height:auto}
 .capw.act{color:${capColor};opacity:1;${capActFx}}
 .capw.past{opacity:.95}
 .tpl{position:absolute;inset:0;z-index:10}
+/* baked legibility floor: a dark halo on meaning text so it clears contrast on the dark stage
+   even if the codegen model authored no shadow (hf-kw carries its own chrome/neon filter, so it
+   is left untouched). template.css follows and may override. */
+.tpl .hf-kw2,.tpl .hf-sub,.tpl .hf-label,.tpl .hf-stat-v,.tpl .hf-stat-l{text-shadow:0 1px 3px rgba(0,0,0,.72)}
 ${template.css}${opts.brand ? opts.brand.css : ''}
 </style></head><body>
 <div class="stage">

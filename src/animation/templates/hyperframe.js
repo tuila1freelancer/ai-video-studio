@@ -71,7 +71,9 @@ function decoLayer(guide, ctx) {
   const [a0, a1, a2] = guide.palette.accents;
   const rnd = m32(4400 + (seed | 0));
   const num = String(((idx | 0) % 99) + 1).padStart(2, '0');
-  const status = (guide.hud?.statuses || [])[0] || '';
+  // language-neutral HUD tag ONLY — the backdrop must never seed English decor that the codegen
+  // model then imitates (root of the recurring wrong-language-decor defect). Numeric/symbolic.
+  const status = `// ${num}`;
   let specks = '';
   for (let i = 0; i < 4; i++) {
     const c = [a0, a1, a2][i % 3];

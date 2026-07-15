@@ -129,17 +129,17 @@ export const SAMPLE_SPEC = {
   .o1{left:14%;top:22%;width:9%;padding-top:9%;background:radial-gradient(circle at 35% 30%,rgba(124,140,255,.5),rgba(124,140,255,.06))}
   .o2{left:82%;top:60%;width:6%;padding-top:6%;background:radial-gradient(circle at 35% 30%,rgba(34,211,238,.45),rgba(34,211,238,.05))}
   /* faint oversized watermark glyph = far-depth texture */
-  .hf-ghost{position:absolute;right:6%;top:12%;font-family:'Oswald',sans-serif;font-weight:800;font-size:300px;line-height:.8;color:rgba(255,255,255,.05);letter-spacing:-.03em}
+  .hf-ghost{position:absolute;right:6%;top:12%;font-family:'Oswald',sans-serif;font-weight:800;font-size:300px;line-height:.8;color:#fff;opacity:.05;letter-spacing:-.03em}
   /* BESPOKE HERO CONSTRUCTION — a self-built glass "verdict card" HUD instrument (not a bare component) */
   .hf-vcard{position:relative;width:560px;padding:24px 30px 28px;border-radius:18px;background:linear-gradient(160deg,rgba(20,22,40,.72),rgba(12,13,26,.72));border:1px solid rgba(124,140,255,.34);box-shadow:0 30px 80px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.06);backdrop-filter:blur(9px)}
   .hf-vcard::before,.hf-vcard::after{content:'';position:absolute;width:16px;height:16px;border:2px solid #22D3EE}
   .hf-vcard::before{left:-1px;top:-1px;border-right:none;border-bottom:none;border-radius:6px 0 0 0}
   .hf-vcard::after{right:-1px;bottom:-1px;border-left:none;border-top:none;border-radius:0 0 6px 0}
-  .hf-vhead{display:flex;align-items:center;gap:12px;font-family:'JetBrains Mono',monospace;font-size:15px;letter-spacing:.22em;text-transform:uppercase;color:#8A93AD}
+  .hf-vhead{display:flex;align-items:center;gap:12px;font-family:'JetBrains Mono',monospace;font-size:15px;letter-spacing:.22em;text-transform:uppercase;color:#C7D0E6}
   .hf-vhead b{width:9px;height:9px;border-radius:50%;background:#22D3EE;box-shadow:0 0 12px #22D3EE;display:block}
   .hf-vrow{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-top:16px;padding-bottom:12px;border-bottom:1px solid rgba(255,255,255,.08);opacity:0}
   .hf-vrow .k{font-family:'Be Vietnam Pro',sans-serif;font-weight:600;font-size:26px;color:#F2F5FF}
-  .hf-vrow .v{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:24px;color:#7C8CFF}
+  .hf-vrow .v{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:24px;color:#22D3EE}
   .hf-track{width:100%;height:5px;margin-top:16px;border-radius:3px;background:rgba(255,255,255,.10);overflow:hidden}
   .hf-track i{display:block;width:100%;height:100%;transform-origin:0 50%;background:linear-gradient(90deg,#7C8CFF,#22D3EE)}
   #kw1{white-space:nowrap}
@@ -151,7 +151,7 @@ export const SAMPLE_SPEC = {
     <div class="hf-ghost">01</div>
   </div>
   <div class="hf-layer hf-near">
-    <div class="hf-slot" style="left:50%;top:11%"><div class="hf-label" id="lb1">HYPERFRAME · KIỂM CHỨNG</div></div>
+    <div class="hf-slot" style="left:50%;top:11%"><div class="hf-label" id="lb1">// KIỂM CHỨNG</div></div>
     <div class="hf-slot" style="left:50%;top:27%"><div class="hf-kw" id="kw1">TỰ TIN ≠ ĐÚNG</div></div>
     <!-- the hero: a bespoke glass instrument whose rows light up in the order the voice names them -->
     <div class="hf-slot" style="left:32%;top:60%"><div class="hf-vcard" id="vc1">
