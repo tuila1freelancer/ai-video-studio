@@ -211,7 +211,7 @@ ${SAMPLE_SPEC.html.trim()}
 ${SAMPLE_SPEC.script.trim()}
 @@@END@@@
 
-Now design THIS scene. On-screen text = narration language, taken verbatim from the narration. Reply with ONLY the @@@CSS@@@/@@@HTML@@@/@@@SCRIPT@@@/@@@END@@@ fenced blocks.`;
+Now design THIS scene. On-screen text = the narration's language, COMPOSED from its meaning (short complete headlines/labels — never a verbatim sentence, never a mid-phrase fragment). Reply with ONLY the @@@CSS@@@/@@@HTML@@@/@@@SCRIPT@@@/@@@END@@@ fenced blocks.`;
   return [
     { role: 'system', content: CODEGEN_SYSTEM },
     { role: 'user', content: user },

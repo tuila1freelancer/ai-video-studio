@@ -6,7 +6,7 @@
 import { buildTemplate, makeCtx } from '../animation/templates.js';
 import { buildScenePage } from '../animation/harness.js';
 import { themeFromGuide, normalizeGuide } from '../styleguide/index.js';
-import { fold } from './beats.js';
+import { fold, labelIsFragment } from './beats.js';
 import { detectLang } from '../util/lang.js';
 import { getBrowser, chromeAvailable } from '../media/puppeteer.js';
 
@@ -84,7 +84,7 @@ const PROBE = `(() => {
         if(!hides) return 0; // overflow:visible text PAINTS outside — off-screen/overlap checks own that
         return (el.scrollWidth-el.clientWidth>3||el.scrollHeight-el.clientHeight>3)?1:0; })(),
       cls:(el.className&&el.className.baseVal!==undefined?el.className.baseVal:String(el.className||'')).slice(0,32),
-      txt:(el.textContent||'').trim().slice(0,22)});
+      txt:(el.textContent||'').trim().slice(0,40)});
     nodes.push({el,ownText,o,r}); }
   const txts=nodes.filter(n=>n.ownText&&n.o>0.35&&n.r.width>8&&n.r.height>8);
   const overlaps=[];
@@ -205,7 +205,7 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
     let anyVisible = false, endStrong = false, heroFrac = 0, unionFrac = 0, deadAt = null;
     // Every geometry accumulator carries an occurrence count `n` — persistence tiering
     // (heldAcrossSamples) later drops one-sample transients instead of re-asking on them.
-    const off = new Map(), sub = new Map(), bad = new Map(), ovl = new Map(), lowc = new Map(), clip = new Map(), occ = new Map();
+    const off = new Map(), sub = new Map(), bad = new Map(), ovl = new Map(), lowc = new Map(), clip = new Map(), occ = new Map(), frag = new Map();
     const snaps = new Map();
     const pairTimes = new Set(beatPairs.flatMap((p) => [p.tp, p.tq]));
     const bump = (map, k, data) => {
@@ -247,7 +247,13 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
         const overflow = Math.max(-e.x, e.x + e.w - W, -e.y, e.y + e.h - H);
         if (overflow > 0.10 * Math.max(W, H)) bump(off, e.txt || e.cls, { t, ...e, overflow: Math.round(overflow) });
         if (e.y + e.h > 0.80 * H) bump(sub, e.txt || e.cls, { t, ...e }); // element BOTTOM edge intrudes on the caption band
-        if (narrWords && /hf-kw/.test(e.cls || '') && textLanguageLeak(e.txt, narrWords, narrLang)) bad.set(e.txt, e);
+        // meaning-bearing text classes (widened past hf-kw to headlines/labels/sub); stat
+        // units stay excluded — "%", "x", "M" are legitimately language-neutral.
+        const meaning = /hf-(kw|label|sub|title|head|lead)/.test(e.cls || '');
+        if (narrWords && meaning && textLanguageLeak(e.txt, narrWords, narrLang)) bad.set(e.txt, e);
+        // completeness gate: a meaning label that begins/ends on a function word is a mid-phrase
+        // fragment ("và điều quan trọng") — a clean-content-phrase re-ask, not a colour fix.
+        if (meaning && e.txt && labelIsFragment(e.txt)) bump(frag, e.txt, { t, ...e });
       }
     }
     if (!anyVisible) defects.push('no element is ever visible — the scene renders empty. Make each beat element visible during its window.');
@@ -285,7 +291,7 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
     // geometry findings pass persistence tiering: one-sample transients are entrance/exit
     // states of slow eases, not defects — only findings HELD across ≥2 samples re-ask.
     const held = (m) => [...m.values()].filter(heldAcrossSamples);
-    const offH = held(off), subH = held(sub), ovlH = held(ovl), lowcH = held(lowc), clipH = held(clip), occH = held(occ);
+    const offH = held(off), subH = held(sub), ovlH = held(ovl), lowcH = held(lowc), clipH = held(clip), occH = held(occ), fragH = held(frag);
     if (offH.length) { const o = offH[0]; defects.push(`element "${o.txt || o.cls}" runs ${o.overflow}px off-screen at ${o.t.toFixed(1)}s — keep all content inside the frame with a 6% margin; shrink font-size or reposition.`); }
     if (subH.length) { const o = subH[0]; defects.push(`element "${o.txt || o.cls}" reaches the bottom of the frame at ${o.t.toFixed(1)}s — the bottom 22% is reserved for subtitles, move it up.`); }
     if (bad.size) { const o = [...bad.values()][0]; defects.push(`the on-screen text "${o.txt}" is in the wrong language — the narration is ${narrLang === 'vi' ? 'Vietnamese' : narrLang}, and every keyword must be in the narration's language. Semantic (non-verbatim) keywords are fine; translating or mixing languages is not.`); }
@@ -293,6 +299,7 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
     if (lowcH.length) { const o = lowcH[0]; defects.push(`the text "${o.txt}" is unreadable at ${o.t.toFixed(1)}s — contrast ratio ${o.ratio}:1 against its background. Use the guide's ink color (or a bright accent) so readable text reaches at least 4.5:1.`); }
     if (clipH.length) { const o = clipH[0]; defects.push(`the text "${o.txt}" is clipped at ${o.t.toFixed(1)}s — its box is smaller than its content, cutting words off. Remove fixed widths/heights and overflow:hidden from text elements; shorten the label or let the element size itself.`); }
     if (occH.length) { const o = occH[0]; defects.push(`the text "${o.txt}" is covered by an opaque element ("${o.by}") at ${o.t.toFixed(1)}s — nothing may paint on top of readable text; move the decor behind it (DOM order/z-index) or offset it.`); }
+    if (fragH.length) { const o = fragH[0]; defects.push(`the on-screen label "${o.txt}" is a sentence fragment — it begins or ends on a function word, so it reads as a mid-phrase slice. Use a COMPLETE 2–4 word phrase (a noun phrase or headline), never a fragment cut from the middle of a sentence.`); }
     // Deterministic contrast repair target: unreadable text on a dark stage is a colour mistake
     // the codegen loop can auto-fix (force ink) instead of dropping the whole bespoke scene to
     // the plain fallback. Emit a targetable selector (#id preferred, else .class) per element.
