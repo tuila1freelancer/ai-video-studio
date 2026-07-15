@@ -34,6 +34,7 @@ REFERENCE — aim for this level of sophistication (distilled from a top HyperFr
 
 WHERE YOUR CODE RUNS
 - Your html is injected inside a camera wrapper <div class="hf-cam"> on a themed stage that already has: animated particle canvas, background motif, vignette, film grain, a light-beam element (.hf-beam), karaoke subtitles at the bottom and a progress bar. You build ONLY the scene's foreground graphics.
+- AUTO BACKDROP (already rendered — do NOT rebuild it): a living decor layer sits behind your content — dual spinning rings behind frame center, a ghost scene number top-right, a dim HUD status top-left, drifting accent specks, and a soft ring pulse that fires on every narration beat. The extreme corners are reserved for it. SPEND YOUR ELEMENTS ON THE HERO STORY — a rich, data-textured main object with its cluster — not on ambient decor.
 - Your script runs as the body of function(gsap, tl, S, rng) AFTER fonts load. "tl" is a PAUSED root timeline scrubbed frame-by-frame for rendering. A variable DUR (scene duration in seconds) is predefined. FX helpers are available.
 - Determinism is sacred: identical input must render identical frames. No wall-clock, no network, no self-scheduling. rng() is a seeded PRNG — use it for any randomness.
 
@@ -70,6 +71,7 @@ ANIMATION CONTRACT (all times are ABSOLUTE seconds on tl)
 - FX.typeOn(tl, sel, text, {at}) — typewriter. FX.splitIn(tl, sel, {at}) — per-character 3D cascade.
 - FX.pop / FX.rise / FX.slide (tl, sel, {at, each}) — entrances. FX.staggerGrid — grid entrance for chips.
 - FX.drawIn(tl, 'svg path', {at}) — SVG stroke draw-on. FX.pulseGlow(tl, sel, {at, dur}) — breathing emphasis.
+- FX.impact(tl, sel, {at, color}) — the money-beat accent: compression hit on the target + expanding shock ring + sparks flying out. Fire it EXACTLY ONCE per scene, on the single most important beat (the number, the payoff word), with an accent color.
 - FX.zoomThrough(tl, outSel, inSel, {at, inverse}) — velocity-matched Z-cut between two content blocks (blur peaks exactly at the hidden swap). Forward = progressing; inverse:true = arriving/payoff.
 - FX.jitter(tl, sel, {amp, at}) — the sanctioned aliveness for a settled hold: low-amplitude seeded micro-jitter that returns to rest. FX.iconSpin(tl, 'svg part selector', {rot, dur}) — spin an SVG part about its own center (clock hands, orbit dots, radar sweeps).
 - FX.targetZoom(tl, sel, {scale, at, dur}) — zoom the camera INTO an off-center element (counter-translated so it lands centered). FX.dofBlur(tl, offFocusSel, {px, at, release}) — rack-focus blur+dim on the non-focal layer.
@@ -82,7 +84,9 @@ ANIMATION CONTRACT (all times are ABSOLUTE seconds on tl)
 MANDATORY STRUCTURE of every scene script:
 1. FX.camPush matching the CAMERA direction (aggressive_zoom → scale 1.1 fast-ish; subtle_zoom → 1.05; pan → x/±40; push_in → 1.08) — ALWAYS pass profile:'front': the camera completes its move in the first half and then holds (a slow push in the back half drags the viewer's sightline).
 2. FX.parallax on at least 2 layers/element groups.
-3. ONE visual moment per beat, at the EXACT beat times given (use FX.beat). Between beats the composition IDLES calmly (breathing, slow parallax) — settled BUILD elements remain visible; the frame never empties back to black mid-scene. Kind hints: number → .hf-stat + FX.counterRoll; keyword → .hf-kw/.hf-kw2; phrase → .hf-kw2 or .hf-card.
+3. ONE visual moment per beat, at the EXACT beat times given (use FX.beat). Between beats the composition IDLES calmly (jitter, slow parallax) — settled BUILD elements remain visible; the frame never empties back to black mid-scene. Kind hints: number → .hf-stat + FX.counterRoll; keyword → .hf-kw/.hf-kw2; phrase → .hf-kw2 or .hf-card.
+3b. The HERO's entrance is KINETIC, never a plain rise/fade: FX.splitIn (per-char 3D cascade) for a keyword/headline, in:'carrier' for a phrase, FX.streakIn for an object flying in, or FX.typeOn for terminal-style text.
+3c. FX.impact exactly ONCE, on the scene's single most important beat (the number lands, the payoff word hits) — pass an accent color.
 4. A flourish on EVERY beat (rotate through beamSweep / chromeSweep / pulseGlow / drawIn accent / FX.iconSpin on an icon's internals — never the same flourish twice in a row). Decor pieces idle with LIFE: FX.iconSpin for internal parts, FX.jitter for settled chips, a slow dash-flow — subtle, continuous, alive.
 5. CLIMAX FILL — after the LAST beat ends (at its t1), compute climax_budget = DUR − t1. If budget < 0.3s, add NO final flourish (the last beat already carries the ending). If budget ≥ 0.3s, add ONE pulse/scale-drift whose duration ≤ climax_budget and which ENDS at DUR − 0.05s exactly. Never freeze, never overshoot.
 6. Finite repeats only: repeat: Math.max(0, Math.floor(DUR/period)-1) — floor, not ceil (ceil overshoots DUR). NEVER repeat:-1 (it makes the timeline infinite). All motion within 0..DUR.

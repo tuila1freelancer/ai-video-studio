@@ -183,6 +183,21 @@ test('font-swap flash fix: every face force-loaded before the timeline builds, n
   assert.match(gen, /font-display: block/, 'the generator keeps emitting block on rebuilds');
 });
 
+test('template premium infrastructure: auto backdrop, beat pulses, FX.impact', () => {
+  const hf = readFileSync(new URL('../src/animation/templates/hyperframe.js', import.meta.url), 'utf8');
+  assert.match(hf, /function decoLayer/, 'auto set-dressing layer exists');
+  assert.match(hf, /hf-dpulse/, 'beat pulse element present');
+  assert.match(hf, /__hfBeats/, 'pulses wired to narration beats');
+  assert.match(hf, /hfsheen/, 'underline auto-sheen present');
+  const fx = readFileSync(new URL('../src/animation/templates/_shared.js', import.meta.url), 'utf8');
+  assert.match(fx, /impact: function/, 'FX.impact primitive exists');
+  const prompt = readFileSync(new URL('../src/hyperframe/prompt.js', import.meta.url), 'utf8');
+  assert.match(prompt, /AUTO BACKDROP/, 'model told the backdrop already exists');
+  assert.match(prompt, /FX\.impact/, 'impact mandated in the prompt');
+  const sample = readFileSync(new URL('../src/styleguide/guide.js', import.meta.url), 'utf8');
+  assert.match(sample, /FX\.impact/, 'worked example models the impact accent');
+});
+
 test('blueprint layouts + narrative roles wired into the direction pass', () => {
   const d = readFileSync(new URL('../src/pipeline/direction.js', import.meta.url), 'utf8');
   for (const l of ['kinetic-type-beats', 'ticker-takeover', 'overwhelm-surround', 'pan-stations', 'titlecard-reveal']) {

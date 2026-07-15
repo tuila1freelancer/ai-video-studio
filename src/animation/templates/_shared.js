@@ -246,6 +246,30 @@ var FX = {
     tl.set(sel, { opacity:0 }, 0);
     tl.fromTo(sel, { x:from, opacity:0, skewX:from>0?-12:12, filter:'blur(6px)' },
       { x:0, opacity:1, skewX:0, filter:'blur(0px)', duration:o.dur||0.5, ease:'expo.out' }, at); },
+  // THE money-beat accent: a compression hit on the target + an expanding shock ring +
+  // seeded sparks flying out. Ring/sparks are built ONCE at setup (positions measured then —
+  // legal), all motion lives on tl. Use exactly once per scene, on the most important beat.
+  impact: function(tl, sel, o){ o=o||{};
+    var el=document.querySelector(sel); if(!el) return;
+    var at=o.at==null?1:o.at, col=o.color||'#FFFFFF';
+    tl.fromTo(sel,{scale:1},{scale:o.hit==null?1.07:o.hit,duration:0.13,ease:'power3.in'},at)
+      .to(sel,{scale:1,duration:0.55,ease:'power3.out'},at+0.13);
+    var z=(typeof S.zoom==='number'&&S.zoom>0)?S.zoom:1;
+    var r=el.getBoundingClientRect(),cx=(r.left+r.width/2)/z,cy=(r.top+r.height/2)/z;
+    var host=document.querySelector('.hf-near')||el.parentElement||document.body;
+    var ring=document.createElement('div');
+    ring.style.cssText='position:absolute;left:'+cx+'px;top:'+cy+'px;width:60px;height:60px;margin:-30px 0 0 -30px;border:3px solid '+col+';border-radius:50%;opacity:0;pointer-events:none';
+    host.appendChild(ring);
+    tl.fromTo(ring,{opacity:0.75,scale:0.4},{opacity:0,scale:o.ring==null?5.5:o.ring,duration:0.75,ease:'power2.out'},at+0.05);
+    var n=o.sparks==null?7:o.sparks;
+    for (var i=0;i<n;i++){
+      var ang=rng()*6.2832, dist=(o.dist==null?150:o.dist)*(0.65+rng()*0.7);
+      var s=document.createElement('div');
+      s.style.cssText='position:absolute;left:'+cx+'px;top:'+cy+'px;width:7px;height:7px;border-radius:2px;background:'+col+';opacity:0;pointer-events:none';
+      host.appendChild(s);
+      tl.fromTo(s,{x:0,y:0,opacity:0.9,scale:1,rotation:rng()*90},
+        {x:Math.cos(ang)*dist,y:Math.sin(ang)*dist,opacity:0,scale:0.3,rotation:'+='+Math.round(90+rng()*180),duration:0.55+rng()*0.35,ease:'power3.out'},at+0.05);
+    } },
   // spin an SVG part about its OWN bbox center (svgOrigin) — CSS transform-origin misplaces
   // thin shapes (fill-box coords). For clock hands, fan blades, orbiting dots, radar sweeps.
   iconSpin: function(tl, sel, o){ o=o||{};
