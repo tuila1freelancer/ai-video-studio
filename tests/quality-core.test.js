@@ -4,7 +4,7 @@ import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { beatWarpMap, warpTime } from '../src/animation/timewarp.js';
+import { beatWarpMap, warpTime, slopeAt } from '../src/animation/timewarp.js';
 import { auditBudget, trimToBudget } from '../src/pipeline/stages/budget.js';
 import { LANG_WPS } from '../src/providers/llm.js';
 
@@ -50,6 +50,18 @@ test('beatWarpMap: degrades safely — no srt, no beats, non-monotone anchors, c
   // a slope beyond [0.4, 2.5] must not survive
   const extreme = beatWarpMap([{ t0: 7.5, t1: 8, text: 'cuối', kind: 'keyword' }], 8, 10, cues([['cuối', 0.5]]));
   assert.equal(extreme, null, 'an anchor demanding a 15x local stretch is rejected (endpoints only → null)');
+});
+
+test('slopeAt: local authored-per-real slope drives the entrance floor (F1)', () => {
+  // authored 8s over real 4s with a mid anchor: compression varies per segment
+  const pts = [[0, 0], [2, 1], [8, 4]]; // seg1 slope 2.0 (authored/real), seg2 slope 2.0
+  assert.ok(Math.abs(slopeAt(0.5, pts) - 2.0) < 1e-6, 'compressed segment → slope 2.0');
+  assert.ok(Math.abs(slopeAt(3, pts) - 2.0) < 1e-6, 'past the last knot holds the final slope');
+  // a non-uniform map: fast start, slow tail
+  const pts2 = [[0, 0], [6, 2], [8, 6]]; // seg1 slope 3.0, seg2 slope 0.5
+  assert.ok(Math.abs(slopeAt(1, pts2) - 3.0) < 1e-6, 'entrance in the compressed head needs a bigger authored dur');
+  assert.ok(Math.abs(slopeAt(4, pts2) - 0.5) < 1e-6, 'the stretched tail plays slower than authored');
+  assert.equal(slopeAt(1, null), 1, 'no warp → neutral slope');
 });
 
 test('auditBudget + trimToBudget: a 50s script for a 35s order is cut to tolerance at sentence boundaries', () => {
