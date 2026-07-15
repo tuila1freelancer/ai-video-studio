@@ -51,7 +51,10 @@ export async function runEditorial(ctx) {
 - truncated: complete the cut-off sentence into a whole one
 - under-budget: write it UP to ~${target} words (the line is too short for its scene duration)
 - over-budget: tighten it DOWN to ~${target} words, keep the core idea
-- repetition: re-express it with a DIFFERENT angle/example, never repeating the previous scene${lang === 'vi' ? '\nUse the fixed Vietnamese forms of address "mình" (speaker) – "các bạn" (audience).' : ''}
+- repetition: re-express it with a DIFFERENT angle/example, never repeating the previous scene
+- formulaic-hook: DELETE the closing filler question; end instead on a concrete, useful statement that lands this scene's takeaway
+- device-monotony: rewrite so the scene ends on a STATEMENT, not a question (the video keeps at most one question, in the final scene only)
+- thin: this scene is just a rhetorical question — rewrite it to TEACH one concrete, non-obvious thing with a specific named example the viewer can copy (never invent a statistic)${lang === 'vi' ? '\nUse the fixed Vietnamese forms of address "mình" (speaker) – "các bạn" (audience).' : ''}
 Lines (idx. [issue] "narration"):
 ${list}
 JSON: {"scenes":[{"idx":${flagged[0].idx},"voice":"..."}]} — exactly ${flagged.length} elements, idx unchanged.` },

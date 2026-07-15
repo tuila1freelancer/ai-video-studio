@@ -168,10 +168,14 @@ function offlineScript(sourceText, { title, sceneCount, wordsPerScene, structure
       const per = Math.max(2, Math.round((sceneCount - paras.length) / paras.length));
       const scenes = [];
       paras.forEach((p, i) => {
-        const head = (splitSentences(p)[0] || p).slice(0, 60);
+        // spoken heading must be a WHOLE clause — never a mid-word slice(0,60) cut; the card's
+        // short heading is derived on a word boundary from it.
+        const firstSent = (splitSentences(p)[0] || p).trim();
+        const head = firstSent.length > 90 ? firstSent.slice(0, 90).replace(/\s+\S*$/, '') : firstSent;
+        const cardHeading = head.length > 40 ? head.slice(0, 40).replace(/\s+\S*$/, '') : head;
         scenes.push({
           voice: head, keywords: topNouns(p, 3), visualPrompt: head,
-          template: 'chapter-break', props: { chapter: `PHẦN ${String(i + 1).padStart(2, '0')}`, heading: head.slice(0, 40) },
+          template: 'chapter-break', props: { chapter: `PHẦN ${String(i + 1).padStart(2, '0')}`, heading: cardHeading },
         });
         const sub = offlineScript(p, { title, sceneCount: per, wordsPerScene });
         scenes.push(...sub.scenes);
@@ -321,6 +325,10 @@ export async function generateScript({ topic, inputType, fetched, config, ai, me
         return await twoStageScript({ sourceText, title, sceneCount, wordsPerScene, videoDuration, language, llm, memory, angleLine });
       }
       const hf = (config.visualMode === 'hyperframe');
+      // soft scene-count range: the CONTENT decides the count, the prompt only nudges toward
+      // the duration target. The hard >=70% floor (P4) still lives on the validate below.
+      const minS = Math.max(1, Math.round(sceneCount * 0.75));
+      const maxS = Math.max(minS + 1, Math.round(sceneCount * 1.25));
       const sys = hf
         ? 'You are a scriptwriter and motion designer for premium motion-graphics videos. Reply with pure JSON.'
         : 'You are a short-form video scriptwriter. Reply with pure JSON.';
@@ -332,13 +340,16 @@ Requirements for "visualPrompt" — a BRIEF for one premium animated INFOGRAPHIC
 VARIETY: NEVER repeat the same MAIN OBJECT type in 2 consecutive scenes (rotate: card / node-chain / big stat / list / split-compare / scanner…).
 FORBIDDEN: "display text", static layouts, vague descriptions, invented copy, mixing English text into a non-English video.`;
       const usr = `Write a video script from the content below. Output JSON shaped {"title":"...","scenes":[{"voice":"the spoken narration line","visualPrompt":"${hf ? 'cinematic motion-graphics description in English' : 'visual description in English'}","keywords":["..."]}]}.
-DURATION DISCIPLINE (most important): a ${videoDuration}s video = you MUST return EXACTLY ${sceneCount} scenes × ~${sceneDuration}s (returning fewer scenes fails the assignment), ${wordBudgetNote(wordsPerScene, wps)}. Total narration across all scenes ~${sceneCount * wordsPerScene} words — exceeding this total makes the video overrun the ordered duration and counts as a FAILED script.
-RETENTION ARCHITECTURE:
-- Scene 1 = PAIN HOOK → PROMISE: 1-2 sentences naming the exact problem the viewer is having right now, then promise a concrete benefit (with a number/timeframe) for watching to the end — start cold, no greetings. Also OPEN A LOOP: tease one surprising thing that will be revealed near the end of the video.
-- EVERY scene carries exactly ONE idea. The LAST sentence of each scene is a MICRO-HOOK bridging into the next scene (a short question, a tease, "but…", "and here's the best part…").
-- Around the middle of the video: ONE pattern-interrupt — a direct question or a small challenge for the viewer.
-- SPECIFIC numbers instead of vague words ("87%", "3 steps", "5 minutes" — never "a lot", "most", "the majority").
-- Final scene: lock in the value + CLOSE the loop opened in scene 1 + call to subscribe + ONE specific question inviting an answer in the comments.
+DURATION SHAPE: aim for about ${sceneCount} scenes for a ${videoDuration}s video — ${minS}–${maxS} scenes is all fine, let the CONTENT set the count (never pad with filler to hit a number, never cram two ideas into one scene). ${wordBudgetNote(wordsPerScene, wps)}. Vary the rhythm: a few short punchy scenes, most standard, a couple longer to land a concrete example. Target ~${sceneCount * wordsPerScene} words of narration total so the video fits ${videoDuration}s.
+VALUE ARCHITECTURE (most important — this is the reason someone keeps watching):
+- Every scene must TEACH one concrete, true, non-obvious thing from the source: state the claim, then the WHY/HOW, then ONE specific named example the viewer can copy (an exact phrasing, a setting, a step, a before→after). A scene that is only setup, only a transition, or only a rhetorical question is a FAILED scene.
+- Be specific, not general — name the exact thing. "Add 'giải thích như cho người mới bắt đầu' to the end of your prompt" beats "write a better prompt". After each scene the viewer should be able to DO something.
+- Ground every figure in the source: use a number ONLY if it appears in the provided content — NEVER invent a statistic, percentage, or count. A precise verb beats a fake number.
+- Scenes connect by LOGIC and momentum, NOT by filler tag-questions. Do NOT end scenes with throwaway questions or empty teases ("còn bạn?", "muốn thử không?", "bạn biết chưa?", "điều bất ngờ ở phần sau…", "right?"). At most ONE genuine viewer-directed question in the WHOLE video, and never two scenes in a row ending with "?".
+FLOW:
+- Scene 1: open cold and concrete — name the exact situation the viewer is in and the specific, real payoff of this video (no greetings, no hyped fake numbers).
+- Middle scenes: each advances the idea with its own concrete example; keep momentum by escalating usefulness, not by asking questions.
+- Final scene: land the single most useful takeaway as a clear statement, plus one natural line to subscribe.
 Natural conversational tone${language === 'vi' ? ', using the fixed Vietnamese forms of address "mình" (speaker) – "các bạn" (audience)' : ''}; ALL narration written in ${LANG_NAME[language] || language}.
 "keywords": 2-4 words/phrases present VERBATIM in THIS scene's "voice" — pick the strongest ones (numbers, power nouns); the graphics will emphasize these words AT THE EXACT MOMENT they are spoken, so a wrong pick desyncs visuals from audio.${hf ? hfVisualRules : `
 "visualPrompt" must illustrate THIS scene's specific idea (nothing generic), and never repeat the same layout style in 2 consecutive scenes.`}${bibleBlock(memory)}${angleLine}
@@ -427,7 +438,7 @@ async function twoStageScript({ sourceText, title, sceneCount, wordsPerScene, vi
   const outline = await chatJson([
     { role: 'system', content: 'You are a professional YouTube content director. Reply with pure JSON.' },
     { role: 'user', content: `Outline a ~${Math.round(videoDuration / 60)}-minute video from the content below. ${langLine}
-Output JSON {"title":"click-worthy title ≤60 chars","hook":"3-4 opening sentences following the PAIN → PROMISE formula: the first 1-2 sentences name the exact everyday problem the viewer is having (concrete, relatable), then promise a specific benefit WITH A NUMBER (e.g. '12 habits', '7 days') for watching to the end — start cold, no long greetings","chapters":[{"heading":"chapter name ≤40 chars","points":["key idea 1","key idea 2","..."]}],"ctaMid":"1-2 sentences inserted MID-video: a light reminder to save the video / subscribe so they don't miss what's next (natural, woven into the content, never abrupt)","cta":"2-3 closing sentences: recap the value + call to subscribe + ONE specific question inviting viewers to answer in the comments (promise to read/use the comments for the next video)"} — exactly ${nCh} chapters, 2-5 points each.
+Output JSON {"title":"click-worthy title ≤60 chars","hook":"3-4 opening sentences: the first 1-2 name the exact everyday problem the viewer is having (concrete, relatable), then promise the specific, real payoff of watching to the end — start cold, no long greetings, never invent a number","chapters":[{"heading":"chapter name ≤40 chars","points":["key idea 1","key idea 2","..."]}],"ctaMid":"1-2 sentences inserted MID-video: a light reminder to save the video / subscribe so they don't miss what's next (natural, woven into the content, never abrupt)","cta":"2-3 closing sentences: recap the value + call to subscribe + ONE specific question inviting viewers to answer in the comments (promise to read/use the comments for the next video)"} — exactly ${nCh} chapters, 2-5 points each.
 Content:\n${sourceText.slice(0, 7000)}` },
   ], { maxTokens: 2800, validate: (p) => p.hook && Array.isArray(p.chapters) && p.chapters.length > 0, llm });
 
@@ -449,8 +460,8 @@ Content:\n${sourceText.slice(0, 7000)}` },
         { role: 'system', content: 'You are a captivating storyteller. Reply with pure JSON.' },
         { role: 'user', content: `Video "${outline.title || title}" (narration in ${LANG_NAME[language] || language}), chapter ${i + 1}/${chapters.length}: "${ch.heading}".
 Points that must all be covered: ${(ch.points || []).join('; ')}.${prevTail ? `\nThe CLOSING narration of the previous chapter (for continuity — do NOT repeat ideas already said): "…${prevTail}"` : ''}
-Write detailed narration, natural and conversational, with concrete examples; never restate the chapter heading.${persona}
-Output JSON {"scenes":[{"voice":"1-2 sentences"}]} — you MUST return EXACTLY ${perCh} elements (fewer fails the assignment), ${wordBudgetNote(wordsPerScene)}.` },
+Write detailed narration, natural and conversational. Each scene teaches ONE concrete, non-obvious thing with a specific named example the viewer can copy; do NOT invent statistics, and do NOT end scenes with filler tag-questions. Never restate the chapter heading.${persona}
+Output JSON {"scenes":[{"voice":"1-2 sentences"}]} — return about ${perCh} elements (let the content decide; ${Math.max(1, Math.ceil(perCh * 0.6))}–${perCh + 2} is fine), ${wordBudgetNote(wordsPerScene)}.` },
       ], { maxTokens: perCh * Math.max(130, wordsPerScene * 4) + 400, attempts: 3,
         validate: (p) => Array.isArray(p.scenes) && p.scenes.filter((s) => s.voice || s.text).length >= Math.max(1, Math.ceil(perCh * 0.6)), llm });
       const chScenes = det.scenes.map((s) => ({
