@@ -107,3 +107,16 @@ export function warpTime(t, pts) {
   }
   return pts[pts.length - 1][0]; // past the end: hold the authored endpoint
 }
+
+/** Pure local slope (authored seconds per real second) at real time t — mirrors __slopeAt.
+ *  A value >1 means the choreography is COMPRESSED there (playing faster than authored). */
+export function slopeAt(t, pts) {
+  if (!Array.isArray(pts) || pts.length < 2) return 1;
+  for (let i = 1; i < pts.length; i++) {
+    if (t <= pts[i][1] || i === pts.length - 1) {
+      const dr = pts[i][1] - pts[i - 1][1];
+      return dr > 0 ? (pts[i][0] - pts[i - 1][0]) / dr : 1;
+    }
+  }
+  return 1;
+}

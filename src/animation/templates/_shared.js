@@ -95,6 +95,13 @@ var TSCALE = (S.tplScale || 1);
 // timeline expects them; without one it is the plain TSCALE ratio.
 var R2A = (typeof window !== 'undefined' && window.__r2a) ? window.__r2a : function(t){ return t * TSCALE; };
 var TD = (typeof window !== 'undefined' && window.__authoredDur != null) ? window.__authoredDur : S.duration * TSCALE;
+// Entrance-duration floor: under a COMPRESSED timeline (TSCALE>1 — the real voice ran shorter
+// than the authored estimate) an authored entrance of d seconds plays in d/TSCALE REAL seconds,
+// so a small d flashes sub-perceptually ("rushed pops"). Lengthen the authored duration so every
+// reveal occupies at least MIN_ENTRANCE real seconds. No-op when TSCALE≈1 (uncompressed renders
+// stay byte-identical); a pure function of the deterministic TSCALE, so determinism holds.
+var MIN_ENTRANCE = 0.4;
+function edur(d){ d = +d || 0; if (TSCALE <= 1.05) return d; return (d / TSCALE) < MIN_ENTRANCE ? MIN_ENTRANCE * TSCALE : d; }
 var FX = {
   q: function(sel){ return document.querySelectorAll(sel); },
   split: function(sel, type){ return new SplitText(FX.q(sel), { type: type || 'chars,words' }); },
@@ -104,17 +111,17 @@ var FX = {
     var tg = o.words ? st.words : st.chars;
     tl.from(tg, { opacity:0, y:o.y==null?42:o.y, rotationX:o.rotX==null?-72:o.rotX, transformOrigin:'50% 100%',
       transformPerspective:o.persp==null?420:o.persp,
-      duration:o.dur||0.72, ease:o.ease||'back.out(1.6)', stagger:o.each==null?0.026:o.each }, o.at||0.15);
+      duration:edur(o.dur||0.72), ease:o.ease||'back.out(1.6)', stagger:o.each==null?0.026:o.each }, o.at||0.15);
     return st; },
   // SVG stroke draw-on (DrawSVG)
   drawIn: function(tl, sel, o){ o=o||{};
-    tl.fromTo(sel, { drawSVG:'0%' }, { drawSVG:'100%', duration:o.dur||1.1, ease:o.ease||'power2.inOut', stagger:o.each||0.09 }, o.at||0.1); },
+    tl.fromTo(sel, { drawSVG:'0%' }, { drawSVG:'100%', duration:edur(o.dur||1.1), ease:o.ease||'power2.inOut', stagger:o.each||0.09 }, o.at||0.1); },
   pop: function(tl, sel, o){ o=o||{};
-    tl.from(sel, { scale:o.from==null?0.4:o.from, opacity:0, duration:o.dur||0.6, ease:o.ease||'back.out(2)', stagger:o.each||0.12 }, o.at||0.2); },
+    tl.from(sel, { scale:o.from==null?0.4:o.from, opacity:0, duration:edur(o.dur||0.6), ease:o.ease||'back.out(2)', stagger:o.each||0.12 }, o.at||0.2); },
   rise: function(tl, sel, o){ o=o||{};
-    tl.from(sel, { y:o.y==null?34:o.y, opacity:0, duration:o.dur||0.65, ease:o.ease||'power3.out', stagger:o.each||0.1 }, o.at||0.15); },
+    tl.from(sel, { y:o.y==null?34:o.y, opacity:0, duration:edur(o.dur||0.65), ease:o.ease||'power3.out', stagger:o.each||0.1 }, o.at||0.15); },
   slide: function(tl, sel, o){ o=o||{};
-    tl.from(sel, { x:o.x==null?-60:o.x, opacity:0, duration:o.dur||0.7, ease:o.ease||'power3.out', stagger:o.each||0.12 }, o.at||0.15); },
+    tl.from(sel, { x:o.x==null?-60:o.x, opacity:0, duration:edur(o.dur||0.7), ease:o.ease||'power3.out', stagger:o.each||0.12 }, o.at||0.15); },
   // ambient float loop (yoyo, infinite — fine under time-scrub)
   loop: function(tl, sel, o){ o=o||{};
     tl.to(sel, { y:o.y==null?-10:o.y, rotation:o.rot||0, duration:o.dur||2.4, ease:'sine.inOut', yoyo:true, repeat:-1,
@@ -139,7 +146,7 @@ var FX = {
     if (!(k>0 && k<1)) k = 0.34; // guard: a 0 or ≥1 decay would collapse or explode the slide
     for (var i=0;i<els.length;i++){
       tl.from(els[i], { x:(o.axis==='y'?0:d*(o.dir||1)), y:(o.axis==='y'?d*(o.dir||1):0), opacity:0,
-        duration:o.dur||0.33, ease:o.ease||'expo.out' }, (o.at||0.1) + i*(o.gap==null?0.09:o.gap));
+        duration:edur(o.dur||0.33), ease:o.ease||'expo.out' }, (o.at||0.1) + i*(o.gap==null?0.09:o.gap));
       d = Math.max(12, d*k);
     } },
   // chrome gradient sweep across background-clipped text (.hf-kw sets background-size:240%)
@@ -170,7 +177,7 @@ var FX = {
     // the body is zoomed — '165vw' overshoots 2x at 4K. S.w is the logical page width.
     var _bx = o.x != null ? o.x : (S.w ? S.w * 1.65 : '165vw');
     tl.fromTo(sel, { x:0, opacity:0 }, { x:_bx, opacity:o.op==null?0.55:o.op,
-      duration:o.dur||0.5, ease:o.ease||'power3.in' }, o.at||0.4); },
+      duration:edur(o.dur||0.5), ease:o.ease||'power3.in' }, o.at||0.4); },
   // typewriter reveal — textContent is a pure function of tl time
   typeOn: function(tl, sel, text, o){ o=o||{}; var el=document.querySelector(sel); if(!el) return;
     var obj={ n:0 }; el.textContent='';
@@ -245,7 +252,7 @@ var FX = {
     var at=o.at==null?0.2:o.at, from=o.from==null?260:o.from;
     tl.set(sel, { opacity:0 }, 0);
     tl.fromTo(sel, { x:from, opacity:0, skewX:from>0?-12:12, filter:'blur(6px)' },
-      { x:0, opacity:1, skewX:0, filter:'blur(0px)', duration:o.dur||0.5, ease:'expo.out' }, at); },
+      { x:0, opacity:1, skewX:0, filter:'blur(0px)', duration:edur(o.dur||0.5), ease:'expo.out' }, at); },
   // THE money-beat accent: a compression hit on the target + an expanding shock ring +
   // seeded sparks flying out. Ring/sparks are built ONCE at setup (positions measured then —
   // legal), all motion lives on tl. Use exactly once per scene, on the most important beat.

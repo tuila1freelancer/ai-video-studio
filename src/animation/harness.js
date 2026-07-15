@@ -171,6 +171,20 @@ const RUNTIME = `
   };
   // authored end of the template timeline (== plannedDur under a warp/scale)
   window.__authoredDur = S.tplWarp && S.tplWarp.length ? S.tplWarp[S.tplWarp.length - 1][0] : S.duration * (S.tplScale || 1);
+  // Local authored-per-real slope at real time t (the derivative of __r2a) — how compressed the
+  // choreography is at that moment. Exposed so motion helpers can keep an entrance above a
+  // real-time floor even under a piecewise beat-warp (mirror: timewarp.js slopeAt).
+  window.__slopeAt = (t) => {
+    const W = S.tplWarp;
+    if (!W || W.length < 2) return (S.tplScale || 1);
+    for (let i = 1; i < W.length; i++) {
+      if (t <= W[i][1] || i === W.length - 1) {
+        const dr = W[i][1] - W[i-1][1];
+        return dr > 0 ? (W[i][0] - W[i-1][0]) / dr : (S.tplScale || 1);
+      }
+    }
+    return (S.tplScale || 1);
+  };
   window.__seek = (t) => {
     // Template layers (GSAP timeline + the spec's CSS/WAAPI animations) run in AUTHORED
     // timeline coordinates via __r2a. Captions/progress/background stay on REAL time —
