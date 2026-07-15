@@ -129,7 +129,7 @@ const RUNTIME = `
         const wNow = () => el.getBoundingClientRect().width / z;
         const botOk = () => (el.getBoundingClientRect().bottom / z) < 0.80 * frameH;
         let g = 40;
-        while (wNow() < 0.72 * frameW && !over() && botOk() && g-- > 0) { size += 2; el.style.fontSize = size + 'px'; }
+        while (wNow() < 0.66 * frameW && !over() && botOk() && g-- > 0) { size += 2; el.style.fontSize = size + 'px'; }
         if (over() || !botOk()) { size -= 2; el.style.fontSize = size + 'px'; } // step back one on overshoot
       }
     }
@@ -183,14 +183,14 @@ const RUNTIME = `
         const ix = Math.min(ra.right, rb.right) - Math.max(ra.left, rb.left);
         const iy = Math.min(ra.bottom, rb.bottom) - Math.max(ra.top, rb.top);
         if (ix <= 2 || iy <= 2) continue; // not overlapping
-        const small = a.area <= b.area ? a : b, big = a.area <= b.area ? b : a;
-        const rs = small.el.getBoundingClientRect(), rbig = big.el.getBoundingClientRect();
-        const curTop = parseFloat(small.el.style.top);
-        if (!Number.isFinite(curTop)) continue;
-        const dir = ((rs.top + rs.bottom) / 2 <= (rbig.top + rbig.bottom) / 2) ? -1 : 1; // above→up, below→down
-        let newTop = curTop + dir * (((iy + 8) / z) / frameH) * 100;
-        newTop = Math.max(8, Math.min(80, newTop)); // stay in the safe area
-        if (Math.abs(newTop - curTop) > 0.3) { small.el.style.top = newTop + '%'; moved = true; }
+        // push BOTH apart — the upper one up, the lower one down, half the overlap each — so a
+        // huge (fit-grown) headline and a kicker still separate even when one is clamped at an edge.
+        const upper = (ra.top + ra.bottom) <= (rb.top + rb.bottom) ? a : b;
+        const lower = upper === a ? b : a;
+        const half = ((((iy + 10) / z) / frameH) * 100) / 2;
+        const tU = parseFloat(upper.el.style.top), tL = parseFloat(lower.el.style.top);
+        if (Number.isFinite(tU)) { const n = Math.max(8, tU - half); if (Math.abs(n - tU) > 0.2) { upper.el.style.top = n + '%'; moved = true; } }
+        if (Number.isFinite(tL)) { const n = Math.min(80, tL + half); if (Math.abs(n - tL) > 0.2) { lower.el.style.top = n + '%'; moved = true; } }
       }
       if (!moved) break;
     }
