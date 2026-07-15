@@ -21,6 +21,38 @@ người việc điều cách rất cũng như nhiều hơn thứ luôn trước
 dùng sử dụng làm giúp đây đó ấy vậy thật càng đều chỉ vẫn lại nữa mọi mỗi cùng theo về trên dưới giữa bằng hay còn thêm xong ngay
 tui mình chúng ta anh chị em ơi nhé nha ạ à ừ thôi rồi`.split(/\s+/).map(fold));
 
+// Shared beat-label sanitizer — every on-screen label goes through this so a fragment can
+// never start or end on a stopword ("và điều quan trọng" → "điều quan trọng"). Numbers keep
+// their unit/percent token (that path opts out). Returns '' when nothing meaningful remains.
+export function sanitizeLabel(raw, { maxWords = 5 } = {}) {
+  const isContent = (w) => /[\p{L}\p{N}%]/u.test(w);
+  const alnum = (w) => fold(w).replace(/[^\p{L}\p{N}%]/gu, '');
+  const isStop = (w) => { const a = alnum(w); return !a || STOP.has(a); };
+  let toks = (Array.isArray(raw) ? raw : String(raw || '').split(/\s+/)).map((w) => String(w || '').trim()).filter(isContent);
+  while (toks.length && isStop(toks[0])) toks.shift();          // strip leading stopwords
+  toks = toks.slice(0, maxWords);                               // cap AFTER finding the first content word
+  while (toks.length && isStop(toks[toks.length - 1])) toks.pop(); // strip trailing stopwords
+  return toks.join(' ').replace(/^[^\p{L}\p{N}]+/u, '').replace(/[^\p{L}\p{N}%]+$/u, '');
+}
+
+// True grammatical function words (conjunctions/prepositions/articles/particles). NARROWER
+// than STOP on purpose: STOP also drops content nouns ("cách/người/việc") to keep them out of
+// keyword beats, but "Cách hỏi ChatGPT" is a perfectly good headline — the fragment gate must
+// not flag it. A label that STARTS or ENDS on one of these reads as a mid-sentence slice.
+const FUNC = new Set(`and or but of to in on for with as at by from that this the a an is are was were be
+và hoặc hay nhưng mà của cho với trong khi để thì rằng nên vì bởi từ về theo bằng như tại ở là
+một các những này kia đó ấy đã sẽ đang mọi mỗi lại nữa cùng còn thêm`.split(/\s+/).map(fold));
+
+// A label is a FRAGMENT when it begins or ends on a function word — a mid-phrase slice rather
+// than a self-contained noun phrase or headline. Single-token / number labels are never
+// fragments. Used by the render-validation completeness gate (a re-ask defect, not a rewrite).
+export function labelIsFragment(text) {
+  const toks = (String(text || '').match(/[\p{L}\p{N}%]+/gu) || []);
+  if (toks.length < 2) return false;
+  const isFn = (w) => FUNC.has(fold(w));
+  return isFn(toks[0]) || isFn(toks[toks.length - 1]);
+}
+
 function flatWords(srtJson) {
   const out = [];
   for (const cue of Array.isArray(srtJson) ? srtJson : []) {
@@ -118,8 +150,11 @@ export function extractBeats(srtJson, keywords, duration, { max = 5, min = 2 } =
       const prev = beats[beats.length - 1];
       if (f.kind === 'number' && prev.kind === 'keyword' && t0 > prev.t0) beats.pop(); else continue;
     }
-    const label = words.slice(f.i, f.i + f.span).map((w) => w.word).join(' ')
-      .replace(/^[^\p{L}\p{N}]+/u, '').replace(/[^\p{L}\p{N}%]+$/u, '');
+    // numbers keep their exact token ("87 %", "10 lần"); keyword labels go through the shared
+    // sanitizer so a matched phrase never starts/ends on a stopword.
+    const label = f.kind === 'number'
+      ? words.slice(f.i, f.i + f.span).map((w) => w.word).join(' ').replace(/^[^\p{L}\p{N}]+/u, '').replace(/[^\p{L}\p{N}%]+$/u, '')
+      : sanitizeLabel(words.slice(f.i, f.i + f.span).map((w) => w.word), { maxWords: f.span });
     if (!label || (f.kind === 'keyword' && STOP.has(fold(label)))) continue;
     beats.push({ t0, tEnd: w1.end, text: label, kind: f.kind });
     if (beats.length >= max) break;
@@ -133,9 +168,9 @@ export function extractBeats(srtJson, keywords, duration, { max = 5, min = 2 } =
       if (beats.length >= min) break;
       const t0 = Math.max(0.15, (+cue.start || 0) - LEAD);
       if (beats.some((b) => Math.abs(b.t0 - t0) < MIN_GAP)) continue;
-      // keep only real content words — a cue of "..." must not become an on-screen "..." beat
-      const short = String(cue.text || '').split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w)).slice(0, 5).join(' ')
-        .replace(/^[^\p{L}\p{N}]+/u, '').replace(/[^\p{L}\p{N}%]+$/u, '');
+      // keep only real content words, snapped to clean boundaries — a cue of "..." must not
+      // become an on-screen "..." beat, and a fragment must not start/end on a stopword.
+      const short = sanitizeLabel(cue.text, { maxWords: 5 });
       if (!short) continue;
       beats.push({ t0, tEnd: +cue.end || t0 + 1.5, text: short, kind: 'phrase' });
     }
