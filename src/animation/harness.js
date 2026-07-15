@@ -158,6 +158,44 @@ const RUNTIME = `
     }
   };
 
+  // Deterministic de-overlap: a weak model routinely rests a kicker/label DIRECTLY over the
+  // headline (the #1 defect). On the resting layout, separate any two colliding meaning-text
+  // slots by lifting/lowering the SMALLER one away from the larger (headline stays put), clamped
+  // to the safe area. Mutates slot wrappers only (never the animated inner element); a few bounded
+  // passes so a chain of nudges settles. Pure function of the static DOM → determinism preserved.
+  window.__deoverlap = () => {
+    const z = (typeof S.zoom === 'number' && S.zoom > 0) ? S.zoom : 1;
+    const frameH = (S.h || innerHeight);
+    const SEL = '.hf-kw, .hf-kw2, .hf-sub, .hf-label, .hf-chip, .hf-stat, .hf-stat-l';
+    const items = [];
+    for (const el of document.querySelectorAll('.hf-near .hf-slot')) {
+      if (!el.matches(SEL) && !el.querySelector(SEL)) continue;
+      const r = el.getBoundingClientRect();
+      if (r.width < 4 || r.height < 4) continue;
+      items.push({ el, area: r.width * r.height });
+    }
+    for (let pass = 0; pass < 4; pass++) {
+      let moved = false;
+      for (let i = 0; i < items.length; i++) for (let j = i + 1; j < items.length; j++) {
+        const a = items[i], b = items[j];
+        if (a.el.contains(b.el) || b.el.contains(a.el)) continue;
+        const ra = a.el.getBoundingClientRect(), rb = b.el.getBoundingClientRect();
+        const ix = Math.min(ra.right, rb.right) - Math.max(ra.left, rb.left);
+        const iy = Math.min(ra.bottom, rb.bottom) - Math.max(ra.top, rb.top);
+        if (ix <= 2 || iy <= 2) continue; // not overlapping
+        const small = a.area <= b.area ? a : b, big = a.area <= b.area ? b : a;
+        const rs = small.el.getBoundingClientRect(), rbig = big.el.getBoundingClientRect();
+        const curTop = parseFloat(small.el.style.top);
+        if (!Number.isFinite(curTop)) continue;
+        const dir = ((rs.top + rs.bottom) / 2 <= (rbig.top + rbig.bottom) / 2) ? -1 : 1; // above→up, below→down
+        let newTop = curTop + dir * (((iy + 8) / z) / frameH) * 100;
+        newTop = Math.max(8, Math.min(80, newTop)); // stay in the safe area
+        if (Math.abs(newTop - curTop) > 0.3) { small.el.style.top = newTop + '%'; moved = true; }
+      }
+      if (!moved) break;
+    }
+  };
+
   // ---- init + seek ----
   window.__init = async () => {
     // Force-load EVERY declared face — all families, weights AND unicode-range subsets.
@@ -173,6 +211,7 @@ const RUNTIME = `
       if (document.fonts && document.fonts.ready) await document.fonts.ready;
     } catch(e){}
     try { window.__fitText(); } catch(e){}
+    try { window.__deoverlap(); } catch(e){}
     try { window.__safeZone(); } catch(e){}
     // GSAP template timeline: build AFTER fonts (SplitText measures glyphs) with seeded randomness.
     window.__tplErr = null;
