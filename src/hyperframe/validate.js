@@ -86,11 +86,17 @@ const PROBE = `(() => {
       cls:(el.className&&el.className.baseVal!==undefined?el.className.baseVal:String(el.className||'')).slice(0,32),
       txt:(el.textContent||'').trim().slice(0,40)});
     nodes.push({el,ownText,o,r}); }
-  const txts=nodes.filter(n=>n.ownText&&n.o>0.35&&n.r.width>8&&n.r.height>8);
+  // readable text only: element opacity AND text-colour alpha must be substantial — a watermark
+  // faded via rgba(...,.05) is decor, not readable text, so it must not count as an overlap.
+  const txts=nodes.filter(n=>{ if(!(n.ownText&&n.o>0.35&&n.r.width>8&&n.r.height>8))return false;
+    const cm=(getComputedStyle(n.el).color.match(/[\\d.]+/g)||[]); return !(cm.length>3&&parseFloat(cm[3])<0.4); });
   const overlaps=[];
   for(let i=0;i<txts.length;i++)for(let j=i+1;j<txts.length;j++){
     const a=txts[i],b=txts[j];
     if(a.el.contains(b.el)||b.el.contains(a.el))continue;
+    // FX.splitIn wraps each glyph in a sibling span; mid-cascade those single-char siblings
+    // transiently stack ("T"/"H") — a choreography artifact, not a real collision. Skip them.
+    if(a.el.parentElement&&a.el.parentElement===b.el.parentElement&&(a.el.textContent||'').trim().length<=1&&(b.el.textContent||'').trim().length<=1)continue;
     const ix=Math.max(0,Math.min(a.r.right,b.r.right)-Math.max(a.r.left,b.r.left));
     const iy=Math.max(0,Math.min(a.r.bottom,b.r.bottom)-Math.max(a.r.top,b.r.top));
     const minA=Math.min(a.r.width*a.r.height,b.r.width*b.r.height);

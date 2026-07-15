@@ -35,9 +35,11 @@ export const HF_PRESETS = [
       'câu hỏi / tò mò → dấu ? lớn glow + ripple đồng tâm',
       'tổng kết / recap → các keyword cũ bay về xếp thành hàng, climax nhấn keyword chính',
     ],
+    // HUD vocabulary is LANGUAGE-NEUTRAL (numeric/symbolic) only — English decor strings here
+    // used to leak on screen AND seed the codegen model to invent more ("AGENT_STATE: OK"…).
     hud: {
-      kickers: ['//', '[ ]', '01 /', 'SYS_', '>>'],
-      statuses: ['SYSTEM: ACTIVE', 'DATA_SYNC 100%', 'AGENT_STATE: OK', 'ANALYSIS_MODE', 'TARGET_LOCKED', 'STATUS_ERROR'],
+      kickers: ['//', '[ ]', '01 /', '◦◦◦', '>>'],
+      statuses: ['//', '100%', '01 / 99', '◦ ◦ ◦', '[ + ]', '——'],
     },
     sceneRules: [
       'Mỗi cảnh ĐÚNG 1 focal element, negative space ≥50%',

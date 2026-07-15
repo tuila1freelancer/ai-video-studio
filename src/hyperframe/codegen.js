@@ -36,6 +36,24 @@ export function parseSpec(raw) {
 // A render defect is "hard" (wrong content/layout — never ship) vs "soft" (cosmetic timing).
 const HARD_DEFECT = /off-screen|bottom of the frame|wrong language|renders empty|goes empty|threw at runtime|overlap each other|unreadable|is clipped|is covered|sentence fragment/i;
 
+// Deterministic pre-lint normalizer: fix the mechanical mistakes a weak model repeats so they do
+// NOT burn a scarce codegen attempt — infinite CSS animation hard-errors the lint; off-guide fonts
+// and <br> ship a cheap look silently. Pure string transforms, meaning unchanged, mutates in place.
+function normalizeSpec(spec, { guide, duration }) {
+  const iter = Math.max(8, Math.ceil((duration || 6) / 0.15)); // finite count that always covers DUR
+  const OFF = /\b(Inter|Roboto|Poppins|Montserrat|Lato|Nunito|Open Sans|Raleway|Ubuntu|Work Sans|Source Sans(?: Pro)?)\b/gi;
+  const body = String(guide?.fonts?.body || 'sans-serif').replace(/'/g, '');
+  // <br> in body text → space (wrap on real font metrics, not a hard double-wrap)
+  spec.html = String(spec.html || '').replace(/<br\s*\/?>/gi, ' ')
+    // stray [SRC=...] placeholders + inline event handlers a weak model sometimes emits
+    .replace(/\[SRC\s*=\s*[^\]]*\]/gi, '').replace(/\son[a-z]+\s*=\s*"[^"]*"/gi, '')
+    // off-guide font only inside inline font-family declarations (never in visible content)
+    .replace(/font-family\s*:\s*[^;"'}]*/gi, (m) => m.replace(OFF, body));
+  // infinite CSS animation → a large finite count (deterministic under currentTime scrubbing)
+  spec.css = String(spec.css || '').replace(/\binfinite\b/gi, String(iter))
+    .replace(/font-family\s*:\s*[^;}]*/gi, (m) => m.replace(OFF, body));
+}
+
 function syntaxCheck(spec, guide, { w, h, duration }) {
   // compile the FULL assembled script (FX prelude + spec.script) exactly as the page will run it
   const ctx = makeCtx({ w, h, theme: getTheme('neon-tech'), seed: 1, duration, idx: 0 });
@@ -73,6 +91,7 @@ export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, on
       messages.push({ role: 'user', content: 'Your reply did not match the format. Reply with EXACTLY the three fenced blocks and nothing else:\n@@@CSS@@@\n(css)\n@@@HTML@@@\n(html)\n@@@SCRIPT@@@\n(js)\n@@@END@@@' });
       continue;
     }
+    normalizeSpec(clean, { guide, duration }); // reclaim attempts from mechanical mistakes
     const { errors, warnings } = lintSpec(clean);
     // static: lint + parse. Cheap — always first.
     if (!errors.length) {
