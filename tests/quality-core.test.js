@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { beatWarpMap, warpTime, slopeAt } from '../src/animation/timewarp.js';
-import { auditBudget, trimToBudget } from '../src/pipeline/stages/budget.js';
+import { auditBudget, trimToBudget, pickDroppable } from '../src/pipeline/stages/budget.js';
 import { LANG_WPS } from '../src/providers/llm.js';
 
 const cues = (words) => [{ start: words[0][1], end: words[words.length - 1][1] + 0.4, text: words.map((w) => w[0]).join(' '),
@@ -50,6 +50,15 @@ test('beatWarpMap: degrades safely — no srt, no beats, non-monotone anchors, c
   // a slope beyond [0.4, 2.5] must not survive
   const extreme = beatWarpMap([{ t0: 7.5, t1: 8, text: 'cuối', kind: 'keyword' }], 8, 10, cues([['cuối', 0.5]]));
   assert.equal(extreme, null, 'an anchor demanding a 15x local stretch is rejected (endpoints only → null)');
+});
+
+test('pickDroppable: bridge-aware trim keeps the opener + closer, drops a short interior', () => {
+  // 3+ sentences → drop the shortest INTERIOR (index 1..n-2), never the first (prev-bridge)
+  // nor the last (next-bridge)
+  const s = ['Câu mở đầu nối tiếp cảnh trước rất dài dòng.', 'Ngắn.', 'Một câu giữa dài hơn nhiều.', 'Câu kết dẫn sang cảnh sau.'];
+  assert.equal(pickDroppable(s), 1, 'shortest interior sentence chosen');
+  // 2 sentences → keep the opener (bridges from prev), drop the tail
+  assert.equal(pickDroppable(['Vì vậy mình làm bước này.', 'Và đây là kết quả.']), 1);
 });
 
 test('slopeAt: local authored-per-real slope drives the entrance floor (F1)', () => {
@@ -232,6 +241,10 @@ test('prompt v2 + budget stage source anchors (P4/P5 intact, gate wired pre-seed
   assert.match(llm, /VALUE ARCHITECTURE/, 'value-first doctrine present (replaces the old micro-hook mandate)');
   assert.match(llm, /At most ONE genuine viewer-directed question/, 'filler-question cap present');
   assert.doesNotMatch(llm, /LAST sentence of each scene is a MICRO-HOOK/, 'the per-scene micro-hook mandate is gone');
+  // coherence: plan-then-write through-line + positive forward-linkage (replaces the removed bridge)
+  assert.match(llm, /PLAN THEN WRITE/, 'plan-then-write ordering present');
+  assert.match(llm, /"throughline"/, 'through-line field emitted before scenes (field-order forcing)');
+  assert.match(llm, /each scene CONTINUES the previous one/, 'positive scene-to-scene linkage rule present');
   assert.match(llm, /scriptBudgetOk\(p\.scenes, wordsPerScene, language\)/, 'gross-overrun re-ask wired into validate');
   assert.match(llm, /export function wordsForSlot/, 'canonical per-scene budget formula exported');
   const runner = readFileSync(new URL('../src/pipeline/runner.js', import.meta.url), 'utf8');

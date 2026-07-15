@@ -25,6 +25,22 @@ function estSec(text, wps, lang) {
 }
 const wordsOf = (t) => (String(t || '').match(/[\p{L}\p{N}]+/gu) || []).length;
 
+// A sentence that OPENS with a forward connector bridges FROM the previous scene — dropping it
+// severs continuity. When trimming, prefer a low-information INTERIOR sentence and keep the
+// opener (prev-bridge) and closer (next-bridge) so the reconciliation pass can't re-fracture
+// the whole-script flow the generation built.
+const CONNECTOR = /^(vì vậy|vì thế|do đó|bởi vậy|bởi thế|nhưng|vậy nên|thế nên|cho nên|và |rồi |sau đó|tiếp theo|nói cách khác|so |but |which is why|and |then )/i;
+export function pickDroppable(sentences) {
+  if (sentences.length >= 3) {
+    // shortest interior sentence (lowest information), never the first or last
+    let bi = 1, bw = Infinity;
+    for (let i = 1; i < sentences.length - 1; i++) { const w = wordsOf(sentences[i]); if (w < bw) { bw = w; bi = i; } }
+    return bi;
+  }
+  // 2 sentences: keep a connector-led opener (it bridges from the previous scene), drop the tail
+  return sentences.length - 1;
+}
+
 // Chapter-break cards speak only their heading — by design far under any word quota; they
 // must never be "enriched" into paragraphs nor counted as trim candidates.
 const isBreak = (s) => s.template === 'chapter-break';
@@ -59,7 +75,7 @@ export function trimToBudget(scenes, { videoDuration, sceneDuration, lang, wps }
       if (over > bestOver) { bestOver = over; best = w; }
     }
     if (!best) break; // every scene is down to one sentence — cannot trim further
-    best.sentences.pop();
+    best.sentences.splice(pickDroppable(best.sentences), 1); // bridge-aware: keep the prev/next connectors
     out.set(best.id, best.sentences.join(' '));
   }
   return out;
@@ -106,9 +122,12 @@ export async function runBudgetFit(ctx) {
     if (offenders.length) {
       op(projectId, `⏱️ Lời thoại ${a.total.toFixed(0)}s ${over ? 'vượt' : 'hụt'} mục tiêu ${videoDuration}s — ${over ? 'siết' : 'bồi'} ${offenders.length} cảnh…`);
       const rows = DB.getScenes(projectId);
+      const byIdx = new Map(rows.map((r) => [r.idx, r]));
       const listing = offenders.map((o) => {
         const sc = rows.find((r) => r.id === o.id);
-        return `#${o.idx + 1} (now ${o.words} words, needs ~${a.quotaWords}): "${String(sc?.voice_text || '').slice(0, 700)}"`;
+        const prev = byIdx.get(o.idx - 1), next = byIdx.get(o.idx + 1);
+        const ctx = [prev ? `follows "…${String(prev.voice_text || '').trim().slice(-70)}"` : '', next ? `leads into "${String(next.voice_text || '').trim().slice(0, 70)}…"` : ''].filter(Boolean).join(' | ');
+        return `#${o.idx + 1} (now ${o.words} words, needs ~${a.quotaWords}): "${String(sc?.voice_text || '').slice(0, 700)}"${ctx ? `\n  (continuity — this scene ${ctx})` : ''}`;
       }).join('\n');
       try {
         const fix = await chatJson([
@@ -116,7 +135,7 @@ export async function runBudgetFit(ctx) {
           { role: 'user', content: `${over
             ? `The scenes below are OVER their word budget. Rewrite each one SHORTER to ~${a.quotaWords} words: keep the concrete takeaway and its named example; FIRST drop any trailing filler tag-question ("còn bạn?", "muốn thử không?", "right?"), then cut repetition/hedging.`
             : `The scenes below are UNDER their word budget. Rewrite each one LONGER to ~${a.quotaWords} words: add a concrete detail or a named example the viewer can use (NEVER invent a statistic), no rambling.`}
-Keep the original language and the existing forms of address. Output JSON {"fixes":[{"idx":scene number (1-based),"voice":"the new narration"}]} — only the scenes listed.
+Keep each rewrite CONTINUOUS with its neighbors (see the continuity note): it must still follow the previous scene and lead into the next — one flowing talk, never a detached standalone line. Keep the original language and the existing forms of address. Output JSON {"fixes":[{"idx":scene number (1-based),"voice":"the new narration"}]} — only the scenes listed.
 ${listing}` },
         ], { maxTokens: offenders.length * a.quotaWords * 4 + 400, attempts: 2, temperature: 0.5,
           validate: (p) => Array.isArray(p.fixes) && p.fixes.length > 0, llm: ai.llm });
