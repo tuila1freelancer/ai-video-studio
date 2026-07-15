@@ -23,3 +23,8 @@ from the studio's own database — every number is real production data.
 - Scenes with rendered clips (active projects): 90 · Jobs: 5 done / 1 error / 0 cancelled
 - AI usage: 231 calls · 3434k tokens in / 383k out · 2.3k TTS chars · est. $2.48
 - Published: — · Calendar-driven runs: —
+## 2026-07-15
+- Videos: 3 created · 3 completed — “5 cách hỏi ChatGPT để nhận câu trả lời xuất sắc gấp 10 lần” · “Ba Câu Nói Chốt Deal Cho Freelancer” · “Ba câu nói giúp freelancer chốt deal với khách hàng khó tính: đổ”
+- Scenes with rendered clips (active projects): 23 · Jobs: 6 done / 0 error / 0 cancelled
+- AI usage: 96 calls · 1563k tokens in / 155k out · 1.4k TTS chars · est. $1.09
+- Published: — · Calendar-driven runs: —
