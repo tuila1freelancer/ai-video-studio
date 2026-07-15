@@ -84,6 +84,23 @@ export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, on
       try {
         const rv = await renderValidate({ spec: { ...clean, guide }, guide, w, h, duration, beats, narration: scene.voice_text || '' });
         if (!rv.ok) renderDefects = rv.defects;
+        // Auto-contrast repair: unreadable text is a deterministic colour mistake — force the
+        // named element(s) to the guide ink + drop-shadow and re-validate ONCE, rather than
+        // dropping an otherwise-good bespoke scene to the plain fallback template (the #1 cause
+        // of a lone "plain" scene in an otherwise premium video on weaker models).
+        if (!rv.ok && rv.contrastFix?.length && renderDefects.some((d) => /unreadable/.test(d))) {
+          const ink = guide.palette.ink;
+          const fixCss = rv.contrastFix
+            .map((c) => `${c.sel}{color:${ink}!important;-webkit-text-fill-color:${ink}!important;text-shadow:0 2px 12px rgba(0,0,0,.9)!important;opacity:1!important}`)
+            .join('\n');
+          const candidateCss = `${clean.css || ''}\n/* auto-contrast repair */\n${fixCss}`;
+          const rv2 = await renderValidate({ spec: { ...clean, css: candidateCss, guide }, guide, w, h, duration, beats, narration: scene.voice_text || '' });
+          if (!rv2.defects.some((d) => /unreadable/.test(d))) {
+            clean.css = candidateCss;
+            renderDefects = rv2.defects;
+            onLog(`cảnh ${idx + 1}: auto-contrast repair (${rv.contrastFix.length} phần tử) — ${rv2.ok ? 'đạt' : 'còn ' + rv2.defects.length + ' vấn đề khác'}`);
+          }
+        }
       } catch (e) { onLog(`cảnh ${idx + 1}: renderValidate lỗi (${String(e.message).slice(0, 60)}) — bỏ qua`); }
       // Keep as the graceful fallback ONLY if defects are cosmetic (timing) — never ship a scene
       // with a HARD defect (off-screen / caption collision / invented text / empty / runtime error);
