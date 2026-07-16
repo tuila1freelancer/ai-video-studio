@@ -82,6 +82,13 @@ const RUNTIME = `
     if (ci !== curCue) {
       curCue = ci;
       capEl.innerHTML = ci < 0 ? '' : cues[ci].words.map((w,j)=>'<span class="capw" data-j="'+j+'">'+w.word.replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</span>').join(' ');
+      // keep the auto-subtitle on ONE line: shrink the font (deterministically) until the cue fits
+      // the caption bar width — never wrap to a second line. Pure function of the cue text + frame.
+      const cap = capEl.parentElement;
+      if (cap) {
+        cap.style.fontSize = '';
+        if (ci >= 0) { let fs = parseFloat(getComputedStyle(cap).fontSize) || 40, g = 80; while (g-- > 0 && cap.scrollWidth > cap.clientWidth + 1 && fs > 8) { fs -= 1; cap.style.fontSize = fs + 'px'; } }
+      }
     }
     if (ci >= 0) {
       const words = cues[ci].words;
@@ -142,6 +149,9 @@ const RUNTIME = `
   // a scene that was already safe never moves. Mutates the slot wrapper's top (never the inner
   // element the timeline animates), and refuses to push a slot above the header zone.
   window.__safeZone = () => {
+    // Only reserve the bottom subtitle band when captions are actually ON (config.enableSubtitles).
+    // With subtitles off, content may use the lower frame — __margins still keeps a 6% bottom margin.
+    if (!(S.captions && S.captions.length)) return;
     const frameH = (S.h || innerHeight);
     const z = (typeof S.zoom === 'number' && S.zoom > 0) ? S.zoom : 1;
     const limit = 0.80 * frameH;
@@ -167,7 +177,7 @@ const RUNTIME = `
   window.__margins = () => {
     const z = (typeof S.zoom === 'number' && S.zoom > 0) ? S.zoom : 1;
     const frameW = (S.w || innerWidth), frameH = (S.h || innerHeight);
-    const mL = 0.06 * frameW, mR = 0.94 * frameW, mT = 0.07 * frameH, safeW = mR - mL;
+    const mL = 0.06 * frameW, mR = 0.94 * frameW, mT = 0.07 * frameH, mB = 0.94 * frameH, safeW = mR - mL;
     for (const slot of document.querySelectorAll('.hf-near .hf-slot')) {
       const hasL = Number.isFinite(parseFloat(slot.style.left));
       const hasT = Number.isFinite(parseFloat(slot.style.top));
@@ -178,8 +188,9 @@ const RUNTIME = `
         else if (rt > mR) slot.style.left = (parseFloat(slot.style.left) - ((rt - mR) / frameW) * 100) + '%';
       }
       if (hasT) {
-        const tp = slot.getBoundingClientRect().top / z;
+        const r2 = slot.getBoundingClientRect(), tp = r2.top / z, bt = r2.bottom / z;
         if (tp < mT) slot.style.top = (parseFloat(slot.style.top) + ((mT - tp) / frameH) * 100) + '%';
+        else if (bt > mB) slot.style.top = (parseFloat(slot.style.top) - ((bt - mB) / frameH) * 100) + '%'; // 6% bottom margin (the subtitle band, when on, is reserved tighter by __safeZone)
       }
     }
   };
@@ -408,7 +419,7 @@ img.wm{width:${Math.round(Math.min(w,h)*0.085)}px;height:auto}
 .wmt{font:700 ${Math.round(Math.min(w,h)*0.02)}px ${theme.mono};letter-spacing:.18em;color:${theme.muted};text-transform:lowercase}
 .progtrack{position:absolute;left:0;right:0;bottom:0;height:${Math.max(4, Math.round(h*0.006))}px;background:rgba(255,255,255,0.07);z-index:41}
 #progFill{height:100%;width:0;background:${theme.gradBar};box-shadow:0 0 12px ${theme.accents[1]}66}
-.cap{position:absolute;left:8%;right:8%;bottom:${capBottom}%;z-index:39;text-align:center;font-weight:${capWeight};font-size:${capFS}px;line-height:1.32;letter-spacing:.01em${capExtra}}
+.cap{position:absolute;left:6%;right:6%;bottom:${capBottom}%;z-index:39;text-align:center;white-space:nowrap;font-weight:${capWeight};font-size:${capFS}px;line-height:1.2;letter-spacing:.01em${capExtra}}
 .capw{color:${capBase};opacity:.92;text-shadow:0 2px 14px rgba(0,0,0,.75)}
 .capw.fut{opacity:.4}
 .capw.act{color:${capColor};opacity:1;${capActFx}}

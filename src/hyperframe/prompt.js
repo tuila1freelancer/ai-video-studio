@@ -24,7 +24,7 @@ WHAT MAKES A SCENE GOOD (these five — nothing more; HOW you achieve them is en
 1. RELEVANT to the narration. Show what THIS scene is actually about — a metaphor, a diagram, a comparison, a device, an object, a data instrument, kinetic words, whatever fits — built from divs + inline SVG so it VISUALLY ARGUES the idea. On-screen text is drawn FROM THE MEANING of the voice line: a short headline and/or a few short labels, ALL complete Vietnamese words (or none at all when the graphic already speaks). Never dump the full sentence (it is already the subtitle), never invent slogans/CTAs/brand names, never put English or code on screen in a Vietnamese video.
 2. BALANCED & HARMONIOUS. Compose across the WHOLE chosen frame — distribute the visual weight EVENLY so the layout feels intentional and no half sits empty; if one side holds a hero or card, give the other a real counterweight (never lopsided); give every element room to breathe, and leave a comfortable margin from ALL FOUR edges — nothing touches or bleeds off the frame. Do NOT clump everything onto the centre axis (a wide 16:9 frame invites splits, off-centre heroes with a counterweight, edge-to-edge spreads — though a calm centred frame is right when the idea is minimal). You choose the arrangement; just make it feel designed and harmonious.
 3. BEAUTIFUL, SMOOTH MOTION. Elements ease in gently (power2/power3/expo.out, ~0.5–0.9s), ONE main thing arriving at a time, each landing ON its spoken beat; between beats the frame stays alive with slow drift, never freezing to black. Motion stays calm even as the standing composition grows rich — a settled, still frame beats busy churn; keep bounce/overshoot for at most one playful accent. Make it look EXPENSIVE: give the hero one premium treatment (chrome / neon / glow) and use premium surfaces (glass, soft shadow, a 1px accent hairline) — never flat, undecorated boxes.
-4. READABLE, CLEAN TYPE. Every readable text is near-white or a bright accent on the dark stage (≥4.5:1 contrast) — never dim grey, a mid-tone, or accent-on-accent. Text fits inside the frame (6% side margins) and NEVER clips or gets cut by a fixed size / overflow:hidden. Keep headlines short; when one wraps, break it on a NATURAL phrase boundary into balanced lines (never orphan a single word, never split a 2-word unit). Keep the bottom 22% of the frame clear — it is the subtitle band.
+4. READABLE, CLEAN TYPE. Every readable text is near-white or a bright accent on the dark stage (≥4.5:1 contrast) — never dim grey, a mid-tone, or accent-on-accent. Text fits inside the frame (6% side margins) and NEVER clips or gets cut by a fixed size / overflow:hidden. Keep headlines short; when one wraps, break it on a NATURAL phrase boundary into balanced lines (never orphan a single word, never split a 2-word unit). Keep the bottom clear for the subtitle band WHEN subtitles are on (the user message says ON or OFF) — with subtitles off you may use the full height.
 5. CREATIVE & UNIQUE (this is the whole point). No two scenes — and no two renders of the same brief — should look alike. Vary the core idea, the type of hero, where things sit, the motion, the type treatment, the colour emphasis. A repeated, stamped-out arrangement is THE failure. Surprise the viewer, inside the four rules above.
 
 THE STAGE (already rendered — do NOT rebuild it): your html sits inside <div class="hf-cam"> on a themed stage that already carries an animated particle canvas, background motif, vignette, film grain, a light-beam (.hf-beam), karaoke subtitles, a progress bar, and a living backdrop (dual spinning rings, drifting specks, a soft ring pulse on every beat). There is NO scene number / page counter / corner status tag anywhere — never add one (this is a film, not a slide deck). Build only the scene's foreground; spend your elements on the story, not on ambient decor.
@@ -69,9 +69,12 @@ function guideV2Block(guide) {
   return parts.length ? `\n${parts.join('\n')}` : '';
 }
 
-export function buildCodegenPrompt({ scene, beats, direction, guide, w, h, duration, idx, total, density, creativeDirection, hookVisual = '' }) {
+export function buildCodegenPrompt({ scene, beats, direction, guide, w, h, duration, idx, total, density, creativeDirection, hookVisual = '', captionsOn = true }) {
   const vertical = h > w;
   const densityNote = DENSITY_NOTE[density] || DENSITY_NOTE.rich; // rich is the house default — sparse scenes read cheap
+  const subNote = captionsOn
+    ? 'SUBTITLES: ON — reserve the bottom ~22% of the frame for the karaoke subtitle band; keep foreground content above it.'
+    : 'SUBTITLES: OFF for this video — there is NO subtitle band; use the FULL frame height (still keep a comfortable ~6% margin from every edge).';
   const dirNote = (creativeDirection || '').trim()
     ? `\nCREATIVE DIRECTION (apply to every scene of this video): ${creativeDirection.trim()}` : '';
   const rhymeNote = direction.isClimax && (hookVisual || '').trim()
@@ -85,7 +88,8 @@ ${densityNote}${dirNote}${rhymeNote}
 
 SCENE ${idx + 1}/${total} — CANVAS ${w}x${h} CSS px (${vertical ? 'vertical 9:16-class' : 'horizontal'}), DUR = ${(+duration).toFixed(3)}s
 (The page body is EXACTLY ${w}x${h}px and is upscaled LOSSLESSLY to the output resolution — author every absolute px against THIS canvas; never assume any other resolution.)
-NARRATION (voice, shown as karaoke subtitles at the bottom — do NOT repeat it verbatim on screen):
+${subNote}
+NARRATION (voice${captionsOn ? ', shown as karaoke subtitles at the bottom' : ' — subtitles are OFF, not shown on screen'} — do NOT repeat it verbatim on screen):
 "${(scene.voice_text || '').trim()}"
 VISUAL CONCEPT (an art-director's brief — let it INSPIRE your design: match its subject and its energy, but the exact composition, styling and execution are YOURS to invent, and two scenes must never come out alike; when it is structured [ROLE]/[LAYOUT]/[MAIN FOCUS]/[CAMERA]/[MOTION FLOW]/[MOOD], read the [ROLE] for energy — a titlecard/cta means restraint, a hook means maximum striking power — the beat times below still rule WHEN things appear):
 "${(scene.visual_prompt || '').trim() || '(design freely from the narration keywords)'}"

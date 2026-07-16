@@ -77,11 +77,11 @@ function syntaxCheck(spec, guide, { w, h, duration }) {
  * Generate one scene's hyperframe props. Returns { props, beats, direction, warnings }.
  * Throws after all attempts fail (caller decides the fallback).
  */
-export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, onLog = () => {}, renderCheck = true, maxAttempts = 4, density, creativeDirection, hookVisual = '' }) {
+export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, onLog = () => {}, renderCheck = true, maxAttempts = 4, density, creativeDirection, hookVisual = '', captionsOn = true }) {
   const duration = Math.max(1.5, scene.duration || 6);
   const beats = extractBeats(scene.srt_json, scene.keywords, duration);
   const direction = cinematicDirection(scene, idx, total);
-  const messages = buildCodegenPrompt({ scene, beats, direction, guide, w, h, duration, idx, total, density, creativeDirection, hookVisual });
+  const messages = buildCodegenPrompt({ scene, beats, direction, guide, w, h, duration, idx, total, density, creativeDirection, hookVisual, captionsOn });
 
   let lastErrors = null, lastGood = null;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -113,7 +113,7 @@ export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, on
     let renderDefects = [];
     if (!errors.length && renderCheck) {
       try {
-        const rv = await renderValidate({ spec: { ...clean, guide }, guide, w, h, duration, beats, narration: scene.voice_text || '' });
+        const rv = await renderValidate({ spec: { ...clean, guide }, guide, w, h, duration, beats, narration: scene.voice_text || '', captionsOn });
         if (!rv.skipped) rvRan = true; // Chrome-less runs return skipped:true → tier stays 'unverified'
         if (!rv.ok) renderDefects = rv.defects;
         // Auto-contrast repair: unreadable text is a deterministic colour mistake — force the
@@ -126,7 +126,7 @@ export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, on
             .map((c) => `${c.sel}{color:${ink}!important;-webkit-text-fill-color:${ink}!important;text-shadow:0 2px 12px rgba(0,0,0,.9)!important;opacity:1!important}`)
             .join('\n');
           const candidateCss = `${clean.css || ''}\n/* auto-contrast repair */\n${fixCss}`;
-          const rv2 = await renderValidate({ spec: { ...clean, css: candidateCss, guide }, guide, w, h, duration, beats, narration: scene.voice_text || '' });
+          const rv2 = await renderValidate({ spec: { ...clean, css: candidateCss, guide }, guide, w, h, duration, beats, narration: scene.voice_text || '', captionsOn });
           if (!rv2.defects.some((d) => /unreadable/.test(d))) {
             clean.css = candidateCss;
             renderDefects = rv2.defects;
