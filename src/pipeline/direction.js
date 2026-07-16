@@ -56,11 +56,11 @@ function batchPrompt({ batch, title, total, guide, hookSummary, language }) {
   const usr = `Video "${title}" (${total} scenes, narration in ${language || 'Vietnamese'}). The LOCKED style for the whole video:
 ${guideBrief(guide)}
 
-Write the VISUAL DIRECTION for each scene below. For each scene return:
+Write a short, CREATIVE visual brief for each scene below — just enough to spark a UNIQUE design that is true to that scene's narration, NOT a rigid spec. The motion designer who builds it has full freedom; your job is to hand each scene a distinct, relevant idea so no two scenes ever look alike. For each scene return:
 - "idx": the scene number (unchanged from the input)
 - "role": this scene's job in the retention arc — one of: hook | problem | insight | step | proof | payoff | cta
 - "layout": pick 1 of: ${HF_LAYOUTS.join(' | ')} — true to the content's nature. DIVERSITY IS MANDATORY: consecutive scenes must differ in layout AND in [MAIN FOCUS] object type AND in [CAMERA] move — never repeat a layout within 2 scenes, and never let two scenes in a row feel like the same composition (the video must never look template-stamped)
-- "visual": a CONCISE English description following EXACTLY this frame (one line per section):
+- "visual": a CONCISE English description that loosely covers these facets (a checklist to stay complete, NOT a script to obey — the designer will reinterpret it freely):
 [ENVIRONMENT] far=…, mid=…, near=… + atmosphere (grounded in the style's motif)
 [MAIN FOCUS] ONE hero subject that is a VISUAL METAPHOR for the narration's meaning (an object/diagram/stat/metaphor drawable with SVG line-art + divs — NOT "display text X"), position + scale (dominant/subtle)
 [CAMERA] slow zoom in 3-5% | zoom out | pan | parallax shift
