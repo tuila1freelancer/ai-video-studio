@@ -28,3 +28,8 @@ from the studio's own database — every number is real production data.
 - Scenes with rendered clips (active projects): 23 · Jobs: 6 done / 0 error / 0 cancelled
 - AI usage: 96 calls · 1563k tokens in / 155k out · 1.4k TTS chars · est. $1.09
 - Published: — · Calendar-driven runs: —
+## 2026-07-16
+- Videos: 5 created · 5 completed — “Cảnh Báo: AI Đang Âm Thầm Làm 'Mỏng' Đầu Óc Bạn” · “Ngừng viết prompt dài dòng: Cách tối giản để ChatGPT hiểu bạn ngay lập tức” · “Ngừng Viết Prompt Dài Dòng” · “Ngừng viết prompt dài dòng: Bí quyết ra lệnh tối giản cho ChatGPT” · “Ngừng viết prompt dài dòng: Bí quyết ra lệnh tối giản cho ChatGPT”
+- Scenes with rendered clips (active projects): 175 · Jobs: 1 done / 0 error / 0 cancelled
+- AI usage: 488 calls · 4964k tokens in / 903k out · 19.9k TTS chars · est. $4.29
+- Published: — · Calendar-driven runs: —
