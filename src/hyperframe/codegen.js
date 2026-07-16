@@ -49,16 +49,17 @@ export function normalizeSpec(spec, { guide, duration }) {
     .replace(/\[SRC\s*=\s*[^\]]*\]/gi, '').replace(/\son[a-z]+\s*=\s*"[^"]*"/gi, '')
     // off-guide font only inside inline font-family declarations (never in visible content)
     .replace(/font-family\s*:\s*[^;"'}]*/gi, (m) => m.replace(OFF, body));
-  // Strip faint English/code WATERMARK decor the weak model sprinkles behind scenes
-  // (PROMPT_OVERFLOW, ERROR_502, [SYSTEM_INIT] x=true, foo.bar(), NAME.EXE) — code tokens read
-  // as leftover dev text, never as Vietnamese on-screen copy. Blanks a text node ONLY when it is
-  // ENTIRELY such tokens (no real letter/digit survives the strip), so real copy stays intact.
-  const CODE_DECOR = /\b[A-Z][A-Z0-9]*_[A-Z0-9_]+(?:\.[A-Za-z]{2,4})?\b|\b[\w-]+\.(?:exe|sh|js|ts|py|json|dll|bat|cfg|log|sys)\b|\b[a-z_]{2,}(?:\.[a-z_]{2,})?\s*\([^)]*\)|\[[A-Z][A-Z0-9_]*\]|\b[\w-]+\s*=\s*(?:true|false|null|\d+)\b/g;
-  spec.html = spec.html.replace(/>([^<>]+)</g, (seg, txt) => {
-    const noCode = txt.replace(CODE_DECOR, '');
-    if (noCode === txt) return seg; // no code tokens → keep verbatim
-    return noCode.replace(/[^\p{L}\p{N}]/gu, '') ? seg : '><'; // real content remains → keep; pure code → blank
-  });
+  // Strip faint English/code TELEMETRY watermark decor the weak model sprinkles behind scenes
+  // (limit_1024, ai_state="LOST_FOCUS", PROMPT_OVERFLOW, OVERLOAD, foo.bar(), NAME.EXE) — these read
+  // as leftover dev text, never as Vietnamese on-screen copy. A text node is blanked ONLY when it
+  // carries a code/telemetry token AND has NO Vietnamese diacritic, so real Vietnamese copy (which
+  // carries diacritics, or has no such token) is always kept. Then any surviving label is
+  // de-snake_cased (DỮ_LIỆU_DƯ_THỪA → DỮ LIỆU DƯ THỪA) so nothing reads like a code identifier.
+  const TOKEN = /\b[A-Za-z][A-Za-z0-9]*(?:_[A-Za-z0-9]+)+\b|\b[A-Za-z_][\w-]*\s*=\s*(?:"[^"]*"|'[^']*'|[\d,.]+|true|false|null)|\b[a-z_][\w]*(?:\.[a-z_][\w]*)+\s*\([^)]*\)|\b[\w-]+\.(?:exe|sh|js|ts|py|json|dll|bat|cfg|log|sys)\b|\[[A-Z][A-Z0-9_]*\]|\b(?:OVERLOAD|OVERFLOW|UNDERFLOW|OFFLINE|ONLINE|LOADING|PROCESSING|ANALYZING|SCANNING|INITIALIZING|REBOOT|LATENCY|BUFFER|KERNEL|DAEMON|STDOUT|STDERR|TIMEOUT|STATUS|ACTIVE|INACTIVE|ENABLED|DISABLED|RUNNING|PENDING|SUCCESS|FAILED|ERROR|WARNING|DEBUG)\b/;
+  const VN = /[À-ỿ]/; // a Latin-with-diacritic char ⇒ Vietnamese content, never a code token
+  spec.html = spec.html
+    .replace(/>([^<>]+)</g, (seg, txt) => (txt.includes('{{') ? seg : (TOKEN.test(txt) && !VN.test(txt) ? '><' : seg)))
+    .replace(/>([^<>]+)</g, (seg, txt) => (txt.includes('{{') ? seg : `>${txt.replace(/(\p{L})_(?=\p{L})/gu, '$1 ')}<`));
   // infinite CSS animation → a large finite count (deterministic under currentTime scrubbing)
   spec.css = String(spec.css || '').replace(/\binfinite\b/gi, String(iter))
     .replace(/font-family\s*:\s*[^;}]*/gi, (m) => m.replace(OFF, body));
