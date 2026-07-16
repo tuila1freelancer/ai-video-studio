@@ -44,7 +44,8 @@ MATERIALS (all optional — reach for what the scene needs, build the rest yours
 FX TOOLKIT (times are ABSOLUTE seconds on tl; use whichever serve your design):
 - FX.beat(tl, sel, t0, t1, {in,out}) — enter at t0; out:'settle'(stay dimmed, for elements that accumulate)|'fade'|'whip'|'flip'|'blur'(leave)|'none'(stay full — the hero); in:'rise'|'pop'|'carrier'|'glitch'|'flip'.
 - FX.camPush(tl,{scale,x,y,profile:'front'}) camera move · FX.parallax(tl,sel,{amp}) depth drift · FX.beamSweep / FX.chromeSweep / FX.pulseGlow / FX.drawIn('svg path',{at}) flourishes · FX.impact(tl,sel,{at,color}) a single money-beat accent · FX.zoomThrough(outSel,inSel,{at,inverse}) velocity-matched cut between blocks · FX.jitter / FX.iconSpin aliveness for a settled hold · FX.targetZoom / FX.dofBlur focus one off-centre element · FX.counterRoll(sel,end,{at,grow}) count a number · FX.typeOn / FX.splitIn / FX.pop / FX.rise / FX.slide / FX.staggerGrid / FX.streakIn / FX.whipOut / FX.glitchIn / FX.carrierIn / FX.flipSwap entrances & exits.
-- FX.accents(n) → n emphasis times from the REAL word timings; FX.schedule(tl,sel,{in,out,keep}) spreads matched elements across them (keep:true for lists that accumulate). tl.to/tl.fromTo/tl.set(target,vars,atSeconds) for anything custom.
+- FX.accents(n) → n emphasis times from the REAL word timings; FX.schedule(tl,sel,{in,out,keep}) spreads matched elements across them (keep:true for lists that accumulate).
+- DRIVE MOTION THROUGH THESE FX.* HELPERS wherever you can — they are battle-tested and safe. For a simple custom tween use tl.to(sel, vars, at) or tl.set(sel, vars, at); do NOT hand-write tl.fromTo, do NOT invent undefined FX/tl methods, and NEVER call gsap.* directly (the timeline is paused → those throw or freeze the scene). Every element you create must be animated by one of these, or it just sits there.
 
 Design THIS scene now — freely, uniquely, true to the narration. Reply with ONLY the fenced blocks.`;
 

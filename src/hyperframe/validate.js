@@ -268,11 +268,12 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
     // loops may legitimately outlive the window) — it becomes actionable only when the
     // ending is ALSO weak, i.e. the climax genuinely landed outside the rendered window.
     else if (!endStrong) defects.push(`the scene ends nearly empty (nothing prominent is on screen at ${endT.toFixed(1)}s)${Number.isFinite(tlDur) && tlDur > dur + 1.5 ? ` while the animation runs to ${tlDur.toFixed(1)}s — the climax lands past DUR=${dur.toFixed(1)}s; pull it back so it ENDS at ≈${(dur - 0.05).toFixed(1)}s` : ' — keep the final keyword (or a climax element) clearly visible through the last second so the ending lands'}.`);
-    // timid composition is a quality defect (cosmetic): the frame must be FILLED — either
-    // one dominant hero (single-element width) or a split composition whose pieces together
-    // cover most of the width (16:9 split layouts legitimately have no single wide element).
-    if (anyVisible && heroFrac > 0 && heroFrac < 0.42 && unionFrac < 0.58) {
-      defects.push(`the scene reads timid — the widest element spans ${Math.round(heroFrac * 100)}% and all elements together cover only ${Math.round(unionFrac * 100)}% of the frame width. Scale the hero up to DOMINATE (~55-75%) or spread the composition so its pieces fill the frame.`);
+    // sparse composition (cosmetic): only reject a NEAR-EMPTY frame — a tiny element lost in a
+    // sea of black. A balanced or distributed layout that fills a reasonable share of the width
+    // is fine (the model chooses the arrangement); this just catches the lone-small-keyword miss,
+    // so the threshold is deliberately loose and does NOT force a single dominant hero.
+    if (anyVisible && heroFrac > 0 && heroFrac < 0.30 && unionFrac < 0.44) {
+      defects.push(`the scene reads sparse — the widest element spans ${Math.round(heroFrac * 100)}% and everything together covers only ${Math.round(unionFrac * 100)}% of the frame width, leaving most of it empty. Fill the frame more — spread the composition across the width or enlarge the main element (the arrangement is yours; just don't leave it near-empty).`);
     }
     // beat adherence: compare the snapshot before each beat with one after its entrance
     // window — some element must ENTER (newly visible) or take EMPHASIS (opacity/size jump).
