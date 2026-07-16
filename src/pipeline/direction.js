@@ -59,7 +59,7 @@ ${guideBrief(guide)}
 Write the VISUAL DIRECTION for each scene below. For each scene return:
 - "idx": the scene number (unchanged from the input)
 - "role": this scene's job in the retention arc — one of: hook | problem | insight | step | proof | payoff | cta
-- "layout": pick 1 of: ${HF_LAYOUTS.join(' | ')} — true to the content's nature, NEVER the same layout more than 2 scenes in a row
+- "layout": pick 1 of: ${HF_LAYOUTS.join(' | ')} — true to the content's nature. DIVERSITY IS MANDATORY: consecutive scenes must differ in layout AND in [MAIN FOCUS] object type AND in [CAMERA] move — never repeat a layout within 2 scenes, and never let two scenes in a row feel like the same composition (the video must never look template-stamped)
 - "visual": a CONCISE English description following EXACTLY this frame (one line per section):
 [ENVIRONMENT] far=…, mid=…, near=… + atmosphere (grounded in the style's motif)
 [MAIN FOCUS] ONE hero subject that is a VISUAL METAPHOR for the narration's meaning (an object/diagram/stat/metaphor drawable with SVG line-art + divs — NOT "display text X"), position + scale (dominant/subtle)

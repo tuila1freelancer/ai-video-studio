@@ -104,16 +104,18 @@ export async function renderScene(scene, project, { dir, size, subtitleStyle, re
   return { path: out, duration: d };
 }
 
-// ---- Transition planning (motion doctrine: 1-2 hero transitions per video, hard cuts as
-// the default — an every-boundary crossfade flattens the impact of all of them) ----
+// ---- Transition planning (motion doctrine: every boundary FLOWS — a short smooth dissolve
+// is the default hand-off, while 1-2 prominent HERO transitions still punch above it so they
+// keep their impact) ----
 // Returns one entry per clip boundary: { type: 'cut'|'fade'|'fadeblack'|'zoomin', dur }.
 // Role-driven when the art director stamped [ROLE] briefs (P4): the transition INTO a
 // payoff scene is a zoom-through ('zoomin'), INTO a cta scene / the outro card a clean
-// 'fadeblack', INTO a chapter-break a 'fade' (its whoosh SFX already lives there). Videos
-// with no roles anywhere (template/image modes, older projects) keep the legacy uniform
-// fade the owner's "smooth transitions" checkbox always produced.
+// 'fadeblack', INTO a chapter-break a 'fade'; every OTHER boundary is a short softDur dissolve
+// — smooth, never a jarring hard cut, yet clearly gentler than the 0.45-0.5s hero moments so
+// those still stand out. Videos with no roles anywhere (template/image modes, older projects)
+// keep the legacy uniform fade the owner's "smooth transitions" always produced.
 const ROLE_RE = /\[ROLE\]\s*(\w+)/i;
-export function planTransitions({ scenes, clipCount, nIntro = 0, nOutro = 0, legacyDur = 0.5 }) {
+export function planTransitions({ scenes, clipCount, nIntro = 0, nOutro = 0, legacyDur = 0.5, softDur = 0.2 }) {
   const n = Math.max(0, clipCount - 1);
   const roles = scenes.map((s) => (ROLE_RE.exec(s.visual_prompt || '')?.[1] || '').toLowerCase());
   const anyRole = roles.some(Boolean);
@@ -130,7 +132,7 @@ export function planTransitions({ scenes, clipCount, nIntro = 0, nOutro = 0, leg
     const role = roles[sceneIdx];
     if (role === 'payoff' && zoomLeft > 0) { zoomLeft--; plan.push({ type: 'zoomin', dur: 0.45 }); continue; }
     if (role === 'cta') { plan.push({ type: 'fadeblack', dur: 0.5 }); continue; }
-    plan.push({ type: 'cut', dur: 0 });
+    plan.push({ type: 'fade', dur: softDur }); // smooth hand-off — hero transitions above still punch
   }
   return plan;
 }

@@ -34,6 +34,10 @@ function isPlainObject(v) { return v != null && typeof v === 'object' && !Array.
 const NEW_PROJECT_DEFAULTS = {
   visualMode: 'hyperframe',
   hyperframe: { styleId: 'tuila1-hud-cyber', density: 'balanced' },
+  // Cinematic scene transitions ON by default: every boundary flows through a short smooth
+  // dissolve (planTransitions), with 1-2 role-driven hero transitions punching above it. Sits
+  // under every layer, so an explicit request/preset/channel value still wins.
+  transitions: true,
 };
 
 // Effective config for a new project. `preset` = the channel's default preset row (or null).
