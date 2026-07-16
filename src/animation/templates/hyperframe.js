@@ -130,9 +130,9 @@ function baseCss(guide, ctx) {
      slot is centered identically to before, so existing scenes are unaffected. */
   .hf-slot{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:${u(1.4)}px;text-align:center}
   .hf-center{position:absolute;inset:0;display:grid;place-items:center;text-align:center}
-  .hf-kw{font-family:${guide.fonts.display};font-weight:800;font-size:${u(11)}px;line-height:1.02;letter-spacing:.005em;text-transform:uppercase;white-space:pre-line;${kwTreatment(guide, ctx)}}
-  .hf-kw2{font-family:${guide.fonts.display};font-weight:700;font-size:${u(6.2)}px;line-height:1.08;text-transform:uppercase;color:${p.ink};text-shadow:0 ${u(0.3)}px ${u(1.4)}px rgba(0,0,0,.7)}
-  .hf-sub{font-family:${guide.fonts.body};font-weight:500;font-size:${u(2.9)}px;color:${p.muted};line-height:1.4}
+  .hf-kw{font-family:${guide.fonts.display};font-weight:800;font-size:${u(11)}px;line-height:1.02;letter-spacing:.005em;text-transform:uppercase;white-space:pre-line;text-wrap:balance;${kwTreatment(guide, ctx)}}
+  .hf-kw2{font-family:${guide.fonts.display};font-weight:700;font-size:${u(6.2)}px;line-height:1.08;text-transform:uppercase;text-wrap:balance;color:${p.ink};text-shadow:0 ${u(0.3)}px ${u(1.4)}px rgba(0,0,0,.7)}
+  .hf-sub{font-family:${guide.fonts.body};font-weight:500;font-size:${u(2.9)}px;color:${p.muted};line-height:1.4;text-wrap:balance}
   .hf-label{font-family:${guide.fonts.mono};font-weight:700;font-size:${u(2.0)}px;letter-spacing:.3em;text-transform:uppercase;color:${a1}}
   .hf-card{background:linear-gradient(160deg,rgba(255,255,255,.09),rgba(255,255,255,.03));border:1px solid rgba(255,255,255,.12);border-radius:${u(1.8)}px;padding:${u(2.6)}px ${u(3.4)}px;box-shadow:0 ${u(1.6)}px ${u(4)}px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.08);backdrop-filter:blur(6px)}
   .hf-chip{display:inline-flex;align-items:center;gap:${u(1)}px;font-family:${guide.fonts.body};font-weight:600;font-size:${u(2.3)}px;color:${p.ink};background:rgba(255,255,255,.07);border:1px solid ${a0}55;border-radius:999px;padding:${u(0.9)}px ${u(2.2)}px}
