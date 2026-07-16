@@ -151,7 +151,7 @@ const PROBE = `(() => {
  * @returns {ok, defects:[string], tlDur, skipped?} — defects are phrased as instructions the
  *   LLM can act on when re-prompted.
  */
-export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration = 6, beats = [], narration = '' }) {
+export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration = 6, beats = [], narration = '', captionsOn = true }) {
   if (!chromeAvailable()) return { ok: true, skipped: true, defects: [] };
   const dur = Math.max(1.5, duration);
   const g = normalizeGuide(guide || spec.guide);
@@ -300,7 +300,7 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
     const held = (m) => [...m.values()].filter(heldAcrossSamples);
     const offH = held(off), subH = held(sub), ovlH = held(ovl), lowcH = held(lowc), clipH = held(clip), occH = held(occ), fragH = held(frag);
     if (offH.length) { const o = offH[0]; defects.push(`element "${o.txt || o.cls}" runs ${o.overflow}px off-screen at ${o.t.toFixed(1)}s — keep all content inside the frame with a 6% margin; shrink font-size or reposition.`); }
-    if (subH.length) { const o = subH[0]; defects.push(`element "${o.txt || o.cls}" reaches the bottom of the frame at ${o.t.toFixed(1)}s — the bottom 22% is reserved for subtitles, move it up.`); }
+    if (captionsOn && subH.length) { const o = subH[0]; defects.push(`element "${o.txt || o.cls}" reaches the bottom of the frame at ${o.t.toFixed(1)}s — the bottom 22% is reserved for subtitles, move it up.`); }
     if (bad.size) { const o = [...bad.values()][0]; defects.push(`the on-screen text "${o.txt}" is in the wrong language — the narration is ${narrLang === 'vi' ? 'Vietnamese' : narrLang}, and every keyword must be in the narration's language. Semantic (non-verbatim) keywords are fine; translating or mixing languages is not.`); }
     if (ovlH.length) { const o = ovlH[0]; defects.push(`the texts "${o.a}" and "${o.b}" overlap each other at ${o.t.toFixed(1)}s (${Math.round(o.frac * 100)}% of the smaller box) — text must NEVER sit on top of other text; separate them spatially or stagger their timing so only one occupies that area at a time.`); }
     if (lowcH.length) { const o = lowcH[0]; defects.push(`the text "${o.txt}" is unreadable at ${o.t.toFixed(1)}s — contrast ratio ${o.ratio}:1 against its background. Use the guide's ink color (or a bright accent) so readable text reaches at least 4.5:1.`); }
