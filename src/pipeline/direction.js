@@ -74,6 +74,7 @@ hook → kinetic-type-beats | ticker-takeover | stat-hero · problem → overwhe
 
 RULES:
 - At most 2-3 main moving elements per scene, EXACTLY 1 focal element. An overcomplicated scene = broken code.
+- NOT a titled slide: do NOT frame every scene as "kicker + big headline pinned to the top + object below". Vary where any title sits (or drop it and let [MAIN FOCUS] carry the scene), and NEVER call for a scene number / page counter / corner status — those read as a slide deck. Consecutive scenes must not share the same title-banner-on-top look.
 - The video's first scene (the hook) = the most striking one.${hookSummary ? `\n- If the LAST scene of this batch is the video's closing scene: ECHO the hook scene's motif ("${hookSummary.slice(0, 160)}") at a larger scale + stronger glow (visual rhyme).` : ''}
 - Pacing needs a breather: in a batch of 8+ scenes, direct at least ONE titlecard-reveal (a calm landing beat — one restrained move, then a hold).
 - NEVER describe a static website-style layout. Target: cinematic motion graphics.${conceptMap ? `\n- CONCEPT RECIPES (when a concept matches, use its exact recipe):\n${conceptMap}` : ''}

@@ -45,7 +45,7 @@ BESPOKE HERO CONSTRUCTION (this is what separates a premium scene from a generic
 
 WHERE YOUR CODE RUNS
 - Your html is injected inside a camera wrapper <div class="hf-cam"> on a themed stage that already has: animated particle canvas, background motif, vignette, film grain, a light-beam element (.hf-beam), karaoke subtitles at the bottom and a progress bar. You build ONLY the scene's foreground graphics.
-- AUTO BACKDROP (already rendered — do NOT rebuild it): a living decor layer sits behind your content — dual spinning rings behind frame center, a ghost scene number top-right, a dim HUD status top-left, drifting accent specks, and a soft ring pulse that fires on every narration beat. The extreme corners are reserved for it. SPEND YOUR ELEMENTS ON THE HERO STORY — a rich, data-textured main object with its cluster — not on ambient decor.
+- AUTO BACKDROP (already rendered — do NOT rebuild it): a living decor layer sits behind your content — dual spinning rings behind frame center, drifting accent specks, and a soft ring pulse that fires on every narration beat. There is NO scene-number / slide-number badge and NO fixed corner HUD tag (this is a film, not a slide deck) — do NOT add a big faint page number or a "01 / 04"-style counter. SPEND YOUR ELEMENTS ON THE HERO STORY — a rich, data-textured main object with its cluster — not on ambient decor.
 - Your script runs as the body of function(gsap, tl, S, rng) AFTER fonts load. "tl" is a PAUSED root timeline scrubbed frame-by-frame for rendering. A variable DUR (scene duration in seconds) is predefined. FX helpers are available.
 - Determinism is sacred: identical input must render identical frames. No wall-clock, no network, no self-scheduling. rng() is a seeded PRNG — use it for any randomness.
 
@@ -132,9 +132,10 @@ SILENT-BUG RULES (these render broken with no error — never violate):
 - No <br> inside body text — it double-wraps against real font metrics; let text wrap via max-width (deliberate one-word-per-line display titles excepted).
 - Compute any measured coordinate ONCE at build time and reuse the constant — never getBoundingClientRect inside onUpdate (frames are sampled out of order).
 
-COMPOSITION GRID (harmonious, balanced — place elements in these zones, aligned to a clear axis):
-- VERTICAL (9:16-class): kicker/label at ~10–14% height · headline zone at ~22–40% · MAIN OBJECT at ~44–72% (the visual center of gravity) · small label/chip row at ~72–77%. One central vertical axis unless the concept demands a split; symmetric spacing left/right of the axis.
-- HORIZONTAL (16:9-class): either centered-stack (headline upper third, object middle) or a split — object on one side at ~55% width, text column on the other; never both text and object crammed into one half.
+COMPOSITION GRID (harmonious, balanced — but the arrangement MUST CHANGE every scene; these are zones to compose within, NOT a fixed template to repeat):
+- TITLE PLACEMENT VARIES (critical — the #1 "cheap slide" tell is a kicker+headline banner pinned to the TOP-CENTER of every scene): move the headline around scene to scene — top, lower-third, hugging one side, integrated INTO the hero object, or dropped entirely when the visual already carries the meaning. Never place the title in the same spot two scenes running; several scenes should have NO separate top headline at all — the hero object is the scene.
+- VERTICAL (9:16-class): the MAIN OBJECT is the center of gravity (~40–74%); a title/label, WHEN present, sits wherever balances THAT scene's object — not a reflex top banner.
+- HORIZONTAL (16:9-class): rotate real compositions — a centered stack, a left/right split (object one side ~55% width, text the other), a full-bleed hero with a small caption, an off-axis object with a corner-anchored title; never both text and object crammed into one half, never the same framing twice in a row.
 - Breathing space is a feature: ≥4% frame gap between any two text blocks, ≥3% between the main object and its labels. When settled BUILD elements accumulate, arrange them into a deliberate row/column/grid — never let pieces pile up where they landed.
 
 PREMIUM SURFACE & TYPOGRAPHY (the frame must read EXPENSIVE, never flat):
@@ -172,7 +173,7 @@ function guideV2Block(guide) {
   const sem = Object.entries(guide.semantics || {});
   if (sem.length) parts.push(`- SEMANTIC COLORS (fixed meaning — use for anything with this meaning, never decoratively): ${sem.map(([k, v]) => `${k}=${v}`).join(' · ')}`);
   if (guide.hud?.kickers?.length || guide.hud?.statuses?.length) {
-    parts.push(`- HUD LANGUAGE: add ONE small mono uppercase kicker above/near the headline (prefix like ${(guide.hud.kickers || ['//']).join(' or ')}, letter-spacing ≥0.2em, class .hf-label)${guide.hud.statuses?.length ? `; optionally ONE dim corner status from: ${guide.hud.statuses.join(' · ')} (opacity ≤0.5, ≤22px, never near the focal element)` : ''}.`);
+    parts.push(`- HUD LANGUAGE (use SPARINGLY — never a fixed frame stamped on every scene): a small mono uppercase kicker (prefix like ${(guide.hud.kickers || ['//']).join(' or ')}, class .hf-label) is OPTIONAL — put it on SOME scenes, skip it on others, and when used, vary WHERE it sits (not always dead-center above the headline). Do NOT reproduce the same kicker+headline banner scene after scene, and do NOT add a corner status tag or page counter.`);
   }
   if (guide.sceneRules?.length) parts.push(`- SCENE RULES (hard):\n${guide.sceneRules.map((r) => `  • ${r}`).join('\n')}`);
   if (guide.conceptMap?.length) parts.push(`- CONCEPT → VISUAL RECIPES (when the narration matches a concept, build THAT visual):\n${guide.conceptMap.map((c) => `  • ${c}`).join('\n')}`);

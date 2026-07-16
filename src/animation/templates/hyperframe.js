@@ -62,18 +62,15 @@ function motifLayer(guide, ctx) {
 
 // Auto set-dressing — the premium look must NOT depend on what the LLM happens to author.
 // Every hyperframe scene gets a deterministic living backdrop: dual counter-spinning rings,
-// a ghost scene number, dim HUD corner statuses, drifting accent specks, and a pulse ring
-// that fires on every narration beat (wired in build()). All pieces are gate-safe by
-// construction: text opacity ≤0.34 (below every text-gate threshold), painted shapes feed
-// the deadness decor counter, positions live in reserved corners/center-back.
+// drifting accent specks, and a pulse ring that fires on every narration beat (wired in
+// build()). DELIBERATELY NO scene-number / slide-number glyph and no fixed corner HUD tag —
+// a per-scene number badge or a stamped corner status reads as a slide deck, not motion
+// graphics. All pieces are gate-safe: painted shapes feed the deadness decor counter,
+// positions live in reserved corners/center-back.
 function decoLayer(guide, ctx) {
-  const { u, seed, idx } = ctx;
+  const { u, seed } = ctx;
   const [a0, a1, a2] = guide.palette.accents;
   const rnd = m32(4400 + (seed | 0));
-  const num = String(((idx | 0) % 99) + 1).padStart(2, '0');
-  // language-neutral HUD tag ONLY — the backdrop must never seed English decor that the codegen
-  // model then imitates (root of the recurring wrong-language-decor defect). Numeric/symbolic.
-  const status = `// ${num}`;
   let specks = '';
   for (let i = 0; i < 4; i++) {
     const c = [a0, a1, a2][i % 3];
@@ -84,13 +81,11 @@ function decoLayer(guide, ctx) {
   .hf-deco{position:absolute;inset:0;pointer-events:none}
   .hf-dring{position:absolute;left:50%;top:45%;width:${u(52)}px;height:${u(52)}px;margin:-${u(26)}px 0 0 -${u(26)}px;border:2px dashed ${a0};border-radius:50%;opacity:.14;animation:hfspin 34s linear infinite}
   .hf-dring2{position:absolute;left:50%;top:45%;width:${u(38)}px;height:${u(38)}px;margin:-${u(19)}px 0 0 -${u(19)}px;border:2px solid transparent;border-top-color:${a1};border-right-color:${a1}44;border-radius:50%;opacity:.2;animation:hfspin 22s linear infinite reverse}
-  .hf-dghost{position:absolute;right:4.5%;top:7%;font-family:${guide.fonts.display};font-weight:800;font-size:${u(26)}px;line-height:1;color:${guide.palette.ink};opacity:.055;letter-spacing:-.02em}
-  .hf-dst{position:absolute;left:4.5%;top:5.5%;font-family:${guide.fonts.mono};font-weight:700;font-size:${u(1.7)}px;letter-spacing:.3em;text-transform:uppercase;color:${guide.palette.muted};opacity:.34}
   .hf-dspeck{position:absolute;width:${Math.max(4, u(0.55))}px;height:${Math.max(4, u(0.55))}px;transform:rotate(45deg);opacity:.24;animation:hfdrift ease-in-out infinite alternate}
   .hf-dpulse{position:absolute;left:50%;top:45%;width:${u(30)}px;height:${u(30)}px;margin:-${u(15)}px 0 0 -${u(15)}px;border:${Math.max(2, u(0.3))}px solid ${a0};border-radius:50%;opacity:0}
   @keyframes hfspin{to{transform:rotate(360deg)}}
   @keyframes hfdrift{from{transform:rotate(45deg) translateY(0)}to{transform:rotate(45deg) translateY(-${u(2.4)}px)}}`,
-    html: `<div class="hf-deco"><div class="hf-dring"></div><div class="hf-dring2"></div><div class="hf-dghost">${esc(num)}</div>${status ? `<div class="hf-dst">${esc(status)}</div>` : ''}${specks}<div class="hf-dpulse"></div></div>`,
+    html: `<div class="hf-deco"><div class="hf-dring"></div><div class="hf-dring2"></div>${specks}<div class="hf-dpulse"></div></div>`,
   };
 }
 
