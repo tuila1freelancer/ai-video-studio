@@ -338,6 +338,7 @@ Requirements for "visualPrompt" — a BRIEF for one premium animated INFOGRAPHIC
 [ON-SCREEN TEXT] 1 short headline of 2-4 words + 2-3 short labels, CHOSEN BY MEANING (never paste the voice line), in the SAME LANGUAGE as the narration (Vietnamese narration → Vietnamese text).
 [MOTION] entry → reveal part by part following the order of ideas in the voice line (beat-synced) → hold → soft exit. [MOOD] 1-2 words.
 VARIETY: NEVER repeat the same MAIN OBJECT type in 2 consecutive scenes (rotate: card / node-chain / big stat / list / split-compare / scanner…).
+CONTINUITY: the scenes share ONE evolving visual language (a consistent accent logic + a carried motif) so cuts feel smooth — vary the composition every scene, keep the language continuous.
 FORBIDDEN: "display text", static layouts, vague descriptions, invented copy, mixing English text into a non-English video.`;
       const usr = `Write a video script from the content below. First PLAN the whole talk, then write it, then break it into scenes. Output JSON shaped {"title":"...","throughline":"ONE sentence: the single argument this whole video makes (an argument, not a topic)","spine":["step 1 = the exact situation/gap to open on","step 2 that DEPENDS ON step 1","…","final step = the payoff that resolves the opening gap"],"scenes":[{"voice":"the spoken narration line","visualPrompt":"${hf ? 'cinematic motion-graphics description in English' : 'visual description in English'}","keywords":["..."]}]}.
 PLAN THEN WRITE (fill the JSON in THIS order — the plan is written BEFORE the scenes on purpose):
