@@ -31,6 +31,13 @@ export function initStudio() {
   $('#btnDownload').innerHTML = `${icon('download', 14)} Tải video`;
   $('#btnDownloadSrt').innerHTML = `${icon('subtitles', 14)} Tải .SRT`;
   $('#btnOpenFolder').innerHTML = `${icon('folder', 14)} Mở thư mục`;
+  // fullscreen for the finished video (native controls also offer it; this is the explicit button)
+  $('#btnFinalFs')?.addEventListener('click', () => {
+    const v = $('#finalVideo'); if (!v) return;
+    if (document.fullscreenElement) document.exitFullscreen?.();
+    else if (v.requestFullscreen) v.requestFullscreen();
+    else if (v.webkitEnterFullscreen) v.webkitEnterFullscreen(); // Safari <video> fallback
+  });
   const lt = $('#logToggle');
   if (lt?.firstElementChild) lt.firstElementChild.innerHTML = `${icon('book', 13)} Nhật ký xử lý`;
   $('#topic').addEventListener('input', detectType);

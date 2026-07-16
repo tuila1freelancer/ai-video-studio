@@ -27,6 +27,7 @@ export function initPlayer() {
   $('#rcSeek')?.addEventListener('input', (e) => seekTo(parseFloat(e.target.value)));
   $('#rcApprove')?.addEventListener('click', () => reviewActive('approved'));
   $('#rcReject')?.addEventListener('click', () => reviewActive('rejected'));
+  $('#rcFs')?.addEventListener('click', toggleFullscreen);
   document.addEventListener('keydown', (e) => {
     const ov = $('#rcOverlay');
     if (!ov || ov.classList.contains('hidden')) return;
@@ -34,8 +35,10 @@ export function initPlayer() {
     else if (e.key === 'Escape') closePlayer();
     else if (e.key === 'ArrowRight') seekTo(t + 5);
     else if (e.key === 'ArrowLeft') seekTo(t - 5);
+    else if (e.key.toLowerCase() === 'f') toggleFullscreen();
   });
   window.addEventListener('resize', fitStage);
+  document.addEventListener('fullscreenchange', fitStage); // re-fit the stage entering/leaving fullscreen
   // timeline lane: click/drag = scrub (read-only — reorder needs immutable-id path keying)
   const tl = $('#rcTl');
   if (tl) {
@@ -171,6 +174,12 @@ function seekTo(nt) {
 function sceneAt(time) {
   for (let i = scenes.length - 1; i >= 0; i--) if (time >= starts[i]) return i;
   return 0;
+}
+
+function toggleFullscreen() {
+  const ov = $('#rcOverlay'); if (!ov || ov.classList.contains('hidden')) return;
+  if (document.fullscreenElement) document.exitFullscreen?.();
+  else ov.requestFullscreen?.();
 }
 
 function fitStage() {
