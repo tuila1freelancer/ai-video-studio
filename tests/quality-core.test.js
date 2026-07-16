@@ -148,7 +148,7 @@ test('logical canvas + lossless zoom: LLM px space is resolution-independent', a
   assert.match(visuals, /animSize\(project\.aspect_ratio, 1\); \/\/ codegen\/validate in the LOGICAL canvas/);
   const prompt = readFileSync(new URL('../src/hyperframe/prompt.js', import.meta.url), 'utf8');
   assert.match(prompt, /upscaled LOSSLESSLY/, 'canvas mandate stated to the model');
-  assert.match(prompt, /COMPLETE WORDS ONLY/, 'no truncated labels rule');
+  assert.match(prompt, /complete Vietnamese words/, 'no truncated labels rule');
 });
 
 test('cinema pacing v3: FX floors, settle state, and the prompt contract', () => {
@@ -157,11 +157,11 @@ test('cinema pacing v3: FX floors, settle state, and the prompt contract', () =>
   assert.match(fx, /o\.out === 'settle'/, 'persistent settle state exists');
   assert.match(fx, /back\.out\(1\.5\)/, 'pop spring softened');
   const prompt = readFileSync(new URL('../src/hyperframe/prompt.js', import.meta.url), 'utf8');
-  assert.match(prompt, /PACING CONTRACT/, 'pacing contract present');
-  assert.match(prompt, /PERSISTENCE/, 'persistence semantics present');
-  assert.match(prompt, /COMPOSITION GRID/, 'per-aspect layout zones present');
-  assert.match(prompt, /INFOGRAPHIC DETAIL/, 'detail bar present');
-  assert.match(prompt, /NEVER shorter than 0\.35s/, 'hard entrance floor stated');
+  assert.match(prompt, /SMOOTH MOTION/, 'smooth-motion contract present');
+  assert.match(prompt, /out:'settle'/, 'persistence/settle semantics present');
+  assert.match(prompt, /BALANCED & HARMONIOUS/, 'balanced-composition rule present');
+  assert.match(prompt, /premium surfaces/, 'premium-surface bar present');
+  assert.match(prompt, /ease in gently/, 'gentle entrance timing stated');
   const warp = readFileSync(new URL('../src/animation/timewarp.js', import.meta.url), 'utf8');
   assert.match(warp, /SLOPE_MIN = 0\.6/, 'gentler warp slope floor');
   assert.match(warp, /SLOPE_MAX = 1\.8/, 'gentler warp slope cap');
@@ -179,9 +179,9 @@ test('motion doctrine v4: new FX vocabulary + smooth/sequential/no-breathing pro
   assert.match(fx, /profile === 'front'/, 'camPush front-half profile exists');
   assert.match(fx, /ease:o\.ease\|\|'back\.out\(1\.5\)'/, 'beat pop ease is overridable (smooth by prompt, compat by default)');
   const prompt = readFileSync(new URL('../src/hyperframe/prompt.js', import.meta.url), 'utf8');
-  assert.match(prompt, /SMOOTH BEATS BOUNCY/, 'ease doctrine stated');
-  assert.match(prompt, /SEQUENTIAL REVEAL/, 'anti-front-loading rule stated');
-  assert.match(prompt, /SILENT-BUG RULES/, 'silent-bug block present');
+  assert.match(prompt, /playful accent/, 'bounce-restraint ease doctrine stated');
+  assert.match(prompt, /one main thing arriving at a time/i, 'sequential-reveal rule stated');
+  assert.match(prompt, /TECHNICAL RULES/, 'technical must-not-break block present');
   assert.match(prompt, /profile:'front'/, 'camera front-profile mandated');
   assert.match(prompt, /FX\.zoomThrough/, 'seam-cut vocabulary taught');
   const sample = readFileSync(new URL('../src/styleguide/guide.js', import.meta.url), 'utf8');
@@ -213,7 +213,7 @@ test('template premium infrastructure: auto backdrop, beat pulses, FX.impact', (
   const fx = readFileSync(new URL('../src/animation/templates/_shared.js', import.meta.url), 'utf8');
   assert.match(fx, /impact: function/, 'FX.impact primitive exists');
   const prompt = readFileSync(new URL('../src/hyperframe/prompt.js', import.meta.url), 'utf8');
-  assert.match(prompt, /AUTO BACKDROP/, 'model told the backdrop already exists');
+  assert.match(prompt, /THE STAGE/, 'model told the stage/backdrop already exists');
   assert.match(prompt, /FX\.impact/, 'impact mandated in the prompt');
   const sample = readFileSync(new URL('../src/styleguide/guide.js', import.meta.url), 'utf8');
   assert.match(sample, /FX\.impact/, 'worked example models the impact accent');
@@ -229,7 +229,7 @@ test('blueprint layouts + narrative roles wired into the direction pass', () => 
   assert.match(d, /at least ONE titlecard-reveal/, 'breather rule present');
   assert.match(d, /\[ROLE\] \$\{role\}/, 'role rides at the top of the brief');
   const p = readFileSync(new URL('../src/hyperframe/prompt.js', import.meta.url), 'utf8');
-  assert.match(p, /\[CHOREOGRAPHY\]/, 'codegen honors the choreography section');
+  assert.match(p, /\[MAIN FOCUS\]/, 'codegen reads the structured visual brief');
 });
 
 test('prompt v2 + budget stage source anchors (P4/P5 intact, gate wired pre-seed)', () => {
