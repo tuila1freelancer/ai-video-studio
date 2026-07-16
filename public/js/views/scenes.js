@@ -76,6 +76,9 @@ function wireGrid() {
 // ---- rendering ----
 export function renderScenes() {
   const grid = $('#sceneGrid');
+  // preview boxes follow the PROJECT's aspect so thumbnails/videos are never cropped or distorted
+  const arv = { '16:9': '16/9', '1:1': '1/1', '4:5': '4/5' }[state.current?.aspect_ratio] || '9/16';
+  grid.style.setProperty('--scene-ar', arv);
   $('#sceneToolbar').classList.toggle('hidden', !state.scenes.length);
   if (!state.scenes.length) { grid.innerHTML = ''; return; }
   scenePerf.fullRenders++;

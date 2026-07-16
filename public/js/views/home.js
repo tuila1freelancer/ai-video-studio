@@ -36,7 +36,8 @@ export function renderGallery() {
   grid.innerHTML = '';
   list.forEach((p) => {
     const c = el('div', 'gcard');
-    c.innerHTML = `<div class="gt">${p.thumb_path ? `<img src="${fileUrl(p.thumb_path)}" loading="lazy" decoding="async" alt="">` : `<div class="ph">${icon('film', 30)}</div>`}
+    const gAr = { '16:9': '16/9', '1:1': '1/1', '4:5': '4/5' }[p.aspect_ratio] || '9/16';
+    c.innerHTML = `<div class="gt" style="aspect-ratio:${gAr}">${p.thumb_path ? `<img src="${fileUrl(p.thumb_path)}" loading="lazy" decoding="async" alt="">` : `<div class="ph">${icon('film', 30)}</div>`}
         <span class="badge ${p.status} gstat">${badgeText(p.status)}</span></div>
       <div class="gi"><div class="t">${esc(p.title)}</div><div class="s">${p.aspect_ratio} · ${new Date(p.updated_at).toLocaleDateString('vi-VN')}</div></div>`;
     c.addEventListener('click', () => { switchPage('studio'); openProject(p.id); });
