@@ -39,7 +39,7 @@ const HARD_DEFECT = /off-screen|bottom of the frame|wrong language|renders empty
 // Deterministic pre-lint normalizer: fix the mechanical mistakes a weak model repeats so they do
 // NOT burn a scarce codegen attempt — infinite CSS animation hard-errors the lint; off-guide fonts
 // and <br> ship a cheap look silently. Pure string transforms, meaning unchanged, mutates in place.
-function normalizeSpec(spec, { guide, duration }) {
+export function normalizeSpec(spec, { guide, duration }) {
   const iter = Math.max(8, Math.ceil((duration || 6) / 0.15)); // finite count that always covers DUR
   const OFF = /\b(Inter|Roboto|Poppins|Montserrat|Lato|Nunito|Open Sans|Raleway|Ubuntu|Work Sans|Source Sans(?: Pro)?)\b/gi;
   const body = String(guide?.fonts?.body || 'sans-serif').replace(/'/g, '');
@@ -49,6 +49,16 @@ function normalizeSpec(spec, { guide, duration }) {
     .replace(/\[SRC\s*=\s*[^\]]*\]/gi, '').replace(/\son[a-z]+\s*=\s*"[^"]*"/gi, '')
     // off-guide font only inside inline font-family declarations (never in visible content)
     .replace(/font-family\s*:\s*[^;"'}]*/gi, (m) => m.replace(OFF, body));
+  // Strip faint English/code WATERMARK decor the weak model sprinkles behind scenes
+  // (PROMPT_OVERFLOW, ERROR_502, [SYSTEM_INIT] x=true, foo.bar(), NAME.EXE) — code tokens read
+  // as leftover dev text, never as Vietnamese on-screen copy. Blanks a text node ONLY when it is
+  // ENTIRELY such tokens (no real letter/digit survives the strip), so real copy stays intact.
+  const CODE_DECOR = /\b[A-Z][A-Z0-9]*_[A-Z0-9_]+(?:\.[A-Za-z]{2,4})?\b|\b[\w-]+\.(?:exe|sh|js|ts|py|json|dll|bat|cfg|log|sys)\b|\b[a-z_]{2,}(?:\.[a-z_]{2,})?\s*\([^)]*\)|\[[A-Z][A-Z0-9_]*\]|\b[\w-]+\s*=\s*(?:true|false|null|\d+)\b/g;
+  spec.html = spec.html.replace(/>([^<>]+)</g, (seg, txt) => {
+    const noCode = txt.replace(CODE_DECOR, '');
+    if (noCode === txt) return seg; // no code tokens → keep verbatim
+    return noCode.replace(/[^\p{L}\p{N}]/gu, '') ? seg : '><'; // real content remains → keep; pure code → blank
+  });
   // infinite CSS animation → a large finite count (deterministic under currentTime scrubbing)
   spec.css = String(spec.css || '').replace(/\binfinite\b/gi, String(iter))
     .replace(/font-family\s*:\s*[^;}]*/gi, (m) => m.replace(OFF, body));
