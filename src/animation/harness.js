@@ -159,6 +159,31 @@ const RUNTIME = `
     }
   };
 
+  // Deterministic edge-margin clamp: keep every foreground slot's content box a comfortable gap
+  // inside all four edges (6% sides, 7% top; the bottom is owned by __safeZone) so nothing ever
+  // touches or bleeds off the frame — the fix for a headline/card the model anchored against an
+  // edge. Shifts the slot wrapper's left/top % only (never the animated inner element); a box too
+  // wide to fit either side is centred. Pure function of the static resting layout → determinism.
+  window.__margins = () => {
+    const z = (typeof S.zoom === 'number' && S.zoom > 0) ? S.zoom : 1;
+    const frameW = (S.w || innerWidth), frameH = (S.h || innerHeight);
+    const mL = 0.06 * frameW, mR = 0.94 * frameW, mT = 0.07 * frameH, safeW = mR - mL;
+    for (const slot of document.querySelectorAll('.hf-near .hf-slot')) {
+      const hasL = Number.isFinite(parseFloat(slot.style.left));
+      const hasT = Number.isFinite(parseFloat(slot.style.top));
+      if (hasL) {
+        const r = slot.getBoundingClientRect(), w = r.width / z, l = r.left / z, rt = r.right / z;
+        if (w >= safeW - 2) slot.style.left = '50%'; // too wide for either margin → centre it (symmetric, minimal)
+        else if (l < mL) slot.style.left = (parseFloat(slot.style.left) + ((mL - l) / frameW) * 100) + '%';
+        else if (rt > mR) slot.style.left = (parseFloat(slot.style.left) - ((rt - mR) / frameW) * 100) + '%';
+      }
+      if (hasT) {
+        const tp = slot.getBoundingClientRect().top / z;
+        if (tp < mT) slot.style.top = (parseFloat(slot.style.top) + ((mT - tp) / frameH) * 100) + '%';
+      }
+    }
+  };
+
   // Deterministic de-overlap: a weak model routinely rests a kicker/label DIRECTLY over the
   // headline (the #1 defect). On the resting layout, separate any two colliding meaning-text
   // slots by lifting/lowering the SMALLER one away from the larger (headline stays put), clamped
@@ -214,6 +239,7 @@ const RUNTIME = `
     try { window.__fitText(); } catch(e){}
     try { window.__deoverlap(); } catch(e){}
     try { window.__safeZone(); } catch(e){}
+    try { window.__margins(); } catch(e){}
     // GSAP template timeline: build AFTER fonts (SplitText measures glyphs) with seeded randomness.
     window.__tplErr = null;
     if (window.gsap && window.__tplScript) {
