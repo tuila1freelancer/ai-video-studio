@@ -24,11 +24,12 @@ function textLanguageLeak(txt, narrWords, narrLang) {
   const words = (fold(txt || '').match(/[\p{L}]+/gu) || []).filter((w) => w.length >= 3);
   if (words.length < 2) {
     // single-word English DECOR on a non-English video ("ENTER", "EXECUTE", "SCANNING") —
-    // pure-ASCII, ≥4 letters, absent from the narration. Short acronyms (AI, GPT) and any
-    // word the narration itself speaks stay allowed.
+    // judged on the RAW text: it must be pure ASCII ≥4 letters BEFORE folding (a Vietnamese
+    // word like "TƯỞNG" folds to ascii but is NOT English decor) and absent from the
+    // narration. Short acronyms (AI, GPT) stay allowed.
     if (narrLang !== 'en' && words.length === 1) {
-      const w = words[0];
-      return w.length >= 4 && /^[a-z]+$/.test(w) && !narrWords.has(w);
+      const raw = String(txt || '').replace(/[^\p{L}]/gu, '');
+      return /^[A-Za-z]{4,}$/.test(raw) && !narrWords.has(fold(raw));
     }
     return false; // number / symbol — too little signal
   }
@@ -52,6 +53,10 @@ export function contrastRatio([r1, g1, b1], [r2, g2, b2]) {
   const L1 = lum(r1, g1, b1), L2 = lum(r2, g2, b2);
   return (Math.max(L1, L2) + 0.05) / (Math.min(L1, L2) + 0.05);
 }
+// Telemetry-junk pattern (mirrors the parity audit): snake_case tokens, code calls,
+// file suffixes — leftover dev text that must never appear on screen.
+const JUNK_RE = /\b[A-Za-z][A-Za-z0-9]*(?:_[A-Za-z0-9]+)+\b|\b[a-z_][\w]*(?:\.[a-z_][\w]*)+\s*\([^)]*\)|\b[\w-]+\.(?:exe|sh|js|ts|py|json|dll|bat|cfg|log|sys)\b/;
+
 // Persistence tiering (ported from HyperFrames' layout audit): a geometry finding seen at
 // only ONE sampled time is an entrance/exit transient (slow 0.5–0.9s eases sweep through
 // odd states by design) — ignored; held across ≥2 samples (≈≥500ms on our grid) it is real.
@@ -261,7 +266,7 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
     let anyVisible = false, endStrong = false, heroFrac = 0, unionFrac = 0, deadAt = null, maxTextH = 0;
     // Every geometry accumulator carries an occurrence count `n` — persistence tiering
     // (heldAcrossSamples) later drops one-sample transients instead of re-asking on them.
-    const off = new Map(), sub = new Map(), bad = new Map(), ovl = new Map(), lowc = new Map(), clip = new Map(), occ = new Map(), frag = new Map();
+    const off = new Map(), sub = new Map(), bad = new Map(), ovl = new Map(), lowc = new Map(), clip = new Map(), occ = new Map(), frag = new Map(), junk = new Map();
     const snaps = new Map();
     const pairTimes = new Set(beatPairs.flatMap((p) => [p.tp, p.tq]));
     const bump = (map, k, data) => {
@@ -320,6 +325,7 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
         // completeness gate: a meaning label that begins/ends on a function word is a mid-phrase
         // fragment ("và điều quan trọng") — a clean-content-phrase re-ask, not a colour fix.
         if (meaning && e.txt && labelIsFragment(e.txt)) bump(frag, e.txt, { t, ...e });
+        if (e.o > 0.25 && e.txt && !e.txt.includes('{{') && JUNK_RE.test(e.txt) && !/[À-ỿ]/.test(e.txt)) bump(junk, e.txt.slice(0, 30), { t, ...e });
       }
     }
     if (!anyVisible) defects.push('no element is ever visible — the scene renders empty. Make each beat element visible during its window.');
@@ -340,6 +346,11 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
     if (overlay && maxCenterCover > 0.4) {
       defects.push(`overlay mode: solid elements cover ${Math.round(maxCenterCover * 100)}% of the center of the frame — the owner's footage must stay visible. Keep the center ~40-50% clear; move panels/keywords to the edges, lower-third or side columns, and never use filled backgrounds larger than a chip.`);
     }
+    // telemetry junk net (any size, any class): snake_case/dev tokens with no Vietnamese
+    // diacritic — including ones a SCRIPT writes at runtime (normalizeSpec can only strip
+    // the static HTML). Persistence-tiered like every geometry finding.
+    const junkH = [...junk.values()].filter(heldAcrossSamples);
+    if (junkH.length) { const o = junkH[0]; defects.push(`the on-screen text "${o.txt}" is leftover dev/telemetry decor (snake_case/code token) — remove it; on-screen words must be real ${narrLang === 'vi' ? 'Vietnamese' : narrLang} copy, numbers or icons.`); }
     // reference-caliber gates (re-ask drivers, cosmetic class — a scene still short after all
     // attempts ships as 'imperfect' LOUDLY rather than killing the run):
     // hero density — the standing composition must be a crafted instrument, not scattered bits

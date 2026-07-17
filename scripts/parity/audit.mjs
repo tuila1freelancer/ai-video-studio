@@ -154,7 +154,7 @@ export async function auditScene({ page, seek, duration, beats = [], hasBeats = 
   let cPass = false, cDetail = 'no big text';
   for (const t of [fr(0.5), fr(0.75), fr(0.95), fr(0.25)]) {
     const s = snaps[t];
-    const big = s.texts.filter((x) => x.o > 0.35 && x.fs >= 0.038 * Math.min(s.W, s.H)).sort((x, y) => y.fs - x.fs)[0];
+    const big = s.texts.filter((x) => x.o > 0.5 && x.fs >= 0.038 * Math.min(s.W, s.H)).sort((x, y) => y.fs - x.fs)[0];
     if (!big) continue;
     const fancy = big.grad || big.stroke || (big.shadowN >= 1 && big.maxBlur >= 6) || big.shadowN >= 2;
     cDetail = `fs=${Math.round(big.fs)} grad=${big.grad} shadows=${big.shadowN} blur=${Math.round(big.maxBlur)} "${big.txt.slice(0, 18)}"`;
