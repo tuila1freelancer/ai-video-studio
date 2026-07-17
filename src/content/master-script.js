@@ -9,13 +9,16 @@
 // B2 then only consumes voice (TTS) + visual (HyperFrame codegen): a master visual carries
 // [MAIN FOCUS], so the separate art-director pass skips it (direction.js DIRECTED marker).
 //
-// Three input modes:
+// Four input modes:
 //   'json'   — pasted scenes JSON: parse + validate + repair, ZERO LLM calls.
 //   'script' — a detailed script (≥80 words): LIGHT POLISH only — keep ~90% of the wording
 //              and every idea in order; fix broken sentences, smooth scene joins, add the
 //              soft + closing CTA if missing. Guarded by the POLISH_FLOOR gate.
 //   'topic'  — a topic name: the master prompt writes the whole video (plan-then-write:
 //              throughline → spine → scenes), then the same visual doctrine applies.
+//   'source' — a fetched article (URL input): write a NEW script FROM the material — the
+//              topic doctrine with research attached, never polish (an article's words are
+//              source material, not the owner's wording to preserve).
 //
 // Reliability model (weak models welcome): chatJson handles fences/JSON repair; this engine
 // adds a defect-driven re-ask round (validator names the broken scenes), then a deterministic
@@ -172,7 +175,9 @@ export function validateScenesJson(raw, { mode = 'topic', plan = null, source = 
       defects.push({ code: 'COUNT', detail: `returned ${scenes.length} scenes, need ${lo}–${hi} (target ${expect})` });
     }
   }
-  if (mode === 'topic' && plan && scenes.length && !scriptBudgetOk(scenes, plan.wordsPerScene, language)) {
+  // 'source' writes fresh narration toward the duration target exactly like 'topic' does,
+  // so the same word budget applies (POLISH_FLOOR below stays script-only by design).
+  if ((mode === 'topic' || mode === 'source') && plan && scenes.length && !scriptBudgetOk(scenes, plan.wordsPerScene, language)) {
     defects.push({ code: 'WORD_BUDGET', detail: `mean words/scene far above the ~${plan.wordsPerScene} budget` });
   }
 
@@ -258,11 +263,12 @@ Keep each scene to 2-3 main moving elements. Overly complex scenes = broken HTML
 
 /**
  * Build the ONE master prompt (messages array). mode 'topic' writes the whole video;
- * mode 'script' light-polishes + slices the owner's script. Batch calls append batchNote.
+ * mode 'script' light-polishes + slices the owner's script; mode 'source' writes a NEW
+ * script from a fetched article (sourceDoc {title,text}). Batch calls append batchNote.
  */
 export function buildMasterPrompt({
   mode, input, plan, language = 'vi', guide = null, memory = null, assets = [],
-  sttBase = 1, expect = 0, batchNote = '',
+  sttBase = 1, expect = 0, batchNote = '', sourceDoc = null,
 } = {}) {
   const langName = LANG_NAME[language] || language;
   const wps = LANG_WPS[language] || 3.0;
@@ -270,13 +276,22 @@ export function buildMasterPrompt({
     ? '\n- Persona: the narrator says "mình", the audience is "các bạn" — never "tôi", never singular "bạn".' : '';
   const n = expect || plan.sceneCount;
 
+  const opener = mode === 'source'
+    ? `Write the COMPLETE production script for a ${langName} video from the SOURCE ARTICLE below.
+
+REWRITE, NEVER COPY — the article is research material, not the deliverable:
+- Use ONLY facts, ideas, examples and figures that appear in the article; NEVER invent new ones — a precise verb beats a fake number.
+- Write completely NEW narration in the channel's own voice: never copy the article's sentences or its persona, and never mention "the article", "the author" or the website — the viewer hears the channel owner talking, not a summary of someone else's post.
+- Re-structure the material freely to serve the video (follow the content arc below, not the article's section order).`
+    : `Write the COMPLETE production script for a ${langName} video about: "${String(input).trim()}"`;
+
   const head = mode === 'script'
     ? `Convert the channel owner's detailed script below into the production scenes JSON. LIGHT EDIT ONLY:
 - Keep ≥90% of the original wording and EVERY idea, in the original order — the owner's text is the deliverable, you are its editor, not its author.
 - You may only: fix broken/truncated sentences and grammar slips, smooth the joins so consecutive scenes read as one continuous talk, and ADD a soft mid-video CTA (a natural spoken sentence, around 25-40% of the way through) plus a closing CTA if the script lacks them.
 - NEVER invent new content, new examples or new claims; never change the register or persona.${persona}
 - Slice at natural idea boundaries, ~${plan.wordsPerScene} words per scene (${plan.minWords}–${plan.maxWords} fine); the total scene count follows the CONTENT.`
-    : `Write the COMPLETE production script for a ${langName} video about: "${String(input).trim()}"
+    : `${opener}
 
 PLAN THEN WRITE (fill the JSON in this order — the plan comes first on purpose):
 1) "throughline": the ONE sentence this whole video argues (an argument, not a topic).
@@ -301,8 +316,10 @@ VALUE ARCHITECTURE:
     .filter(Boolean).join('\n');
 
   const sys = 'You are a film director and screenwriter for premium educational motion-graphics videos. Reply with pure JSON only.';
+  const sourceBlock = mode === 'source' && sourceDoc?.text
+    ? `\nTHE SOURCE ARTICLE (research material${sourceDoc.title ? `: "${String(sourceDoc.title).trim().slice(0, 160)}"` : ''}):\n"""\n${String(sourceDoc.text).trim().slice(0, 24000)}\n"""\n` : '';
   const usr = `${head}
-${mode === 'script' ? `\nTHE OWNER'S SCRIPT (source of truth):\n"""\n${String(input).trim().slice(0, 24000)}\n"""\n` : ''}${styleBits}
+${mode === 'script' ? `\nTHE OWNER'S SCRIPT (source of truth):\n"""\n${String(input).trim().slice(0, 24000)}\n"""\n` : ''}${sourceBlock}${styleBits}
 
 ${VISUAL_DOCTRINE}
 
@@ -351,6 +368,11 @@ function toPipelineShape(spec, { mode, defects = [] } = {}) {
 }
 
 async function askOnce({ messages, expect, plan, mode, source, language, llm, onLog }) {
+  // Output ceiling: ~perScene tokens buys one scene's voice + 8-bracket visual + JSON glue,
+  // so a full 25-scene batch needs ~9k — and chatOnce (P1) floors every request at 16k for
+  // hidden reasoning, so the content always fits with thinking headroom to spare. If a model
+  // still overruns its window, chatJson's repairJson salvages the truncated array and
+  // generateSpan splits the span into smaller calls — length degrades granularity, never the run.
   const perScene = Math.max(130, plan.wordsPerScene * 4) + 220; // voice + 8-bracket visual
   const parsed = await chatJson(messages, {
     maxTokens: Math.min(30000, expect * perScene + 800), attempts: 2, llm,
@@ -365,8 +387,8 @@ async function askOnce({ messages, expect, plan, mode, source, language, llm, on
 }
 
 // One generation unit (whole video or one batch): ask → defect re-ask → deterministic repair.
-async function generateChunk({ mode, input, plan, expect, sttBase, batchNote, language, guide, memory, assets, llm, onLog }) {
-  const base = buildMasterPrompt({ mode, input, plan, language, guide, memory, assets, sttBase, expect, batchNote });
+async function generateChunk({ mode, input, plan, expect, sttBase, batchNote, language, guide, memory, assets, llm, onLog, sourceDoc = null }) {
+  const base = buildMasterPrompt({ mode, input, plan, language, guide, memory, assets, sttBase, expect, batchNote, sourceDoc });
   let best = null;
   for (let round = 0; round < 2; round++) {
     const messages = round === 0 || !best?.defects?.length ? base
@@ -385,15 +407,92 @@ async function generateChunk({ mode, input, plan, expect, sttBase, batchNote, la
   return { spec, defects: best.ok ? [] : best.defects };
 }
 
+// ---------------------------------------------------------------- adaptive spans
+const MIN_SPLIT = 6; // halves below this many scenes lose the narrative thread — stop splitting
+
+/**
+ * Word-balanced partition of the source sentences over targetCount scenes ('script' mode).
+ * Returns slice(fromScene, toScene) → the sentences whose cumulative word share covers that
+ * scene span. Cut points are fixed by (sentences, targetCount) alone and shared between
+ * adjacent spans, so batching — and any adaptive re-split of a batch — tiles the source
+ * EXACTLY: no sentence dropped, none duplicated, order preserved.
+ */
+export function sourceSlicer(sentences, targetCount) {
+  const cum = [0];
+  for (const s of sentences) cum.push(cum[cum.length - 1] + wordCount(s));
+  const total = cum[cum.length - 1];
+  const cut = (k) => { // first sentence index whose cumulative words reach k scenes' share
+    if (k <= 0 || !total) return 0;
+    if (k >= targetCount) return sentences.length;
+    const want = (k / targetCount) * total;
+    let lo = 0, hi = sentences.length;
+    while (lo < hi) { const mid = (lo + hi) >> 1; if (cum[mid] >= want) hi = mid; else lo = mid + 1; }
+    return lo;
+  };
+  return (from, to) => sentences.slice(cut(from - 1), cut(to)).join(' ');
+}
+
+function sceneTail(scenes) {
+  return scenes.slice(-3).map((s) => `  - "${s.voice.slice(0, 90)}${s.voice.length > 90 ? '…' : ''}"`).join('\n');
+}
+
+function batchNoteFor({ label, from, to, targetCount, tail, closes }) {
+  if (from === 1 && to === targetCount && !tail) return ''; // the whole video in one call
+  return `\n\nBATCH CONTEXT:
+- This is ${label || 'one batch'} of a ${targetCount}-scene video. Produce scenes ${from} to ${to} (${to - from + 1} scenes), "stt" numbered from ${from}.
+${tail ? `- The last scenes so far (CONTINUE this thread naturally, do not repeat it):\n${tail}` : '- Open with the strongest hook.'}
+${from > 1 ? '- Do NOT re-open the video: no new greeting, no re-introduction.' : ''}${closes ? '\n- This batch ENDS the video: resolve the opening gap + closing CTA.' : ''}`;
+}
+
+/**
+ * One adaptive generation span [from..to]. When a reply looks TRUNCATED — invalid JSON even
+ * after repairJson, or far fewer scenes than asked (the model ran out of output window) —
+ * the span SPLITS in two and each half generates in its own smaller call: dynamic batch-size
+ * lowering, so an output overflow degrades to more, smaller calls instead of a dead run.
+ * The second half continues from the first half's real tail, keeping the spoken thread
+ * continuous across the split exactly like it is across normal batch boundaries.
+ */
+async function generateSpan({ common, from, to, targetCount, label, tail, closes, slice, topicText }) {
+  const expect = to - from + 1;
+  // whole-video 'script' calls keep the owner's raw text (paragraph breaks help the model);
+  // batch/sub-spans take their word-balanced share of the sentence partition.
+  const input = slice ? (from === 1 && to === targetCount ? topicText : slice(from, to)) : topicText;
+  if (slice && !input) {
+    common.onLog(`master-script: scenes ${from}–${to} carry no source words (a long sentence fell to a neighbour span) — skipped`);
+    return { spec: { title: '', thumbnail: null, scenes: [] }, defects: [] };
+  }
+  const batchNote = batchNoteFor({ label, from, to, targetCount, tail, closes });
+  let why;
+  try {
+    const r = await generateChunk({ ...common, input, expect, sttBase: from, batchNote });
+    if (r.spec.scenes.length >= Math.ceil(expect * 0.7) || expect < MIN_SPLIT * 2) return r;
+    why = `only ${r.spec.scenes.length}/${expect} scenes came back`;
+  } catch (e) {
+    if (expect < MIN_SPLIT * 2) throw e;
+    why = String(e.message).slice(0, 80);
+  }
+  common.onLog(`master-script: scenes ${from}–${to} (${why}) — splitting into two smaller calls`);
+  const mid = from + Math.ceil(expect / 2) - 1;
+  const a = await generateSpan({ common, from, to: mid, targetCount, label, tail, closes: false, slice, topicText });
+  const b = await generateSpan({
+    common, from: mid + 1, to, targetCount, label,
+    tail: a.spec.scenes.length ? sceneTail(a.spec.scenes) : tail, closes, slice, topicText,
+  });
+  const lead = a.spec.scenes.length ? a.spec : b.spec;
+  return { spec: { ...lead, scenes: [...a.spec.scenes, ...b.spec.scenes] }, defects: [...a.defects, ...b.defects] };
+}
+
 /**
  * The engine entry point. Returns { title, thumbnail, scenes:[{voice, visualPrompt, keywords}],
  * raw (canonical factory JSON), mode, warnings }. Never throws while an offline fallback can
- * still produce a script; JSON input never spends an LLM call.
+ * still produce a script; JSON input never spends an LLM call. A fetched article passed as
+ * `source` {title,text} switches the engine to mode 'source' (new script FROM the material).
  */
-export async function generateMasterScenes({ input, config = {}, ai = null, memory = null, guide = null, assets = [], onLog = () => {} } = {}) {
+export async function generateMasterScenes({ input, source = null, config = {}, ai = null, memory = null, guide = null, assets = [], onLog = () => {} } = {}) {
   const llm = ai?.llm || null;
   const text = String(input || '').trim();
-  const language = scriptLang(config, text);
+  const sourceText = String(source?.text || '').trim();
+  const language = scriptLang(config, sourceText || text);
 
   // 1) Pasted scenes JSON → normalize + repair, zero LLM cost. META_LEAK scenes are dropped
   //    (the factory's own files carry that defect — TTS must not read hashtags aloud).
@@ -406,7 +505,9 @@ export async function generateMasterScenes({ input, config = {}, ai = null, memo
     return toPipelineShape(spec, { mode: 'json', defects: v.defects });
   }
 
-  const mode = wordCount(text) >= SCRIPT_MODE_MIN_WORDS ? 'script' : 'topic';
+  // 'source' (fetched article) outranks the word-count sniff: a long article is research
+  // material for a NEW script, never a detailed owner script to polish.
+  const mode = sourceText ? 'source' : wordCount(text) >= SCRIPT_MODE_MIN_WORDS ? 'script' : 'topic';
   const plan = planScenes({ videoDuration: config.videoDuration, sceneDuration: config.sceneDuration, language });
   // 'script' mode: the owner's content decides the length — the duration target does not.
   const targetCount = mode === 'script'
@@ -416,8 +517,9 @@ export async function generateMasterScenes({ input, config = {}, ai = null, memo
   // 2) Offline fallback (LLM off): deterministic segmentation, same shape, no visuals
   //    (downstream heuristics own the look, exactly like the legacy offline path).
   if (!llmEnabled(llm)) {
-    const title = (splitSentences(text)[0] || text || 'Video mới').slice(0, 64);
-    const off = offlineScript(text, { title, sceneCount: targetCount, wordsPerScene: plan.wordsPerScene, structure: plan.videoDuration >= 240 });
+    const matter = sourceText || text;
+    const title = (String(source?.title || '').trim() || splitSentences(matter)[0] || matter || 'Video mới').slice(0, 64);
+    const off = offlineScript(matter, { title, sceneCount: targetCount, wordsPerScene: plan.wordsPerScene, structure: plan.videoDuration >= 240 });
     const spec = {
       title: off.title,
       thumbnail: synthThumbnail({}, off.title),
@@ -429,36 +531,35 @@ export async function generateMasterScenes({ input, config = {}, ai = null, memo
     return shaped;
   }
 
-  const common = { mode, plan, language, guide, memory, assets, llm, onLog };
+  const sourceDoc = mode === 'source' ? { title: String(source?.title || '').trim(), text: sourceText } : null;
+  const common = { mode, plan, language, guide, memory, assets, llm, onLog, sourceDoc };
+  // 'script' mode hands every span its word-balanced share of the owner's text; the shared
+  // cut points guarantee batch (and split) boundaries never drop or repeat a sentence.
+  const slice = mode === 'script' ? sourceSlicer(splitSentences(text), targetCount) : null;
 
-  // 3) Single call for ≤30 scenes.
+  // 3) Single adaptive call for ≤30 scenes (splits itself if the reply overflows the window).
   if (targetCount <= BATCH_TRIGGER) {
-    const { spec, defects } = await generateChunk({ ...common, input: text, expect: targetCount, sttBase: 1, batchNote: '' });
-    return toPipelineShape(spec, { mode, defects });
+    const { spec, defects } = await generateSpan({ common, from: 1, to: targetCount, targetCount, label: '', tail: '', closes: false, slice, topicText: text });
+    if (!spec.scenes.length) throw new Error('master-script: no usable scenes after repair');
+    return toPipelineShape({ ...spec, scenes: spec.scenes.map((s, i) => ({ ...s, stt: i + 1 })) }, { mode, defects });
   }
 
-  // 4) Long video → batches of 25 with rolling context; thumbnail comes from batch 1.
+  // 4) Long video → adaptive batches of 25 with rolling context; thumbnail comes from batch 1.
   const nBatches = Math.ceil(targetCount / BATCH_SIZE);
   onLog(`master-script: long video (${targetCount} scenes) → ${nBatches} batches × ~${BATCH_SIZE}`);
-  const all = []; let thumbnail = null; let title = ''; let tail = ''; const warnings = [];
-  // 'script' mode slices the source too: hand each batch its share of the owner's text.
-  const srcSentences = mode === 'script' ? splitSentences(text) : [];
-  const perBatchSrc = srcSentences.length ? Math.ceil(srcSentences.length / nBatches) : 0;
+  const all = []; let thumbnail = null; let title = ''; const warnings = [];
   for (let b = 0; b < nBatches; b++) {
     const from = b * BATCH_SIZE + 1;
     const to = Math.min((b + 1) * BATCH_SIZE, targetCount);
-    const m = to - from + 1;
-    const batchInput = mode === 'script' ? srcSentences.slice(b * perBatchSrc, (b + 1) * perBatchSrc).join(' ') : text;
-    const batchNote = `\n\nBATCH CONTEXT:
-- This is batch ${b + 1}/${nBatches} of a ${targetCount}-scene video. Produce scenes ${from} to ${to} (${m} scenes), "stt" numbered from ${from}.
-${tail ? `- The last scenes so far (CONTINUE this thread naturally, do not repeat it):\n${tail}` : '- Open with the strongest hook.'}
-${b > 0 ? '- Do NOT re-open the video: no new greeting, no re-introduction.' : ''}${b === nBatches - 1 ? '\n- This batch ENDS the video: resolve the opening gap + closing CTA.' : ''}`;
-    const { spec, defects } = await generateChunk({ ...common, input: batchInput, expect: m, sttBase: from, batchNote });
+    const { spec, defects } = await generateSpan({
+      common, from, to, targetCount, label: `batch ${b + 1}/${nBatches}`,
+      tail: sceneTail(all), closes: b === nBatches - 1, slice, topicText: text,
+    });
     if (b === 0) { thumbnail = spec.thumbnail; title = spec.title; }
     warnings.push(...defects);
     all.push(...spec.scenes);
-    tail = all.slice(-3).map((s) => `  - "${s.voice.slice(0, 90)}${s.voice.length > 90 ? '…' : ''}"`).join('\n');
   }
+  if (!all.length) throw new Error('master-script: no usable scenes after repair');
   const spec = { title, thumbnail: thumbnail || synthThumbnail({}, title || text), scenes: all.map((s, i) => ({ ...s, stt: i + 1 })) };
   return toPipelineShape(spec, { mode, defects: warnings });
 }

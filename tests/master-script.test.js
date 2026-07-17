@@ -9,8 +9,10 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   planScenes, parseScenesInput, validateScenesJson, repairScenesSpec, isMetaLeakVoice,
-  buildMasterPrompt, scenesJsonFromRows, generateMasterScenes, VISUAL_BRACKETS,
+  buildMasterPrompt, scenesJsonFromRows, generateMasterScenes, VISUAL_BRACKETS, sourceSlicer,
 } from '../src/content/master-script.js';
+import { splitSentences } from '../src/providers/llm.js';
+import { wordCount } from '../src/util/util.js';
 
 const FIXTURE = JSON.parse(readFileSync(new URL('./fixtures/rag-scenes.json', import.meta.url), 'utf8'));
 
@@ -325,5 +327,143 @@ test('generateMasterScenes (long video): batches of 25 with rolling context, stt
     assert.ok(bodies[1].messages[1].content.includes('batch 2/2'));
     assert.ok(bodies[1].messages[1].content.includes('Cảnh 25'), 'rolling context carries the previous tail');
     assert.deepEqual(out.thumbnail, { title: 'TH', prompt: 'PR' });
+  } finally { globalThis.fetch = realFetch; }
+});
+
+// ---------------------------------------------------------------- source mode (URL input)
+test('generateMasterScenes (source, fake LLM): article → NEW script under the rewrite doctrine', async () => {
+  const realFetch = globalThis.fetch;
+  const bodies = [];
+  const payload = {
+    title: 'RAG cho người mới', throughline: 'x', spine: ['a'],
+    scenes: [0, 1, 2, 3, 4].map((i) => mkScene(i, `Câu ${i} do kênh tự viết lại từ tư liệu gốc.`)),
+    thumbnail: { title: 'RAG', prompt: 'Static cinematic thumbnail…' },
+  };
+  globalThis.fetch = async (url, init) => { bodies.push(JSON.parse(init.body)); return okResponse(payload); };
+  const article = 'RAG là kỹ thuật cho phép mô hình ngôn ngữ tra cứu kho tài liệu riêng trước khi trả lời. '
+    + 'Bài viết giải thích cách hoạt động của cơ chế truy xuất, cách chia nhỏ tài liệu thành từng đoạn, '
+    + 'và lý do chất lượng dữ liệu quyết định độ chính xác của câu trả lời cuối cùng. Tác giả nêu ba lỗi '
+    + 'thường gặp khi triển khai cho doanh nghiệp nhỏ, kèm ví dụ về hệ thống hỏi đáp nội bộ của một công ty '
+    + 'kế toán bị nhiễu vì nhiều phiên bản tài liệu cũ. Cuối cùng là các bước triển khai theo thứ tự, từ dọn '
+    + 'dẹp dữ liệu, gắn nhãn phiên bản, đến kiểm thử bằng câu hỏi thực tế trước khi mở rộng cho toàn bộ nhân viên.';
+  try {
+    const out = await generateMasterScenes({
+      input: 'https://example.com/rag-cho-nguoi-moi',
+      source: { title: 'RAG cho người mới bắt đầu', text: article, url: 'https://example.com/rag-cho-nguoi-moi' },
+      config: { videoDuration: 35, sceneDuration: 7 }, ai: { llm: FAKE_LLM },
+    });
+    assert.equal(out.mode, 'source', 'fetched article content must route to source mode');
+    assert.equal(out.scenes.length, 5);
+    assert.ok(out.scenes.every((s) => /\[MAIN FOCUS\]/i.test(s.visualPrompt)), 'source scenes are direction-ready');
+    assert.deepEqual(Object.keys(out.raw.scenes[0]), ['stt', 'voice', 'visual', 'assets'], 'same canonical shape as every other mode');
+    assert.equal(out.title, 'RAG cho người mới');
+    assert.deepEqual(out.thumbnail, payload.thumbnail);
+    assert.equal(bodies.length, 1, 'fresh wording must NOT trip POLISH_FLOOR (no re-ask) — the article is not the owner script');
+    const usr = bodies[0].messages[1].content;
+    assert.ok(usr.includes('REWRITE, NEVER COPY'), 'rewrite doctrine rides in the prompt');
+    assert.ok(usr.includes('PLAN THEN WRITE'), 'source keeps the topic plan-then-write scaffold');
+    assert.ok(usr.includes('THE SOURCE ARTICLE'), 'article block present');
+    assert.ok(usr.includes('RAG cho người mới bắt đầu'), 'article title present');
+    assert.ok(usr.includes('công ty'), 'article content present');
+    assert.ok(!usr.includes('LIGHT EDIT ONLY'), 'source must never take the polish contract');
+    assert.ok(!usr.includes("THE OWNER'S SCRIPT"), 'the article is research material, not the owner script');
+  } finally { globalThis.fetch = realFetch; }
+});
+
+test('generateMasterScenes (source, offline): article text segments deterministically, title from the article', async () => {
+  const article = Array.from({ length: 40 }, (_, i) => `Câu tư liệu số ${i} nói về một ý riêng biệt trong bài viết gốc.`).join(' ');
+  const out = await generateMasterScenes({
+    input: 'https://example.com/bai-viet',
+    source: { title: 'Tiêu đề bài viết gốc', text: article },
+    config: { videoDuration: 30, sceneDuration: 6 },
+  });
+  assert.equal(out.mode, 'source-offline');
+  assert.equal(out.title, 'Tiêu đề bài viết gốc');
+  assert.ok(out.scenes.length >= 1);
+  assert.ok(out.scenes.map((s) => s.voice).join(' ').includes('Câu tư liệu số 0'), 'offline source scenes come from the article text');
+});
+
+// ---------------------------------------------------------------- long-script armor
+test('sourceSlicer: spans tile the source exactly — no sentence lost, none repeated, order kept', () => {
+  // wildly uneven sentence lengths, including one giant sentence
+  const sents = Array.from({ length: 120 }, (_, i) => `Câu ${i}${' từ đệm'.repeat(i % 9)} hết.`);
+  sents[40] = `Câu 40 ${'rất dài '.repeat(60)}hết.`;
+  const slicer = sourceSlicer(sents, 37);
+  const joined = [[1, 25], [26, 37]].map(([a, b]) => slicer(a, b)).filter(Boolean).join(' ');
+  assert.equal(joined, sents.join(' '), 'top-level batches partition the source exactly');
+  const nested = [[1, 13], [14, 25]].map(([a, b]) => slicer(a, b)).filter(Boolean).join(' ');
+  assert.equal(nested, slicer(1, 25), 'an adaptive re-split of a batch tiles that batch exactly');
+});
+
+// A faithful-polisher mock: echoes each call's owner-script slice back as scenes — the
+// strongest batching probe possible, because the final canonical JSON must then reconstruct
+// the ENTIRE source, in order, exactly once; any boundary drop/dup breaks the equality.
+// garbleOver/shortOver simulate output-window overflow for calls asked for more scenes.
+const W20 = ['an', 'binh', 'chi', 'dung', 'giang', 'hoa', 'khang', 'lan', 'minh', 'nga', 'oanh', 'phuc', 'quan', 'son', 'tam', 'uyen', 'vy', 'xuan', 'yen', 'zung'];
+const tagOf = (n) => `${W20[n % 20]} ${W20[(n * 7 + 3) % 20]} ${W20[(n * 13 + 5) % 20]}`;
+function echoFetch(bodies, { garbleOver = Infinity, shortOver = Infinity } = {}) {
+  return async (url, init) => {
+    const body = JSON.parse(init.body); bodies.push(body);
+    const usr = body.messages[1].content;
+    const m = usr.match(/Produce scenes (\d+) to (\d+)/);
+    const from = m ? +m[1] : 1;
+    const want = m ? +m[2] - +m[1] + 1 : 1;
+    if (want > garbleOver) return { ok: true, text: async () => JSON.stringify({ choices: [{ message: { content: '@@@ NOT JSON AT ALL' } }] }) };
+    const srcBlock = (usr.match(/THE OWNER'S SCRIPT \(source of truth\):\n"""\n([\s\S]*?)\n"""/) || [])[1] || '';
+    const sents = srcBlock.split(/(?<=\.)\s+/).filter(Boolean);
+    const n = want > shortOver ? Math.max(1, Math.ceil(want * 0.6)) : want;
+    const groups = Array.from({ length: n }, () => []);
+    sents.forEach((s, i) => groups[Math.min(n - 1, Math.floor((i * n) / sents.length))].push(s));
+    const scenes = groups.filter((g) => g.length).map((g, i) => ({
+      stt: from + i, voice: g.join(' '), visual: mkVisual(`${FOCI[(from + i) % FOCI.length]} ${tagOf(from + i)}`), assets: [],
+    }));
+    return okResponse({ title: 'Video dài', scenes, thumbnail: { title: 'TH', prompt: 'PR' } });
+  };
+}
+const LONG_SRC = Array.from({ length: 140 }, (_, i) => `Đoạn ${W20[i % 20]} ${W20[(i * 3 + 1) % 20]} bàn về ${W20[(i * 7 + 2) % 20]} với ví dụ ${W20[(i * 11 + 3) % 20]} rất cụ thể và một kết luận ngắn cho người xem kênh.`).join(' ');
+
+test('long detailed script (~3000 words): word-balanced batches, zero loss at the boundaries', async () => {
+  const realFetch = globalThis.fetch;
+  assert.ok(wordCount(LONG_SRC) >= 3000, `fixture must be ≥3000 words (got ${wordCount(LONG_SRC)})`);
+  const bodies = [];
+  globalThis.fetch = echoFetch(bodies);
+  try {
+    const out = await generateMasterScenes({ input: LONG_SRC, config: { videoDuration: 60, sceneDuration: 7 }, ai: { llm: FAKE_LLM } });
+    const wps = planScenes({ videoDuration: 60, sceneDuration: 7, language: 'vi' }).wordsPerScene;
+    const target = Math.round(wordCount(LONG_SRC) / wps);
+    assert.equal(out.mode, 'script');
+    assert.equal(bodies.length, Math.ceil(target / 25), 'one clean call per batch');
+    assert.equal(out.raw.scenes.length, target, 'every batch delivered its full scene count');
+    assert.deepEqual(out.raw.scenes.map((s) => s.stt), Array.from({ length: target }, (_, i) => i + 1), 'stt continuous across batches');
+    // THE core guarantee: the final JSON carries the ENTIRE source, in order, exactly once
+    assert.equal(out.raw.scenes.map((s) => s.voice).join(' '), splitSentences(LONG_SRC).join(' '));
+    for (const b of bodies) {
+      const block = (b.messages[1].content.match(/THE OWNER'S SCRIPT \(source of truth\):\n"""\n([\s\S]*?)\n"""/) || [])[1] || '';
+      assert.ok(wordCount(block) > 0 && wordCount(block) < wordCount(LONG_SRC) / 2, 'each call sees its share of the source, never the whole script');
+    }
+  } finally { globalThis.fetch = realFetch; }
+});
+
+test('adaptive split: truncated or garbled batch replies degrade to smaller calls — run completes, source intact', async () => {
+  const realFetch = globalThis.fetch;
+  const wps = planScenes({ videoDuration: 60, sceneDuration: 7, language: 'vi' }).wordsPerScene;
+  const target = Math.round(wordCount(LONG_SRC) / wps);
+  const wholeSrc = splitSentences(LONG_SRC).join(' ');
+  // (a) truncation-shaped: calls asked for >12 scenes return valid JSON with only ~60% of them
+  let bodies = [];
+  globalThis.fetch = echoFetch(bodies, { shortOver: 12 });
+  try {
+    const out = await generateMasterScenes({ input: LONG_SRC, config: { videoDuration: 60, sceneDuration: 7 }, ai: { llm: FAKE_LLM } });
+    assert.equal(out.raw.scenes.length, target, 'split batches still deliver the full scene count');
+    assert.equal(out.raw.scenes.map((s) => s.voice).join(' '), wholeSrc, 'no words lost through the splits');
+    assert.ok(bodies.length > Math.ceil(target / 25), 'the engine made more, smaller calls instead of failing');
+  } finally { globalThis.fetch = realFetch; }
+  // (b) garbled: calls asked for >12 scenes return non-JSON — same graceful degradation
+  bodies = [];
+  globalThis.fetch = echoFetch(bodies, { garbleOver: 12 });
+  try {
+    const out = await generateMasterScenes({ input: LONG_SRC, config: { videoDuration: 60, sceneDuration: 7 }, ai: { llm: FAKE_LLM } });
+    assert.equal(out.raw.scenes.length, target);
+    assert.equal(out.raw.scenes.map((s) => s.voice).join(' '), wholeSrc);
   } finally { globalThis.fetch = realFetch; }
 });
