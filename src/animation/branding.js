@@ -1,6 +1,7 @@
-// Brand Kit — per-channel branding composited into every scene: logo, channel-name badge,
-// and optional stickers. Placement is either user-fixed ('always') or 'smart' (auto-snaps
-// into a corner the current template leaves free, avoiding the caption band).
+// Brand Kit — per-channel branding composited into every scene: the channel-name badge and
+// optional stickers, both at USER-FIXED positions. The logo itself never rides the scene
+// pages anymore: it burns once at final concat (the P26 WYSIWYG stamp) — the old 'smart'
+// auto-avoid placement was removed by owner order (2026-07-17, "không thực tế").
 //
 // Determinism contract: the layer is 100% static DOM/CSS (no animations, no randomness at
 // render time — sticker cadence is a pure function of scene index). When brandKit is absent
@@ -25,17 +26,7 @@ const clamp = (v, lo, hi, dflt) => {
   return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : dflt;
 };
 
-// Corners each template leaves free (page corners, outside the centered content column).
-// Captions occupy the bottom band (~18%) — bottom corners are dropped when captions are on.
-const CORNERS_DEFAULT = ['tr', 'tl', 'br', 'bl'];
-export const TEMPLATE_SAFE_ZONES = {
-  'kinetic-statement': ['tr', 'br'],   // left-aligned text column
-  'list-reveal': ['tr', 'br'],
-  'dual-keyword': ['tr', 'bl'],        // decorative icons sit tl/br
-  'terminal-scan': ['tl', 'br'],       // warning tag leans top-right
-  'chat-demo': ['tr', 'tl'],
-  'bar-race': ['tr', 'tl'],            // value labels reach the right edge
-};
+// Sticker corner anchors (page corners, outside the centered content column).
 const CORNER_POS = {
   tl: { xPct: 0.075, yPct: 0.06 },
   tr: { xPct: 0.925, yPct: 0.06 },
@@ -44,65 +35,41 @@ const CORNER_POS = {
 };
 
 // Normalize channel.config.brandKit → safe internal shape, or null when branding is off/absent.
+// The logo is deliberately NOT part of this layer (stamp-only, P26); `channelName` is still
+// exposed for the planner (hook labels / outro CTA). Legacy `placement:'off'` keeps meaning
+// "no per-scene brand chrome at all".
 export function resolveBrandKit(config) {
   const bk = config?.brandKit;
-  if (!bk || typeof bk !== 'object' || bk.placement === 'off') return null;
-  // P26: when the final-overlay stamp is on, concat burns the ONE logo over the whole video —
-  // the per-scene layer must not add a second one (badge/stickers still follow their toggles).
-  const finalLogo = bk.finalOverlay?.enabled === true;
-  const logoPath = !finalLogo && bk.logo?.assetPath && existsSync(bk.logo.assetPath) ? bk.logo.assetPath : null;
+  if (!bk || typeof bk !== 'object' || bk.placement === 'off') return null; // legacy global off
   const channelName = String(bk.channelName || '').trim();
-  if (!logoPath && !channelName) return null;
-  return {
-    channelName,
-    placement: bk.placement === 'always' ? 'always' : 'smart',
-    logo: logoPath ? {
-      assetPath: logoPath,
-      position: { xPct: clamp(bk.logo?.position?.xPct, 0, 1, 0.925), yPct: clamp(bk.logo?.position?.yPct, 0, 1, 0.06) },
-      sizePct: clamp(bk.logo?.sizePct, 3, 30, 8.5),
-      opacity: clamp(bk.logo?.opacity, 0.1, 1, 0.9),
-      style: ['glass', 'glow'].includes(bk.logo?.style) ? bk.logo.style : 'plain',
-    } : null,
-    nameBadge: (bk.nameBadge?.enabled !== false && channelName) ? {
-      text: String(bk.nameBadge?.text || channelName).trim(),
-      position: { xPct: clamp(bk.nameBadge?.position?.xPct, 0, 1, 0.5), yPct: clamp(bk.nameBadge?.position?.yPct, 0, 1, 0.045) },
-      style: ['pill', 'underline'].includes(bk.nameBadge?.style) ? bk.nameBadge.style : 'plain',
-    } : null,
-    stickers: Array.isArray(bk.stickers)
-      ? bk.stickers.filter((s) => s?.assetPath && existsSync(s.assetPath)).slice(0, 8)
-      : [],
-  };
+  const nameBadge = (bk.nameBadge?.enabled !== false && channelName) ? {
+    text: String(bk.nameBadge?.text || channelName).trim(),
+    position: { xPct: clamp(bk.nameBadge?.position?.xPct, 0, 1, 0.5), yPct: clamp(bk.nameBadge?.position?.yPct, 0, 1, 0.045) },
+    style: ['pill', 'underline'].includes(bk.nameBadge?.style) ? bk.nameBadge.style : 'plain',
+  } : null;
+  const stickers = Array.isArray(bk.stickers)
+    ? bk.stickers.filter((s) => s?.assetPath && existsSync(s.assetPath)).slice(0, 8)
+    : [];
+  if (!channelName && !stickers.length) return null;
+  return { channelName, nameBadge, stickers };
 }
 
-// Where each brand element goes on THIS scene. Pure function of its inputs → deterministic.
+// Where each brand element goes on THIS scene — always the user-fixed positions now.
+// Pure function of its inputs → deterministic.
 export function planBrandPlacement(brand, { templateId, idx = 0, total = 9999, captionsOn = true } = {}) {
   if (!brand) return null;
-  const out = { logo: null, badge: null, sticker: null };
-  if (brand.placement === 'always') {
-    if (brand.logo) out.logo = brand.logo.position;
-    if (brand.nameBadge) out.badge = brand.nameBadge.position;
-  } else {
-    let free = (TEMPLATE_SAFE_ZONES[templateId] || CORNERS_DEFAULT).slice();
-    if (captionsOn) free = free.filter((c) => c[0] !== 'b');
-    if (!free.length) free = ['tr'];
-    if (brand.logo) out.logo = CORNER_POS[free[0]];
-    if (brand.nameBadge) {
-      const c = free.find((x) => x !== free[0]) || free[0];
-      out.badge = c === free[0]
-        ? { xPct: CORNER_POS[c].xPct, yPct: CORNER_POS[c].yPct + 0.075 } // stack under the logo
-        : CORNER_POS[c];
-    }
-  }
+  const out = { badge: null, sticker: null };
+  if (brand.nameBadge) out.badge = brand.nameBadge.position;
   // Sticker cadence: chapter/outro scenes always get one; otherwise every 6th scene.
   if (brand.stickers.length) {
     const isBeat = templateId === 'chapter-break' || templateId === 'cta-outro' || idx === total - 1;
     if (isBeat || idx % 6 === 3) {
       const st = brand.stickers[idx % brand.stickers.length];
-      const corner = captionsOn ? (out.logo === CORNER_POS.tl ? 'tr' : 'tl') : 'bl';
+      const corner = captionsOn ? 'tl' : 'bl';
       out.sticker = { ...st, position: { xPct: CORNER_POS[corner].xPct, yPct: captionsOn ? 0.2 : CORNER_POS[corner].yPct } };
     }
   }
-  return (out.logo || out.badge || out.sticker) ? out : null;
+  return (out.badge || out.sticker) ? out : null;
 }
 
 // Build the static overlay layer. All sizes precomputed in px from the scene dimensions.
@@ -115,21 +82,6 @@ export function buildBrandLayer(brand, placement, { w, h, theme }) {
   .brandlyr{position:absolute;inset:0;z-index:40;pointer-events:none}
   .bl-el{position:absolute;transform:translate(-50%,-50%)}`;
 
-  if (brand.logo && placement.logo) {
-    const lw = u(brand.logo.sizePct);
-    const uri = imgDataUri(brand.logo.assetPath);
-    if (uri) {
-      const styleCss = brand.logo.style === 'glass'
-        ? `background:${theme.panel};border:1px solid ${theme.panelBorder};border-radius:${u(1.2)}px;padding:${u(0.8)}px;backdrop-filter:blur(6px)`
-        : brand.logo.style === 'glow'
-          ? `filter:drop-shadow(0 0 ${u(1.4)}px ${theme.accents[0]}88)`
-          : '';
-      css += `
-  .bl-logo{left:${(placement.logo.xPct * 100).toFixed(2)}%;top:${(placement.logo.yPct * 100).toFixed(2)}%;width:${lw}px;opacity:${brand.logo.opacity};${styleCss}}
-  .bl-logo img{width:100%;height:auto;display:block}`;
-      parts.push(`<div class="bl-el bl-logo"><img src="${uri}"></div>`);
-    }
-  }
   if (brand.nameBadge && placement.badge) {
     const fs = u(1.9);
     const base = `left:${(placement.badge.xPct * 100).toFixed(2)}%;top:${(placement.badge.yPct * 100).toFixed(2)}%;font:700 ${fs}px ${theme.mono};letter-spacing:.16em;text-transform:uppercase;white-space:nowrap`;

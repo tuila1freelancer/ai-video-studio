@@ -3,6 +3,7 @@ import { writeFileSync, existsSync, readdirSync, rmSync, mkdirSync, copyFileSync
 import { join } from 'node:path';
 import { ffmpeg, ffmpegAss, probeDuration, makeSilence, probeImageSize } from '../media/ffmpeg.js';
 import { logoRect } from '../media/logo-overlay.js';
+import { perimeterExpr, WM_SPEEDS } from '../media/watermark.js';
 import { buildKaraokeAss } from './srt.js';
 import { buildSceneBackground, buildTitleCard } from './visuals.js';
 import { ratioToSize, newId } from '../util/util.js';
@@ -144,7 +145,7 @@ export function transitionLoss(plan, uptoBoundary = Infinity) {
 // Final assembly (B7): concat scene clips, mix BGM, overlay logo, make thumbnail.
 // `transitions` is either a plan array from planTransitions (selective, doctrine mode) or
 // boolean true (legacy uniform fade at every boundary).
-export async function concatScenes(sceneVideos, project, { dir, size, bgmPath, sfxPath, logo, transitions, onLog, bgmVol }) {
+export async function concatScenes(sceneVideos, project, { dir, size, bgmPath, sfxPath, logo, watermark, transitions, onLog, bgmVol }) {
   if (!sceneVideos.length) throw new Error('Không có cảnh nào để ghép');
   const ow = size.w, oh = size.h;
 
@@ -237,6 +238,37 @@ export async function concatScenes(sceneVideos, project, { dir, size, bgmPath, s
     }
     vbase = '[vov]'; nextIdx++;
   }
+  // Copyright watermark (P28): logo image or channel-name text drifting slowly around the
+  // perimeter — pure t-based expressions from perimeterExpr, the same path the Brand Kit
+  // preview animates. Applied to the assembled program, so it covers outro + transitions.
+  // The text lane needs drawtext (freetype) — homebrew builds often lack it, so that lane
+  // routes the WHOLE encode through the libass-capable binary (ffmpegAss).
+  let useAssBinary = false;
+  if (watermark && (watermark.path || (watermark.text && watermark.fontFile))) {
+    const wm = watermark;
+    const period = WM_SPEEDS[wm.speed] || WM_SPEEDS.slow;
+    const marginPx = Math.round(Math.min(ow, oh) * (wm.marginPct ?? 0.02));
+    const op = Math.min(0.8, Math.max(0.1, Number.isFinite(+wm.opacity) ? +wm.opacity : 0.35));
+    if (wm.path && existsSync(wm.path)) {
+      args.push('-i', wm.path);
+      const wpx = Math.max(16, Math.round((wm.wPct ?? 0.06) * ow));
+      const { x, y } = perimeterExpr({ period, marginPx }); // overlay vars W/H/w/h
+      fc.push(`[${nextIdx}:v]scale=${wpx}:-1:flags=lanczos,format=rgba,colorchannelmixer=aa=${op.toFixed(2)}[wm]`,
+        `${vbase}[wm]overlay=x='${x}':y='${y}'[vwm]`);
+      vbase = '[vwm]'; nextIdx++;
+    } else {
+      const fs = Math.max(14, Math.round(oh * (wm.hPct ?? 0.028)));
+      // textfile= dodges the whole drawtext escaping minefield (colons/quotes/percent)
+      const tf = join(dir, `wm_${newId('')}.txt`);
+      writeFileSync(tf, String(wm.text));
+      const { x, y } = perimeterExpr({ varW: 'w', varH: 'h', varw: 'tw', varh: 'th', period, marginPx });
+      fc.push(`${vbase}drawtext=fontfile='${wm.fontFile}':textfile='${tf}':fontsize=${fs}`
+        + `:fontcolor=white@${op.toFixed(2)}:borderw=${Math.max(1, Math.round(fs * 0.07))}`
+        + `:bordercolor=black@${(op * 0.85).toFixed(2)}:x='${x}':y='${y}'[vwm]`);
+      vbase = '[vwm]';
+      useAssBinary = true;
+    }
+  }
   fc.push(`${vbase}fade=t=in:st=0:d=0.5,fade=t=out:st=${fadeOut.toFixed(2)}:d=0.6[vout]`);
   // No loudnorm here anymore: stacking a dynamic normalizer on the mix caused pumping.
   // The measured two-pass master (finalize → masterAudio) sets -16 LUFS on the finished file.
@@ -244,7 +276,7 @@ export async function concatScenes(sceneVideos, project, { dir, size, bgmPath, s
   args.push('-filter_complex', fc.join(';'), '-map', '[vout]', '-map', '[aout]', '-t', total.toFixed(2),
     '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-pix_fmt', 'yuv420p', '-r', String(FPS),
     '-c:a', 'aac', '-b:a', '160k', '-ar', '44100', '-ac', '2', '-movflags', '+faststart', finalOut);
-  await ffmpeg(args, { onLog });
+  await (useAssBinary ? ffmpegAss : ffmpeg)(args, { onLog });
 
   const thumb = join(project.outputDir || dir, `thumb_${newId('')}.jpg`);
   await ffmpeg(['-ss', String(Math.min(1.5, total / 2)), '-i', finalOut, '-frames:v', '1', '-q:v', '3', thumb]);

@@ -37,16 +37,15 @@ test('P26 resolveFinalOverlay: disabled → null; enabled → clamped fractions'
   assert.deepEqual(c, { cxPct: 1, cyPct: 0, wPct: 0.45, opacity: 0.2 });
 });
 
-test('P26 suppression: finalOverlay.enabled drops the per-scene logo, badge stays', () => {
+test('P26 per-scene layer: logo is stamp-only — resolveBrandKit exposes badge/stickers, never a logo', () => {
   const dir = mkdtempSync(join(tmpdir(), 'p26-'));
   const logoPath = join(dir, 'logo.png');
-  writeFileSync(logoPath, Buffer.from('89504e470d0a1a0a', 'hex')); // existence is all resolveBrandKit checks
-  const base = { brandKit: { channelName: 'Kênh Thử', placement: 'final', logo: { assetPath: logoPath }, finalOverlay: { enabled: true } } };
-  const on = resolveBrandKit(base);
-  assert.equal(on.logo, null, 'per-scene logo suppressed');
-  assert.ok(on.nameBadge, 'badge survives');
-  const off = resolveBrandKit({ brandKit: { ...base.brandKit, placement: 'smart', finalOverlay: { enabled: false } } });
-  assert.ok(off.logo, 'logo returns when the overlay is off');
+  writeFileSync(logoPath, Buffer.from('89504e470d0a1a0a', 'hex'));
+  const kit = resolveBrandKit({ brandKit: { channelName: 'Kênh Thử', logo: { assetPath: logoPath }, finalOverlay: { enabled: true } } });
+  assert.ok(kit.nameBadge, 'badge rides the scene layer');
+  assert.equal('logo' in kit, false, 'no per-scene logo lane exists anymore');
+  // legacy placement:'off' still silences the per-scene chrome entirely
+  assert.equal(resolveBrandKit({ brandKit: { channelName: 'X', placement: 'off' } }), null);
 });
 
 test('P26 fingerprint: changing finalOverlay invalidates the render fingerprint', () => {
