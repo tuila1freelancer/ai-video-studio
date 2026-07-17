@@ -225,8 +225,18 @@ export function offlineScript(sourceText, { title, sceneCount, wordsPerScene, st
 // Spoken words(-as-written-tokens) per second by language — Vietnamese "words" are syllables,
 // so neural voices land near the reference channel's ~270 syllables/min. Undershooting this
 // (the old flat 2.6) produced scenes that ran seconds shorter than their slot.
-export const LANG_WPS = { vi: 4.4, en: 2.6, ja: 3.4, ko: 3.1, zh: 3.4, ru: 2.4 };
-export const LANG_NAME = { vi: 'Vietnamese', en: 'English (US)', ja: 'Japanese', ko: 'Korean', zh: 'Chinese', ru: 'Russian' };
+// P5 core rates (vi 4.4 …) are measured and pinned; the 2026-07 additions extend the table
+// for the reference-app language set (its per-language wordsPerSecond values where known,
+// family-consistent estimates otherwise) — existing entries are untouched.
+export const LANG_WPS = {
+  vi: 4.4, en: 2.6, ja: 3.4, ko: 3.1, zh: 3.4, ru: 2.4,
+  fr: 4.0, de: 3.8, es: 4.2, pt: 4.0, hi: 4.2, th: 4.0, id: 4.2,
+};
+export const LANG_NAME = {
+  vi: 'Vietnamese', en: 'English (US)', ja: 'Japanese', ko: 'Korean', zh: 'Chinese', ru: 'Russian',
+  fr: 'French', de: 'German', es: 'Spanish (neutral/Latin American)', pt: 'Portuguese (Brazilian)',
+  hi: 'Hindi', th: 'Thai', id: 'Indonesian',
+};
 export function scriptLang(config, sourceText) {
   const c = String(config?.language || '').toLowerCase();
   if (c && c !== 'auto') return c;

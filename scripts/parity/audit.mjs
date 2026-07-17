@@ -76,7 +76,9 @@ const SNAP = `(() => {
     }
   }
   partsHost.sort((a,b)=>b.parts-a.parts);
-  return { W, H, texts, painted, atmo:[...atmo], hero: partsHost[0]||{parts:0,frac:0} };
+  // keep top clusters that are NOT nested inside a bigger kept one (approx: dedupe by frac
+  // similarity is impossible here, so report top-3 — the caller sums non-overlapping logic)
+  return { W, H, texts, painted, atmo:[...atmo], hero: partsHost[0]||{parts:0,frac:0}, clusters: partsHost.slice(0,3) };
 })()`;
 
 const JUNK = /\b[A-Za-z][A-Za-z0-9]*(?:_[A-Za-z0-9]+)+\b|\b[A-Za-z_][\w-]*\s*=\s*(?:"[^"]*"|'[^']*'|[\d,.]+|true|false|null)|\b[a-z_][\w]*(?:\.[a-z_][\w]*)+\s*\([^)]*\)|\b[\w-]+\.(?:exe|sh|js|ts|py|json|dll|bat|cfg|log|sys)\b|\b(?:PROMPT_OVERFLOW|SYSTEM_INIT|LOREM|IPSUM)\b/;
@@ -117,9 +119,16 @@ export async function auditScene({ page, seek, duration, beats = [], hasBeats = 
   }
   const a = { pass: depthPass && atmoUnion.size >= 2, detail: `atmo=[${[...atmoUnion].join(',')}] depth=${depthPass}` };
 
-  // (b) hero sub-parts
+  // (b) hero sub-parts — one dense instrument (≥8 parts) OR a split composition whose
+  // top panels together carry ≥10 crafted parts (the reference often splits the hero
+  // into two glass panels of 5-6 parts each; clusters can nest, so the sum is clamped)
   const heroParts = Math.max(...keyTimes.map((t) => snaps[t].hero.parts));
-  const b = { pass: heroParts >= 8, detail: `maxParts=${heroParts}` };
+  const splitParts = Math.max(...keyTimes.map((t) => {
+    const cl = snaps[t].clusters || [];
+    if (cl.length < 2) return 0;
+    return Math.min(cl[0].parts + cl[1].parts, Math.round(cl[0].parts * 1.8));
+  }));
+  const b = { pass: heroParts >= 8 || splitParts >= 10, detail: `maxParts=${heroParts} split=${splitParts}` };
 
   // (c) expensive type on the dominant text
   let cPass = false, cDetail = 'no big text';
@@ -158,25 +167,28 @@ export async function auditScene({ page, seek, duration, beats = [], hasBeats = 
     d = { pass: checked >= 2 ? responded >= Math.ceil(checked * 0.8) : null, detail: `${responded}/${checked} beats answered`, entrances };
   }
 
-  // (e) calm — concurrently moving groups at each key time
-  const movers = [];
+  // (e) calm — concurrently moving groups at each key time. Ambient drift IS the doctrine
+  // ("camera never sleeps"), so only SUBSTANTIAL movement counts: ≥90 px/s translation,
+  // ≥80%/s scale change, or ≥1.6/s opacity change (measured over the 0.15 s pair window).
+  const movers = [], moverKeys = [];
   for (const t of keyTimes) {
-    const A = new Map(snaps[t].texts.concat(snaps[t].painted).map((e) => [e.key, e]));
+    const A = new Map(snaps[t].texts.concat(snaps[t].painted).map((e2) => [e2.key, e2]));
     const B = snaps[t] === movePairs[t] ? [] : movePairs[t].texts.concat(movePairs[t].painted);
     const moved = new Set();
-    for (const e of B) {
-      const p0 = A.get(e.key);
+    for (const e2 of B) {
+      const p0 = A.get(e2.key);
       if (!p0) continue;
-      const dx = Math.abs((e.x ?? 0) - (p0.x ?? 0)), dy = Math.abs((e.y ?? 0) - (p0.y ?? 0));
-      const dScale = p0.w > 0 ? Math.abs(e.w - p0.w) / p0.w : 0;
-      const dO = Math.abs((e.o ?? 1) - (p0.o ?? 1));
-      if (dx > 7 || dy > 7 || dScale > 0.06 || dO > 0.14) moved.add(e.key.split('|')[1] || e.key);
+      const dx = Math.abs((e2.x ?? 0) - (p0.x ?? 0)), dy = Math.abs((e2.y ?? 0) - (p0.y ?? 0));
+      const dScale = p0.w > 0 ? Math.abs(e2.w - p0.w) / p0.w : 0;
+      const dO = Math.abs((e2.o ?? 1) - (p0.o ?? 1));
+      if (dx > 14 || dy > 14 || dScale > 0.12 || dO > 0.24) moved.add(e2.key.split('|')[1]?.split(/\s+/)[0] || e2.key);
     }
     movers.push(moved.size);
+    moverKeys.push([...moved].slice(0, 4).join('+'));
   }
   const sortedM = [...movers].sort((x, y) => x - y);
   const medianM = sortedM[Math.floor(sortedM.length / 2)];
-  const e = { pass: medianM <= 2 && Math.max(...movers) <= 4, detail: `movers=${movers.join(',')}` };
+  const e = { pass: medianM <= 2 && Math.max(...movers) <= 4, detail: `movers=${movers.join(',')} [${moverKeys.filter(Boolean).join(' | ')}]` };
 
   // (f) position rotation between consecutive beat entrances (ours only)
   let f = { pass: null, detail: 'no beats (ref)' };

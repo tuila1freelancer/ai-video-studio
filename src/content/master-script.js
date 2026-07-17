@@ -261,6 +261,22 @@ MUST contain ALL 8 bracket sections, concise (1-2 lines each):
 DIVERSITY IS MANDATORY: every scene's [MAIN FOCUS] must be UNIQUE to that scene's voice — rotate object types and layouts (${HF_LAYOUTS.slice(0, 12).join(' | ')}), never repeat a composition within 2 consecutive scenes, never stamp one template sentence across scenes.
 Keep each scene to 2-3 main moving elements. Overly complex scenes = broken HTML.`;
 
+// Per-language narration guidance (reference-app voiceNote parity): tone + address form so
+// non-vi/en scripts read like a native presenter, not a translation.
+export const LANG_VOICE_NOTES = {
+  fr: 'Voice in natural French, "vous" form — clear, warm, like a skilled French presenter.',
+  de: 'Voice in natural German, "Sie" form (formal but approachable) — clear and structured, like a German educational presenter.',
+  es: 'Voice in natural Spanish (neutral/Latin American), "tú" form — engaging and conversational, like a skilled presenter.',
+  pt: 'Voice in natural Brazilian Portuguese, "você" form — conversational and engaging, like a Brazilian YouTuber explaining a topic.',
+  hi: 'Voice in natural Hindi (Hinglish is fine for tech terms) — conversational, like explaining to a friend; mix English tech terms naturally.',
+  th: 'Voice in natural Thai — polite, friendly presenter tone; keep sentences short and rhythmic for TTS.',
+  id: 'Voice in natural Indonesian — friendly, direct presenter tone ("kamu"), short clear sentences.',
+  ja: 'Voice in natural Japanese — polite です/ます register, concise sentences that flow for TTS.',
+  ko: 'Voice in natural Korean — polite 해요체 register, concise spoken sentences.',
+  zh: 'Voice in natural Simplified Chinese — clear, friendly presenter tone, short spoken sentences.',
+  ru: 'Voice in natural Russian — engaging presenter tone, "вы" form, short clear sentences.',
+};
+
 /**
  * Build the ONE master prompt (messages array). mode 'topic' writes the whole video;
  * mode 'script' light-polishes + slices the owner's script; mode 'source' writes a NEW
@@ -273,7 +289,12 @@ export function buildMasterPrompt({
   const langName = LANG_NAME[language] || language;
   const wps = LANG_WPS[language] || 3.0;
   const persona = language === 'vi'
-    ? '\n- Persona: the narrator says "mình", the audience is "các bạn" — never "tôi", never singular "bạn".' : '';
+    ? '\n- Persona: the narrator says "mình", the audience is "các bạn" — never "tôi", never singular "bạn".'
+    : (LANG_VOICE_NOTES[language] ? `\n- ${LANG_VOICE_NOTES[language]}` : '');
+  // Reference-app LANGUAGE OVERRIDE semantics: narration in the target language, the
+  // "visual" brief stays English (codegen instructions are English), title follows the voice.
+  const langOverride = language !== 'vi' && language !== 'en'
+    ? `\n- LANGUAGE: the "voice" field MUST be written in ${langName}. The "visual" field MUST remain in English (it feeds an English-instruction rendering engine) — except [ON-SCREEN TEXT] labels, which are in ${langName}. thumbnail.title in ${langName}; thumbnail.prompt in English.` : '';
   const n = expect || plan.sceneCount;
 
   const opener = mode === 'source'
@@ -309,7 +330,7 @@ VALUE ARCHITECTURE:
 - Ground every figure: NEVER invent a statistic, percentage or count. A precise verb beats a fake number.
 - Scenes connect by LOGIC with forward connectors (${language === 'vi' ? '"vì vậy…", "nhưng…", "vậy nên…"' : '"so…", "but…", "which is why…"'}) — never tease-questions; at most ONE genuine viewer question in the whole video.
 - Scene 1 opens cold and concrete on the exact gap; the final scene resolves that same gap, then one natural line to subscribe.
-- CTA placement: ONE soft CTA woven in around 25-40% of the video (save/share if the framework helps) + the closing CTA — both as natural spoken sentences tied to the content, never a production note.${persona}
+- CTA placement: ONE soft CTA woven in around 25-40% of the video (save/share if the framework helps) + the closing CTA — both as natural spoken sentences tied to the content, never a production note.${persona}${langOverride}
 - ALL narration written in ${langName}.`;
 
   const styleBits = [guide ? `\nLOCKED VISUAL STYLE for the whole video:\n${guideBrief(guide)}` : '', bibleBlock(memory), assetsBlock(assets)]

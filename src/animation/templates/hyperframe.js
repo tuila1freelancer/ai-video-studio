@@ -169,23 +169,26 @@ const hyperframe = {
   desc: 'Motion graphics do AI dàn dựng theo beat lời thoại (không dành cho planner)',
   build(p, ctx) {
     const guide = normalizeGuide(p.guide);
-    const motif = motifLayer(guide, ctx);
-    const deco = decoLayer(guide, ctx);
+    // Overlay mode: the scene composites onto real footage via colorkey — every stage
+    // dressing that would paint the key color away (motif, deco rings, vignette, grain)
+    // is omitted; the beam stays (a light streak over footage is reference doctrine).
+    const overlay = !!p.overlay;
+    const motif = overlay ? { css: '', html: '' } : motifLayer(guide, ctx);
+    const deco = overlay ? { css: '', html: '' } : decoLayer(guide, ctx);
     const body = expandIcons(p.html || '');
     const css = baseCss(guide, ctx) + '\n' + motif.css + '\n' + deco.css + '\n' + (p.css || '');
     const html = `
     <div class="hf-cam">
-      <div class="hf-layer hf-far">${motif.html}</div>
+      ${overlay ? '' : `<div class="hf-layer hf-far">${motif.html}</div>`}
       ${deco.html}
       ${body}
       <div class="hf-layer" style="pointer-events:none"><div class="hf-beam"></div></div>
     </div>
-    <div class="hf-layer hf-vig"></div>
-    <div class="hf-layer hf-grain"></div>`;
+    ${overlay ? '' : '<div class="hf-layer hf-vig"></div>\n    <div class="hf-layer hf-grain"></div>'}`;
     // Beat pulse: the backdrop ring flashes softly on every narration beat — the scene keeps
     // a visible heartbeat between the model's moments, no matter how quiet the spec is.
     // Beat times are authored-timeline seconds (same coordinates as the model script).
-    const beatTs = (Array.isArray(p.beats) ? p.beats : [])
+    const beatTs = overlay ? [] : (Array.isArray(p.beats) ? p.beats : [])
       .map((b) => +(+((b && (b.t0 ?? b.t)) || 0)).toFixed(2)).filter((t) => t > 0.2).slice(0, 8);
     const pulses = `var __hfBeats=${JSON.stringify(beatTs)};
 for (var __hfI=0;__hfI<__hfBeats.length;__hfI++){
