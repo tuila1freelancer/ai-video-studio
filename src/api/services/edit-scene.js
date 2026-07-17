@@ -54,7 +54,7 @@ export async function editSceneByPrompt(sceneId, editPrompt, { _chat = chat } = 
   const rv = await renderValidate({
     spec: { ...spec, guide }, guide, w, h,
     duration: isHf ? (sc.props?.plannedDur || duration) : duration,
-    beats, narration: sc.voice_text || '', captionsOn: config.enableSubtitles !== false,
+    beats, narration: sc.voice_text || '', captionsOn: config.enableSubtitles !== false, caliber: false,
   });
   if (!rv.ok && !rv.skipped) return { ok: false, error: 'edit rejected by render validation', defects: rv.defects };
 
