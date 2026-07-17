@@ -1,4 +1,4 @@
-// One NAMED regression test per protected behavior (P1–P16, docs/architecture.md §7).
+// One NAMED regression test per protected behavior (P1–P19, docs/architecture.md §7).
 // A refactor may RELOCATE a behavior — update the anchor here — but a silently deleted
 // guard/constant turns exactly one of these red. Functional where cheap, source-anchored
 // where a functional test would need live providers.
@@ -175,4 +175,34 @@ test('P18: master scenes JSON contract — no META_LEAK persisted, canonical exp
   assert.match(src('src/api/routes.js'), /scenes-json/, 'export route exists');
   // owner's detailed script: duration follows content — the fitter must skip it
   assert.match(src('src/pipeline/stages/budget.js'), /SCRIPT_MODE_MIN_WORDS\) return;/, 'budget fit never trims a pasted detailed script');
+});
+
+test('P19: codegen prompt embeds the scene narration + visual brief VERBATIM (functional + no-slice pin)', async () => {
+  const { buildCodegenPrompt } = await import('../src/hyperframe/prompt.js');
+  const { extractBeats, cinematicDirection } = await import('../src/hyperframe/beats.js');
+  const { HF_DEFAULT_GUIDE } = await import('../src/styleguide/index.js');
+  // long, quote-riddled narration — the HTML can only follow the voice if ALL of it arrives
+  const voice = 'Mình sẽ nói một câu rất dài, có "trích dẫn kép", có \'nháy đơn\', có số 42% và một dấu — gạch — lạ, '
+    + 'để chắc chắn toàn bộ lời thoại của cảnh xuất hiện nguyên văn trong prompt tạo HTML, không bị cắt ở bất kỳ ký tự nào, '
+    + 'kể cả khi câu dài hơn mọi giới hạn hiển thị quen thuộc của các đoạn tóm tắt. Đoạn kết này phải có mặt: HOA_TIEU_CUOI_CAU.';
+  const visual = '[ENVIRONMENT] far=grid, mid=panels, near=dust. [MAIN FOCUS] a glass ledger with 42 glowing rows, dominant. '
+    + '[CAMERA] slow zoom in 4%. [MOTION FLOW] Entry: rise. Idle: float. Exit: settle. [LIGHTING & FX] cyan glow. '
+    + '[TEXT STYLE] bold. [ON-SCREEN TEXT] sổ cái. [MOOD] clean. DUOI_VISUAL_NGUYEN_VAN';
+  const scene = { voice_text: voice, visual_prompt: visual, srt_json: null, keywords: ['ledger'], duration: 6 };
+  const beats = extractBeats(scene.srt_json, scene.keywords, 6);
+  const direction = cinematicDirection(scene, 3, 10);
+  const msgs = buildCodegenPrompt({
+    scene, beats, direction, guide: HF_DEFAULT_GUIDE, w: 960, h: 540,
+    duration: 6, idx: 3, total: 10, density: 'rich', captionsOn: true,
+  });
+  const user = msgs[1].content;
+  assert.ok(user.includes(voice), 'the FULL narration must ride in the codegen prompt verbatim');
+  assert.ok(user.includes(visual), 'the FULL visual brief must ride in the codegen prompt verbatim');
+  // and the builder itself must never slice either field (the chain B2→DB→B5/regen passes
+  // whole rows; prompt.js is the last hop, so a slice here is the only place voice could shrink)
+  const s = src('src/hyperframe/prompt.js');
+  assert.match(s, /\(scene\.voice_text \|\| ''\)\.trim\(\)/, 'narration embed anchor survives');
+  assert.match(s, /\(scene\.visual_prompt \|\| ''\)\.trim\(\)/, 'visual embed anchor survives');
+  assert.ok(!/voice_text[^\n]*\.slice\(/.test(s), 'voice_text must never be sliced in the codegen prompt');
+  assert.ok(!/visual_prompt[^\n]*\.slice\(/.test(s), 'visual_prompt must never be sliced in the codegen prompt');
 });
