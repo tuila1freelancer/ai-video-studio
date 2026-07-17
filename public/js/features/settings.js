@@ -38,6 +38,7 @@ export async function loadSettings() {
   $('#setLlmModel').value = settings.llm?.model || '';
   $('#setTtsProvider').value = settings.tts?.provider || 'edge';
   $('#setSubEngine').value = settings.subtitle?.engine || 'align'; // backend default is 'align' when unset
+  if ($('#setSubLlmFix')) $('#setSubLlmFix').checked = settings.subtitle?.llmCorrect !== false;
   renderProviderFields();
   renderLangVoiceList();
 }
@@ -89,7 +90,7 @@ async function saveSettings() {
   const body = {
     llm: { enabled: $('#setLlmOn').checked, baseUrl: $('#setLlmUrl').value.trim(), model: $('#setLlmModel').value.trim(), apiKey: $('#setLlmKey').value || state.settings?.llm?.apiKey || '' },
     tts: { ...oldTts, provider: pid, providers },
-    subtitle: { engine: $('#setSubEngine').value },
+    subtitle: { engine: $('#setSubEngine').value, llmCorrect: $('#setSubLlmFix') ? $('#setSubLlmFix').checked : true },
   };
   await api.put('/settings', body);
   await loadSettings();
