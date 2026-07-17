@@ -59,7 +59,11 @@ export async function runRender(ctx) {
       if (e.stopped) throw e;
       logger.warn(`scene ${sc.idx} render failed: ${e.message} — self-heal`, { projectId });
       hub.toProject(projectId, { type: 'retry', scope: 'scene', step: 'b6', idx: sc.idx, attempt: 1, msg: e.message });
-      if (animLike && sc.template !== 'kinetic-statement') {
+      // P10 template-swap heal applies to ANIMATION-mode scenes only. A hyperframe scene is
+      // the primary model's HTML — swapping it for a heuristic template is a quality
+      // fallback the NO-FALLBACK contract (P25) forbids: it retries as-is (here + the
+      // deferred sequential pass); if it still cannot render, the run fails loudly.
+      if (animLike && sc.template !== 'kinetic-statement' && sc.template !== 'hyperframe') {
         op(projectId, `🩹 Cảnh ${sc.idx + 1}: đổi template dự phòng rồi thử lại…`);
         DB.updateScene(sc.id, { template: 'kinetic-statement', props: {
           pre: '', heading: headline(sc.voice_text || '', 40), heading2: '', sub: undefined,
