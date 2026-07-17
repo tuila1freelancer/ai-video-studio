@@ -20,40 +20,42 @@ Two visual modes run in parallel; this is the crux of the entire architecture:
 
 ---
 
-## 2. Current layer diagram (actual, not idealized)
+## 2. Current layer diagram (actual, post-refactor)
 
 ```
                          ┌──────────────┐
-  Browser SPA  ────────► │  server.js   │  entry: express + ws + static
-  (public/js)  ◄──ws───► └──────┬───────┘
+  Browser SPA  ────────► │  server.js   │  entry: express + ws + static + boot recovery
+  (public/js)  ◄──ws───► └──────┬───────┘  + scheduler start
                                 │
                         ┌───────▼─────────┐
-                        │  api/routes.js  │  464 lines — 1 giant mountRoutes fn,
-                        │  (FAT ROUTER)   │  mixed with business logic (voice preview, batch,
-                        └───────┬─────────┘  srt export, file-serving guard)
-                                │
-                    ┌───────────▼───────────┐
-                    │  pipeline/queue.js     │  thin facade (active Map) — OK
-                    └───────────┬───────────┘
+                        │  api/routes.js  │  REST (934 lines — regrown with the v3 feature
+                        │  + api/services │  surface; the routes/-by-domain split of §5 is
+                        └───────┬─────────┘  the one open refactor). services/ = assistant ·
+                                │            autopilot · batch · voice-* · file-access
+                    ┌───────────▼────────────┐
+                    │ pipeline/queue.js       │  thin facade → durable jobs table →
+                    │ scheduler.js · governor │  single-tick scheduler; governor semaphores
+                    └───────────┬────────────┘  bound Chrome+ffmpeg across ALL runs
                                 │
                 ┌───────────────▼────────────────┐
-                │     pipeline/runner.js          │  723 lines — GOD FILE
-                │  runPipeline · finalize ·       │  mixes: orchestration + per-stage
-                │  renderOnly · regenOne ·        │  logic + retry/self-heal + metadata
-                │  brandGenImpl + 8 helper        │  + brand-gen
-                └──┬───────┬────────┬─────────┬───┘
-                   │       │        │         │
-        ┌──────────▼─┐ ┌───▼────┐ ┌─▼──────┐ ┌▼─────────────┐
-        │ providers/ │ │pipeline│ │animation│ │ hyperframe/  │
-        │ llm tts    │ │/stages │ │/ (engine│ │ (LLM codegen)│
-        │ subtitle   │ │direction│ │+templates)◄══╗ (LOOP)    │
-        │ imagegen   │ │qc render│ │         │══►║           │
-        │ fetchlink  │ │srt      │ │         │   ║           │
-        └──────┬─────┘ │visuals  │ └────┬────┘   ╚═══════════╝
-               │       └────┬────┘      │
-        ┌──────▼────────────▼───────────▼──────────────┐
-        │  infra: db/  media/(ffmpeg,puppeteer,whisper,say)  ws/hub  │
-        │         config/paths  core/config  util/*  subtitles/presets │
+                │  pipeline/runner.js (127 lines) │  pure orchestrator: stages + WS events +
+                │  → stages/{script,editorial,    │  auto-resume; render-only/regen/brandgen/
+                │     budget,visuals,tts,render,  │  repurpose split into their own entries
+                │     finalize,metadata,publish}  │
+                └──┬───────┬───────────┬──────────┘
+                   │       │           │
+        ┌──────────▼─┐ ┌───▼────────┐ ┌▼─────────────────────────┐
+        │ providers/ │ │ content/   │ │  styleguide/  (shared)   │
+        │ llm tts    │ │ master-    │ │  guide schema · presets  │
+        │ subtitle   │ │ script ·   │ └───▲──────────────▲───────┘
+        │ imagegen   │ │ scorer     │     │              │
+        │ trends     │ └────────────┘ ┌───┴──────┐  ┌────┴───────┐
+        │ fetchlink  │                │animation/│◄─│ hyperframe/│  one-way:
+        └──────┬─────┘                │ engine + │  │ LLM codegen│  hyperframe uses the
+               │                      │ templates│  │ + validate │  engine, never back
+        ┌──────▼──────────────────────┴──────────┴──┴────────────┴─┐
+        │  infra: db/(connection·migrate·repositories)  media/(ffmpeg,master,align,puppeteer,whisper,say) │
+        │         ws/hub  config/paths  core/(config·budget·metering·errors)  util/*  subtitles/presets  publish/ │
         └───────────────────────────────────────────────────────────┘
 ```
 
@@ -66,46 +68,32 @@ Two visual modes run in parallel; this is the crux of the entire architecture:
 
 ---
 
-## 3. THE TWO BIGGEST ARCHITECTURAL PROBLEMS
+## 3. THE TWO BIGGEST ARCHITECTURAL PROBLEMS — both ✅ RESOLVED
 
-### 3.1 God file `pipeline/runner.js` (723 lines) — ✅ DISSECTED (R8–R10)
-> Post-refactor update: `runner.js` is now **68 lines** (a pure orchestrator). Each stage B2→B8 lives in `pipeline/stages/{script,tts,visuals,render,finalize,metadata}.js` (all ≤168 lines), taking `ctx` from `pipeline/context.js`; the stop signal is in `pipeline/stop.js`, WS events + progress in `pipeline/progress.js`, helpers in `pipeline/helpers.js`; `renderOnly`/`regenOne`/`brandGenImpl` are split out into `pipeline/{render-only,regen,brandgen}.js`. The table below is the OLD layout (kept for reference).
+> Kept as the record of *why* the current boundaries look the way they do. New problem to
+> watch: `api/routes.js` has regrown to ~930 lines under the v3 feature surface — the
+> routes/-by-domain split in §5 is the remaining open refactor.
 
-A single file (the old version) carried everything: pipeline orchestration, detailed per-stage logic (B2→B8), the 3-tier retry/self-heal policy, metadata + chapter generation, and even offline brand-gen. Consequence: hard to read, hard to test each stage, hard for an AI agent to fix one step without reading the whole file.
+### 3.1 God file `pipeline/runner.js` (was 723 lines) — ✅ DISSECTED (R8–R10)
+`runner.js` is now a pure orchestrator (~130 lines: stages + WS events + bounded auto-resume).
+Each stage lives in `pipeline/stages/{script,editorial,budget,visuals,tts,render,finalize,metadata,publish}.js`,
+taking `ctx` from `pipeline/context.js`; the stop signal is in `pipeline/stop.js`, WS events +
+progress in `pipeline/progress.js`, helpers in `pipeline/helpers.js`; `renderOnly`/`regenOne`/
+`brandGenImpl`/`repurpose` are their own entries (`pipeline/{render-only,regen,brandgen,repurpose}.js`).
+The old version carried everything in one file — orchestration, per-stage logic, the retry/
+self-heal policy, metadata generation, brand-gen — which made every fix a whole-file read.
 
-Inside, these blocks were immediately separable:
-| Block | Lines | Where it should go |
-|---|---|---|
-| helpers: `mapPool`, `step/op/retryHook`, `progressPlan`, `visualOpts`, `resolveOutputDir` | 34–90 | `pipeline/progress.js` + `pipeline/util.js` |
-| B2 script | 107–129 | `pipeline/stages/script.js` |
-| B34 TTS+SRT (`ttsOne` + voice-lock heal) | 131–181 | `pipeline/stages/tts.js` |
-| B5 visuals (animation + hyperframe + image) | 183–284 | `pipeline/stages/visuals.js` |
-| B6 render + self-heal + verify | 286–374 | `pipeline/stages/render.js` + `pipeline/heal.js` |
-| B7 finalize + B8 QC gate | 435–580 | `pipeline/stages/concat.js` + `pipeline/stages/qc-gate.js` |
-| metadata + chapters | 381–403 | `pipeline/stages/metadata.js` |
-| `renderOnly`, `regenOne`, `brandGenImpl` | 583–723 | `pipeline/render-only.js`, `pipeline/regen.js`, `pipeline/brandgen.js` |
+### 3.2 Dependency loop `animation/` ↔ `hyperframe/` — ✅ BROKEN (R5, `styleguide/`)
+The two directories used to import each other **bidirectionally** (guide/theme concepts were
+stranded on the wrong sides: `normalizeGuide`/`HF_DEFAULT_GUIDE`/`SAMPLE_SPEC` sat under
+`animation/templates/hyperframe.js`, while `themeFromGuide`/`resolveGuide` sat in
+`hyperframe/styleguide.js` yet were consumed by `animation/index.js`).
 
-The remaining `runPipeline` should be just an orchestrator of ~80 lines: call stages, emit WS events, catch errors + auto-resume.
-
-### 3.2 Dependency loop `animation/` ↔ `hyperframe/`
-This is the worst tangle. The two directories import each other **bidirectionally**:
-
-```
-animation/index.js  ──imports──►  hyperframe/styleguide.js   (themeFromGuide, resolveGuide)
-hyperframe/styleguide.js ──imports──► animation/templates/hyperframe.js (HF_DEFAULT_GUIDE, normalizeGuide)
-hyperframe/prompt.js     ──imports──► animation/templates/hyperframe.js (SAMPLE_SPEC)
-hyperframe/validate.js   ──imports──► animation/{templates, harness, templates/hyperframe}
-hyperframe/codegen.js    ──imports──► animation/{templates, themes}
-hyperframe/icons.js      ──imports──► animation/templates/_shared.js (IC)
-```
-
-Root cause: **the file `animation/templates/hyperframe.js` (255 lines) is misplaced.** Its contents (`normalizeGuide`, `HF_DEFAULT_GUIDE`, `SAMPLE_SPEC`, the renderer for the "hyperframe" template) are *hyperframe/style-guide* concepts, yet they sit under `animation/templates/`. Conversely, `themeFromGuide`/`resolveGuide` (theme concepts) sit in `hyperframe/styleguide.js` but are consumed by `animation/index.js`.
-
-**Target boundary (finalized) — extract one shared module, break the loop:**
+**The boundary that fixed it — one shared module, no back-edges (this is the CURRENT state):**
 
 ```
                  ┌────────────────────────────┐
-                 │  styleguide/  (NEW, shared)│  guide schema · normalizeGuide ·
+                 │  styleguide/  (shared)     │  guide schema · normalizeGuide ·
                  │  depends on neither side   │  resolveGuide · themeFromGuide ·
                  │                            │  HF_PRESETS · HF_DEFAULT_GUIDE · SAMPLE_SPEC
                  └───────▲───────────▲────────┘
@@ -129,25 +117,25 @@ The distinguishing principle to remember: *hyperframe produces a spec, animation
 
 ---
 
-## 4. Dead-code inventory (verified via grep — safe to delete/downgrade)
+## 4. Dead-code inventory — ✅ ALL EXECUTED (verified 2026-07-17)
 
-| Item | Location | Evidence | Action |
-|---|---|---|---|
-| redundant `estimateSpeechSeconds` import | `providers/llm.js:4` | appears only on the import line itself, called in 0 places | remove from the import list |
-| duplicate `sleep` | `util/util.js:10` | every importer (`runner.js`, `larvoice.js`) takes it from `util/retry.js`; 0 places import `sleep` from `util.js` | delete the copy in util.js, keep the one in retry.js |
-| `clamp` export | `util/util.js:12` | 0 importers; `animation/branding.js` has its own 4-argument `clamp` | remove the export (or consolidate branding to use the shared one — decided in the plan) |
-| redundant `projectDir` import | `api/routes.js:7`, `pipeline/runner.js:7` | only `DB.projectDirFor` is used; `projectDir` is never called | remove from the import |
-| redundant `export` on `run` | `media/ffmpeg.js:5` | used only internally (lines 16, 20); 0 external importers | downgrade `export function run` → `function run` |
-| dead files | `test-beats.mjs`, `test_overshoot_logic.js` (root) | 0 importers, not in npm scripts; debug/tuning artifacts | delete (if you want to preserve the decision, move to `docs/explorations/`) |
-| `.DS_Store` | scattered | macOS junk files | delete + already in `.gitignore` |
+Every item of the original sweep is gone from the tree: the redundant `estimateSpeechSeconds`
+import, the duplicate `sleep` (only `util/retry.js` exports it now), the unused `clamp` export,
+the redundant `projectDir` imports, the needless `export` on ffmpeg's `run`, the root debug
+files `test-beats.mjs`/`test_overshoot_logic.js`, and stray `.DS_Store` (gitignored).
 
-**Checked and NOT dead (don't delete by mistake):** `closeBrowser` (`media/puppeteer.js`) — used by `scripts/{hf-qa,build-icon,determinism}.mjs`; the survey agent only scanned `src/` so it reported it wrongly.
+**Checked and NOT dead (don't delete by mistake):** `closeBrowser` (`media/puppeteer.js`) — used by `scripts/{hf-qa,build-icon,determinism}.mjs`; a survey that only scans `src/` will report it wrongly.
 
-Duplicates to consolidate (not dead, but dirty): `PALETTES` (`imagesearch.js`) vs `THEMES` (`visuals.js`) — same color-pair structure; `escapeHtml` (harness.js defines its own even though `util.js` already exports it); `clamp` (branding.js vs util.js). Gather them into `util/`/`config/constants.js`.
+Duplicates still tolerated (not dead, but dirty — consolidate opportunistically, never in a rush): `PALETTES` (`providers/imagesearch.js`) vs `THEMES` (`pipeline/visuals.js`) — same color-pair structure; `escapeHtml` (`animation/harness.js` defines its own even though `util/util.js` exports one); `clamp` (`animation/branding.js` has a 4-argument variant).
 
 ---
 
 ## 5. Target architecture by layer (each decision + 1 rationale)
+
+> Status 2026-07-17: achieved everywhere except two spots — `api/routes.js` never got its
+> routes/-by-domain split (and has regrown, see §8), and the pure-`domain/` extraction was
+> superseded: the pure logic went to `content/` (master-script, scorer) + `hyperframe/beats.js`
+> instead of a new top-level folder. The tree below is kept as the reference target.
 
 ```
 src/
@@ -213,25 +201,29 @@ Rationale for each layer:
 | Trend autopilot + calendar + dashboard | `providers/trends.js` (RSS/Atom + feed packs) · `api/services/topic-autopilot.js` · `db/repositories/calendar.js` · `features/autopilot.js` |
 | Content assistant v2 (history + config sheet + series + plan-week) | `db/repositories/suggestions.js` · `api/services/assistant.js` · `features/{assistant-sheet,assistant-history}.js` |
 | Master script engine (B2: one master prompt → canonical scenes JSON; modes topic/script/json/source, word-balanced source partition + adaptive span split for long scripts) | `content/master-script.js` (plan/prompt/validate/repair/batching + `sourceSlicer`/`generateSpan` + `scenesJsonFromRows`) · `pipeline/stages/script.js` (routing + fetchLink→source + artifact) · `GET /projects/:id/scenes-json` · toolbar export buttons in `views/studio.js` · fixture gate `tests/fixtures/rag-scenes.json` |
-| Tests + CI | `tests/` (named test per P1–P16) · `.github/workflows/ci.yml` · `npm test` |
+| Tests + CI | `tests/` (named test per P1–P19) · `.github/workflows/ci.yml` · `npm test` |
 | HyperFrames adoption (doctrine + gates) | `docs/reference/hyperframes-notes.md` (source map) · `hyperframe/lint.js` (static pre-render gate) · `hyperframe/validate.js` (persistence tiering, occlusion, beat adherence) · `animation/templates/_shared.js` (zoomThrough/jitter/targetZoom/dofBlur/streakIn/iconSpin, camPush `profile:'front'`) · `animation/harness.js` `__fitText` · `pipeline/direction.js` (roles + choreography verbs + blueprint layouts) · `pipeline/render.js` `planTransitions` (role-driven cuts/blends; `config.transitions` = smart mode, legacy uniform fade when no roles) · `GET /projects/:id/contact-sheet` |
 
-## 6. "Want to change X → go to file Y" table (will be updated to the new structure after refactor)
+## 6. "Want to change X → go to file Y" table (current structure)
 
-| Want to do | Currently go to file |
+| Want to do | Go to file |
 |---|---|
+| Change the master script engine (modes topic/script/json/source · gates · batching/adaptive split · master prompt) | `content/master-script.js` (+ routing/artifact in `pipeline/stages/script.js`) |
+| Change the legacy/offline script path (`generateScript`, `offlineScript`, `twoStageScript`, `verbatimScript`) | `providers/llm.js` |
+| Change the LLM retry/backoff/multi-key chain | `providers/llm.js` (`chat`, `chatOnce`, `chatJson`) |
 | Add a new TTS provider | `providers/voice/<name>.js` + register in `providers/voice/index.js` |
-| Change the LLM retry/backoff/multi-key chain | `providers/llm.js` (`chat`, `chatOnce`) |
-| Change how the offline script is split / the script-generation prompt | `providers/llm.js` (`offlineScript`, `generateScript`, `twoStageScript`) |
 | Add an animation template | create `animation/templates/<name>.js` + register in `animation/templates/index.js` |
-| Change the HyperFrame codegen prompt | `hyperframe/prompt.js` |
-| Change HyperFrame scene validation rules (timid/overshoot…) | `hyperframe/validate.js` |
-| Add a style preset (color/motif/HUD) | `hyperframe/styleguide.js` (`HF_PRESETS`) |
-| Change QC thresholds (black/silence/tolerance) | `pipeline/qc.js` + the call site in `runner.js` `finalize` |
-| Add/change a REST endpoint | `api/routes.js` |
-| Change the DB schema / add a column | `db/index.js` (the `db.exec` block + migrations) |
-| Change pipeline orchestration (B2..B8 order, auto-resume) | `pipeline/runner.js` `runPipeline` |
-| Change loudnorm / pad / SFX / ambient | `media/ffmpeg.js` |
+| Change the HyperFrame codegen prompt | `hyperframe/prompt.js` (P19: never slice the narration/visual it embeds) |
+| Change HyperFrame scene validation rules (timid/overshoot/fragments…) | `hyperframe/validate.js` |
+| Change the art-director pass (roles/layouts/choreography) | `pipeline/direction.js` |
+| Add a style preset (color/motif/HUD) | `styleguide/presets.js` (`HF_PRESETS`) |
+| Change scene-boundary transitions | `pipeline/render.js` `planTransitions` |
+| Change QC thresholds (black/silence/tolerance) | `pipeline/qc.js` + the call site in `pipeline/stages/finalize.js` |
+| Change the editorial / duration-fit gates | `content/scorer.js` + `pipeline/stages/editorial.js` · `pipeline/stages/budget.js` |
+| Add/change a REST endpoint | `api/routes.js` (business logic goes down into `api/services/`) |
+| Change the DB schema / add a column | `db/connection.js` (schema) + `db/migrate.js` (versioned migration + backup) |
+| Change pipeline orchestration (stage order, auto-resume) | `pipeline/runner.js` `runPipeline` (queueing: `pipeline/scheduler.js`) |
+| Change loudnorm / pad / SFX / ambient / final master | `media/ffmpeg.js` · `media/master.js` |
 | Change the config layer (channel/preset/request) | `core/config.js` |
 | Change binary path / runtime directory | `config/paths.js` |
 | Change the video-export config UI | `public/js/views/config.js` |
@@ -269,16 +261,19 @@ Golden rule when refactoring: if a regex/constant/guard looks "redundant" → gr
 
 ---
 
-## 8. Appendix — line counts of large files (baseline before refactor)
+## 8. Appendix — line counts of large files
 
-| Lines (before) | File | After refactor |
-|---|---|---|
-| 723 | `pipeline/runner.js` | **68** (orchestrator) + `stages/*` ≤168 + entries (R8–R10) ✅ |
-| 464 | `api/routes.js` | **392** + `api/services/*` (R7) ✅ |
-| 452 | `db/index.js` | **31** (barrel) + `db/repositories/*` ≤125 (R6) ✅ |
-| 400 | `public/js/views/config.js` | 400 — FE, not yet touched (R11 remaining) |
-| 382 | `providers/llm.js` | 382 — under the cap, left as-is |
-| 255 | `animation/templates/hyperframe.js` | **157** — only the renderer remains; guide moved to `styleguide/` (R5) ✅ |
-| 253 | `animation/harness.js` | 253 — engine, OK |
+| Pre-refactor | Post-refactor (R10) | Today (2026-07-17) | File | Note |
+|---|---|---|---|---|
+| 723 | 68 | 127 | `pipeline/runner.js` | still a pure orchestrator (publish stage + gates added) ✅ |
+| 464 | 392 | **934** | `api/routes.js` | regrown under the v3 feature surface — the §5 routes/-by-domain split is the open refactor ⚠ |
+| 452 | 31 | 38 | `db/index.js` | barrel; schema in `connection.js`, migrations in `migrate.js` ✅ |
+| 400 | 400 | 463 | `public/js/views/config.js` | FE, grows with every new config knob (R11 still open) |
+| 382 | 382 | 545 | `providers/llm.js` | legacy script paths + metadata; the default B2 path lives in `content/master-script.js` (~560) |
+| 255 | 157 | 157 | `animation/templates/hyperframe.js` | only the renderer remains; guide moved to `styleguide/` ✅ |
+| 253 | 253 | 454 | `animation/harness.js` | engine (time-warp, fit-text, ambient clock added) — OK |
 
-**Result: 0 backend files >400 lines** (goal achieved). The remaining `public/js/views/config.js` (400, exactly at the threshold) belongs to R11.
+The R10 goal "0 backend files >400 lines" was achieved and has since been traded away
+deliberately in two places (`api/routes.js`, `providers/llm.js`) as v3 features landed faster
+than splits; treat those two as the next refactor candidates, with the P-registry (§7) and
+the named tests as the safety net.
