@@ -3,6 +3,7 @@
 // the 8-item reference-caliber checklist.
 //
 //   node scripts/parity/run.mjs --out DIR [--model ag/...] [--only sid/n,...] [--limit N]
+//        (primary model ONLY — no fallback; failed scenes report as failures)
 //        [--audit-ref]   also DOM-audit the reference HTML pages (threshold calibration)
 //        [--no-llm]      skip our codegen/render (ref frames + ref audit only)
 //        [--aspect 9:16] our side renders vertical (checklist-only; ref stays 16:9)
@@ -63,7 +64,8 @@ const ai = aiFromRepoDb();
 if (!NO_LLM) {
   if (!ai?.llm?.enabled) { console.error('repo data/studio.sqlite has no enabled ai.llm setting'); process.exit(2); }
   if (MODEL) ai.llm = { ...ai.llm, model: MODEL };
-  if (flag('fallback')) ai.llm = { ...ai.llm, modelFallback: flag('fallback') };
+  // no-fallback contract: parity mirrors production — the PRIMARY model only
+  delete ai.llm.modelFallback;
   console.log(`codegen model: ${ai.llm.model} @ ${ai.llm.baseUrl}`);
 }
 
