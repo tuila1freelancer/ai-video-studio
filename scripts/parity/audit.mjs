@@ -72,8 +72,10 @@ const SNAP = `(() => {
         frac:+(area/frameA).toFixed(4), tag:el.tagName,
         key:(el.id||'')+'|'+cls(el).slice(0,30), grp:grp(el) });
     }
-    // hero-cluster candidates: containers holding many visible crafted parts
-    if (area>0.06*frameA && area<0.92*frameA && el.children.length>=2) {
+    // hero-cluster candidates: containers holding many visible crafted parts. Slots get a
+    // lower area floor (2%): a compact instrument inside one slot is still a hero.
+    const isSlot = /hf-slot|hf-center/.test(cls(el));
+    if (area>(isSlot?0.02:0.06)*frameA && area<0.92*frameA && el.children.length>=2) {
       let parts=0;
       for (const d of el.querySelectorAll('*')) {
         const ds=getComputedStyle(d); if(ds.display==='none') continue;
@@ -85,7 +87,7 @@ const SNAP = `(() => {
           ||['PATH','RECT','CIRCLE','LINE','POLYGON','ELLIPSE','IMG'].includes(d.tagName.toUpperCase());
         if (dHasText||dPainted) parts++;
       }
-      if (parts>=3) partsHost.push({ parts, frac:+(area/frameA).toFixed(3) });
+      if (parts>=3) partsHost.push({ parts, frac:+(area/frameA).toFixed(3), x:+r.left.toFixed(0), y:+r.top.toFixed(0), w2:+r.width.toFixed(0), h2:+r.height.toFixed(0) });
     }
   }
   partsHost.sort((a,b)=>b.parts-a.parts);
@@ -139,7 +141,12 @@ export async function auditScene({ page, seek, duration, beats = [], hasBeats = 
   const splitParts = Math.max(...keyTimes.map((t) => {
     const cl = snaps[t].clusters || [];
     if (cl.length < 2) return 0;
-    return Math.min(cl[0].parts + cl[1].parts, Math.round(cl[0].parts * 1.8));
+    const [c0, c1] = cl;
+    // nested-cluster guard: when the runner-up sits INSIDE the leader's box, its parts are
+    // already counted — clamp; genuinely separate panels sum in full.
+    const inside = c1.x >= c0.x - 4 && c1.y >= c0.y - 4
+      && c1.x + c1.w2 <= c0.x + c0.w2 + 8 && c1.y + c1.h2 <= c0.y + c0.h2 + 8;
+    return inside ? c0.parts : c0.parts + c1.parts;
   }));
   const b = { pass: heroParts >= 8 || splitParts >= 10, detail: `maxParts=${heroParts} split=${splitParts}` };
 
