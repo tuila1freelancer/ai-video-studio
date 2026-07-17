@@ -10,6 +10,7 @@ import { generateDirections, hasDirection } from '../direction.js';
 import { imageGenEnabled } from '../../providers/imagegen.js';
 import { planScenes, planScene, resolveBrandKit, animSize } from '../../animation/index.js';
 import { generateSceneSpec } from '../../hyperframe/codegen.js';
+import { heroMediaUri } from '../../util/asset-uri.js';
 import { resolveGuide } from '../../styleguide/index.js';
 import { buildSceneBackground } from '../visuals.js';
 import { withRetry } from '../../util/retry.js';
@@ -77,6 +78,24 @@ export async function runVisuals(ctx) {
       logger.info(`direction pass: ${dirs.size}/${undirected.length} scenes`, { projectId });
     }
     const hookVisual = scenes[0]?.visual_prompt || '';
+    // Image-full lane (reference-app parity): resolve each scene's master-assigned asset
+    // names against config.assets [{name, path, type}] → hero-sized data URIs. Resolution
+    // failures simply drop the asset (the scene designs media-free).
+    const assetByName = new Map((Array.isArray(config.assets) ? config.assets : [])
+      .filter((a) => a?.name && a?.path).map((a) => [String(a.name).toLowerCase(), a]));
+    const mediaFor = (sc) => {
+      if (config.hyperframe?.imageFull === false) return null;
+      if (!assetByName.size || !Array.isArray(sc.assets) || !sc.assets.length) return null;
+      const out = [];
+      for (const name of sc.assets) {
+        const a = assetByName.get(String(name || '').toLowerCase());
+        if (!a) continue;
+        const uri = heroMediaUri(a.path);
+        if (uri) out.push({ name: a.name, uri });
+      }
+      return out.length ? out : null;
+    };
+    const hfConsistent = config.hyperframe?.consistent === true;
     // Concurrency 2: each codegen now also renders (renderValidate) on the shared headless
     // browser — 2 keeps throughput up without thrashing Chrome with too many parallel pages.
     // Scene-gate freeze: once the owner approved the storyboard, EVERY scene that carries a
@@ -96,6 +115,7 @@ export async function runVisuals(ctx) {
           scene: sc, guide, w: hfSize.w, h: hfSize.h, idx: sc.idx, total: totalHf, ai: hfAi,
           density: config.hyperframe?.density, creativeDirection: config.hyperframe?.direction, captionsOn: config.enableSubtitles !== false,
           hookVisual: sc.idx > 0 ? hookVisual : '',
+          consistent: hfConsistent, imageFullAssets: mediaFor(sc),
           onLog: (m) => logger.warn(m, { projectId }),
         });
         // clear any stale clip: on resume a scene that just got FRESH visuals must re-render.
@@ -120,6 +140,7 @@ export async function runVisuals(ctx) {
               ai: { ...hfAi, llm: { ...hfAi.llm, model: fbModel } },
               density: config.hyperframe?.density, creativeDirection: config.hyperframe?.direction, captionsOn: config.enableSubtitles !== false,
               hookVisual: sc.idx > 0 ? hookVisual : '', maxAttempts: 2,
+              consistent: hfConsistent, imageFullAssets: mediaFor(sc),
               onLog: (m) => logger.warn(m, { projectId }),
             });
           } catch (e2) { logger.warn(`hyperframe scene ${sc.idx}: fallback-model retry failed: ${e2.message}`, { projectId }); }

@@ -39,6 +39,7 @@ export async function runScript(ctx) {
       () => (useMaster
         ? generateMasterScenes({
           input: project.topic, source: fetched, config, ai, memory, guide: resolveGuide(config),
+          assets: Array.isArray(config.assets) ? config.assets : [],
           onLog: (m) => logger.info(m, { projectId }),
         })
         : generateScript({ topic: project.topic, inputType: project.input_type, fetched, config, ai, memory })),

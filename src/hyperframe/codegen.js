@@ -73,15 +73,48 @@ function syntaxCheck(spec, guide, { w, h, duration }) {
   new Function('gsap', 'tl', 'S', 'rng', tpl.script); // throws SyntaxError on bad JS
 }
 
+// Reference-app mode blocks (its #33 / #68), adapted to our guide-locked stage.
+export function consistentScenesBlock(guide) {
+  return `CONSISTENT SCENES MODE (hard):
+- Scene surfaces stay on the guide background ${guide.palette.bg} (panels may use ${guide.palette.bg2}) — never invent another backdrop tone.
+- The PRIMARY headline/hero text of every scene uses the FIRST accent ${guide.palette.accents[0]} (or ink ${guide.palette.ink}); supporting text stays ink/muted.
+- No new colors beyond the locked palette. Every scene of this video must share the same background and primary text color.`;
+}
+// Post-lint media substitution: {{asset:NAME}} placeholders (image-full lane) become the
+// resolved data URIs; unresolved placeholders are stripped (and an <img> whose src stayed
+// unresolved is removed entirely) so a hallucinated asset name can never 404 the render.
+export function applyAssetMedia(spec, assets = []) {
+  let html = String(spec.html || '');
+  for (const a of assets) {
+    if (!a?.name || !a?.uri) continue;
+    const re = new RegExp(`\\{\\{\\s*asset\\s*:\\s*${a.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\}\\}`, 'gi');
+    html = html.replace(re, a.uri);
+  }
+  html = html.replace(/<img\b[^>]*\{\{\s*asset\s*:[^}]*\}\}[^>]*>/gi, '').replace(/\{\{\s*asset\s*:[^}]*\}\}/gi, '');
+  spec.html = html;
+}
+
+export function imageFullBlock(assetNames) {
+  return `IMAGE FULL MODE (this scene carries project media: ${assetNames.join(', ')}):
+- Place the FIRST listed media as the CENTER HERO covering ~75% of the frame: <img class="hf-media" src="{{asset:${assetNames[0]}}}"> inside a slot; object-fit:cover; rounded corners (~12px); soft box-shadow (0 20px 60px rgba(0,0,0,.6)).
+- Entrance: scale 0.9→1 + fade (power2.out, ~0.6s) at its beat; during hold give it a slow Ken Burns (scale 1→1.05 across the scene, ease:'none').
+- Text/keywords overlay ON TOP of the media with strong text-shadow; keep them near the edges of the media, never covering its center.
+- The stage stays dark behind it; do NOT stretch the media full-bleed and do NOT make it a tiny thumbnail.`;
+}
+
 /**
  * Generate one scene's hyperframe props. Returns { props, beats, direction, warnings }.
  * Throws after all attempts fail (caller decides the fallback).
  */
-export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, onLog = () => {}, renderCheck = true, maxAttempts = 4, density, creativeDirection, hookVisual = '', captionsOn = true }) {
+export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, onLog = () => {}, renderCheck = true, maxAttempts = 4, density, creativeDirection, hookVisual = '', captionsOn = true, consistent = false, imageFullAssets = null }) {
   const duration = Math.max(1.5, scene.duration || 6);
   const beats = extractBeats(scene.srt_json, scene.keywords, duration);
   const direction = cinematicDirection(scene, idx, total);
-  const messages = buildCodegenPrompt({ scene, beats, direction, guide, w, h, duration, idx, total, density, creativeDirection, hookVisual, captionsOn });
+  const modeBlocks = [];
+  if (consistent) modeBlocks.push(consistentScenesBlock(guide));
+  const media = (Array.isArray(imageFullAssets) ? imageFullAssets : []).filter((a) => a?.name && a?.uri);
+  if (media.length) modeBlocks.push(imageFullBlock(media.map((a) => a.name)));
+  const messages = buildCodegenPrompt({ scene, beats, direction, guide, w, h, duration, idx, total, density, creativeDirection, hookVisual, captionsOn, modeBlocks });
 
   let lastErrors = null, lastGood = null;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -95,6 +128,15 @@ export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, on
       continue;
     }
     const clean = parseSpec(raw);
+    // Debug tap (env AVS_CODEGEN_DUMP=dir): persist every raw attempt for post-mortems —
+    // failed attempts are otherwise lost, which makes model-behavior bugs unreproducible.
+    if (process.env.AVS_CODEGEN_DUMP) {
+      try {
+        const { writeFileSync, mkdirSync } = await import('node:fs');
+        mkdirSync(process.env.AVS_CODEGEN_DUMP, { recursive: true });
+        writeFileSync(`${process.env.AVS_CODEGEN_DUMP}/scene${idx + 1}_attempt${attempt}.txt`, String(raw || ''));
+      } catch { /* debug tap must never break codegen */ }
+    }
     if (!clean) {
       // Unparseable reply must NOT kill the scene — cost it one attempt and re-instruct the format.
       lastErrors = ['reply did not match the required format'];
@@ -109,6 +151,9 @@ export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, on
       try { syntaxCheck(clean, guide, { w, h, duration }); }
       catch (e) { errors.push(`script has a syntax error: ${e.message}`); }
     }
+    // image-full media lands AFTER lint (placeholders are lint-invisible) and BEFORE the
+    // render check, so validation sees the actual inlined hero media.
+    if (!errors.length && media.length) applyAssetMedia(clean, media);
     // dynamic: actually render and check runtime + geometry invariants (only if static passed).
     let renderDefects = [];
     if (!errors.length && renderCheck) {

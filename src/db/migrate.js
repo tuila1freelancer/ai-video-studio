@@ -54,6 +54,17 @@ const MIGRATIONS = [
       if (!pcols.includes('scenes_approved_at')) db.exec('ALTER TABLE projects ADD COLUMN scenes_approved_at INTEGER');
     },
   },
+  {
+    id: 4,
+    name: 'scene-assets',
+    // Per-scene project-asset assignment (reference-app image-full parity): the master
+    // engine assigns uploaded assets to the 1–2 scenes each fits; the names persist here
+    // (JSON array) so codegen/image-full can resolve them against config.assets.
+    up(db) {
+      const scols = db.prepare('PRAGMA table_info(scenes)').all().map((c) => c.name);
+      if (!scols.includes('assets')) db.exec('ALTER TABLE scenes ADD COLUMN assets TEXT');
+    },
+  },
 ];
 
 function backupBefore(db) {

@@ -162,7 +162,7 @@ test('P18: master scenes JSON contract — no META_LEAK persisted, canonical exp
   assert.match(rep, /filter\(\(sc\) => !dropStt\.has\(sc\.stt\)\)/, 'dropped scenes never survive');
   // the canonical export carries ONLY the factory fields (stt/voice/visual/assets + thumbnail)
   const exp = eng.slice(eng.indexOf('export function scenesJsonFromRows'), eng.indexOf('// ----', eng.indexOf('export function scenesJsonFromRows')));
-  for (const field of ['stt: i + 1', 'voice: String(r.voice_text', 'visual: String(r.visual_prompt', 'assets: []']) {
+  for (const field of ['stt: i + 1', 'voice: String(r.voice_text', 'visual: String(r.visual_prompt', 'assets: Array.isArray(r.assets) ? r.assets : []']) {
     assert.ok(exp.includes(field), `canonical export pins field: ${field}`);
   }
   assert.ok(!/duration/.test(exp), 'no duration field in the canonical export');
