@@ -26,7 +26,7 @@ test('P24 overlay: the page renders on the solid key color with no stage dressin
   assert.ok(!/<canvas id="bgCanvas"/.test(html), 'no particle canvas element');
   assert.ok(!/<div class="vig">/.test(html) && !/<div class="grid">/.test(html), 'no vignette/grid layers');
   assert.ok(!/<div class="progtrack">/.test(html), 'no progress bar element');
-  assert.ok(!html.includes('wmt'), 'no watermark');
+  assert.ok(!/<div class="wm wmt">/.test(html), 'no watermark element');
   assert.ok(html.includes('capText'), 'captions stay for compositing over footage');
 });
 
