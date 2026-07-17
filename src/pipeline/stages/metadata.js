@@ -12,7 +12,9 @@ export async function runMetadata(ctx) {
   const { projectId, config, ai } = ctx;
   try {
     op(projectId, '📊 Tạo metadata…');
-    const md = await withRetry(() => generateMetadata(DB.getProject(projectId), null, { ai }),
+    // config.metadataPrompt (channel/preset/request layered) = owner-defined SEO style
+    // prompt prefix — the reference app's "metadata styles" as one config knob.
+    const md = await withRetry(() => generateMetadata(DB.getProject(projectId), config?.metadataPrompt || null, { ai }),
       { tries: 2, label: 'metadata', fatal: notStopped });
     // YouTube chapters from scene offsets (≤ 14 markers, first at 00:00)
     const scs = DB.getScenes(projectId);
