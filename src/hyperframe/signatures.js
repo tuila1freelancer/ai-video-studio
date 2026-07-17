@@ -47,22 +47,50 @@ export const SIGNATURES = {
     hero: 'a node graph / drawn chart / scanning-frame construction with live internal parts',
     avoid: 'boxy static cards, heavy serif type, dead motionless backgrounds',
   },
+  'deconstructed-industrial': {
+    name: 'DECONSTRUCTED INDUSTRIAL',
+    feel: 'raw, intentional irregularity — pieces escape their frames',
+    ease: 'back.out(2) arrivals, steps() accents — one deliberate overshoot allowed',
+    type: 'bold industrial weight, slight angles, elements breaking their card edges',
+    hero: 'an exploded construction — a card whose parts sit deliberately offset, connected by hairlines',
+    avoid: 'perfect symmetry, soft dissolves, polished gloss everywhere',
+  },
+  'folk-pulse': {
+    name: 'FOLK PULSE',
+    feel: 'vivid, rhythmic, handcrafted — pattern and repetition',
+    ease: 'back.out(1.6) with intentional overshoot; motion lands on the beat like percussion',
+    type: 'bold rounded display, repeated motifs, one loud accent colour per reveal',
+    hero: 'a patterned cluster — repeated chips/tiles/dots forming a rhythm, one element per beat joining the pattern',
+    avoid: 'corporate restraint, monochrome, static grids',
+  },
+  'soft-focus': {
+    name: 'SOFT FOCUS',
+    feel: 'intimate, warm, breathing — everything glides and glows gently',
+    ease: 'sine.inOut / power1.inOut — long, weightless settles, nothing snaps',
+    type: 'lighter weight display, generous spacing, lowercase allowed for the supporting line',
+    hero: 'one softly-lit object (an orb, a card under a warm spotlight) with gentle depth-of-field around it',
+    avoid: 'hard flashes, aggressive zooms, dense HUD clutter',
+  },
 };
 
 /**
- * Pick the motion signature for a scene from its cinematic direction.
- * Deterministic — same direction always yields the same signature.
+ * Pick the motion signature for a scene from its cinematic direction (+ scene index).
+ * Deterministic — same direction + idx always yields the same signature. The idx term
+ * rotates the mid-energy scenes through several personalities so a long video's calm
+ * stretch never wears one look for many scenes in a row (reference-app 8-mood parity).
  * @param {{energy?:string, mood?:string, isHook?:boolean, isClimax?:boolean}} direction
+ * @param {number} [idx] scene index (0-based); omitted → legacy fixed mapping
  */
-export function motionSignature(direction = {}) {
+export function motionSignature(direction = {}, idx = 0) {
   const { energy, mood, isHook, isClimax } = direction;
+  const i = Number.isFinite(+idx) ? Math.max(0, idx | 0) : 0;
   if (isHook) return SIGNATURES['maximalist-impact'];                              // open at max power
   if (isClimax) return energy === 'high' ? SIGNATURES['maximalist-impact'] : SIGNATURES['shadow-cut'];
-  if (energy === 'high') return SIGNATURES['maximalist-impact'];
+  if (energy === 'high') return SIGNATURES[['maximalist-impact', 'deconstructed-industrial'][i % 2]];
   if (energy === 'dramatic') return SIGNATURES['shadow-cut'];
-  if (energy === 'low') return SIGNATURES['swiss-precision'];
+  if (energy === 'low') return SIGNATURES[['swiss-precision', 'soft-focus', 'swiss-precision', 'folk-pulse'][i % 4]];
   if (mood === 'cinematic') return SIGNATURES['velvet-glide'];
-  return SIGNATURES['data-drift'];                                                 // steady/other → living HUD
+  return SIGNATURES[['data-drift', 'velvet-glide', 'data-drift', 'folk-pulse'][i % 4]];   // steady → rotate living looks
 }
 
 /** Render the signature as a compact prompt block. */

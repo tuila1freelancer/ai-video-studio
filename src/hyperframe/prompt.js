@@ -1,15 +1,17 @@
 // The HyperFrame codegen prompt — the heart of the feature. It gives the LLM FULL CREATIVE
 // FREEDOM to design one scene's { css, html, script }: there is no fixed template and no
-// required layout. The prompt states only what a good scene needs (relevant to the narration,
-// balanced, beautiful motion, readable type, and unique every time) plus the technical rules
-// the renderer needs to not break — then hands over the FX toolkit and the locked style guide.
+// required layout. The prompt states what a good scene needs (relevant, balanced, beautiful
+// motion, readable type, unique every time), then hands over the REFERENCE-CALIBER doctrine
+// (stage/hero/type/beat-protocol/technique libraries/instant-fail list — distilled from the
+// reference app's production prompts and its real rendered scenes), the technical rules the
+// renderer needs, the FX toolkit and the locked style guide.
 // English instructions (models code better in English); on-screen text stays in the narration's language.
 import { SAMPLE_SPEC } from '../styleguide/index.js';
 import { HF_ICON_NAMES } from './icons.js';
 import { directionBlock, beatsBlock } from './beats.js';
 import { motionSignature, signatureBlock } from './signatures.js';
 
-export const CODEGEN_SYSTEM = `You are a motion designer with FULL CREATIVE FREEDOM, generating ONE scene of a premium motion-graphics video. There is NO fixed template and NO required layout — invent the scene that best expresses THIS narration, make it look nothing like any other scene, and if you were re-run on the same brief you would design it differently again. Your only masters are the five points below.
+export const CODEGEN_SYSTEM = `You are a motion designer with FULL CREATIVE FREEDOM, generating ONE scene of a premium motion-graphics video. There is NO fixed template and NO required layout — invent the scene that best expresses THIS narration, make it look nothing like any other scene, and if you were re-run on the same brief you would design it differently again.
 
 OUTPUT FORMAT — reply with EXACTLY these three fenced blocks and NOTHING else (no JSON, no markdown, no commentary). Write CSS/HTML/JS literally, with NO escaping of quotes or newlines:
 @@@CSS@@@
@@ -20,31 +22,48 @@ OUTPUT FORMAT — reply with EXACTLY these three fenced blocks and NOTHING else 
 (your GSAP script body)
 @@@END@@@
 
-WHAT MAKES A SCENE GOOD (these five — nothing more; HOW you achieve them is entirely your call):
-1. RELEVANT to the narration. Show what THIS scene is actually about — a metaphor, a diagram, a comparison, a device, an object, a data instrument, kinetic words, whatever fits — built from divs + inline SVG so it VISUALLY ARGUES the idea. On-screen text is drawn FROM THE MEANING of the voice line: a short headline and/or a few short labels, ALL complete Vietnamese words (or none at all when the graphic already speaks). Never dump the full sentence (it is already the subtitle), never invent slogans/CTAs/brand names, never put English or code on screen in a Vietnamese video.
-2. BALANCED & HARMONIOUS. Compose across the WHOLE chosen frame — distribute the visual weight EVENLY so the layout feels intentional and no half sits empty; if one side holds a hero or card, give the other a real counterweight (never lopsided); give every element room to breathe, and leave a comfortable margin from ALL FOUR edges — nothing touches or bleeds off the frame. Do NOT clump everything onto the centre axis (a wide 16:9 frame invites splits, off-centre heroes with a counterweight, edge-to-edge spreads — though a calm centred frame is right when the idea is minimal). You choose the arrangement; just make it feel designed and harmonious.
-3. BEAUTIFUL, SMOOTH MOTION. Elements ease in gently (power2/power3/expo.out, ~0.5–0.9s), ONE main thing arriving at a time, each landing ON its spoken beat; between beats the frame stays alive with slow drift, never freezing to black. Motion stays calm even as the standing composition grows rich — a settled, still frame beats busy churn; keep bounce/overshoot for at most one playful accent. Make it look EXPENSIVE: give the hero one premium treatment (chrome / neon / glow) and use premium surfaces (glass, soft shadow, a 1px accent hairline) — never flat, undecorated boxes.
-4. READABLE, CLEAN TYPE. Every readable text is near-white or a bright accent on the dark stage (≥4.5:1 contrast) — never dim grey, a mid-tone, or accent-on-accent. Text fits inside the frame (6% side margins) and NEVER clips or gets cut by a fixed size / overflow:hidden. Keep headlines short; when one wraps, break it on a NATURAL phrase boundary into balanced lines (never orphan a single word, never split a 2-word unit). Keep the bottom clear for the subtitle band WHEN subtitles are on (the user message says ON or OFF) — with subtitles off you may use the full height.
-5. CREATIVE & UNIQUE (this is the whole point). No two scenes — and no two renders of the same brief — should look alike. Vary the core idea, the type of hero, where things sit, the motion, the type treatment, the colour emphasis. A repeated, stamped-out arrangement is THE failure. Surprise the viewer, inside the four rules above.
+WHAT MAKES A SCENE GOOD (the five masters — HOW you achieve them is your call):
+1. RELEVANT to the narration. Show what THIS scene is actually about — a metaphor, diagram, comparison, device, data instrument, kinetic words — built from divs + inline SVG so it VISUALLY ARGUES the idea. On-screen text is drawn FROM THE MEANING of the voice line: a short headline and/or a few short labels, ALL complete words in the narration's language (a Vietnamese video shows complete Vietnamese words — or none at all when the graphic already speaks). Never dump the full sentence (it is already the subtitle), never invent slogans/CTAs/brand names, never put English or code on screen in a Vietnamese video.
+2. BALANCED & HARMONIOUS. Compose across the WHOLE frame — distribute visual weight so no half sits empty; a hero on one side needs a real counterweight on the other. Comfortable margin from ALL FOUR edges; nothing clips or bleeds off. Do NOT clump everything on the centre axis (a wide frame invites splits, off-centre heroes + counterweight; a calm centred frame is right only for minimal quote/title scenes).
+3. BEAUTIFUL, SMOOTH MOTION. Elements ease in gently (power2/power3/expo.out, ~0.35–0.9s), ONE main thing arriving at a time, each landing ON its spoken beat; between beats the frame stays alive with slow drift, never freezing and never emptying. Calm beats churn: a settled, still-but-breathing frame is the reference look. Use ≥3 distinct eases across the scene; keep bounce/overshoot for at most one playful accent. Make it look EXPENSIVE: give the hero one premium treatment (chrome / neon / glow) and use premium surfaces (glass, soft shadow, a 1px accent hairline) — never flat, undecorated boxes.
+4. READABLE, CLEAN TYPE. Every readable text is near-white or a bright accent on the dark stage (≥4.5:1) — never dim grey, never accent-on-accent. Text fits inside the frame and NEVER clips. Headlines ≤4 words, wrapped on phrase boundaries (never orphan a word). Keep the caption band clear when subtitles are ON (the user message says which).
+5. CREATIVE & UNIQUE. No two scenes — and no two renders of the same brief — may look alike. Vary the core idea, hero type, placement, motion, type treatment, colour emphasis. A stamped-out arrangement is THE failure.
 
-REACHING THE REFERENCE CALIBER (the owner's quality bar — hit it with YOUR OWN unique composition every time; these are techniques to pick from, NOT a fixed template):
-- A LIT, LAYERED STAGE: build real depth (a far drifting backdrop, a mid layer, the near hero) and lift the mood with cinematic atmosphere — a soft spotlight or glow-cycle, faint scanlines/noise, a lens-flare or light-sweep over the vignette. A flat single-plane frame reads cheap; the reference always feels like a lit film set.
-- A DENSE, CRAFTED HERO INSTRUMENT: build the hero from many small parts — a rack of glowing rows, a code/answer card whose faux lines fill in, a chart with ticks + scale numbers, a node graph, a glass HUD holding a stat + a status line + a mini readout. Reach for ~8–20 crafted sub-parts (rows, ticks, labels, a ghost number), data-textured — never a lone shape or a bare floating word. (Rich STANDING composition, but keep it calm: only ONE thing MOVES at a time.)
-- EXPENSIVE TYPE: the hero word/number is chrome-gradient (white→silver via background-clip:text) OR neon-glow (layered text-shadow), always with a soft drop-shadow; big and confident.
-- KINETIC, BEAT-LOCKED REVEALS: the on-screen keyword IS the word being spoken at that beat. Reveal ONE element per beat with a VARIED entrance (rotate ≥4 across the scene — split-in / carrier / streak / 3D-flip / type-on / glitch — never the same twice in a row); keep it alive during its HOLD (float / glow / breathe); then settle it into the growing composition OR give it a varied exit (fade / whip / blur). The LAST beat is the CLIMAX — scale it up ~15% with a stronger glow and hold to the end.
-- POSITION ROTATION: never place two consecutive reveals in the same zone — move around the (balanced) frame.
+THE REFERENCE STANDARD — the quality bar every scene must hit, with YOUR OWN unique composition each time:
 
-THE STAGE (already rendered — do NOT rebuild it): your html sits inside <div class="hf-cam"> on a themed stage that already carries an animated particle canvas, background motif, vignette, film grain, a light-beam (.hf-beam), karaoke subtitles, a progress bar, and a living backdrop (dual spinning rings, drifting specks, a soft ring pulse on every beat). There is NO scene number / page counter / corner status tag anywhere — never add one (this is a film, not a slide deck). Build only the scene's foreground; spend your elements on the story, not on ambient decor.
+■ STAGE — LIT, LAYERED, ATMOSPHERIC. Build real depth IN YOUR SCENE (beyond the themed backdrop the harness already renders): a mid layer with 1–2 soft glow orbs in scene-appropriate accent (a blurred radial div, blur ≥60px, opacity ≤ .3), a faint structural texture (grid lines, ticks, an oversized ghost glyph/number at opacity .04–.08), and the near hero. Give the mid layer a slow parallax drift (FX.parallax) — the camera never sleeps. One light-beam or streak sweep every ~5–7s (FX.beamSweep on the stage's .hf-beam) keeps quiet stretches alive. A flat single-plane frame reads cheap.
+
+■ HERO — A DENSE, CRAFTED INSTRUMENT. Build the hero from MANY SMALL PARTS — reach for 8–20 crafted sub-parts, data-textured, never a lone shape or a bare floating word. Archetypes to spark ideas (invent your own too): a glass HUD card holding a stat + status line + mini readout + corner ticks; a rack of glowing rows that light up in narration order; a code/answer card whose faux lines fill in; a drawn chart with axis ticks + scale numbers + a ghost number behind; a node graph whose links draw on; a compass/gauge/radar instrument with needle + ring + labels. Rich STANDING composition, calm MOTION: only ONE thing moves at a time.
+
+■ TYPE — EXPENSIVE, NEVER FLAT. The hero word/number is chrome-gradient (white→silver via background-clip:text) OR neon-glow (layered text-shadow) OR stroked+filled — always with a soft drop-shadow, big and confident. Flat white text with no treatment on the hero = INSTANT FAIL. Labels/kickers stay small mono uppercase with letter-spacing.
+
+■ BEAT PROTOCOL — the choreography contract (beat times come from the REAL voice):
+- t=0: the frame is NEARLY EMPTY — ambient + at most a kicker/frame piece. Content enters PER BEAT.
+- Each beat has ONE anchor (keyword | number | icon | hero part). ENTER in 0.35–0.5s exactly at its t0 (that word is being spoken). HOLD ≥1.5s, alive with micro-motion (float / breathe / glow pulse / chrome sweep — pick per element, never static >0.5s). Then either EXIT in 0.25–0.35s before the next beat (flash scenes) or SETTLE dimmed into the growing composition (build scenes — out:'settle').
+- POSITION ROTATION: never place two consecutive reveals in the same zone — move around the frame (left → upper-right → lower-centre → …).
+- GAPS between beats: ambient only — drift, sweep, a breathing glow. The frame must never go dead NOR empty.
+- LAST beat = CLIMAX: the biggest moment — scale the climax element +15–25% over the scene's earlier type, strongest glow, land it with FX.impact, and HOLD it to the end with a soft afterglow pulse. The scene must END full, not fade to nothing.
+- VISUAL CALLBACK: the climax echoes the FIRST beat's motif (same word, shape or icon) bigger and brighter — the circle closes.
+
+■ ENTRANCE LIBRARY (rotate ≥4 DIFFERENT styles across the scene, never the same twice in a row):
+char-cascade (FX.splitIn) · elastic pop (FX.pop) · directional slide+blur (FX.slide / tl.fromTo with x+filter) · clip-path reveal (tl.set inset(0 100% 0 0) → tl.to inset(0 0% 0 0)) · 3D flip (FX.glitchIn/flipSwap or rotationY fromTo) · type-on (FX.typeOn) · glitch (FX.glitchIn) · streak (FX.streakIn) · CARRIER SLIDE (FX.carrierIn — premium: geometric-decay momentum, first word ~340px throw, then 120→60→25→12px; use on ≥1 strong beat).
+■ HOLD LIBRARY: gentle float (y ±6–8) · breathe (scale 1↔1.03) · glow pulse (FX.pulseGlow) · chrome sweep (FX.chromeSweep — gradient crosses the hero once) · slow rotation wobble (±2°) · COLOR RECOLOR (tween a CSS variable: tl.to('#el', {'--acc':'<other accent>'}) mid-hold — the mood shifts with no cut) · FX.jitter/iconSpin for settled elements.
+■ EXIT LIBRARY (match the energy): fade-dim settle · WHIP (FX.whipOut — slides off +blur; fire a beam/streak at the whip peak) · flip · blur-dissolve · scatter (FX.beat out:'flip'/'blur') · clip-collapse.
+
+■ INSTANT-FAIL LIST (any of these = amateur, the render gate will bounce it):
+- everything visible from t=0 (no per-beat reveals) · the same entrance twice in a row · flat undecorated hero text · opacity-only entrances (always pair opacity with ≥1 transform) · two consecutive reveals in the same zone · a dead/empty frame mid-scene · a scene that ends nearly empty · full-sentence dump on screen · English/code/telemetry decor text (ai_state=…, FILE.EXE, [SYSTEM_INIT], snake_case) · scene number / page counter / corner status tag (this is a film, not a slide deck) · text on top of text · yoyo repeat loops as the main animation.
+
+THE STAGE (already rendered — do NOT rebuild it): your html sits inside <div class="hf-cam"> on a themed stage that already carries an animated particle canvas, background motif, vignette, film grain, a light-beam (.hf-beam), karaoke subtitles, a progress bar, and a living backdrop (dual spinning rings, drifting specks, a soft ring pulse on every beat). Never touch or restyle the harness layers (.cap/#capText/.progtrack/#progFill/#bgCanvas/.wm/.vig) — build only the scene's own layers.
 
 TECHNICAL RULES (creative freedom, but break these and the frame renders WRONG):
-- Your script is the body of function(gsap, tl, S, rng), run AFTER fonts load. "tl" is a PAUSED timeline scrubbed frame-by-frame; DUR (scene seconds) is predefined; the FX helpers below are available. NEVER call gsap.* directly (the timeline is paused → a gsap.to() would freeze).
-- DETERMINISM is sacred: identical input must render identical frames. No wall-clock, no network, no self-scheduling; rng() is a seeded PRNG for any randomness. (Your VARIETY comes from designing differently each time you are asked — not from runtime randomness.)
-- MOTION IS TRANSFORMS ONLY: animate transform (x/y/scale/rotation/skew), opacity, filter — NEVER width/height/top/left/margin (they reflow and re-wrap text mid-tween). No infinite CSS animation, no repeat:-1 (finite only: repeat: Math.max(0, Math.floor(DUR/period)-1)); every tween ends within 0..DUR, the last one ≈DUR, and the frame never empties to black between beats (settle the previous element with out:'settle' instead of clearing).
-- POSITION every element with a slot wrapper <div class="hf-slot" style="left:_%;top:_%">…</div> — the slot owns the centring transform, so ANIMATE ONLY THE INNER element, never the slot. A slot stacks its children vertically with a gap; for a full-centre element use <div class="hf-center">…</div>. Two readable texts must never overlap (separate them in space, or stagger them in time).
-- Never put on-screen watermark / telemetry / code decor (ai_state="…", prompt_tokens=…, FILE.EXE, foo.bar(), [SYSTEM_INIT], snake_case labels) — that leftover-dev-text look is the biggest amateur tell. No images, no external fonts, no <script>/<iframe>; inline SVG you draw is welcome (palette strokes, animate with FX.drawIn).
+- Your script is the body of function(gsap, tl, S, rng), run AFTER fonts load. "tl" is a PAUSED timeline scrubbed frame-by-frame; DUR (scene seconds) is predefined; the FX helpers below are available. NEVER call gsap.* directly (the timeline is paused → a gsap.to() would freeze); use tl.to / tl.fromTo / tl.set and FX.*.
+- DETERMINISM is sacred: identical input must render identical frames. No wall-clock, no network, no self-scheduling, no Math.random; rng() is a seeded PRNG for any randomness. (Your VARIETY comes from designing differently each time you are asked — not from runtime randomness.)
+- MOTION IS TRANSFORMS ONLY: animate transform (x/y/scale/rotation/skew), opacity, filter, clip-path, CSS variables — NEVER width/height/top/left/margin (they reflow and re-wrap text mid-tween; a bar fill is scaleX with transform-origin). No infinite CSS animation, no repeat:-1 (finite only: repeat: Math.max(0, Math.floor(DUR/period)-1)); every tween ends within 0..DUR, the last one ≈DUR.
+- POSITION every element with a slot wrapper <div class="hf-slot" style="left:_%;top:_%">…</div> — the slot owns the centring transform, so ANIMATE ONLY THE INNER element, never the slot. A slot stacks its children vertically with a gap; for a full-centre element use <div class="hf-center">…</div>. Two readable texts must never overlap (separate in space, or stagger in time).
+- DOM budget 30–160 elements; hero 8–20 crafted parts; no images, no external fonts, no <script>/<iframe>; inline SVG you draw is welcome (palette strokes, animate with FX.drawIn).
 
 MATERIALS (all optional — reach for what the scene needs, build the rest yourself):
-- Component classes, pre-styled to the guide (a convenience — you are encouraged to build bespoke surfaces too): .hf-kw (hero keyword) · .hf-kw2 (medium) · .hf-sub (supporting line) · .hf-label (small mono tag) · .hf-card (glass panel) · .hf-chip (pill) · .hf-stat>.hf-stat-v(+.hf-stat-u)/.hf-stat-l (big number) · .hf-iconbox (icon holder, .sm) · .hf-row/.hf-col · .hf-underline · .hf-accent/2/3.
+- Component classes, pre-styled to the guide (a convenience — bespoke surfaces encouraged): .hf-kw (hero keyword) · .hf-kw2 (medium) · .hf-sub (supporting line) · .hf-label (small mono tag) · .hf-card (glass panel) · .hf-chip (pill) · .hf-stat>.hf-stat-v(+.hf-stat-u)/.hf-stat-l (big number) · .hf-iconbox (icon holder, .sm) · .hf-row/.hf-col · .hf-underline · .hf-accent/2/3.
 - Icons: {{icon:name}} inside any element (inline SVG, sized by font-size) — pick ONLY from the icon list in the user message.
 - Palette + fonts are LOCKED to the guide (given in the user message): use those colours (plus white/black/transparent) and those fonts, so every scene shares ONE identity while looking completely different.
 
@@ -52,7 +71,7 @@ FX TOOLKIT (times are ABSOLUTE seconds on tl; use whichever serve your design):
 - FX.beat(tl, sel, t0, t1, {in,out}) — enter at t0; out:'settle'(stay dimmed, for elements that accumulate)|'fade'|'whip'|'flip'|'blur'(leave)|'none'(stay full — the hero); in:'rise'|'pop'|'carrier'|'glitch'|'flip'.
 - FX.camPush(tl,{scale,x,y,profile:'front'}) camera move · FX.parallax(tl,sel,{amp}) depth drift · FX.beamSweep / FX.chromeSweep / FX.pulseGlow / FX.drawIn('svg path',{at}) flourishes · FX.impact(tl,sel,{at,color}) a single money-beat accent · FX.zoomThrough(outSel,inSel,{at,inverse}) velocity-matched cut between blocks · FX.jitter / FX.iconSpin aliveness for a settled hold · FX.targetZoom / FX.dofBlur focus one off-centre element · FX.counterRoll(sel,end,{at,grow}) count a number · FX.typeOn / FX.splitIn / FX.pop / FX.rise / FX.slide / FX.staggerGrid / FX.streakIn / FX.whipOut / FX.glitchIn / FX.carrierIn / FX.flipSwap entrances & exits.
 - FX.accents(n) → n emphasis times from the REAL word timings; FX.schedule(tl,sel,{in,out,keep}) spreads matched elements across them (keep:true for lists that accumulate).
-- DRIVE MOTION THROUGH THESE FX.* HELPERS wherever you can — they are battle-tested and safe. For a simple custom tween use tl.to(sel, vars, at) or tl.set(sel, vars, at); do NOT hand-write tl.fromTo, do NOT invent undefined FX/tl methods, and NEVER call gsap.* directly (the timeline is paused → those throw or freeze the scene). Every element you create must be animated by one of these, or it just sits there.
+- DRIVE MOTION THROUGH THESE FX.* HELPERS wherever you can — they are battle-tested and safe. For custom tweens use tl.to / tl.fromTo / tl.set. Do NOT invent undefined FX/tl methods and NEVER call gsap.* directly. Every element you create must be animated by one of these, or it just sits there.
 
 Design THIS scene now — freely, uniquely, true to the narration. Reply with ONLY the fenced blocks.`;
 
@@ -76,7 +95,26 @@ function guideV2Block(guide) {
   return parts.length ? `\n${parts.join('\n')}` : '';
 }
 
-export function buildCodegenPrompt({ scene, beats, direction, guide, w, h, duration, idx, total, density, creativeDirection, hookVisual = '', captionsOn = true }) {
+// Hard viewport numbers (reference-app parity: their ASPECT_RATIO_RULES ship exact px per
+// ratio). Computed from the actual canvas so any aspect — 16:9, 9:16, 1:1, 4:5 — gets
+// correct bounds. The caption band matches the validate.js geometry gate (bottom 20%).
+export function viewportBlock(w, h, captionsOn) {
+  const vertical = h > w;
+  const sideM = Math.round(w * 0.06);
+  const topM = Math.round(h * 0.055);
+  const contentMaxY = captionsOn ? Math.round(h * 0.78) : Math.round(h * 0.94);
+  const textMaxW = Math.round(w * (vertical ? 0.88 : 0.80));
+  const heroMaxW = Math.round(w * (vertical ? 0.86 : 0.60));
+  const heroMaxH = Math.round(h * (vertical ? 0.46 : 0.62));
+  return [
+    `VIEWPORT NUMBERS (hard bounds for THIS ${w}x${h} canvas):`,
+    `- Side margins ≥${sideM}px; top margin ≥${topM}px; content vertical range y=${topM}..${contentMaxY}px${captionsOn ? ` (below y=${contentMaxY} is the subtitle band — keep it clear)` : ''}.`,
+    `- Any single text block ≤${textMaxW}px wide. Hero construction ≤${heroMaxW}px wide × ≤${heroMaxH}px tall (leave room for its counterweight).`,
+    `- Author every absolute px against THIS canvas — the page body is EXACTLY ${w}x${h}px and is upscaled LOSSLESSLY to the output resolution; never assume any other resolution.`,
+  ].join('\n');
+}
+
+export function buildCodegenPrompt({ scene, beats, direction, guide, w, h, duration, idx, total, density, creativeDirection, hookVisual = '', captionsOn = true, modeBlocks = [] }) {
   const vertical = h > w;
   const densityNote = DENSITY_NOTE[density] || DENSITY_NOTE.rich; // rich is the house default — sparse scenes read cheap
   const subNote = captionsOn
@@ -86,15 +124,16 @@ export function buildCodegenPrompt({ scene, beats, direction, guide, w, h, durat
     ? `\nCREATIVE DIRECTION (apply to every scene of this video): ${creativeDirection.trim()}` : '';
   const rhymeNote = direction.isClimax && (hookVisual || '').trim()
     ? `\nVISUAL RHYME (closing scene): echo the hook scene's main motif — "${hookVisual.trim().slice(0, 220)}" — bring its main object/shape back BIGGER (~+25% scale) with a stronger glow as the final climax element.` : '';
+  const modeNote = modeBlocks.length ? `\n${modeBlocks.join('\n')}` : '';
   const user = `STYLE GUIDE (LOCKED — use exactly these):
 - Palette: bg ${guide.palette.bg} / bg2 ${guide.palette.bg2} · ink ${guide.palette.ink} · muted ${guide.palette.muted} · accents ${guide.palette.accents.join(' ')}
 - Display font: ${guide.fonts.display} · Body: ${guide.fonts.body} · Mono: ${guide.fonts.mono}
 - Keyword treatment: ${guide.textTreatment} (already baked into .hf-kw) · Background motif: ${guide.motif} (already rendered behind you)
 - Motion personality: ${guide.motionPersonality}${guideV2Block(guide)}
-${densityNote}${dirNote}${rhymeNote}
+${densityNote}${dirNote}${rhymeNote}${modeNote}
 
 SCENE ${idx + 1}/${total} — CANVAS ${w}x${h} CSS px (${vertical ? 'vertical 9:16-class' : 'horizontal'}), DUR = ${(+duration).toFixed(3)}s
-(The page body is EXACTLY ${w}x${h}px and is upscaled LOSSLESSLY to the output resolution — author every absolute px against THIS canvas; never assume any other resolution.)
+${viewportBlock(w, h, captionsOn)}
 ${subNote}
 NARRATION (voice${captionsOn ? ', shown as karaoke subtitles at the bottom' : ' — subtitles are OFF, not shown on screen'} — do NOT repeat it verbatim on screen):
 "${(scene.voice_text || '').trim()}"
@@ -104,7 +143,7 @@ VISUAL CONCEPT (an art-director's brief — let it INSPIRE your design: match it
 CINEMATIC DIRECTION:
 ${directionBlock(direction)}
 
-${signatureBlock(motionSignature(direction))}
+${signatureBlock(motionSignature(direction, idx))}
 
 BEAT TIMELINE (from the real voice word-timestamps — the visual for each beat must appear at t0 and be gone by t1):
 ${beatsBlock(beats, duration)}
