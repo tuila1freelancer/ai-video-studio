@@ -259,7 +259,12 @@ const RUNTIME = `
         const tl = gsap.timeline({ paused: true });
         window.__tplScript(gsap, tl, S, mulberry32(4242 + (S.seed|0)));
         window.__tl = tl;
-      } catch(e) { window.__tplErr = String(e && e.message || e); }
+      } catch(e) {
+        // keep a short stack tail: "X is not a function" alone is undebuggable — the stack's
+        // <anonymous>:line:col points into the inline script where the bad call actually is
+        var st = e && e.stack ? String(e.stack).split('\n').slice(0,3).join(' | ').slice(0,300) : '';
+        window.__tplErr = String(e && e.message || e) + (st ? ' @ ' + st : '');
+      }
       try { gsap.globalTimeline.pause(); } catch(e){}
     }
     anims = document.getAnimations ? document.getAnimations({ subtree: true }) : [];
