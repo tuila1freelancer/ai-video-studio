@@ -117,6 +117,17 @@ export function normalizeGuide(g) {
     conceptMap: strList(g.conceptMap, 14),
     hud: { kickers: strList(hud.kickers, 6, 24), statuses: strList(hud.statuses, 10, 32) },
     sceneRules: strList(g.sceneRules, 8),
+    // 7-section parity (optional; reference style guides carry all seven): a px type ladder,
+    // named text-effect presets and ambient notes travel into the codegen prompt verbatim.
+    fontSizes: (() => {
+      const fs = g.fontSizes && typeof g.fontSizes === 'object' ? g.fontSizes : {};
+      const num = (v) => (Number.isFinite(+v) && +v > 8 && +v < 600 ? Math.round(+v) : undefined);
+      const out = {};
+      for (const k of ['hero', 'headline', 'sub', 'label']) { const v = num(fs[k]); if (v) out[k] = v; }
+      return Object.keys(out).length ? out : undefined;
+    })(),
+    effects: strList(g.effects, 8, 160),
+    ambient: strList(g.ambient, 6, 160),
   };
 }
 
