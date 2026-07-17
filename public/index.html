@@ -250,6 +250,9 @@
                 <label class="label" style="margin-top:10px">Model AI riêng cho HyperFrame (tuỳ chọn)</label>
                 <input class="input" id="cfgHfModel" placeholder="để trống = dùng model chung ở AI Setting">
                 <div class="hint">💡 HyperFrame đẹp &amp; ổn định nhất với model mạnh (vd gpt-4o, claude, gemini-pro). Nhập tên model để dùng riêng cho khâu AI dựng cảnh.</div>
+                <label class="label" style="margin-top:10px">Model dự phòng HyperFrame (tuỳ chọn)</label>
+                <input class="input" id="cfgHfModelFb" placeholder="cảnh lỗi sẽ thử model này trước khi rơi về template">
+                <div class="hint">Thang tự cứu: cảnh codegen hỏng được thử lại bằng model dự phòng (1 lần) trước khi dùng template heuristic.</div>
                 <label class="switch-row" style="margin-top:10px"><span class="switch"><input type="checkbox" id="cfgHfConsistent"><span class="sl"></span></span> 🎨 Scene nhất quán (khoá nền + màu chữ chính mọi cảnh)</label>
                 <label class="switch-row"><span class="switch"><input type="checkbox" id="cfgHfImageFull" checked><span class="sl"></span></span> 🖼️ Image-full (asset ảnh của dự án làm hero giữa khung 75% + Ken Burns)</label>
                 <label class="switch-row"><span class="switch"><input type="checkbox" id="cfgOverlay"><span class="sl"></span></span> 🎥 Overlay mode (đồ hoạ trong suốt ghép lên video nền)</label>
