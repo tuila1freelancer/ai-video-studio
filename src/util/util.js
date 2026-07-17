@@ -7,6 +7,14 @@ export function newId(prefix = '') {
   return `${prefix}${t}${r}`;
 }
 
+/** FNV-1a 32-bit string hash — stable, cheap; used to salt per-project randomness (P31). */
+export function hash32(str) {
+  let h = 0x811c9dc5;
+  const s = String(str || '');
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); }
+  return h >>> 0;
+}
+
 export function safeJson(v, fallback) {
   if (v == null) return fallback;
   if (typeof v === 'object') return v;

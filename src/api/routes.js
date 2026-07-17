@@ -232,15 +232,12 @@ export function mountRoutes(app, { version }) {
     const { buildSrt, shiftCues } = await import('../pipeline/srt.js');
     const cfg = p.config || {};
     const scenes = DB.getScenes(p.id);
-    const visualMode = cfg.visualMode || 'animation';
-    const introDur = visualMode === 'image' && cfg.intro !== false ? 2.6 : 0;
-    // clip list mirrors finalize: [intro card?] scenes… (outro comes after all cues)
-    const clipCount = scenes.length + (introDur ? 1 : 0)
-      + (visualMode !== 'image' ? (cfg.outro !== false ? 1 : 0) : (cfg.outro !== false ? 1 : 0));
+    // clip list mirrors finalize: the script's scenes and nothing else (P31 — no cards)
+    const clipCount = scenes.length;
     const TD = 0.5;
     const useXfade = cfg.transitions === true && clipCount > 1 && clipCount <= 24;
-    let acc = introDur; // scene 0 starts after the intro card (if any)
-    let ordinal = introDur ? 1 : 0; // this scene's index in the clip list
+    let acc = 0;
+    let ordinal = 0; // this scene's index in the clip list
     const all = [];
     for (const sc of scenes) {
       const d = Math.max(1.5, sc.duration || (cfg.sceneDuration || 6));

@@ -90,8 +90,6 @@ export function gatherConfig() {
     durationMode: $('#cfgDurMode')?.value === 'auto' ? 'auto' : 'target',
     richAnimation: $('#cfgRich').checked,
     transitions: $('#cfgTrans').checked,
-    intro: $('#cfgIntro').checked,
-    outro: $('#cfgIntro').checked,
     autoBgm: $('#cfgBgmAuto').checked,
     generateMetadata: $('#cfgMeta').checked,
     parallelTTS: $('#cfgPTts').checked,
@@ -140,7 +138,6 @@ export function applyConfig(cfg = {}) {
   if ($('#cfgDurMode')) $('#cfgDurMode').value = cfg.durationMode === 'auto' ? 'auto' : 'target';
   if ('richAnimation' in cfg) $('#cfgRich').checked = cfg.richAnimation !== false;
   if ('transitions' in cfg) $('#cfgTrans').checked = !!cfg.transitions;
-  if ('intro' in cfg) $('#cfgIntro').checked = cfg.intro !== false;
   if ('autoBgm' in cfg) $('#cfgBgmAuto').checked = cfg.autoBgm !== false;
   if ('generateMetadata' in cfg) $('#cfgMeta').checked = cfg.generateMetadata !== false;
   if ($('#cfgSoundDesign')) $('#cfgSoundDesign').checked = cfg.soundDesign !== false;
@@ -408,7 +405,7 @@ export function updateCfgChips() {
   set('audio', `Giọng: ${voice} · ${$('#cfgBgm').value ? `BGM: ${selText('#cfgBgm')}` : ($('#cfgBgmAuto').checked ? 'BGM tự động' : 'không BGM')}`);
   const flags = [
     $('#cfgSceneGate')?.checked && 'Duyệt cảnh trước 🎬', $('#cfgReview')?.checked && 'Duyệt trước ghép',
-    $('#cfgIntro').checked && 'Intro/Outro', $('#cfgTrans').checked && 'Xfade', $('#cfgRich').checked && 'Ảnh AI',
+    $('#cfgTrans').checked && 'Xfade', $('#cfgRich').checked && 'Ảnh AI',
     $('#cfgMeta').checked && 'Metadata', $('#cfgPTts').checked && `TTS ×${$('#cfgTtsC').value}`, $('#cfgPRender').checked && `Render ×${$('#cfgRenderC').value}`,
   ].filter(Boolean).join(' · ');
   set('advanced', `${selText('#cfgStyle') || 'Style mặc định'}${flags ? ' — ' + flags : ''}`);

@@ -108,7 +108,7 @@ export function imageFullBlock(assetNames) {
  * exhausted this THROWS and the failure surfaces loudly — no fallback model, no heuristic
  * template (fallback output sits below the quality bar).
  */
-export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, onLog = () => {}, renderCheck = true, maxAttempts = 10, density, creativeDirection, hookVisual = '', captionsOn = true, consistent = false, imageFullAssets = null, overlay = false }) {
+export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, onLog = () => {}, renderCheck = true, maxAttempts = 10, density, creativeDirection, hookVisual = '', captionsOn = true, consistent = false, imageFullAssets = null, overlay = false, diversitySalt = 0 }) {
   const duration = Math.max(1.5, scene.duration || 6);
   const beats = extractBeats(scene.srt_json, scene.keywords, duration);
   const direction = cinematicDirection(scene, idx, total);
@@ -117,7 +117,7 @@ export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, on
   if (consistent) modeBlocks.push(consistentScenesBlock(guide));
   const media = (Array.isArray(imageFullAssets) ? imageFullAssets : []).filter((a) => a?.name && a?.uri);
   if (media.length) modeBlocks.push(imageFullBlock(media.map((a) => a.name)));
-  const messages = buildCodegenPrompt({ scene, beats, direction, guide, w, h, duration, idx, total, density, creativeDirection, hookVisual, captionsOn, modeBlocks });
+  const messages = buildCodegenPrompt({ scene, beats, direction, guide, w, h, duration, idx, total, density, creativeDirection, hookVisual, captionsOn, modeBlocks, diversitySalt });
 
   let lastErrors = null, lastGood = null;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {

@@ -139,7 +139,7 @@ export function viewportBlock(w, h, captionsOn) {
   ].join('\n');
 }
 
-export function buildCodegenPrompt({ scene, beats, direction, guide, w, h, duration, idx, total, density, creativeDirection, hookVisual = '', captionsOn = true, modeBlocks = [] }) {
+export function buildCodegenPrompt({ scene, beats, direction, guide, w, h, duration, idx, total, density, creativeDirection, hookVisual = '', captionsOn = true, modeBlocks = [], diversitySalt = 0 }) {
   const vertical = h > w;
   const densityNote = DENSITY_NOTE[density] || DENSITY_NOTE.rich; // rich is the house default — sparse scenes read cheap
   const subNote = captionsOn
@@ -168,7 +168,7 @@ VISUAL CONCEPT (an art-director's brief — let it INSPIRE your design: match it
 CINEMATIC DIRECTION:
 ${directionBlock(direction)}
 
-${signatureBlock(motionSignature(direction, idx))}
+${signatureBlock(motionSignature(direction, idx, diversitySalt))}
 
 BEAT TIMELINE (from the real voice word-timestamps — the visual for each beat must appear at t0 and be gone by t1):
 ${beatsBlock(beats, duration)}

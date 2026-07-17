@@ -6,10 +6,10 @@ import { existsSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import * as DB from '../../db/index.js';
 import { logger } from '../../util/log.js';
-import { renderAnimationScene, renderOutroScene } from '../../animation/index.js';
+import { renderAnimationScene } from '../../animation/index.js';
 import { resolveGuide } from '../../styleguide/index.js';
 import { buildThumbnail, buildThumbnailVariants } from '../visuals.js';
-import { concatScenes, renderCard, planTransitions, transitionLoss } from '../render.js';
+import { concatScenes, planTransitions, transitionLoss } from '../render.js';
 import { qcFinalVideo, summarizeVisualTiers } from '../qc.js';
 import { masterAudio } from '../../media/master.js';
 import { makeAmbientBed, probeDuration, makeWhoosh, makeSfxBed, hasDrawtext } from '../../media/ffmpeg.js';
@@ -47,48 +47,23 @@ export async function finalize(projectId, { dir, size, config, _qcAttempt = 0 })
     logger.warn(`finalize: ${missing.length} scenes missing clips (image mode) — concatenating the rest`, { projectId });
   }
   const scenes = DB.getScenes(projectId).filter((s) => s.video_path && existsSync(s.video_path)).sort((a, b) => a.idx - b.idx);
-  let clips = scenes.map((s) => s.video_path);
-  let nIntro = 0, nOutro = 0; // card counts — the transition plan is indexed by CLIP boundary
+  const clips = scenes.map((s) => s.video_path);
   const firstImg = scenes.find((s) => s.image_path && existsSync(s.image_path))?.image_path;
-  const lastImg = [...scenes].reverse().find((s) => s.image_path && existsSync(s.image_path))?.image_path;
-
-  // Intro / outro
   const visualMode = config.visualMode || 'animation';
-  if (visualMode !== 'image') {
-    // intro = scene 0's hero-title template (already narrated); only a short outro is appended
-    if (config.outro !== false) {
-      op(projectId, '🎬 Tạo outro…');
-      const pp = progressPlan(scenes, config);
-      // end-screen cross-promo: surface the channel's most recent finished video.
-      // Duration stays 2.6s — outroDur and QC expectDur (P6) remain in lockstep.
-      let related = null;
-      try {
-        related = DB.listProjects().find((p2) => p2.id !== projectId && p2.channel_id === project.channel_id && p2.status === 'done')?.title || null;
-      } catch { /* optional */ }
-      const o = await renderOutroScene(project, config, { dir: renderDir, progressStart: pp.outroStart, progressTotal: pp.total, duration: 2.6, related });
-      clips = [...clips, o.path];
-      nOutro = 1;
-    }
-  } else {
-    if (config.intro !== false) {
-      op(projectId, '🎬 Tạo intro…');
-      clips = [await renderCard(project.title, 'AI VIDEO STUDIO', { dir: renderDir, size, bgImage: firstImg, duration: 2.6, idx: 'intro' }), ...clips];
-      nIntro = 1;
-    }
-    if (config.outro !== false) {
-      op(projectId, '🎬 Tạo outro…');
-      clips = [...clips, await renderCard('Cảm ơn đã xem ❤', 'Theo dõi để xem thêm', { dir: renderDir, size, bgImage: lastImg, duration: 2.4, idx: 'outro' })];
-      nOutro = 1;
-    }
-  }
+
+  // No synthetic intro/outro cards (P31, owner order 2026-07-18 — reference-app parity):
+  // the video is the SCRIPT's scenes and nothing else. The master script already ends on a
+  // narrated closing-CTA scene whose HTML the codegen LLM designs like every other scene —
+  // exactly how the reference sessions work (their clip count == scene count). The old
+  // hardcoded farewell card made every video end identically.
 
   // Doctrine transition plan (P5): hard cuts by default, role-driven hero transitions.
   // Computed BEFORE the SFX bed and QC so their timelines account for xfade overlaps exactly.
   const transPlan = config.transitions === true && clips.length > 1
-    ? planTransitions({ scenes, clipCount: clips.length, nIntro, nOutro })
+    ? planTransitions({ scenes, clipCount: clips.length, nIntro: 0, nOutro: 0 })
     : null;
-  // cumulative xfade loss BEFORE scene k's clip starts (scene k's clip index = k + nIntro)
-  const lossBeforeScene = (k) => (transPlan ? transitionLoss(transPlan, k + nIntro) : 0);
+  // cumulative xfade loss BEFORE scene k's clip starts (clip index == scene order now)
+  const lossBeforeScene = (k) => (transPlan ? transitionLoss(transPlan, k) : 0);
 
   // Whole-video logo stamp (P26): the ONLY logo lane — burned once at concat in every
   // visual mode (the per-scene smart/always logo lane was removed by owner order).
@@ -220,12 +195,9 @@ export async function finalize(projectId, { dir, size, config, _qcAttempt = 0 })
       mat += s.duration || 0;
       return { idx: s.idx, t0: a, t1: Math.max(a, mat - lossBeforeScene(k + 1)) };
     });
-    // expected FINAL duration = scene material + intro/outro cards − xfade overlaps
-    const outroDur = visualMode !== 'image'
-      ? (config.outro !== false ? 2.6 : 0)
-      : (config.intro !== false ? 2.6 : 0) + (config.outro !== false ? 2.4 : 0);
+    // expected FINAL duration = scene material − xfade overlaps (no synthetic cards, P31)
     const xfadeLoss = transPlan && clips.length <= 24 ? transitionLoss(transPlan) : 0;
-    const qc = await qcFinalVideo(res.path, { expectDur: expectDur + outroDur - xfadeLoss, sceneSpans, tolerancePct: 8, tailAllowance: outroDur });
+    const qc = await qcFinalVideo(res.path, { expectDur: expectDur - xfadeLoss, sceneSpans, tolerancePct: 8, tailAllowance: 0 });
     // Visual quality (G2/G3/G8): fold the per-scene render-validation verdicts B5 persisted
     // into the report, so a "done" run is never silently green over a degraded/unverified scene.
     const vis = summarizeVisualTiers(all);
