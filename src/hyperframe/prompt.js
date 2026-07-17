@@ -87,6 +87,9 @@ function guideV2Block(guide) {
   const parts = [];
   const sem = Object.entries(guide.semantics || {});
   if (sem.length) parts.push(`- SEMANTIC COLORS (fixed meaning — use for anything with this meaning, never decoratively): ${sem.map(([k, v]) => `${k}=${v}`).join(' · ')}`);
+  if (guide.fontSizes) parts.push(`- TYPE LADDER (px on this canvas): ${Object.entries(guide.fontSizes).map(([k, v]) => `${k} ${v}px`).join(' · ')} — hero/headline may flex ±15% to fit.`);
+  if (guide.effects?.length) parts.push(`- TEXT EFFECT PRESETS (the channel's named treatments — pick per beat):\n${guide.effects.map((e) => `  • ${e}`).join('\n')}`);
+  if (guide.ambient?.length) parts.push(`- AMBIENT NOTES:\n${guide.ambient.map((e) => `  • ${e}`).join('\n')}`);
   if (guide.hud?.kickers?.length || guide.hud?.statuses?.length) {
     parts.push(`- HUD LANGUAGE (optional, use SPARINGLY — never a fixed frame stamped on every scene): a small mono uppercase kicker (prefix like ${(guide.hud.kickers || ['//']).join(' or ')}, class .hf-label) may sit near a headline on SOME scenes; skip it on others and vary where it sits. Never a corner status tag or page counter.`);
   }
