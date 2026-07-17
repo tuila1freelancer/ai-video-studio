@@ -28,13 +28,18 @@ const timer = setTimeout(() => fail('timeout'), TIMEOUT_MS);
 await ready;
 log('server at', base);
 
+// AVS_CFG_JSON: extra config merged LAST — lets sandbox drivers exercise any lane
+// (overlay, sound design, consistent scenes…) without editing this file.
+let extraCfg = {};
+try { if (process.env.AVS_CFG_JSON) extraCfg = JSON.parse(process.env.AVS_CFG_JSON); } catch { log('bad AVS_CFG_JSON — ignored'); }
 const { project } = await api('/api/projects', { method: 'POST', body: JSON.stringify({
   topic: TOPIC,
   config: { aspectRatio: process.env.AVS_AR || '9:16', videoDuration: VIDEO_DURATION, sceneDuration: 6, enableSubtitles: true,
     subtitleColor: '#F7B500', subtitleFontSize: 80, richAnimation: true, autoConcat: true, renderMode: 'screenshot',
     visualMode: process.env.AVS_MODE || 'animation', theme: process.env.AVS_THEME || 'neon-tech',
     fps: parseInt(process.env.AVS_FPS || '30', 10), watermarkText: 'ai video studio',
-    parallelTTS: true, ttsConcurrency: 4, renderConcurrency: parseInt(process.env.AVS_RC || '3', 10) },
+    parallelTTS: true, ttsConcurrency: 4, renderConcurrency: parseInt(process.env.AVS_RC || '3', 10),
+    ...extraCfg },
 }) });
 log('project', project.id);
 
