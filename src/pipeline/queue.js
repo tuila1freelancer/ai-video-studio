@@ -2,7 +2,7 @@
 // heavy long-running work (pipeline runs, manual renders) goes through the durable job
 // ledger + scheduler so it survives crashes and shares the global resource governor.
 // settings.queue.durable=false falls back to the original in-memory Map path.
-import { runPipeline, renderOnly, regenOne, brandGenImpl, requestStop } from './runner.js';
+import { runPipeline, renderOnly, regenOne, requestStop } from './runner.js';
 import { submit } from './scheduler.js';
 import { getSetting, cancelQueuedJobs, getProject, getScene } from '../db/index.js';
 import { withRunContext } from '../util/run-context.js';
@@ -39,8 +39,6 @@ export function regenScene(sceneId, what) {
   const projectId = getScene(sceneId)?.project_id;
   return projectId ? attributed(projectId, () => regenOne(sceneId, what)) : regenOne(sceneId, what);
 }
-
-export function brandGen(body, file) { return brandGenImpl(body, file); }
 
 /** Enqueue one batch item (durable path; the scheduler serializes jobs sharing batchId). */
 export function enqueueBatchItem(projectId, batchId) {

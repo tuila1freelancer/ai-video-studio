@@ -25,7 +25,6 @@ import { runPublish } from './stages/publish.js';
 export { requestStop, clearStop };
 export { renderOnly } from './render-only.js';
 export { regenOne } from './regen.js';
-export { brandGenImpl } from './brandgen.js';
 
 export async function runPipeline(projectId, { resume = false, _auto = 0 } = {}) {
   clearStop(projectId);

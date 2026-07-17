@@ -47,7 +47,10 @@ const CORNER_POS = {
 export function resolveBrandKit(config) {
   const bk = config?.brandKit;
   if (!bk || typeof bk !== 'object' || bk.placement === 'off') return null;
-  const logoPath = bk.logo?.assetPath && existsSync(bk.logo.assetPath) ? bk.logo.assetPath : null;
+  // P26: when the final-overlay stamp is on, concat burns the ONE logo over the whole video —
+  // the per-scene layer must not add a second one (badge/stickers still follow their toggles).
+  const finalLogo = bk.finalOverlay?.enabled === true;
+  const logoPath = !finalLogo && bk.logo?.assetPath && existsSync(bk.logo.assetPath) ? bk.logo.assetPath : null;
   const channelName = String(bk.channelName || '').trim();
   if (!logoPath && !channelName) return null;
   return {

@@ -1,5 +1,5 @@
 // Async-local attribution context: which project/channel the current async chain is
-// working for. Entry points (scheduler executor, legacy queue paths, regen, brandgen)
+// working for. Entry points (scheduler executor, legacy queue paths, regen)
 // wrap their run so deep provider calls (llm/tts) can be metered per project without
 // threading ids through every signature.
 import { AsyncLocalStorage } from 'node:async_hooks';

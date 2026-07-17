@@ -39,7 +39,7 @@ Two visual modes run in parallel; this is the crux of the entire architecture:
                                 │
                 ┌───────────────▼────────────────┐
                 │  pipeline/runner.js (127 lines) │  pure orchestrator: stages + WS events +
-                │  → stages/{script,editorial,    │  auto-resume; render-only/regen/brandgen/
+                │  → stages/{script,editorial,    │  auto-resume; render-only/regen/
                 │     budget,visuals,tts,render,  │  repurpose split into their own entries
                 │     finalize,metadata,publish}  │
                 └──┬───────┬───────────┬──────────┘
@@ -79,7 +79,7 @@ Two visual modes run in parallel; this is the crux of the entire architecture:
 Each stage lives in `pipeline/stages/{script,editorial,budget,visuals,tts,render,finalize,metadata,publish}.js`,
 taking `ctx` from `pipeline/context.js`; the stop signal is in `pipeline/stop.js`, WS events +
 progress in `pipeline/progress.js`, helpers in `pipeline/helpers.js`; `renderOnly`/`regenOne`/
-`brandGenImpl`/`repurpose` are their own entries (`pipeline/{render-only,regen,brandgen,repurpose}.js`).
+`repurpose` are their own entries (`pipeline/{render-only,regen,repurpose}.js`); brand-asset generation lives in `api/services/brand-gen.js`.
 The old version carried everything in one file — orchestration, per-stage logic, the retry/
 self-heal policy, metadata generation, brand-gen — which made every fix a whole-file read.
 
@@ -151,7 +151,7 @@ src/
     stages/                 # 1 file/stage: script tts visuals render concat qc metadata
     heal.js                 # retry/self-heal policy (renderHealed, voice-lock, auto-resume)
     progress.js             # progressPlan, step/op/retryHook, chapter helpers
-    render-only.js · regen.js · brandgen.js
+    render-only.js · regen.js
   providers/                # every provider behind one contract; retry/multi-key in EXACTLY 1 place (llm client)
     llm/  tts + voice/*  image(imagegen,imagesearch)  subtitle  fetchlink
   styleguide/               # NEW: shared guide/theme — breaks the animation↔hyperframe loop (§3.2)
@@ -208,7 +208,9 @@ Rationale for each layer:
 | Edit scene by prompt (gated LLM edit + takes) | `api/services/edit-scene.js` · `POST /scenes/:id/edit-html` |
 | Language expansion (12 langs, voice notes, script text rules) | `providers/llm.js` (`LANG_WPS/LANG_NAME`) · `content/master-script.js` (`LANG_VOICE_NOTES`) · `hyperframe/prompt.js` `scriptTextRule` |
 | Visual-parity harness vs the reference app | `scripts/parity/{select,run,audit,blind,lib}.mjs` · `tests/fixtures/parity-manifest.json` · `docs/reference/gap-matrix.md` |
-| Tests + CI | `tests/` (named test per P1–P24) · `.github/workflows/ci.yml` · `npm test` |
+| Final-video logo overlay (WYSIWYG drag/resize, all modes) | `media/logo-overlay.js` · `pipeline/render.js` (concat logo branch) · `pipeline/stages/finalize.js` · `public/js/features/brandkit.js` |
+| Brand Asset page (reference clone: emotions + images/edits ×10 no-fallback + alpha gate) | `api/services/brand-gen.js` · `providers/imagegen.js` `editImage` · `media/ffmpeg.js` `verifyTransparentBg` · `public/js/views/brandgen.js` |
+| Tests + CI | `tests/` (named test per P1–P27) · `.github/workflows/ci.yml` · `npm test` |
 | HyperFrames adoption (doctrine + gates) | `docs/reference/hyperframes-notes.md` (source map) · `hyperframe/lint.js` (static pre-render gate) · `hyperframe/validate.js` (persistence tiering, occlusion, beat adherence) · `animation/templates/_shared.js` (zoomThrough/jitter/targetZoom/dofBlur/streakIn/iconSpin, camPush `profile:'front'`) · `animation/harness.js` `__fitText` · `pipeline/direction.js` (roles + choreography verbs + blueprint layouts) · `pipeline/render.js` `planTransitions` (role-driven cuts/blends; `config.transitions` = smart mode, legacy uniform fade when no roles) · `GET /projects/:id/contact-sheet` |
 
 ## 6. "Want to change X → go to file Y" table (current structure)
@@ -238,6 +240,8 @@ Rationale for each layer:
 | Change overlay-mode rules (key color, zones, composite) | `hyperframe/prompt.js` `overlayBlock` · `hyperframe/{lint,validate}.js` (overlay gates) · `media/ffmpeg.js` `compositeColorkey` |
 | Change SRT-correction / sound-design prompts or clamps | `subtitles/llm-correct.js` · `audio/sound-design.js` |
 | Change the parity checklist / samples | `scripts/parity/audit.mjs` · `tests/fixtures/parity-manifest.json` (rebuild: `scripts/parity/select.mjs`) |
+| Change the final-video logo overlay (geometry/UX) | `media/logo-overlay.js` (`logoRect` — P26 single source of truth) · `public/js/features/brandkit.js` |
+| Change Brand Asset prompts / transparency gate / provider picker | `api/services/brand-gen.js` (P27: prompts verbatim) · `public/js/views/brandgen.js` |
 
 ---
 
@@ -272,6 +276,8 @@ Hard-won fixes proven by real testing. Refactors may **relocate** these, but mus
 | P23 | Edit-by-prompt passes the SAME gates as fresh codegen (normalize → lint → syntax → renderValidate); a violating edit persists NOTHING (spec, clip and takes untouched); a clean edit snapshots a take before and after and clears `video_path` so the clip re-renders | `api/services/edit-scene.js` |
 | P24 | Overlay mode strips every stage dressing from page AND template (particles/grid/vignette/grain/watermark/progress/motif/deco/beat-pulse) so the key color stays clean; captions stay; `backdrop-filter` is a lint ERROR in overlay specs; renderValidate adds the center-coverage gate (solid paint ≤40% of the center window) and drops stage-density checks that contradict overlay; composite = `colorkey key:0.3:0.2` over a footage slice offset by the scene's final-timeline start | `animation/harness.js` · `animation/templates/hyperframe.js` · `hyperframe/{lint,validate}.js` · `media/ffmpeg.js` |
 | P25 | NO-FALLBACK codegen contract (owner order 2026-07-17): HyperFrame codegen uses the PRIMARY model only — `generateSceneSpec` defaults to 10 attempts and THROWS when exhausted; B5 strips `modelFallback` from the codegen `ai`, never swaps in a fallback model or a heuristic template, marks failed scenes `error` and fails the stage with the exact scene list (resume retries only those). P10's render-crash template swap now applies to ANIMATION-mode scenes only — a hyperframe scene retries as-is (immediate + deferred sequential) and, failing that, the run fails loudly | `hyperframe/codegen.js` · `pipeline/stages/visuals.js` · `pipeline/stages/render.js` |
+| P26 | Final-overlay WYSIWYG contract: `logoRect` (center+width FRACTIONS → integer pixels) is the ONLY placement formula — the Brand Kit preview mirrors it in CSS percentages and `concatScenes` passes its literal integers to scale/overlay (no runtime expressions), so preview = render by construction (pinned by a raw-frame pixel probe). When `brandKit.finalOverlay.enabled`, the stamp applies in EVERY visual mode and `resolveBrandKit` suppresses the per-scene logo (badge/stickers untouched) — exactly one logo on screen. Legacy `{size, position}` logo configs keep the old branch | `media/logo-overlay.js` · `pipeline/render.js` · `pipeline/stages/finalize.js` · `animation/branding.js` |
+| P27 | Brand-gen fidelity (owner order 2026-07-17): emotion-list + character-image prompts are byte-verbatim reference-app copies with EXACTLY one edit — the background sentence hardened to mandatory true-alpha transparency; generation runs the settings-selected images/edits provider+model ×10 with NO fallback then fails loudly naming both; every accepted PNG passes `verifyTransparentBg` (alpha pix_fmt + ≥3 clear 8×8 corners) and a failed gate consumes an attempt with the hardening re-ask line; filenames keep the reference scheme `character <name> <emotion>.png`; provider keys mutate server-side only (masked-array round-trip would clobber them) | `api/services/brand-gen.js` · `providers/imagegen.js` (editImage) · `media/ffmpeg.js` (verifyTransparentBg) |
 
 Golden rule when refactoring: if a regex/constant/guard looks "redundant" → grep `docs/` + this table before touching it.
 

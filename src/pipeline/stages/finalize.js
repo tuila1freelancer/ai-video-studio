@@ -13,6 +13,7 @@ import { concatScenes, renderCard, planTransitions, transitionLoss } from '../re
 import { qcFinalVideo, summarizeVisualTiers } from '../qc.js';
 import { masterAudio } from '../../media/master.js';
 import { makeAmbientBed, probeDuration, makeWhoosh, makeSfxBed } from '../../media/ffmpeg.js';
+import { resolveFinalOverlay } from '../../media/logo-overlay.js';
 import { planSoundDesign, usableLibrary } from '../../audio/sound-design.js';
 import { withRetry } from '../../util/retry.js';
 import { step, op, retryHook, progressPlan } from '../progress.js';
@@ -88,9 +89,14 @@ export async function finalize(projectId, { dir, size, config, _qcAttempt = 0 })
   // cumulative xfade loss BEFORE scene k's clip starts (scene k's clip index = k + nIntro)
   const lossBeforeScene = (k) => (transPlan ? transitionLoss(transPlan, k + nIntro) : 0);
 
-  // Image mode: brand-kit logo maps onto the legacy whole-video overlay. Animation/hyperframe
-  // must NOT get this — their brand layer is already composited into every scene page.
-  if (visualMode === 'image' && config.brandKit?.logo?.assetPath && !config.logo?.path) {
+  // Whole-video logo (P26): an enabled brandKit.finalOverlay stamps the channel logo over
+  // the ENTIRE program (scenes + outro + transitions) in every visual mode — resolveBrandKit
+  // drops the per-scene logo when this is on, so exactly one logo is ever on screen.
+  // Without it, image mode keeps the legacy mapping (its scenes have no brand layer at all).
+  const fov = resolveFinalOverlay(config.brandKit?.finalOverlay);
+  if (fov && config.brandKit?.logo?.assetPath && !config.logo?.path) {
+    config.logo = { path: config.brandKit.logo.assetPath, ...fov };
+  } else if (visualMode === 'image' && config.brandKit?.logo?.assetPath && !config.logo?.path) {
     const bl = config.brandKit.logo;
     config.logo = { path: bl.assetPath, size: Math.round((bl.sizePct || 8.5) * 10.8), position: bl.position };
   }
