@@ -21,6 +21,20 @@ export function ffmpegAss(args, opts) {
   return run(PATHS.ffmpegAss || PATHS.ffmpeg, ['-y', '-hide_banner', '-loglevel', 'error', ...args], opts);
 }
 
+// Does the libass-capable binary carry drawtext (freetype)? Homebrew's ffmpeg often does
+// NOT, so the text-watermark lane must both (a) check this and (b) run via ffmpegAss.
+let _hasDrawtext = null;
+export function hasDrawtext() {
+  if (_hasDrawtext !== null) return _hasDrawtext;
+  return (_hasDrawtext = new Promise((resolvePromise) => {
+    const ps = spawn(PATHS.ffmpegAss || PATHS.ffmpeg, ['-hide_banner', '-filters']);
+    let out = '';
+    ps.stdout.on('data', (d) => out += d.toString());
+    ps.on('close', () => resolvePromise(/\bdrawtext\b/.test(out)));
+    ps.on('error', () => resolvePromise(false));
+  }));
+}
+
 export async function probeDuration(file) {
   return new Promise((resolvePromise) => {
     const ps = spawn(PATHS.ffprobe, ['-v', 'error', '-show_entries', 'format=duration', '-of', 'default=nw=1:nk=1', file]);

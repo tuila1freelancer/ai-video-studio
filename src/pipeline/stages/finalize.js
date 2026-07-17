@@ -12,8 +12,9 @@ import { buildThumbnail, buildThumbnailVariants } from '../visuals.js';
 import { concatScenes, renderCard, planTransitions, transitionLoss } from '../render.js';
 import { qcFinalVideo, summarizeVisualTiers } from '../qc.js';
 import { masterAudio } from '../../media/master.js';
-import { makeAmbientBed, probeDuration, makeWhoosh, makeSfxBed } from '../../media/ffmpeg.js';
+import { makeAmbientBed, probeDuration, makeWhoosh, makeSfxBed, hasDrawtext } from '../../media/ffmpeg.js';
 import { resolveFinalOverlay } from '../../media/logo-overlay.js';
+import { resolveWatermark, watermarkFont } from '../../media/watermark.js';
 import { planSoundDesign, usableLibrary } from '../../audio/sound-design.js';
 import { withRetry } from '../../util/retry.js';
 import { step, op, retryHook, progressPlan } from '../progress.js';
@@ -89,16 +90,38 @@ export async function finalize(projectId, { dir, size, config, _qcAttempt = 0 })
   // cumulative xfade loss BEFORE scene k's clip starts (scene k's clip index = k + nIntro)
   const lossBeforeScene = (k) => (transPlan ? transitionLoss(transPlan, k + nIntro) : 0);
 
-  // Whole-video logo (P26): an enabled brandKit.finalOverlay stamps the channel logo over
-  // the ENTIRE program (scenes + outro + transitions) in every visual mode — resolveBrandKit
-  // drops the per-scene logo when this is on, so exactly one logo is ever on screen.
-  // Without it, image mode keeps the legacy mapping (its scenes have no brand layer at all).
+  // Whole-video logo stamp (P26): the ONLY logo lane — burned once at concat in every
+  // visual mode (the per-scene smart/always logo lane was removed by owner order).
+  // Legacy configs saved before the stamp existed (placement smart/always + a logo, no
+  // finalOverlay key) migrate here so nobody's logo silently disappears: the old per-scene
+  // geometry (sizePct = % of min-dim, center position) maps onto the stamp fractions.
   const fov = resolveFinalOverlay(config.brandKit?.finalOverlay);
-  if (fov && config.brandKit?.logo?.assetPath && !config.logo?.path) {
-    config.logo = { path: config.brandKit.logo.assetPath, ...fov };
-  } else if (visualMode === 'image' && config.brandKit?.logo?.assetPath && !config.logo?.path) {
-    const bl = config.brandKit.logo;
-    config.logo = { path: bl.assetPath, size: Math.round((bl.sizePct || 8.5) * 10.8), position: bl.position };
+  const bkLogo = config.brandKit?.logo?.assetPath;
+  if (bkLogo && !config.logo?.path) {
+    if (fov) {
+      config.logo = { path: bkLogo, ...fov };
+    } else if (config.brandKit.finalOverlay === undefined && config.brandKit.placement && config.brandKit.placement !== 'off') {
+      const bl = config.brandKit.logo;
+      const minD = Math.min(size.w, size.h);
+      config.logo = {
+        path: bkLogo,
+        cxPct: bl.position?.xPct ?? 0.92, cyPct: bl.position?.yPct ?? 0.06,
+        wPct: Math.min(0.45, Math.max(0.02, ((bl.sizePct || 8.5) / 100) * (minD / size.w))),
+        opacity: bl.opacity ?? 0.9,
+      };
+    }
+  }
+  // Copyright watermark (P28): slow perimeter drift, logo or channel name, whole program.
+  // Source degrades sensibly (name without a usable font → logo; logo missing → name).
+  const wm = resolveWatermark(config.brandKit?.watermark);
+  if (wm && !config.watermark) {
+    const text = String(config.brandKit?.channelName || '').trim();
+    const font = watermarkFont();
+    const canText = !!(text && font && await hasDrawtext()); // text lane needs freetype
+    if (wm.source === 'logo' && bkLogo) config.watermark = { ...wm, path: bkLogo };
+    else if (canText) config.watermark = { ...wm, text, fontFile: font };
+    else if (bkLogo) config.watermark = { ...wm, path: bkLogo };
+    else logger.warn('watermark bật nhưng không có logo lẫn tên kênh khả dụng — bỏ qua', { projectId });
   }
 
   op(projectId, '✂️ Ghép & mix…');
@@ -162,7 +185,8 @@ export async function finalize(projectId, { dir, size, config, _qcAttempt = 0 })
 
   const res = await withRetry(async () => {
     const r = await concatScenes(clips, project, {
-      dir: renderDir, size, bgmPath, sfxPath, logo: config.logo, bgmVol: sdPlan?.bgmVol,
+      dir: renderDir, size, bgmPath, sfxPath, logo: config.logo, watermark: config.watermark,
+      bgmVol: sdPlan?.bgmVol,
       transitions: transPlan || false, onLog: (s) => logger.debug(s, { projectId }),
     });
     // Output must exist and cover the scene material (10% tolerance + transition losses).

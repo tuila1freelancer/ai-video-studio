@@ -817,8 +817,8 @@
 </div>
 
 <div class="modal-bg" id="brandModal">
-  <div class="modal" style="max-width:760px">
-    <h2>🏷 Brand Kit — <span id="brandChName">kênh</span> <button class="x" data-close>×</button></h2>
+  <div class="modal brand-modal">
+    <h2><span>🏷 Brand Kit — <span id="brandChName">kênh</span></span> <button class="x" data-close>×</button></h2>
     <div class="brand-editor">
       <div class="brand-stage-wrap">
         <div class="brand-stage" id="brandStage">
@@ -826,40 +826,62 @@
           <div class="bst-guide h" id="bstGuideH"></div>
           <div class="bst-ghost bst-logo hidden" id="bstLogo" title="Kéo để đặt vị trí logo — lăn chuột / kéo chấm góc để chỉnh cỡ" tabindex="0"><img id="bstLogoImg" alt=""><div class="bst-rsz" id="bstRsz" title="Kéo để chỉnh cỡ"></div></div>
           <div class="bst-ghost bst-badge hidden" id="bstBadge" title="Kéo để đặt vị trí tên kênh">TÊN KÊNH</div>
+          <div class="bst-wm hidden" id="bstWm"><img id="bstWmImg" class="hidden" alt=""><span id="bstWmText" class="hidden"></span></div>
           <div class="bst-capband" title="Vùng phụ đề"></div>
         </div>
-        <div class="hint" style="margin-top:6px">Kéo logo / tên kênh trên khung để đặt vị trí. Nền = cảnh thật gần nhất của kênh.</div>
+        <div class="hint" id="bstStageMeta" style="margin-top:6px;font-variant-numeric:tabular-nums"></div>
         <div class="hint" id="bstReadout" style="margin-top:4px;font-variant-numeric:tabular-nums"></div>
+        <div class="hint" style="margin-top:4px">Kéo logo / tên kênh trên khung để đặt vị trí. Nền = cảnh thật gần nhất của kênh.</div>
       </div>
       <div class="brand-form">
+        <div class="bg-sec">Kênh</div>
         <div class="field"><label class="label">Tên kênh (hiện trên video)</label><input class="input" id="brandName" placeholder="vd: TuiLa Dev"></div>
+        <div class="grid2">
+          <div><label class="switch-row" style="margin-top:4px"><span class="switch"><input type="checkbox" id="brandBadgeOn" checked><span class="sl"></span></span> Hiện tên kênh</label></div>
+          <div><select class="input" id="brandBadgeStyle"><option value="plain">Chữ thường</option><option value="pill">Pill (viên nén)</option><option value="underline">Gạch chân neon</option></select></div>
+        </div>
+
+        <div class="bg-sec">Logo — đóng dấu cố định</div>
         <div class="field">
-          <label class="label">Logo</label>
           <div class="row"><input type="file" id="brandLogoFile" accept="image/*" style="flex:1;font-size:12px"><button class="btn sm danger" id="brandLogoClear" title="Bỏ logo">🗑</button></div>
         </div>
-        <div class="grid2">
-          <div><label class="label">Cỡ logo: <strong id="brandLogoSizeL">8.5%</strong></label>
-            <input type="range" class="range" id="brandLogoSize" min="4" max="20" step="0.5" value="8.5"></div>
-          <div><label class="label">Độ mờ: <strong id="brandLogoOpacityL">90%</strong></label>
-            <input type="range" class="range" id="brandLogoOpacity" min="20" max="100" step="5" value="90"></div>
+        <label class="switch-row"><span class="switch"><input type="checkbox" id="stampOn"><span class="sl"></span></span> Đóng dấu logo lên video hoàn chỉnh (bước ghép cuối — đúng 100% vị trí xem trước)</label>
+        <div id="stampOpts">
+          <label class="label" style="margin-top:8px">Vị trí nhanh (sát mép, cách một khoảng nhỏ)</label>
+          <div class="corner-grid" id="stampCorners">
+            <button type="button" data-corner="tl" title="Góc trái trên">◤ Trái trên</button>
+            <button type="button" data-corner="tr" title="Góc phải trên">◥ Phải trên</button>
+            <button type="button" data-corner="bl" title="Góc trái dưới">◣ Trái dưới</button>
+            <button type="button" data-corner="br" title="Góc phải dưới">◢ Phải dưới</button>
+            <button type="button" data-corner="free" title="Kéo thả tự do trên khung">🎯 Tự do</button>
+          </div>
+          <div class="grid2">
+            <div><label class="label">Cỡ logo: <strong id="brandLogoSizeL">8.5%</strong></label>
+              <input type="range" class="range" id="brandLogoSize" min="2" max="40" step="0.5" value="8.5"></div>
+            <div><label class="label">Độ mờ: <strong id="brandLogoOpacityL">90%</strong></label>
+              <input type="range" class="range" id="brandLogoOpacity" min="20" max="100" step="5" value="90"></div>
+          </div>
         </div>
-        <div class="grid2">
-          <div><label class="label">Kiểu logo</label>
-            <select class="input" id="brandLogoStyle"><option value="plain">Thường</option><option value="glass">Glass (nền kính)</option><option value="glow">Glow (phát sáng)</option></select></div>
-          <div><label class="label">Kiểu tên kênh</label>
-            <select class="input" id="brandBadgeStyle"><option value="plain">Chữ thường</option><option value="pill">Pill (viên nén)</option><option value="underline">Gạch chân neon</option></select></div>
+
+        <div class="bg-sec">Watermark bản quyền — chạy quanh màn hình</div>
+        <label class="switch-row"><span class="switch"><input type="checkbox" id="wmOn"><span class="sl"></span></span> Bật watermark trôi chậm quanh viền video (đánh dấu bản quyền)</label>
+        <div id="wmOpts" class="hidden">
+          <div class="grid2" style="margin-top:8px">
+            <div><label class="label">Nội dung</label>
+              <select class="input" id="wmSource"><option value="logo">Logo kênh</option><option value="name">Tên kênh</option></select></div>
+            <div><label class="label">Tốc độ</label>
+              <select class="input" id="wmSpeed"><option value="slow" selected>Chậm — 75s/vòng</option><option value="slower">Rất chậm — 120s/vòng</option><option value="medium">Vừa — 45s/vòng</option></select></div>
+          </div>
+          <div class="grid2" style="margin-top:8px">
+            <div><label class="label">Cỡ: <strong id="wmSizeL">6%</strong></label>
+              <input type="range" class="range" id="wmSize" min="3" max="20" step="0.5" value="6"></div>
+            <div><label class="label">Độ mờ: <strong id="wmOpacityL">35%</strong></label>
+              <input type="range" class="range" id="wmOpacity" min="10" max="80" step="5" value="35"></div>
+          </div>
+          <div class="hint" style="margin-top:6px">Xem trước chạy nhanh ×5 cho dễ thấy — video thật đúng tốc độ đã chọn.</div>
         </div>
-        <label class="switch-row"><span class="switch"><input type="checkbox" id="brandBadgeOn" checked><span class="sl"></span></span> Hiện tên kênh trên video</label>
-        <div class="field" style="margin-top:6px">
-          <label class="label">Chèn brand vào cảnh</label>
-          <select class="input" id="brandPlacement">
-            <option value="smart">🧠 Thông minh — tự né nội dung & phụ đề từng cảnh</option>
-            <option value="always">📌 Cố định — đúng vị trí đã kéo</option>
-            <option value="final">🎞 Đóng dấu cả video — chèn 1 lần ở bước ghép cuối, đúng 100% vị trí xem trước</option>
-            <option value="off">Tắt</option>
-          </select>
-        </div>
-        <details class="cfg-details" style="margin:8px 0">
+
+        <details class="cfg-details" style="margin:14px 0 8px">
           <summary>⚙ AI riêng của kênh (đè lên cấu hình chung)</summary>
           <div class="field" style="margin-top:8px"><label class="label">Provider giọng đọc</label>
             <select class="input" id="brandAiTts"><option value="">— Dùng cấu hình chung —</option></select></div>
