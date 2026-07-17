@@ -346,7 +346,7 @@ export function scenesJsonFromRows(project, rows) {
       stt: i + 1,
       voice: String(r.voice_text || ''),
       visual: String(r.visual_prompt || ''),
-      assets: [],
+      assets: Array.isArray(r.assets) ? r.assets : [],
     })),
   };
 }
