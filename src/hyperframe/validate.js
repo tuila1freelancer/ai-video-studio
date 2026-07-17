@@ -275,9 +275,10 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
         const overflow = Math.max(-e.x, e.x + e.w - W, -e.y, e.y + e.h - H);
         if (overflow > 0.10 * Math.max(W, H)) bump(off, e.txt || e.cls, { t, ...e, overflow: Math.round(overflow) });
         if (e.y + e.h > 0.80 * H) bump(sub, e.txt || e.cls, { t, ...e }); // element BOTTOM edge intrudes on the caption band
-        // meaning-bearing text classes (widened past hf-kw to headlines/labels/sub); stat
-        // units stay excluded — "%", "x", "M" are legitimately language-neutral.
-        const meaning = /hf-(kw|label|sub|title|head|lead)/.test(e.cls || '');
+        // meaning-bearing text: the component classes PLUS any clearly-readable custom text
+        // (≥18px tall at ≥.5 opacity) — an English HUD phrase in a bespoke class is exactly
+        // as wrong as one in .hf-label. Stat units stay excluded ("%", "x", "M").
+        const meaning = /hf-(kw|label|sub|title|head|lead)/.test(e.cls || '') || (e.h >= 18 && e.o > 0.5);
         if (narrWords && meaning && textLanguageLeak(e.txt, narrWords, narrLang)) bad.set(e.txt, e);
         // completeness gate: a meaning label that begins/ends on a function word is a mid-phrase
         // fragment ("và điều quan trọng") — a clean-content-phrase re-ask, not a colour fix.
