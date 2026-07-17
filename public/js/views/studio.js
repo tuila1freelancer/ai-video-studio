@@ -61,6 +61,20 @@ export function initStudio() {
   $('#btnRenderSel').addEventListener('click', () => withLock($('#btnRenderSel'), () => renderScenes2('scenes', selectedIds())));
   $('#btnRegenVoiceSel').addEventListener('click', () => selectedIds().forEach((id) => regenScene(id, 'voice')));
   $('#btnRegenHtmlSel').addEventListener('click', () => selectedIds().forEach((id) => regenScene(id, 'html')));
+  // canonical scenes JSON (factory format) — download / clipboard, rebuilt from the DB rows
+  $('#btnScenesJson')?.addEventListener('click', () => {
+    if (!state.current) return;
+    window.open(`/api/projects/${state.current.id}/scenes-json?download=1`, '_blank');
+  });
+  $('#btnScenesJsonCopy')?.addEventListener('click', async () => {
+    if (!state.current) return;
+    try {
+      const r = await api.get(`/projects/${state.current.id}/scenes-json`);
+      if (r?.error) return toast(r.error, 'error');
+      await navigator.clipboard.writeText(JSON.stringify(r, null, 2));
+      toast(`Đã copy scenes JSON (${r.scenes?.length || 0} cảnh) ✓`, 'success');
+    } catch (e) { toast('Không copy được: ' + (e?.message || e), 'error'); }
+  });
   $('#checkAll').addEventListener('change', (e) => { $$('#sceneGrid .scene').forEach((c) => { c.classList.toggle('sel', e.target.checked); c.querySelector('.chk').checked = e.target.checked; }); updateSelCount(); });
   $('#btnSrt').addEventListener('click', openSrt);
   $('#btnRepurpose').addEventListener('click', () => withLock($('#btnRepurpose'), repurposeCurrent));
@@ -367,16 +381,23 @@ async function onDone(m) {
 }
 
 // ---------------- input helpers ----------------
+// Mirror of the master engine's input modes (SCRIPT_MODE_MIN_WORDS = 80 backend-side):
+// topic → AI writes everything · detailed script → light polish + slicing, wording kept ·
+// scenes JSON → direct import, no script-writing LLM call.
 function detectType() {
   const v = $('#topic').value.trim();
-  let t = 'văn bản';
-  if (/^https?:\/\/\S+$/i.test(v.split(/\s+/)[0]) && v.split(/\s+/).length <= 3) t = 'link 🔗';
-  else if ((v.startsWith('{') || v.startsWith('['))) t = 'JSON';
-  // a long paste is almost certainly a finished script — suggest keeping it verbatim
   const words = v.split(/\s+/).filter(Boolean).length;
-  const auto = $('#cfgDurMode')?.value === 'auto';
-  const hint = t === 'văn bản' && words >= 120 && !auto
-    ? ` · 📜 ${words} từ — kịch bản chi tiết? Bật thời lượng 🪄 Tự động để giữ NGUYÊN VĂN lời thoại` : '';
+  let t = 'văn bản', hint = '';
+  if (!v) { $('#inputTypeHint').textContent = ''; return; }
+  if (/^https?:\/\/\S+$/i.test(v.split(/\s+/)[0]) && v.split(/\s+/).length <= 3) {
+    t = 'link 🔗'; hint = ' → lấy nội dung rồi AI viết kịch bản từ đó';
+  } else if (v.startsWith('{') || v.startsWith('[')) {
+    t = 'scenes JSON 🧩'; hint = ' → nhập trực tiếp từng cảnh (voice + visual), không tốn AI viết kịch bản';
+  } else if (words >= 80) {
+    t = `kịch bản chi tiết 📜 (${words} từ)`; hint = ' → AI biên tập nhẹ + cắt cảnh, giữ ~90% lời của bạn; thời lượng theo nội dung';
+  } else {
+    t = 'chủ đề 💡'; hint = ' → AI viết toàn bộ kịch bản + visual từng cảnh theo thời lượng đã chọn';
+  }
   $('#inputTypeHint').textContent = 'Nhận diện: ' + t + hint;
 }
 async function fetchLink() {
