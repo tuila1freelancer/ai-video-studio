@@ -17,6 +17,9 @@ const SCRIPT_BANNED = [
   [/window\s*\.\s*__|__seek\b|__init\b|__tl\b|__scene\b|__drawBg\b/, 'touches the harness internal runtime'],
   [/\bgsap\s*\.\s*(to|from|fromTo|set|timeline|delayedCall|ticker|globalTimeline|context|matchMedia|effects|getProperty|utils\s*\.\s*random)\b/, 'direct gsap.* call — every tween must go through tl.* or FX.* (globalTimeline is paused, so gsap.to would freeze)'],
   [/\brepeat\s*:\s*-1\b/, 'repeat:-1 (infinite loop) — use a finite count: repeat: Math.max(0, Math.floor(DUR/period) - 1) so the timeline ends exactly at DUR'],
+  // scripted telemetry decor: writing ALLCAPS_SNAKE strings at runtime bypasses the HTML
+  // normalizer — the render gate would catch it later, but failing fast here saves attempts
+  [/['"`][A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+['"`]/, 'script writes telemetry-style ALLCAPS_SNAKE text (e.g. "IDEA_DETECTED") — never put dev/status tokens on screen; use real copy in the narration language, numbers or icons'],
 ];
 // Non-interpolable / layout motion in ANIMATED tweens only — tl.set() stays legal (an instant
 // set is seek-safe; e.g. hiding a finished group with set({display:'none'}) at a beat time).
