@@ -143,7 +143,7 @@ export function transitionLoss(plan, uptoBoundary = Infinity) {
 // Final assembly (B7): concat scene clips, mix BGM, overlay logo, make thumbnail.
 // `transitions` is either a plan array from planTransitions (selective, doctrine mode) or
 // boolean true (legacy uniform fade at every boundary).
-export async function concatScenes(sceneVideos, project, { dir, size, bgmPath, sfxPath, logo, transitions, onLog }) {
+export async function concatScenes(sceneVideos, project, { dir, size, bgmPath, sfxPath, logo, transitions, onLog, bgmVol }) {
   if (!sceneVideos.length) throw new Error('Không có cảnh nào để ghép');
   const ow = size.w, oh = size.h;
 
@@ -204,7 +204,9 @@ export async function concatScenes(sceneVideos, project, { dir, size, bgmPath, s
     // pass (media/master.js) owns the final -16 LUFS.
     args.push('-stream_loop', '-1', '-i', bgmPath);
     fc.push(`${abase}asplit=2[vmain][vkey]`);
-    fc.push(`[${nextIdx}:a]volume=0.22[bg0]`,
+    // pre-duck BGM level: 0.22 legacy default; an LLM sound-design plan may lower it
+    // (its 0.06–0.18 range) — the sidechain still breathes it under narration either way
+    fc.push(`[${nextIdx}:a]volume=${(Number.isFinite(+bgmVol) && +bgmVol > 0 ? +bgmVol : 0.22).toFixed(2)}[bg0]`,
       `[bg0][vkey]sidechaincompress=threshold=0.02:ratio=10:attack=60:release=550[bgd]`,
       `[vmain][bgd]amix=inputs=2:duration=first:normalize=0:dropout_transition=2[amx]`);
     abase = '[amx]'; nextIdx++;

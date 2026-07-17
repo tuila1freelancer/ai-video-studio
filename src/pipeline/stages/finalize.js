@@ -13,6 +13,7 @@ import { concatScenes, renderCard, planTransitions, transitionLoss } from '../re
 import { qcFinalVideo, summarizeVisualTiers } from '../qc.js';
 import { masterAudio } from '../../media/master.js';
 import { makeAmbientBed, probeDuration, makeWhoosh, makeSfxBed } from '../../media/ffmpeg.js';
+import { planSoundDesign, usableLibrary } from '../../audio/sound-design.js';
 import { withRetry } from '../../util/retry.js';
 import { step, op, retryHook, progressPlan } from '../progress.js';
 import { resolveOutputDir } from '../helpers.js';
@@ -94,21 +95,40 @@ export async function finalize(projectId, { dir, size, config, _qcAttempt = 0 })
     config.logo = { path: bl.assetPath, size: Math.round((bl.sizePct || 8.5) * 10.8), position: bl.position };
   }
 
-  // BGM: user-selected file, else an auto ambient bed (cached per project)
+  op(projectId, '✂️ Ghép & mix…');
+  const expectDur = scenes.reduce((a, s) => a + (s.duration || 0), 0);
+
+  // LLM sound design (reference-app parity, toggle config.soundDesign): ONE call picks a
+  // BGM from the owner's library and places SFX by the cue sheet. Anything short of a
+  // valid plan (offline, empty library, bad reply) → sdPlan stays null and the
+  // deterministic legacy audio below ships unchanged.
+  let sdPlan = null;
+  if (config.soundDesign !== false && visualMode !== 'image' && expectDur > 0) {
+    try {
+      const ai = DB.aiSettings();
+      sdPlan = await planSoundDesign({
+        scenes, lossBeforeScene,
+        bgm: usableLibrary(DB.listLibrary('bgm')), sfx: usableLibrary(DB.listLibrary('sfx')),
+        total: expectDur, title: project.title || project.topic || '', lang: config.language || 'vi',
+        llm: ai.llm, onLog: (m) => op(projectId, `🎼 ${m}`),
+      });
+    } catch (e) { logger.warn(`sound design: ${e.message} — dùng audio mặc định`, { projectId }); sdPlan = null; }
+  }
+
+  // BGM: LLM plan → user-selected file → auto ambient bed (cached per project)
   let bgmPath = null;
-  if (config.bgmPath && existsSync(config.bgmPath)) bgmPath = config.bgmPath;
+  if (sdPlan?.bgmPath && existsSync(sdPlan.bgmPath)) bgmPath = sdPlan.bgmPath;
+  else if (config.bgmPath && existsSync(config.bgmPath)) bgmPath = config.bgmPath;
   else if (config.autoBgm !== false) {
     op(projectId, '🎵 Tạo nhạc nền…');
     bgmPath = join(renderDir, 'bgm_bed.m4a');
     if (!existsSync(bgmPath)) { try { await makeAmbientBed(bgmPath, 45); } catch { bgmPath = null; } }
   }
 
-  op(projectId, '✂️ Ghép & mix…');
-  const expectDur = scenes.reduce((a, s) => a + (s.duration || 0), 0);
-
-  // SFX bed: auto whooshes on chapter transitions (autoSfx gate) + the owner's per-scene
-  // picks from Scene Studio (scene.props.audio = {sfx, sfxGain, sfxAt}) — an explicit pick
-  // is not "auto", so it plays regardless of autoSfx. Any failure just skips SFX.
+  // SFX bed: LLM-planned events (when present) + the owner's per-scene picks from Scene
+  // Studio (scene.props.audio = {sfx, sfxGain, sfxAt} — an explicit pick always plays) +
+  // auto whooshes on chapter transitions (autoSfx gate; skipped when the LLM plan owns
+  // emphasis). Any failure just skips SFX.
   let sfxPath = null;
   if (visualMode !== 'image' && expectDur > 0) {
     let t = 0; const events = [];
@@ -116,13 +136,14 @@ export async function finalize(projectId, { dir, size, config, _qcAttempt = 0 })
       // event times land on the FINAL timeline: material time minus the xfade overlap
       // consumed by every transition before this scene's clip
       const start = Math.max(0, t - lossBeforeScene(k));
-      if (config.autoSfx !== false && s.template === 'chapter-break' && start > 0.5) events.push({ at: start });
+      if (!sdPlan && config.autoSfx !== false && s.template === 'chapter-break' && start > 0.5) events.push({ at: start });
       const au = s.props?.audio;
       if (au?.sfx && existsSync(au.sfx)) {
         events.push({ at: Math.max(0, start + (Number.isFinite(+au.sfxAt) ? +au.sfxAt : 0)), src: au.sfx, gain: +au.sfxGain || 0 });
       }
       t += s.duration || 0;
     });
+    for (const e of sdPlan?.events || []) events.push(e);
     if (events.length) {
       try {
         op(projectId, `🔊 Đặt ${events.length} SFX…`);
@@ -135,7 +156,7 @@ export async function finalize(projectId, { dir, size, config, _qcAttempt = 0 })
 
   const res = await withRetry(async () => {
     const r = await concatScenes(clips, project, {
-      dir: renderDir, size, bgmPath, sfxPath, logo: config.logo,
+      dir: renderDir, size, bgmPath, sfxPath, logo: config.logo, bgmVol: sdPlan?.bgmVol,
       transitions: transPlan || false, onLog: (s) => logger.debug(s, { projectId }),
     });
     // Output must exist and cover the scene material (10% tolerance + transition losses).
