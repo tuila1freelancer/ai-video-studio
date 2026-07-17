@@ -17,7 +17,11 @@
 // Snapshot probe — runs INSIDE the page after a seek. Kept dependency-free.
 const SNAP = `(() => {
   const W = innerWidth, H = innerHeight;
-  const bad = (el) => el.closest('.captions,.progtrack,.prog,.progress,#liveBtn,.wm');
+  const cls = (el) => (el.getAttribute && el.getAttribute('class')) || '';
+  // stage-owned ambience (our harness deco + the reference's particles/progress) is calm by
+  // design on BOTH sides — never counted as content or movers
+  const bad = (el) => el.closest('.captions,.progtrack,.prog,.progress,#liveBtn,.wm,#particles-bg')
+    || /hf-d(speck|pulse|ghost|ring)|hf-beam|hf-far/.test(cls(el));
   function eff(el){ let o=1,n=el; while(n && n!==document.documentElement){ const s=getComputedStyle(n);
     if(s.display==='none'||s.visibility==='hidden') return 0; o*=parseFloat(s.opacity||'1'); n=n.parentElement; } return o; }
   const texts=[], painted=[], atmo=new Set(); let partsHost=[];
@@ -37,11 +41,11 @@ const SNAP = `(() => {
     const area = r.width*r.height, frameA = W*H;
     if (o>0.02) {
       if (blur && +blur>=30 && area>0.01*frameA) atmo.add('orb');
-      if (/fractalNoise|feTurbulence/.test(bgi) || /noise|grain/.test(el.className||'')) atmo.add('noise');
-      if ((/(repeating-)?linear-gradient/.test(bgi) && /1px|2px/.test(bgi) && area>0.5*frameA) || /scanline|grid/.test(String(el.className||''))) atmo.add('grid');
-      if ((/radial-gradient/.test(bgi) && /transparent/.test(bgi) && area>0.8*frameA) || (s.boxShadow.includes('inset') && area>0.8*frameA) || /vignette|vig\\b/.test(String(el.className||''))) atmo.add('vignette');
+      if (/fractalNoise|feTurbulence/.test(bgi) || /noise|grain/.test(cls(el))) atmo.add('noise');
+      if ((/(repeating-)?linear-gradient/.test(bgi) && /1px|2px/.test(bgi) && area>0.5*frameA) || /scanline|grid/.test(cls(el))) atmo.add('grid');
+      if ((/radial-gradient/.test(bgi) && /transparent/.test(bgi) && area>0.8*frameA) || (s.boxShadow.includes('inset') && area>0.8*frameA) || /vignette|vig\\b/.test(cls(el))) atmo.add('vignette');
       if (el.tagName==='CANVAS' && area>0.5*frameA) atmo.add('particles');
-      if (/beam|flare|streak|spotlight/.test(String(el.className||'')) && o>0.03) atmo.add('beam');
+      if (/beam|flare|streak|spotlight/.test(cls(el)) && o>0.03) atmo.add('beam');
     }
     if (o<=0.02) continue;
     if (ownText && r.width>2 && r.height>2) {
@@ -52,12 +56,12 @@ const SNAP = `(() => {
         grad:(s.webkitBackgroundClip==='text'||s.backgroundClip==='text'),
         shadowN:shadows, maxBlur, stroke:parseFloat(s.webkitTextStrokeWidth||'0')>0,
         color:s.color, txt:(el.textContent||'').trim().slice(0,60),
-        key:(el.id||'')+'|'+String(el.className||'').slice(0,30)+'|'+(el.textContent||'').trim().slice(0,16) });
+        key:(el.id||'')+'|'+cls(el).slice(0,30)+'|'+(el.textContent||'').trim().slice(0,16) });
     }
     if ((hasBg||hasBorder||el.tagName==='svg'||el.tagName==='IMG'||el.tagName==='CANVAS') && area>40) {
       painted.push({ x:r.left, y:r.top, w:r.width, h:r.height, area, o:+o.toFixed(3),
         frac:+(area/frameA).toFixed(4), tag:el.tagName,
-        key:(el.id||'')+'|'+String(el.className||'').slice(0,30) });
+        key:(el.id||'')+'|'+cls(el).slice(0,30) });
     }
     // hero-cluster candidates: containers holding many visible crafted parts
     if (area>0.06*frameA && area<0.92*frameA && el.children.length>=2) {
