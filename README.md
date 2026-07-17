@@ -1,10 +1,9 @@
 # 🎬 AI Video Studio
 
-A **macOS** desktop app that automatically generates videos from a **topic / JSON script / article link** — any length you want
-(from 30 seconds to 30+ minutes). An optimized rebuild of `AI VIDEO Tool.app`: it drops the heavy Chromium UI shell
-in favor of a **native WKWebView**; a lightweight **Node.js 22** backend; runs **fully offline**.
+A **macOS** desktop app that automatically generates videos from a **topic / detailed script / scenes JSON / article link** — any length you want (from 30 seconds to 30+ minutes). An optimized rebuild of `AI VIDEO Tool.app`: it drops the heavy Chromium UI shell in favor of a **native WKWebView**; a lightweight **Node.js 22** backend; runs **fully offline**.
 
-> Pipeline: **B2 Script → B3+4 TTS+Subtitles → B5 Scene build → B6 Render → B7 Concat & Mix**.
+> Pipeline: **B2 Script → b2.5 Editorial gate → b2.75 Duration fit → B5 Scene build → (scene gate) → B3+4 TTS+Subtitles → B6 Render → (review gate) → B7 Concat & Master → B8 QC gate → Metadata → B9 Publish**.
+> Scenes-first: visuals are built against an estimated timing seed BEFORE any TTS credit is spent, then time-warped onto the real voice.
 
 ---
 
@@ -12,44 +11,60 @@ in favor of a **native WKWebView**; a lightweight **Node.js 22** backend; runs *
 
 - **One tap, nothing else to do**: on the Home screen enter a topic → **✨ Tạo video tự động** → out comes a complete MP4 video.
 
+### 📜 Master Script Engine (B2)
+
+ONE master prompt turns **every input shape** into the same canonical factory-format scenes JSON
+`{thumbnail{title,prompt}, scenes[{stt,voice,visual,assets}]}` — per-scene `visual` is a full 8-bracket
+motion-graphics brief (`[ENVIRONMENT]…[MOOD]`) that HyperFrame codegen consumes directly:
+
+- **Topic** → plan-then-write (throughline → spine → scenes) + a value-architecture doctrine (every scene teaches one concrete thing; no tag-question filler, no invented statistics).
+- **Detailed owner script** (≥80 words) → **light polish only**: keep ≥90% of the wording and every idea in order, fix broken sentences, smooth joins, add missing CTAs — enforced by the `POLISH_FLOOR` gate; duration follows the content, never the other way around.
+- **Pasted scenes JSON** → validated + repaired import, **zero LLM calls**.
+- **Article link** → the article is fetched and handed over as research material (**rewrite, never copy** — a new script in the channel's voice, grounded in the article's facts).
+
+Reliability: a defect-driven validator (`META_LEAK` / `NOT_SPEAKABLE` / `BRACKETS` / `MONOTONY` / `COUNT` / `WORD_BUDGET` / `POLISH_FLOOR`) drives one re-ask, then a deterministic repair — a CTA-note/hashtag line can never reach TTS. Long videos (>30 scenes) generate in **batches of 25 with rolling context**; a detailed script is partitioned **word-balanced** so no sentence is ever lost or repeated at a batch boundary, and a batch whose reply overflows the model's output window automatically **splits into smaller calls** instead of failing the run. B2 writes a canonical `scenes.json` artifact per project (re-export any time via `GET /projects/:id/scenes-json` or the Studio toolbar).
+
 ### 🆕 v3 upgrade highlights
 
 - 🗄 **Durable production infrastructure** — a persisted **job queue** (survives crashes: queued/batched work continues after a restart), a global **resource governor** (concurrent runs can no longer oversubscribe Chrome+ffmpeg), **versioned DB migrations with auto-backup**, and a **content-hash resume**: edit one scene's script and only THAT scene re-records + re-renders.
 - 💸 **Cost meter + budget guardrail** — every LLM/TTS call is metered per video (`GET /api/usage`, live over WS); an optional per-video USD cap automatically downgrades to the free paths (offline script + edge voice) when reached.
-- 🎚 **Broadcast audio** — scene voices get measured LINEAR loudness normalization (no pumping), BGM **ducks under the voice** via sidechain compression, and the finished file is **mastered to −16 LUFS / TP −1.5** with the audio-only corrected (video never re-encoded); LUFS/true-peak land in `qc_report.json`. A narrated scene whose clip is silent is now a hard QC defect (the BGM can no longer mask it).
+- 🎚 **Broadcast audio** — scene voices get measured LINEAR loudness normalization (no pumping), BGM **ducks under the voice** via sidechain compression, and the finished file is **mastered to −16 LUFS / TP −1.5** with the audio-only corrected (video never re-encoded); LUFS/true-peak land in `qc_report.json`. A narrated scene whose clip is silent is a hard QC defect (the BGM can no longer mask it).
 - 📝 **Forced-alignment subtitles** — captions show the EXACT script words with whisper-timed karaoke (whisper only donates timestamps, biased by the script as its decode prompt); phrase-shaped cue breaks; `85%`/`50.000đ`/dates are expanded for the VOICE only (captions keep the digits) + per-channel pronunciation lexicon; per-scene prosody hints (hook = energetic) on expressive providers.
 - ▶ **Rough-cut player + review gate + takes + timeline** — watch the whole video live BEFORE rendering (master clock over live scene pages), approve/reject each scene (the pipeline holds before concat until everything is approved), every voice/visual regen keeps **take history** with one-click rollback, a per-cue **subtitle studio**, and a read-only **timeline** (clips + waveforms + captions + scrubbing playhead).
-- 🪶 **Editorial gate (b2.5)** — a free deterministic pass flags wrong-language scenes, truncated clauses, word-budget misses and near-duplicate narration; one bounded LLM rewrite fixes exactly the flagged scenes.
+- 🛑 **Scene gate (opt-in)** — with `config.sceneGate` the pipeline holds right after the storyboard (B5) at a distinct `'scenes'` status; TTS money is only spent after the owner explicitly approves the scenes (`POST /projects/:id/approve-scenes`).
+- 🪶 **Editorial gate (b2.5)** — a free deterministic pass flags wrong-language scenes, truncated clauses, word-budget misses, near-duplicate narration, **formulaic tag-question hooks and value-thin scenes**; one bounded LLM rewrite fixes exactly the flagged scenes.
+- ⏱ **Duration fit (b2.75)** — total narration is audited against the ordered video length (±12%): over → one bounded LLM tighten pass + a sentence-safe deterministic trim; under → one enrich pass. Auto-duration mode, pasted JSON and detailed owner scripts are never touched (the owner's words are the deliverable).
 - 📤 **Distribution** — one-click **YouTube publish** (OAuth loopback, resumable upload, thumbnail; STAGES AS PRIVATE by default), **multi-aspect repurposing** (16:9 ↔ 9:16 with full reflow — voice/captions reused verbatim, zero re-synthesis), SEO **metadata 2.0** (per-platform titles/tags/pinned comment), **A/B thumbnail variants**, and an end-screen "Xem tiếp" cross-promo.
-- 🛰 **Content assistant** — trend-based topic suggestions (Google Trends/News, deduped against everything the channel already made), a **production calendar** (due slots auto-become videos), an ops dashboard, a per-channel **Show Bible** injected into script generation, and a channel-pinned **style guide** (every new video inherits the brand look; palettes are WCAG-locked at save).
-- 🧪 **Named regression tests for all 15 protected behaviors** + functional QC/audio/fingerprint suites (`npm test`, CI on Node 22).
+- 🛰 **Content assistant** — trend-based topic suggestions (RSS/Atom feed packs, deduped against everything the channel already made), a **production calendar** (due slots auto-become videos), an ops dashboard, a per-channel **Show Bible** injected into script generation, and a channel-pinned **style guide** (every new video inherits the brand look; palettes are WCAG-locked at save). Assistant proposals never auto-start a paid pipeline — only an explicit owner click does.
+- 🧪 **Named regression tests for all 19 protected behaviors** + functional QC/audio/fingerprint/master-script suites (`npm test`, CI on Node 22).
 - 💎 **"Studio Pro" interface** — a multi-layered dark design system (glass + hairline + spring motion), **Lexend** font (Vietnamese subset, self-hosted), stroke SVG icons throughout the app, a transparent titlebar in Linear/Arc style on the native build, a **⌘K command palette** (navigate / create video / apply preset / open recent projects, searchable without typing diacritics), custom dialogs + toasts (no more system confirm/prompt), skeleton loading, View Transitions when switching pages.
-- ⚡ **60fps frontend with 200+ scene projects** — the scene grid uses event delegation (4 listeners for the whole grid), WS updates batched over 80ms + per-card patching (no rebuild), video previews only attach `src` on hover, images lazy-load, `content-visibility` skips off-screen layout/paint; first render of 191 scenes ~48ms. The code is split into 20+ native ESM modules (`public/js/{ui,views,features}`), no bundler.
-- 🚀 **HYPERFRAME MODE** — the AI **art-directs graphics individually for every scene, following the narration word by word**: the server extracts **beats** from real word-timestamps (Whisper) → an LLM writes `{css, html, script}` GSAP for each scene (keywords/figures/icons appear exactly when the voice mentions them, then withdraw before the next beat — the opening frame has only ambient); the **video Style** is locked throughout (7 presets: **TuiLa1 HUD Cyber** (distilled from the reference channel — semantic colors, concept→visual map, HUD kickers) · Chrome Kinetic · Neon Tech · Minimal Editorial · Glass Aurora · Bold Poster · Cinematic Dark, or let the AI design its own from a description); a library of ~125 offline icons + 20+ professional FX (carrier-in, chrome sweep, whip-out, glitch, counter-roll, beam sweep, parallax, camera push…). Enable it under Output config → Image mode → ✨ HyperFrame.
-  - 🎬 **Art-director pass**: before writing code, the AI writes **cinematic visual direction for EVERY scene** ([LAYOUT]/[ENVIRONMENT]/[MAIN FOCUS]/[CAMERA]/[MOTION FLOW]/[LIGHTING & FX]/[MOOD]) in batches with a global view — layouts vary between adjacent scenes, the closing scene **echoes the hook scene's motif** (visual rhyme), and concepts matching the concept-map use the style's exact visual formula. Hours-long videos now get real direction for every scene (previously only short videos did).
-  - 🛡 **Two-tier error-proof validation**: each AI-written scene is **actually rendered and then inspected automatically** (runtime errors, frame overflow, subtitle overlap, empty scene ending, fabricated/wrong-language text) → fed back to the AI to fix; only passing scenes are accepted, otherwise it falls back to a backup template — the pipeline **never dies** and stays **deterministic frame by frame**. The output format is **fenced (not JSON)** so weaker models don't break the code.
-  - 🎛 **AI tuning per video**: **Motion density** (Minimal/Balanced/Dense) · **Creative direction** (notes applied to every scene) · **Separate AI model for HyperFrame** (use a dedicated strong model for the scene-build step — the single biggest quality lever). On-screen text is always taken verbatim from the narration, in the correct language.
-- 🎬 **ANIMATION MODE (default)** — **pure-code motion-graphics** videos (HTML/CSS/JS rendered frame by frame, smooth at 30/60fps) in a neon-tech style: kinetic-typography glow, HUD labels, line-art icons, glass cards, timelines, mindmaps, chat demos, terminal scans… **20 templates** auto-selected per scene content + integrated karaoke captions + progress bar + watermark. 3 themes (Neon Tech / Gradient Soft / Minimal Light), 1080p or 4K.
-- ✨ **GSAP 3.13 deeply integrated (all premium plugins, free)** — every template gets high-end effects *while staying deterministic frame by frame*: 3D per-character flying text (SplitText), self-drawing icon strokes (DrawSVG), counters + gauge arcs, hacker-style decoding text (ScrambleText), bouncing falling stars, physics confetti (Physics2D), 3D perspective cards, racing bars, CustomWiggle shakes. 6 new showcase templates: `split-cascade` · `counter-stat` · `orbit-3d` · `physics-burst` · `draw-diagram` · `bar-race`.
-- 🩹 **Self-healing, no babysitting needed** — every step auto-retries with backoff; the LLM supports **multiple rotating API keys** (paste several keys separated by commas/newlines — a key that hits its quota is skipped automatically) + a **fallback model** (`modelFallback`); a failed scene render auto-switches to a backup template and retries; after render there's a step that **inspects each mp4 file** (ffprobe: duration + both streams present + A/V matches the voice — a silent scene is an error and is never shipped) and re-renders broken scenes; a pipeline that hits an unexpected error auto-resumes after 8 seconds; if the server crashes → reopen and hit Resume to continue. The UI clearly shows "🩹 đang tự thử lại".
-- 🔬 **Final quality gate (B8)** — the assembled video is **actually decoded and inspected**: black frames (blackdetect), silence gaps >3s (silencedetect), missing streams, duration off by >8%; errors traceable to a specific scene **auto-re-render that exact scene and re-concat** (one cycle); results are saved to `qc_report.json` in the project folder — it never reports "done" while unrecorded errors remain. Disable with `qcGate:false`.
-- 🎙️ **Consistent voice across the video** — the chosen voice is "locked": a TTS failure retries the same voice 3 times before falling back, and any scene that had to use the fallback voice is **auto-retried with the primary voice** at the end of the step; every scene passes through **per-scene EBU R128 loudnorm** (uniform volume regardless of provider) + a 650ms (vi) / 400ms (en) breath-pad at the end of each scene.
+- ⚡ **60fps frontend with 200+ scene projects** — the scene grid uses event delegation (4 listeners for the whole grid), WS updates batched over 80ms + per-card patching (no rebuild), video previews only attach `src` on hover, images lazy-load, `content-visibility` skips off-screen layout/paint. The code is split into 25+ native ESM modules (`public/js/{ui,views,features}`), no bundler.
+- 🚀 **HYPERFRAME MODE** — the AI **art-directs graphics individually for every scene, following the narration word by word**: the server extracts **beats** from real word-timestamps (Whisper) → an LLM writes `{css, html, script}` GSAP for each scene (keywords/figures/icons appear exactly when the voice mentions them); the **video Style** is locked throughout (6 presets: **TuiLa1 HUD Cyber** (distilled from the reference channel — semantic colors, concept→visual map, HUD kickers) · Neon Tech · Minimal Editorial · Glass Aurora · Bold Poster · Cinematic Dark, or let the AI design its own from a description); a library of ~130 offline icons + 25+ professional FX (carrier-in, chrome sweep, whip-out, glitch, counter-roll, beam sweep, parallax, camera push, zoom-through, target-zoom, DOF blur…). Enable it under Output config → Image mode → ✨ HyperFrame.
+  - 🎬 **Art-director pass**: before writing code, the AI writes **cinematic visual direction for EVERY scene** ([ROLE]/[LAYOUT]/[ENVIRONMENT]/[MAIN FOCUS]/[CAMERA]/[MOTION FLOW]/[CHOREOGRAPHY]/[LIGHTING & FX]/[MOOD]) in batches with a global view — 15 layout archetypes, retention roles (hook/problem/insight/step/proof/payoff/cta), a motion VERB per element, the closing scene **echoes the hook scene's motif** (visual rhyme). Scenes that already carry a master-engine 8-bracket visual skip this pass. Master visuals and directions feed codegen **together with the scene's full verbatim narration** (protected behavior P19).
+  - 🎞 **Role-driven transitions (default ON)**: scene boundaries get velocity-matched cuts/blends planned from the scenes' roles — 1-2 hero transitions (zoom-through on the reveal, inverse on the payoff), a smooth 0.2s dissolve as connective tissue. `config.transitions:false` restores hard cuts.
+  - 🛡 **Two-tier error-proof validation**: each AI-written scene is **actually rendered and then inspected automatically** (runtime errors, frame overflow, subtitle overlap, empty scene ending, fabricated/wrong-language text, fragment labels) → fed back to the AI to fix; deterministic **auto-contrast repair** rescues unreadable text without burning an attempt; only passing scenes are accepted. Every scene persists a **quality tier** (`premium`/`repaired`/`imperfect`/`unverified`/`fallback`) so degraded scenes are surfaced, never silent.
+  - 🩹 **Escalation ladder, not a cliff**: a failed scene retries on the configured **fallback model** for a real bespoke second opinion before ever dropping to a heuristic template — and the pipeline never dies.
+  - 🎛 **AI tuning per video**: **Motion density** (Minimal/Balanced/Dense) · **Creative direction** (notes applied to every scene) · **Separate AI model for HyperFrame** (use a dedicated strong model for the scene-build step — the single biggest quality lever).
+  - ⏲ **Beat-anchored time-warp**: specs are authored against estimated timing, then a piecewise map pins each baked beat to the real spoken word at render — per-word AV sync even when TTS runs faster/slower than estimated.
+- 🎬 **ANIMATION MODE (default)** — **pure-code motion-graphics** videos (HTML/CSS/JS rendered frame by frame, smooth at 30/60fps) in a neon-tech style: kinetic-typography glow, HUD labels, line-art icons, glass cards, timelines, mindmaps, chat demos, terminal scans… **23 templates** auto-selected per scene content + integrated karaoke captions + progress bar + watermark. 3 themes (Neon Tech / Gradient Soft / Minimal Light), 1080p or 4K.
+- ✨ **GSAP 3.13 deeply integrated (all premium plugins, free)** — every template gets high-end effects *while staying deterministic frame by frame*: 3D per-character flying text (SplitText), self-drawing icon strokes (DrawSVG), counters + gauge arcs, hacker-style decoding text (ScrambleText), bouncing falling stars, physics confetti (Physics2D), 3D perspective cards, racing bars, CustomWiggle shakes.
+- 🩹 **Self-healing, no babysitting needed** — every step auto-retries with backoff; the LLM supports **multiple rotating API keys** (paste several keys separated by commas/newlines — a key that hits its quota is skipped automatically) + a **fallback model** (`modelFallback`); a failed scene render auto-switches to a backup template and retries; after render there's a step that **inspects each mp4 file** (ffprobe: duration + both streams present + A/V matches the voice — a silent scene is an error and is never shipped) and re-renders broken scenes; a pipeline that hits an unexpected retryable error auto-resumes once; if the server crashes → orphaned jobs are requeued at boot. The UI clearly shows "🩹 đang tự thử lại".
+- 🔬 **Final quality gate (B8)** — the assembled video is **actually decoded and inspected**: black frames (blackdetect), silence gaps >3s (silencedetect), missing streams, duration off by >8%; errors traceable to a specific scene **auto-re-render that exact scene and re-concat** (one cycle); results land in `qc_report.json` — it never reports "done" while unrecorded errors remain. Disable with `qcGate:false`.
+- 🎙️ **Consistent voice across the video** — the chosen voice is "locked": a TTS failure retries the same voice 3 times before falling back, the edge fallback lane picks the **nearest cached voice** (timbre-preserving), and any scene that had to use the fallback voice is **auto-retried with the primary voice** at the end of the step; every scene passes through **per-scene EBU R128 loudnorm** + a 650ms (vi) / 400ms (en) breath-pad.
 - 🔊 **Automatic chapter-transition SFX** — an offline-synthesized whoosh (deterministic) placed at the exact timestamp of each chapter change, mixed under the voice. Disable with `autoSfx:false`.
-- 📖 **Two-stage scripting for long videos** (when an LLM is plugged in): a hook following the **pain → promise with a number** formula, a chapter outline, a **mid-video CTA** + an end CTA with a **comment-baiting question**; each chapter sees the previous chapter's ending so ideas don't repeat; the word count per scene is **computed from each language's reading speed** (vi ≈ 4.4 words/s) with a safety margin — scenes no longer come up short on duration; offline, it still auto-splits chapters from paragraphs + adds chapter transitions + an end-of-video CTA.
-- 🖼️ **Image mode (optional)** — cinematic AI images per scene (Pollinations, free, no key) + Ken Burns.
-- **Full automation (on by default)**: 🎙️ **neural voice auto-matched to each scene's language** (vi/en/ja/ko/zh/ru — never reads the wrong language) · karaoke subtitles · 🎵 automatic background music · 🎬 intro + outro · volume normalization + fade · 📊 metadata **including YouTube Chapters** · a nice thumbnail.
-- 🎙️ **Multi-provider voice library**: Edge Neural (322 voices, free) · macOS say (offline) · **Vbee** (Northern/Central/Southern Vietnamese voices) · **LarVoice** (official larvoice.com API — Bearer key created at `larvoice.com/app/api`, ~300 vi/en/zh/ja/ko voices, **0-credit previews** from bundled samples) · ElevenLabs · OpenAI — search/filter by language + gender, **▶ preview every voice** (cached), ⭐ pin, set a **default voice per language**; each provider has its own config form + a 🔌 Test-connection button. API keys are masked with `••` at every exit point.
+- 🖼️ **Image mode (optional)** — cinematic AI images per scene (openai/recraft → pollinations failover, smart guide-locked English prompts) + Ken Burns.
+- **Full automation (on by default)**: 🎙️ **neural voice auto-matched to each scene's language** (vi/en/ja/ko/zh/ru — never reads the wrong language) · karaoke subtitles · 🎵 automatic background music · 🎬 intro + outro · volume normalization + fade · 📊 metadata **including YouTube Chapters** · a nice thumbnail (the master engine's thumbnail brief when available).
+- 🎙️ **Multi-provider voice library**: Edge Neural (322 voices, free) · macOS say (offline) · **Vbee** (Northern/Central/Southern Vietnamese voices) · **LarVoice** (official larvoice.com API — ~300 vi/en/zh/ja/ko voices, **0-credit previews** from bundled samples) · ElevenLabs · OpenAI — search/filter by language + gender, **▶ preview every voice** (cached), ⭐ pin, set a **default voice per language**; each provider has its own config form + a 🔌 Test-connection button. API keys are masked with `••` at every exit point.
 - 📺 **Multi-channel (Channels)**: each channel gets its own folder (`~/Movies/AI Video Studio/<channel>/` — projects, library, output, channel.json) and its own config (voice, theme, watermark, aspect ratio…) that is inherited into every new video; switch channels with one tap in the sidebar; finished videos land in the channel's `output/`.
-- 🏷 **Per-channel Brand Kit**: logo + channel name + stickers auto-inserted into **each scene** — a 🧠 *smart* mode that automatically avoids template content & subtitle areas, or a 📌 fixed **free drag-and-drop** placement in the Brand Editor (background = a real scene from the channel); 3 logo styles (plain/glass/glow), 3 channel-name styles (text/pill/neon underline); the channel name auto-fills the opening scene label + outro CTA "Đăng ký <channel>". Layered config: channel → default preset → panel (a single merge point, `src/core/config.js`).
-- 🎛 **Per-channel Presets**: save an entire panel config as a named preset (e.g. "Short 4K", "Long 16:9"), set a ⭐ default — new videos on the channel (including those triggered via API/batch) pick it up automatically. AI settings (LLM/voice/subtitles) **override per channel individually**, API keys masked with `••` at every exit point.
+- 🏷 **Per-channel Brand Kit**: logo + channel name + stickers auto-inserted into **each scene** — a 🧠 *smart* mode that automatically avoids template content & subtitle areas, or a 📌 fixed **free drag-and-drop** placement in the Brand Editor; 3 logo styles (plain/glass/glow), 3 channel-name styles (text/pill/neon underline); the channel name auto-fills the opening scene label + outro CTA "Đăng ký <channel>". Layered config: channel → default preset → panel (a single merge point, `src/core/config.js`).
+- 🎛 **Per-channel Presets**: save an entire panel config as a named preset (e.g. "Short 4K", "Long 16:9"), set a ⭐ default — new videos on the channel (including those triggered via API/batch) pick it up automatically. AI settings (LLM/voice/subtitles) **override per channel individually**.
 - 💬 **10 ready-made beautiful subtitle presets** (click to pick from the gallery, rendered with real fonts): Karaoke Vàng, Impact Đậm, Neon Rực, Bản Tin (box), Điện Ảnh, Tối Giản, Pop Tròn, Thể Thao, Punch, Terminal — 8 offline vendor Vietnamese fonts (rebuild with `npm run fonts:build`) + auto-switch to a system font for Japanese/Korean/Chinese; applied to both animation captions and image-mode burned-in subtitles (bundled TTF for libass).
-- 👁️ **Live per-scene preview** — click ▶ on a scene card: the animation actually plays with sound right inside the app, no render needed.
+- 👁️ **Live per-scene preview** — click ▶ on a scene card: the animation actually plays with sound right inside the app, no render needed. A **contact sheet** endpoint renders one thumbnail per scene for a whole-video look.
 - ✏️ **Edit text on a scene** (heading/sub/label/props) + change a scene's template + regenerate the preview instantly.
 - 📦 **Batch run** — paste multiple topics (one video per line), the app processes them one by one overnight.
-- 📑 **Export a whole-video .SRT file** (on the correct timeline) to upload YouTube subtitles.
-- **Flexible input**: text · JSON script · article link (auto-fetches content + images).
+- 📑 **Export a whole-video .SRT file** (on the correct timeline) to upload YouTube subtitles; **export the canonical scenes JSON** from the Studio toolbar.
 - **Aspect ratios**: 9:16 (TikTok/Reels), 16:9 (YouTube), 1:1, 4:5.
-- **Long videos, no problem**: processed scene by scene + concatenated incrementally → RAM doesn't grow with length.
+- **Long videos, no problem**: batched script generation + processed scene by scene + concatenated incrementally → RAM doesn't grow with length.
 - **Fully customizable karaoke subtitles**: font, size, weight, color (palette + custom), position.
 - **Scene grid**: view/regenerate voice · regenerate scene · re-render individual scenes.
 - **Library** for Brand / BGM / SFX, **Brand Asset Gen**, **Edit Video** (trim), **Metadata** (title/desc/hashtag), **SRT editor**.
@@ -58,10 +73,10 @@ in favor of a **native WKWebView**; a lightweight **Node.js 22** backend; runs *
   | Step | Online (plug in a key) | Offline default |
   |------|------------------|------------------|
   | Script / Metadata | OpenAI-compatible (GPT/Gemini/Claude…) | Smart sentence splitting |
-  | Narration (TTS) | OpenAI / ElevenLabs | **macOS `say`** (has a Vietnamese voice) |
-  | Subtitles | — | **estimate** (accurate text from the script) or **whisper.cpp** |
-  | Scene build | (AI images) | **HTML poster** (headless Chrome) |
-  | Image search | Tavily | Gradient placeholder |
+  | Narration (TTS) | Edge / Vbee / LarVoice / OpenAI / ElevenLabs | **macOS `say`** (has a Vietnamese voice) |
+  | Subtitles | — | **align** (whisper timestamps + exact script text) or **estimate** |
+  | Scene build | HyperFrame LLM codegen | **23 animation templates** (headless Chrome) |
+  | Images | openai / recraft / pollinations | Gradient placeholder |
   | Concat/Render | — | **ffmpeg** (with libass) |
 
 ---
@@ -85,6 +100,7 @@ The app auto-starts the backend, then shows the native window.
 ```bash
 npm install              # needs Node 22 (e.g.: /opt/homebrew/opt/node@22/bin)
 npm start                # server picks a port, prints "AVS_READY <url>"
+npm test                 # unit + protected-behavior suites (Node 22)
 npm run test:e2e         # end-to-end video-creation test
 npm run fonts:build:ui   # re-download Lexend/JetBrains Mono for the UI (public/fonts) — does NOT touch scene fonts
 npm run fonts:build      # ⚠ fonts for SCENE render (vendor/fonts) — changing this affects video byte-compat
@@ -95,41 +111,41 @@ npm run icon:build       # render shell/icon.svg → shell/AppIcon.icns (headles
 
 ## 🧱 Architecture
 
+> The full living map (layer boundaries, target architecture, the P1–P19 protected-behavior
+> registry, and the "want to change X → go to file Y" table) lives in
+> [`docs/architecture.md`](docs/architecture.md). Summary:
+
 ```
 AI Video Studio.app   ← Swift shell + WKWebView (shell/main.swift)
    └─ spawn Node 22 backend (src/server.js) → wait for /api/health → load localhost
 src/
-  server.js            Express + WebSocket + static SPA
-  config/paths.js      resolve ffmpeg/whisper/chrome/say (vendor → app root → system)
-  core/config.js       config layering (channel → preset → request) + AI settings + mask secret
+  server.js            Express + WebSocket + static SPA + boot recovery + scheduler start
+  config/paths.js      resolve ffmpeg/whisper/chrome/say (ENV → vendor → app root → system)
+  core/                config layering (channel → preset → request) · pricing · budget · metering · errors
   db/
-    connection.js        handle + schema + migrations (better-sqlite3)
-    repositories/        queries by domain: settings · projects · scenes · channels · catalogs
-    index.js             barrel: re-export every repo + seed/backfill + export default db
+    connection.js        handle + schema (better-sqlite3) · migrate.js: versioned migrations + auto-backup
+    repositories/        queries by domain: settings · projects · scenes · channels · jobs · usage · takes…
+    index.js             barrel: re-export every repo + seed/backfill
   api/
-    routes.js            REST API — thin handlers: validate → call service → JSON
-    services/            business logic: file-access (allowlist) · voice-preview · voice-catalog · batch
-  pipeline/            B2→B8 runner · render (ffmpeg) · visuals (poster) · srt (ASS karaoke) · qc (gate)
-  styleguide/          🎨 SHARED style contract (breaks the animation↔hyperframe loop):
-    guide.js             schema + normalizeGuide + HF_DEFAULT_GUIDE + SAMPLE_SPEC (pure)
-    theme.js             themeFromGuide (guide → render theme)
-    presets.js           7 presets (chrome-kinetic, tuila1-hud-cyber…) + resolveGuide
-    generate.js          generateStyleGuide (AI designs a guide from a description)
-  animation/           🎬 deterministic motion-graphics engine:
-    harness.js           self-contained scene page + runtime __seek(t) (pause & seek CSS animation + scrub GSAP timeline)
-    gsap.js              bundle GSAP 3.13 + 12 premium plugins (vendor, offline, inlined)
-    renderer.js          frame-loop Puppeteer → JPEG → ffmpeg image2pipe → mp4 (flat RAM)
-    templates/           21 neon-tech templates, one file each + _shared.js (GSAP FX runtime)
-    planner.js           picks template + props by content (VN heuristic + 1 LLM call)
-    themes.js            design tokens (neon-tech / gradient-soft / minimal-light)
-  hyperframe/          ✨ LLM-writes-GSAP system: codegen · validate · prompt · beats · icons · lint
-  providers/           llm · tts · subtitle · imagesearch · fetchlink (all with fallbacks)
-  media/               ffmpeg · say · whisper · puppeteer (headless Chrome)
-public/                "Studio Pro" SPA: index.html + css/(app,fonts).css + fonts/*.woff2 (Lexend UI)
+    routes.js            REST API (thin-ish; fattened by v3 — split into routes/ is the open refactor)
+    services/            business logic: assistant · topic-autopilot · batch · voice-preview · voice-catalog · file-access (allowlist)
+  content/             master-script.js (B2 master engine: prompt/validate/repair/batching) · scorer.js (editorial detectors)
+  pipeline/            runner.js (orchestrator) + stages/{script,editorial,budget,visuals,tts,render,finalize,metadata,publish}
+                       scheduler (durable jobs) · governor (Chrome+ffmpeg semaphores) · direction (art-director pass)
+                       estimate (timing seed) · fingerprint (content-hash resume) · qc · regen · repurpose · brandgen
+  styleguide/          🎨 SHARED style contract (guide schema · 6 presets · themeFromGuide · AI guide generator)
+  animation/           🎬 deterministic motion-graphics engine: harness (seekable page) · renderer (frame loop)
+                       templates/ (23) · planner · themes · timewarp (beat-anchored real↔authored map) · gsap bundle
+  hyperframe/          ✨ LLM-writes-GSAP system: codegen · validate (render QA) · prompt · beats · icons (~130) · lint · signatures
+  providers/           llm (master + legacy paths) · tts + voice/* · subtitle (align/whisper/estimate) · imagegen · trends · fetchlink
+  publish/             YouTube upload (OAuth loopback, staging-first)
+  media/               ffmpeg · master (−16 LUFS two-pass) · align · waveform · say · whisper · puppeteer
+  subtitles/           10 caption presets
+public/                "Studio Pro" SPA: index.html + css + fonts (Lexend UI)
   js/                  ESM modules: main.js · state.js · api.js
     ui/                  dom · icons (SVG set) · toast · dialog · modals · palette (⌘K)
-    views/               nav · home · studio · scenes (grid+patch) · progress · config · library…
-    features/            settings · voicepicker · channels · brandkit · srt · batch
+    views/               nav · home · studio · scenes (grid+patch) · player · progress · config · library · brandgen · editvideo
+    features/            settings · voicepicker · channels · brandkit · srt · batch · autopilot · assistant · scene-studio · template-gallery
 vendor/ffmpeg/         static ffmpeg/ffprobe (with libass — the Homebrew build lacks it)
 vendor/fonts/          fonts.css for SCENE render (data-URI, offline — don't confuse with UI fonts)
 vendor/gsap/           GSAP 3.13.0 + SplitText/DrawSVG/MorphSVG/MotionPath/Physics2D/ScrambleText/CustomEase…
@@ -143,15 +159,17 @@ ffmpeg (libass), whisper.cpp + the `ggml-small.bin` model, Chrome for Testing, `
 ## ⚙️ AI configuration (optional)
 
 Go to **⚙️ AI Setting** in the app to plug in:
-- **LLM**: Base URL + API Key + model (OpenAI-compatible — cheap proxies work).
-- **TTS**: choose `say` (offline) / OpenAI / ElevenLabs + voice.
-- **Subtitles**: `estimate` (recommended — text is 100% accurate from the script) or `whisper`.
+- **LLM**: Base URL + API Key + model (OpenAI-compatible — cheap proxies work; several keys rotate, `modelFallback` optional).
+- **TTS**: choose `say` (offline) / Edge / Vbee / LarVoice / OpenAI / ElevenLabs + voice.
+- **Subtitles**: `align` (recommended — whisper timing with 100%-accurate script text) or `estimate` / `whisper`.
 
 With nothing plugged in it still runs fully using the macOS voice + ffmpeg.
 
 ---
 
-## 📂 Data
+## 📂 Data & logs
 
 All projects, media, and the DB live in `data/` (gitignored). Each project has its own folder:
-`data/projects/<id>/{audio,srt,html,render,output}`.
+`data/projects/<id>/{audio,srt,html,render,output}` + the canonical `scenes.json` artifact.
+`JOURNAL.md` is the daily production log — real stats appended from the live DB by a scheduled
+`scripts/journal.mjs` run (see `scripts/install-journal-schedule.sh`); don't edit it by hand.
