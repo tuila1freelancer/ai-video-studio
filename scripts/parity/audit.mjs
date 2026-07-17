@@ -24,6 +24,15 @@ const SNAP = `(() => {
     || /hf-d(speck|pulse|ghost|ring)|hf-beam|hf-far/.test(cls(el));
   function eff(el){ let o=1,n=el; while(n && n!==document.documentElement){ const s=getComputedStyle(n);
     if(s.display==='none'||s.visibility==='hidden') return 0; o*=parseFloat(s.opacity||'1'); n=n.parentElement; } return o; }
+  // group id = the element's slot/top-level container: parts of ONE construction entering
+  // together count as ONE mover (a laptop assembling from 4 pieces is one main mover)
+  const grpIds = new Map(); let grpSeq = 0;
+  function grp(el){
+    const host = el.closest('.hf-slot,.hf-center') || (function(){ let n=el, top=el;
+      while(n && n.parentElement && !/hf-cam|stage|content/.test(cls(n.parentElement)||n.parentElement.id||'') && n.parentElement!==document.body){ n=n.parentElement; top=n; } return top; })();
+    if(!grpIds.has(host)) grpIds.set(host, 'g'+(grpSeq++));
+    return grpIds.get(host);
+  }
   const texts=[], painted=[], atmo=new Set(); let partsHost=[];
   const all=[...document.querySelectorAll('body *')];
   for (const el of all) {
@@ -56,12 +65,12 @@ const SNAP = `(() => {
         grad:(s.webkitBackgroundClip==='text'||s.backgroundClip==='text'),
         shadowN:shadows, maxBlur, stroke:parseFloat(s.webkitTextStrokeWidth||'0')>0,
         color:s.color, txt:(el.textContent||'').trim().slice(0,60),
-        key:(el.id||'')+'|'+cls(el).slice(0,30)+'|'+(el.textContent||'').trim().slice(0,16) });
+        key:(el.id||'')+'|'+cls(el).slice(0,30)+'|'+(el.textContent||'').trim().slice(0,16), grp:grp(el) });
     }
     if ((hasBg||hasBorder||el.tagName==='svg'||el.tagName==='IMG'||el.tagName==='CANVAS') && area>40) {
       painted.push({ x:r.left, y:r.top, w:r.width, h:r.height, area, o:+o.toFixed(3),
         frac:+(area/frameA).toFixed(4), tag:el.tagName,
-        key:(el.id||'')+'|'+cls(el).slice(0,30) });
+        key:(el.id||'')+'|'+cls(el).slice(0,30), grp:grp(el) });
     }
     // hero-cluster candidates: containers holding many visible crafted parts
     if (area>0.06*frameA && area<0.92*frameA && el.children.length>=2) {
@@ -187,7 +196,7 @@ export async function auditScene({ page, seek, duration, beats = [], hasBeats = 
       const dx = Math.abs((e2.x ?? 0) - (p0.x ?? 0)), dy = Math.abs((e2.y ?? 0) - (p0.y ?? 0));
       const dScale = p0.w > 0 ? Math.abs(e2.w - p0.w) / p0.w : 0;
       const dO = Math.abs((e2.o ?? 1) - (p0.o ?? 1));
-      if (dx > 24 || dy > 24 || dScale > 0.15 || dO > 0.3) moved.add(e2.key.split('|')[1]?.split(/\s+/)[0] || e2.key);
+      if (dx > 24 || dy > 24 || dScale > 0.15 || dO > 0.3) moved.add(e2.grp || e2.key);
     }
     movers.push(moved.size);
     moverKeys.push([...moved].slice(0, 4).join('+'));
@@ -202,7 +211,11 @@ export async function auditScene({ page, seek, duration, beats = [], hasBeats = 
     const zs = d.entrances.map((en) => zone(en.cx, en.cy, en.W, en.H));
     let repeats = 0;
     for (let i = 1; i < zs.length; i++) if (zs[i] === zs[i - 1] && i !== zs.length - 1) repeats++;
-    f = { pass: repeats === 0, detail: `zones=${zs.join('>')}` };
+    // doctrine: rotate positions. Annotating an established hero once is legitimate design,
+    // so scenes with ≥4 reveals may keep ONE adjacent repeat; parking everything in one
+    // zone (2+ repeats) always fails.
+    const allow = zs.length >= 4 ? 1 : 0;
+    f = { pass: repeats <= allow, detail: `zones=${zs.join('>')}` };
   }
 
   // (g) climax emphasis near the end — any of: end type outgrows the early type, a glowing
