@@ -228,7 +228,7 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
     const T = [...times].filter((t) => t >= 0 && t <= dur).sort((a, c) => a - c);
     const narrWords = narrationWordSet(narration);
     const narrLang = detectLang(narration || '');
-    let anyVisible = false, endStrong = false, heroFrac = 0, unionFrac = 0, deadAt = null;
+    let anyVisible = false, endStrong = false, heroFrac = 0, unionFrac = 0, deadAt = null, maxTextH = 0;
     // Every geometry accumulator carries an occurrence count `n` — persistence tiering
     // (heldAcrossSamples) later drops one-sample transients instead of re-asking on them.
     const off = new Map(), sub = new Map(), bad = new Map(), ovl = new Map(), lowc = new Map(), clip = new Map(), occ = new Map(), frag = new Map();
@@ -269,7 +269,12 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
       cov += Math.max(0, curB - curA);
       unionFrac = Math.max(unionFrac, cov / W);
       // a scene must not fade to (near) nothing at the end — the last frame should still carry a hero
-      if (t >= endT - 0.001 && els.some((e) => e.o > 0.35 && e.w > 0.06 * W)) endStrong = true;
+      for (const e of els) if (e.o > 0.35 && e.h > maxTextH) maxTextH = e.h;
+      // climax doctrine: the ending must carry a PROMINENT element — a text at ≥55% of the
+      // scene's own biggest type, or any sizable element. A shrunken afterthought is a weak
+      // ending the codegen loop should fix, not ship.
+      if (t >= endT - 0.001 && els.some((e) => e.o > 0.35
+        && (e.w > 0.06 * W && (maxTextH === 0 || e.h >= 0.55 * maxTextH || e.w * e.h >= 0.03 * W * H)))) endStrong = true;
       for (const e of vis) {
         if (e.clip) bump(clip, e.txt, { t, ...e });
         const overflow = Math.max(-e.x, e.x + e.w - W, -e.y, e.y + e.h - H);
