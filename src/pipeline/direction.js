@@ -37,7 +37,7 @@ export const HF_LAYOUTS = [
 
 const BATCH = 14; // scenes per LLM call — big enough for coherence, small enough to stay valid
 
-function guideBrief(guide) {
+export function guideBrief(guide) {
   const g = guide || {};
   const pal = g.palette || {};
   const sem = Object.entries(g.semantics || {}).map(([k, v]) => `${k}=${v}`).join(' ');
