@@ -223,12 +223,15 @@ export async function finalize(projectId, { dir, size, config, _qcAttempt = 0 })
   try {
     const guide = visualMode === 'hyperframe' ? resolveGuide(config) : null;
     const nVar = Math.max(1, Math.min(3, parseInt(config.thumbVariants, 10) || 1));
+    // The master script's thumbnail title (short, mobile-readable, written FOR the thumb)
+    // beats the long video title when present.
+    const thumbTitle = (project.metadata?.thumbnail?.title || project.title || '').trim() || project.title;
     if (nVar > 1) {
-      const variants = await buildThumbnailVariants(project.title, firstImg, join(project.outputDir, `thumb_${Date.now()}.jpg`), { guide, count: nVar });
+      const variants = await buildThumbnailVariants(thumbTitle, firstImg, join(project.outputDir, `thumb_${Date.now()}.jpg`), { guide, count: nVar });
       if (variants[0]) thumb = variants[0];
       if (variants.length > 1) op(projectId, `🖼️ Đã tạo ${variants.length} biến thể thumbnail (A/B) trong thư mục xuất`);
     } else {
-      const t = await buildThumbnail(project.title, firstImg, size, join(project.outputDir, `thumb_${Date.now()}.jpg`), { guide });
+      const t = await buildThumbnail(thumbTitle, firstImg, size, join(project.outputDir, `thumb_${Date.now()}.jpg`), { guide });
       if (t) thumb = t;
     }
   } catch { /* keep basic */ }

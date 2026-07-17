@@ -18,7 +18,7 @@ export function replaceScenes(projectId, scenes) {
     _delScenes.run(projectId);
     arr.forEach((s, i) => _insScene.run({
       id: newId('s'), project_id: projectId, idx: i,
-      voice_text: s.voice || s.voice_text || '', visual_prompt: s.visualPrompt || s.visual_prompt || '',
+      voice_text: s.voice || s.voice_text || '', visual_prompt: s.visualPrompt || s.visual_prompt || s.visual || '',
       keywords: JSON.stringify(s.keywords || []),
       // Two-stage B2 may pre-assign a plan (e.g. chapter-break scenes); B5 backfills the rest.
       template: s.template || null, props: s.props ? JSON.stringify(s.props) : null,

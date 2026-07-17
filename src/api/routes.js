@@ -211,6 +211,18 @@ export function mountRoutes(app, { version }) {
   r.delete('/projects/:id', (req, res) => { DB.deleteProject(req.params.id); res.json({ ok: true }); });
   r.delete('/projects', (req, res) => { DB.deleteAllProjects(); res.json({ ok: true }); });
 
+  // ---- canonical scenes JSON export (factory format; DB is the source of truth) ----
+  r.get('/projects/:id/scenes-json', async (req, res) => {
+    const p = DB.getProject(req.params.id);
+    if (!p) return res.status(404).json({ error: 'not found' });
+    const { scenesJsonFromRows } = await import('../content/master-script.js');
+    const json = scenesJsonFromRows(p, DB.getScenes(p.id));
+    const name = String(p.title || 'video').normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .replace(/[^\w.-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'video';
+    if (req.query.download === '1') res.setHeader('Content-Disposition', `attachment; filename="${name}-scenes.json"`);
+    res.json(json);
+  });
+
   // ---- full-video SRT export (all scene cues shifted to the FINAL video timeline) ----
   // Accounts for the image-mode intro card and per-junction xfade overlaps, so exported
   // cues match the finished file instead of drifting late on long transitions videos.
