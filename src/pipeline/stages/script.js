@@ -1,9 +1,10 @@
 // B2 — SCRIPT. Generate (or, on resume, reuse) the scene script for a project.
 // Default path is the MASTER SCRIPT ENGINE (src/content/master-script.js): one master prompt
-// turns a topic / a detailed owner script / a pasted scenes JSON into the canonical scenes
-// JSON, whose per-scene 8-bracket visuals feed HyperFrame codegen directly (the separate
-// direction pass skips scenes that already carry [MAIN FOCUS]). URL inputs and the
-// config.scriptEngine:'legacy' escape hatch keep the original generateScript path.
+// turns a topic / a detailed owner script / a pasted scenes JSON / a fetched article (URL
+// input → mode 'source': a NEW script FROM the material, never a polish of it) into the
+// canonical scenes JSON, whose per-scene 8-bracket visuals feed HyperFrame codegen directly
+// (the separate direction pass skips scenes that already carry [MAIN FOCUS]). The
+// config.scriptEngine:'legacy' escape hatch keeps the original generateScript path.
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import * as DB from '../../db/index.js';
@@ -30,13 +31,14 @@ export async function runScript(ctx) {
     }
     // Show Bible: channel persona + anti-repeat ledger, injected additively into the prompt
     const memory = channel ? DB.getChannelMemory(channel.id) : null;
-    // Master engine owns text/json inputs; URL content keeps the legacy rewrite doctrine
-    // (an article is source MATERIAL to write from, not the owner's wording to preserve).
-    const useMaster = config.scriptEngine !== 'legacy' && project.input_type !== 'url';
+    // Master engine owns EVERY input shape. A fetched article rides along as `source`
+    // (mode 'source': write a NEW script from the material — an article is research to
+    // write from, not the owner's wording to preserve, so it never takes the polish path).
+    const useMaster = config.scriptEngine !== 'legacy';
     const script = await withRetry(
       () => (useMaster
         ? generateMasterScenes({
-          input: project.topic, config, ai, memory, guide: resolveGuide(config),
+          input: project.topic, source: fetched, config, ai, memory, guide: resolveGuide(config),
           onLog: (m) => logger.info(m, { projectId }),
         })
         : generateScript({ topic: project.topic, inputType: project.input_type, fetched, config, ai, memory })),
