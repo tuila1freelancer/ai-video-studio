@@ -167,9 +167,11 @@ export async function auditScene({ page, seek, duration, beats = [], hasBeats = 
     d = { pass: checked >= 2 ? responded >= Math.ceil(checked * 0.8) : null, detail: `${responded}/${checked} beats answered`, entrances };
   }
 
-  // (e) calm — concurrently moving groups at each key time. Ambient drift IS the doctrine
-  // ("camera never sleeps"), so only SUBSTANTIAL movement counts: ≥90 px/s translation,
-  // ≥80%/s scale change, or ≥1.6/s opacity change (measured over the 0.15 s pair window).
+  // (e) calm — ONE MAIN mover at a time. Ambient drift and keep-alive micro-motion
+  // (float ±8, breathe 3%, glow cycles, counter ticks) ARE the doctrine and never count;
+  // a MAIN mover is an entrance/exit-scale movement: ≥160 px/s translation, ≥100%/s scale
+  // change, or ≥2/s opacity change (over the 0.15 s pair window). Calibrated so the
+  // reference app's own scenes pass.
   const movers = [], moverKeys = [];
   for (const t of keyTimes) {
     const A = new Map(snaps[t].texts.concat(snaps[t].painted).map((e2) => [e2.key, e2]));
@@ -181,14 +183,14 @@ export async function auditScene({ page, seek, duration, beats = [], hasBeats = 
       const dx = Math.abs((e2.x ?? 0) - (p0.x ?? 0)), dy = Math.abs((e2.y ?? 0) - (p0.y ?? 0));
       const dScale = p0.w > 0 ? Math.abs(e2.w - p0.w) / p0.w : 0;
       const dO = Math.abs((e2.o ?? 1) - (p0.o ?? 1));
-      if (dx > 14 || dy > 14 || dScale > 0.12 || dO > 0.24) moved.add(e2.key.split('|')[1]?.split(/\s+/)[0] || e2.key);
+      if (dx > 24 || dy > 24 || dScale > 0.15 || dO > 0.3) moved.add(e2.key.split('|')[1]?.split(/\s+/)[0] || e2.key);
     }
     movers.push(moved.size);
     moverKeys.push([...moved].slice(0, 4).join('+'));
   }
   const sortedM = [...movers].sort((x, y) => x - y);
   const medianM = sortedM[Math.floor(sortedM.length / 2)];
-  const e = { pass: medianM <= 2 && Math.max(...movers) <= 4, detail: `movers=${movers.join(',')} [${moverKeys.filter(Boolean).join(' | ')}]` };
+  const e = { pass: medianM <= 2 && Math.max(...movers) <= 3, detail: `movers=${movers.join(',')} [${moverKeys.filter(Boolean).join(' | ')}]` };
 
   // (f) position rotation between consecutive beat entrances (ours only)
   let f = { pass: null, detail: 'no beats (ref)' };
@@ -199,14 +201,22 @@ export async function auditScene({ page, seek, duration, beats = [], hasBeats = 
     f = { pass: repeats === 0, detail: `zones=${zs.join('>')}` };
   }
 
-  // (g) climax emphasis near the end
+  // (g) climax emphasis near the end — any of: end type outgrows the early type, a glowing
+  // end hero at near-early size, the main GRAPHIC grew ≥12%, or a big element ENTERED in
+  // the final stretch (climax entrance). Calibrated against the reference's own scenes.
   const endS = snaps[fr(0.95)];
   const earlyMax = Math.max(1, ...[fr(0.25), fr(0.5)].flatMap((t) => snaps[t].texts.filter((x) => x.o > 0.35).map((x) => x.fs)));
   const endBig = endS.texts.filter((x) => x.o > 0.35).sort((x, y) => y.fs - x.fs)[0];
   const endGlow = endBig && (endBig.maxBlur >= 10 || endBig.grad || endBig.shadowN >= 2);
+  const bigPaint = (s) => s.painted.filter((p) => p.o > 0.3 && p.frac < 0.6).sort((x, y) => y.area - x.area)[0];
+  const p50 = bigPaint(snaps[fr(0.5)]), p95 = bigPaint(snaps[fr(0.95)]);
+  const paintGrew = p50 && p95 && p95.area >= p50.area * 1.12;
+  const midKeys = new Set(snaps[fr(0.5)].texts.concat(snaps[fr(0.5)].painted).map((x) => x.key));
+  const lateEntrance = endS.texts.concat(endS.painted).some((x) => !midKeys.has(x.key) && x.o > 0.4
+    && ((x.fs && x.fs >= earlyMax * 0.8) || (x.area && x.area >= 0.04 * endS.W * endS.H)));
   const g = {
-    pass: !!endBig && (endBig.fs >= earlyMax * 1.05 || (endGlow && endBig.fs >= earlyMax * 0.9)),
-    detail: endBig ? `end fs=${Math.round(endBig.fs)} vs early ${Math.round(earlyMax)} glow=${!!endGlow}` : 'end frame empty',
+    pass: (!!endBig && (endBig.fs >= earlyMax * 1.05 || (endGlow && endBig.fs >= earlyMax * 0.8))) || paintGrew || lateEntrance,
+    detail: endBig ? `end fs=${Math.round(endBig.fs)}/early ${Math.round(earlyMax)} glow=${!!endGlow} paint↑=${!!paintGrew} late=${!!lateEntrance}` : `end text empty paint↑=${!!paintGrew} late=${!!lateEntrance}`,
   };
 
   // (h) junk / telemetry text
