@@ -25,7 +25,18 @@ if (existsSync(src)) {
     process.env.AVS_DATA_DIR = SANDBOX;
     const DB = await import('../src/db/index.js');
     DB.setSetting('ai', JSON.parse(row.value));
-    console.log('[e2e-sandbox] ai settings copied into', SANDBOX);
+    // media library rows ride along (absolute paths into the repo's data/library files) so
+    // the LLM sound-design lane has a real BGM/SFX catalog to pick from in the sandbox.
+    const from2 = new Database(src, { readonly: true });
+    let copied = 0;
+    try {
+      for (const r of from2.prepare("SELECT * FROM library WHERE kind IN ('bgm','sfx')").all()) {
+        if (!existsSync(r.path)) continue;
+        try { DB.addLibrary({ kind: r.kind, brandFolder: r.brand_folder, name: r.name, filename: r.filename, path: r.path, size: r.size }); copied++; } catch { /* dup */ }
+      }
+    } catch { /* no library table */ }
+    from2.close();
+    console.log(`[e2e-sandbox] ai settings + ${copied} library rows copied into`, SANDBOX);
   }
 }
 
