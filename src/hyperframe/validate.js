@@ -163,14 +163,44 @@ const PROBE = `(() => {
         break; // only the topmost relevant element decides this probe point
       } }
     if(cov>=3) occluded.push({txt:(n.el.textContent||'').trim().slice(0,20),by:coverBy}); }
-  return {W,H,els:out,overlaps,lowContrast,occluded,decorArea:+(decorArea/(W*H)).toFixed(4),centerCover:+centerCover.toFixed(3)};
+  // hero-instrument density (reference caliber): the biggest crafted cluster's part count —
+  // a slot/container holding many visible text/painted/svg children. Mirrors the parity
+  // checklist's (b) so the codegen loop can be re-asked toward the 8-20-part doctrine.
+  let heroParts=0;
+  for(const el of cam.querySelectorAll('div,section,figure')){
+    if(el.closest('.hf-far'))continue;
+    const r=el.getBoundingClientRect(); const area=r.width*r.height;
+    const isSlot=/hf-slot|hf-center/.test(String(el.className||''));
+    if(area<(isSlot?0.02:0.06)*W*H||area>0.92*W*H||el.children.length<2)continue;
+    if(eff(el)<0.12)continue;
+    let parts=0;
+    for(const d of el.querySelectorAll('*')){
+      const ds=getComputedStyle(d); if(ds.display==='none')continue;
+      const dr=d.getBoundingClientRect(); if(dr.width<3||dr.height<2)continue;
+      const dText=[...d.childNodes].some(n2=>n2.nodeType===3&&n2.textContent.trim());
+      const dPaint=(ds.backgroundColor&&ds.backgroundColor!=='transparent'&&!/rgba\\((?:\\d+, ){2}\\d+, 0\\)/.test(ds.backgroundColor))
+        ||(ds.backgroundImage&&ds.backgroundImage!=='none')||(parseFloat(ds.borderTopWidth)>0&&ds.borderTopStyle!=='none')
+        ||['PATH','RECT','CIRCLE','LINE','POLYGON','ELLIPSE'].includes(d.tagName.toUpperCase());
+      if(dText||dPaint)parts++;
+    }
+    if(parts>heroParts)heroParts=parts;
+  }
+  // primary-type treatment: the biggest readable text must carry chrome/neon/stroke — flat = cheap
+  let primary=null;
+  for(const n of txts){ if(n.o<0.4)continue; const fs=parseFloat(getComputedStyle(n.el).fontSize)||0;
+    if(!primary||fs>primary.fs){ const cs=getComputedStyle(n.el);
+      const grad=(cs.webkitBackgroundClip==='text'||cs.backgroundClip==='text');
+      const stroke=parseFloat(cs.webkitTextStrokeWidth||'0')>0;
+      const sh=cs.textShadow&&cs.textShadow!=='none';
+      primary={fs,grad,stroke,sh,txt:(n.el.textContent||'').trim().slice(0,20)}; } }
+  return {W,H,els:out,overlaps,lowContrast,occluded,decorArea:+(decorArea/(W*H)).toFixed(4),centerCover:+centerCover.toFixed(3),heroParts,primary};
 })()`;
 
 /**
  * @returns {ok, defects:[string], tlDur, skipped?} — defects are phrased as instructions the
  *   LLM can act on when re-prompted.
  */
-export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration = 6, beats = [], narration = '', captionsOn = true, overlay = false }) {
+export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration = 6, beats = [], narration = '', captionsOn = true, overlay = false, caliber = true }) {
   if (!chromeAvailable()) return { ok: true, skipped: true, defects: [] };
   const dur = Math.max(1.5, duration);
   const g = normalizeGuide(guide || spec.guide);
@@ -239,10 +269,12 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
       if (cur) cur.n++;
       else map.set(k, { ...data, n: 1 });
     };
-    let maxCenterCover = 0;
+    let maxCenterCover = 0, maxHeroParts = 0, primaryInfo = null;
     for (const t of T) {
-      const { W, H, els, overlaps = [], lowContrast = [], occluded = [], decorArea = 0, centerCover = 0 } = await page.evaluate((tt, probe) => { window.__seek(tt); return eval(probe); }, t, PROBE);
+      const { W, H, els, overlaps = [], lowContrast = [], occluded = [], decorArea = 0, centerCover = 0, heroParts = 0, primary = null } = await page.evaluate((tt, probe) => { window.__seek(tt); return eval(probe); }, t, PROBE);
       maxCenterCover = Math.max(maxCenterCover, centerCover);
+      maxHeroParts = Math.max(maxHeroParts, heroParts);
+      if (primary && (!primaryInfo || primary.fs > primaryInfo.fs)) primaryInfo = primary;
       if (pairTimes.has(t)) snaps.set(t, els);
       for (const p of overlaps) bump(ovl, `${p.a}|${p.b}`, { t, ...p });
       for (const p of lowContrast) bump(lowc, p.txt, { t, ...p });
@@ -270,11 +302,11 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
       unionFrac = Math.max(unionFrac, cov / W);
       // a scene must not fade to (near) nothing at the end — the last frame should still carry a hero
       for (const e of els) if (e.o > 0.35 && e.h > maxTextH) maxTextH = e.h;
-      // climax doctrine: the ending must carry a PROMINENT element — a text at ≥55% of the
-      // scene's own biggest type, or any sizable element. A shrunken afterthought is a weak
+      // climax doctrine: the ending must carry a PROMINENT element — a text at ≥70% of the
+      // scene's own biggest type, or a large graphic. A shrunken afterthought is a weak
       // ending the codegen loop should fix, not ship.
       if (t >= endT - 0.001 && els.some((e) => e.o > 0.35
-        && (e.w > 0.06 * W && (maxTextH === 0 || e.h >= 0.55 * maxTextH || e.w * e.h >= 0.03 * W * H)))) endStrong = true;
+        && (e.w > 0.06 * W && (maxTextH === 0 || e.h >= 0.7 * maxTextH || e.w * e.h >= 0.03 * W * H)))) endStrong = true;
       for (const e of vis) {
         if (e.clip) bump(clip, e.txt, { t, ...e });
         const overflow = Math.max(-e.x, e.x + e.w - W, -e.y, e.y + e.h - H);
@@ -307,6 +339,16 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
     // center window (transient entrances are tolerated by the 0.45-alpha/held threshold).
     if (overlay && maxCenterCover > 0.4) {
       defects.push(`overlay mode: solid elements cover ${Math.round(maxCenterCover * 100)}% of the center of the frame — the owner's footage must stay visible. Keep the center ~40-50% clear; move panels/keywords to the edges, lower-third or side columns, and never use filled backgrounds larger than a chip.`);
+    }
+    // reference-caliber gates (re-ask drivers, cosmetic class — a scene still short after all
+    // attempts ships as 'imperfect' LOUDLY rather than killing the run):
+    // hero density — the standing composition must be a crafted instrument, not scattered bits
+    if (caliber && !overlay && anyVisible && maxHeroParts < 6) {
+      defects.push(`the hero construction carries only ${maxHeroParts} crafted sub-parts — build the main instrument from 8-20 parts (rows / ticks / labels / readouts / needle) INSIDE ONE container or slot, so the frame reads as a crafted device, never scattered fragments.`);
+    }
+    // primary type treatment — the biggest word must look expensive
+    if (caliber && anyVisible && primaryInfo && primaryInfo.fs >= 0.05 * Math.min(w, h) && !primaryInfo.grad && !primaryInfo.stroke && !primaryInfo.sh) {
+      defects.push(`the primary text "${primaryInfo.txt}" is flat/untreated — give the hero word a chrome gradient (background-clip:text), a layered neon text-shadow, or a stroke+fill, plus a soft drop-shadow.`);
     }
     // beat adherence: compare the snapshot before each beat with one after its entrance
     // window — some element must ENTER (newly visible) or take EMPHASIS (opacity/size jump).
