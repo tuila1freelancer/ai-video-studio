@@ -22,7 +22,16 @@ function narrationWordSet(narration) {
 // multi-word, shares no word with the narration, AND reads as a different language.
 function textLanguageLeak(txt, narrWords, narrLang) {
   const words = (fold(txt || '').match(/[\p{L}]+/gu) || []).filter((w) => w.length >= 3);
-  if (words.length < 2) return false; // single word / number / symbol — too little signal
+  if (words.length < 2) {
+    // single-word English DECOR on a non-English video ("ENTER", "EXECUTE", "SCANNING") —
+    // pure-ASCII, ≥4 letters, absent from the narration. Short acronyms (AI, GPT) and any
+    // word the narration itself speaks stay allowed.
+    if (narrLang !== 'en' && words.length === 1) {
+      const w = words[0];
+      return w.length >= 4 && /^[a-z]+$/.test(w) && !narrWords.has(w);
+    }
+    return false; // number / symbol — too little signal
+  }
   if (words.some((w) => narrWords.has(w))) return false; // derived from the narration — fine
   return detectLang(txt) !== narrLang; // semantic same-language headline — fine; leak — defect
 }
