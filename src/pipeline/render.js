@@ -5,6 +5,7 @@ import { ffmpeg, ffmpegAss, probeDuration, makeSilence, probeImageSize } from '.
 import { logoRect } from '../media/logo-overlay.js';
 import { perimeterExpr, WM_SPEEDS } from '../media/watermark.js';
 import { buildKaraokeAss } from './srt.js';
+import { rechunkCues } from '../subtitles/chunk.js';
 import { buildSceneBackground, buildTitleCard } from './visuals.js';
 import { ratioToSize, newId } from '../util/util.js';
 import { VENDOR_DIR, DIRS } from '../config/paths.js';
@@ -69,11 +70,16 @@ export async function renderScene(scene, project, { dir, size, subtitleStyle, re
   let audio = scene.audio_path && existsSync(scene.audio_path) ? scene.audio_path : null;
   if (!audio) { audio = join(dir, `silence_${scene.idx}.m4a`); await makeSilence(audio, d); }
 
-  // 3) subtitle ASS (karaoke), per-scene timing
+  // 3) subtitle ASS (karaoke or plain), per-scene timing. P29: display cues may be
+  // re-chunked (sentence / N words) — rebuilt from the same word timestamps, so the burn
+  // stays glued to the voice exactly like the animation captions.
   let assPath = null;
   if (subtitleStyle && subtitleStyle.enabled !== false && scene.srt_json && scene.srt_json.length) {
     assPath = join(dir, `sub_${scene.idx}_${newId('')}.ass`);
-    writeFileSync(assPath, buildKaraokeAss(scene.srt_json, subtitleStyle, size));
+    const cues = rechunkCues(scene.srt_json, {
+      chunk: subtitleStyle.chunk, wordsPerCue: subtitleStyle.wordsPerCue, text: scene.voice_text,
+    });
+    writeFileSync(assPath, buildKaraokeAss(cues, subtitleStyle, size));
   }
 
   const out = join(dir, `scene_${String(scene.idx).padStart(3, '0')}.mp4`);

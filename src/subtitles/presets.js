@@ -86,6 +86,15 @@ export function getSubtitlePreset(id) {
 }
 
 /**
+ * Bare font FAMILY from whatever the config carries (P30). Older configs stored the whole
+ * CSS stack ("'Anton', sans-serif") — libass would treat that as a (nonexistent) font name
+ * and the harness would quote it wrong. One normalizer feeds both consumers.
+ */
+export function familyName(v) {
+  return String(v || '').split(',')[0].replace(/['"]/g, '').trim();
+}
+
+/**
  * Caption style for the animation harness (buildScenePage captionStyle).
  * → { color, baseColor, fontFamily, weight, effect, boxBg?, fontSizePx, bottomPct, textCase }
  * Without a preset it returns exactly what buildSceneHtml computed before presets
@@ -96,21 +105,32 @@ export function captionStyleFrom(config, theme, { w, h }) {
   const fontSizePx = c.subtitleFontSize
     ? Math.round(c.subtitleFontSize * (Math.min(w, h) / 1080) * 0.72)
     : undefined;
+  // P30: the owner's explicit font pick ALWAYS wins — before this, subtitleFont only
+  // reached the ASS burn path and the animation captions silently kept the page font.
+  const fam = familyName(c.subtitleFont);
+  const pickedStack = fam ? `'${fam}', -apple-system, sans-serif` : undefined;
+  const mode = c.subtitleMode === 'plain' ? 'plain' : 'karaoke';
   const preset = getSubtitlePreset(c.subtitlePreset);
-  if (!preset) return { color: c.subtitleColor || theme.accents[0], fontSizePx };
+  if (!preset) {
+    return {
+      color: c.subtitleColor || theme.accents[0], fontSizePx,
+      ...(pickedStack ? { fontFamily: pickedStack } : {}), mode,
+    };
+  }
   const lang = (c.subtitleLang || c.language || '').toLowerCase();
   const pl = preset.perLang && preset.perLang[lang];
   const pos = c.subtitlePosition || preset.position || {};
   return {
     color: c.subtitleColor || preset.activeColor,
     baseColor: preset.baseColor,
-    fontFamily: (pl && pl.fontStack) || preset.fontStack,
+    fontFamily: pickedStack || (pl && pl.fontStack) || preset.fontStack,
     weight: preset.weight,
     effect: preset.effect,
     ...(preset.boxBg ? { boxBg: preset.boxBg } : {}),
     fontSizePx,
     bottomPct: pos.marginV != null ? Math.round(pos.marginV * 100) : undefined,
     textCase: c.subtitleTextCase || preset.textCase,
+    mode,
   };
 }
 
@@ -122,15 +142,19 @@ export function captionStyleFrom(config, theme, { w, h }) {
  */
 export function assStyleFrom(config) {
   const c = config || {};
+  const picked = familyName(c.subtitleFont); // bare family — a CSS stack would break libass
   const style = {
     enabled: c.enableSubtitles !== false,
-    karaoke: true,
-    font: c.subtitleFont || 'Be Vietnam Pro',
+    karaoke: c.subtitleMode !== 'plain', // P29: plain mode burns static lines, no \k sweep
+    font: picked || 'Be Vietnam Pro',
     fontSize: parseInt(c.subtitleFontSize || 80, 10),
     textCase: c.subtitleTextCase || 'original',
     color: c.subtitleColor || '#F7B500',
     base: '#FFFFFF',
     position: c.subtitlePosition || { preset: 'bot', marginV: 0.12 },
+    // display re-chunking travels with the style so the burn site can rebuild cues (P29)
+    chunk: c.subtitleChunk || 'auto',
+    wordsPerCue: c.subtitleWordsPerCue || 4,
   };
   const preset = getSubtitlePreset(c.subtitlePreset);
   if (!preset) return style;
@@ -138,7 +162,7 @@ export function assStyleFrom(config) {
   const pl = preset.perLang && preset.perLang[lang];
   return {
     ...style,
-    font: c.subtitleFont || (pl && pl.assFont) || preset.assFont,
+    font: picked || (pl && pl.assFont) || preset.assFont,
     textCase: c.subtitleTextCase || preset.textCase,
     color: c.subtitleColor || preset.activeColor,
     base: preset.baseColor,

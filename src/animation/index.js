@@ -9,7 +9,8 @@ import { planScene, planScenes } from './planner.js';
 import { beatWarpMap } from './timewarp.js';
 import { renderScenePage, renderPreviewFrame } from './renderer.js';
 import { resolveBrandKit, planBrandPlacement, buildBrandLayer, imgDataUri } from './branding.js';
-import { captionStyleFrom } from '../subtitles/presets.js';
+import { captionStyleFrom, familyName } from '../subtitles/presets.js';
+import { rechunkCues } from '../subtitles/chunk.js';
 import { ratioToSize } from '../util/util.js';
 
 export { listTemplates, planScenes, planScene, resolveBrandKit };
@@ -62,8 +63,14 @@ export function buildSceneHtml(scene, project, config, extras = {}) {
       : getTheme(config.theme || 'neon-tech'));
   ({ plan, theme } = applyBrandFont(plan, theme, config));
   // captions resolve BEFORE the template builds: word timings feed ctx.accentTimes so
-  // template motion lands on the narration's beats (still deterministic — srt_json is data)
-  const captions = config.enableSubtitles !== false ? (scene.srt_json || []) : [];
+  // template motion lands on the narration's beats (still deterministic — srt_json is data).
+  // P29: display cues may be re-chunked (sentence / N-word) — a pure rebuild from the SAME
+  // word timestamps, so subtitle timing stays glued to the voice; beats keep the raw cues.
+  const captions = config.enableSubtitles !== false
+    ? rechunkCues(scene.srt_json || [], {
+      chunk: config.subtitleChunk, wordsPerCue: config.subtitleWordsPerCue, text: scene.voice_text,
+    })
+    : [];
   const ctx = makeCtx({ w, h, theme, seed: scene.idx + 1, duration, idx: scene.idx, captions: scene.srt_json || [] });
   const tpl = buildTemplate(plan.template, plan.props, ctx);
   applyCustomOverride(tpl, plan.props);
@@ -103,6 +110,11 @@ export function buildSceneHtml(scene, project, config, extras = {}) {
     watermark: brand ? null : resolveWatermark(config),
     brand: placement ? buildBrandLayer(brand, placement, { w, h, theme }) : null,
     captionStyle: captionStyleFrom(config, theme, { w, h }),
+    // sentence cues run long — let the caption wrap to 2 lines instead of shrinking to dust
+    capWrap: config.subtitleChunk === 'sentence',
+    // P30 loud-font contract: the page probes these families after load; a miss surfaces
+    // in __init's return so the renderer can warn instead of silently substituting.
+    fontChecks: [familyName(config.subtitleFont), familyName(config.fonts?.display)].filter(Boolean),
     overlay: overlayCfg,
   });
 }

@@ -82,15 +82,21 @@ const RUNTIME = `
     if (ci !== curCue) {
       curCue = ci;
       capEl.innerHTML = ci < 0 ? '' : cues[ci].words.map((w,j)=>'<span class="capw" data-j="'+j+'">'+w.word.replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</span>').join(' ');
-      // keep the auto-subtitle on ONE line: shrink the font (deterministically) until the cue fits
-      // the caption bar width — never wrap to a second line. Pure function of the cue text + frame.
+      // fit the cue deterministically: single-line mode shrinks until the width fits;
+      // wrap mode (sentence chunking) allows up to 2 lines and shrinks on height instead.
       const cap = capEl.parentElement;
       if (cap) {
         cap.style.fontSize = '';
-        if (ci >= 0) { let fs = parseFloat(getComputedStyle(cap).fontSize) || 40, g = 80; while (g-- > 0 && cap.scrollWidth > cap.clientWidth + 1 && fs > 8) { fs -= 1; cap.style.fontSize = fs + 'px'; } }
+        if (ci >= 0) {
+          let fs = parseFloat(getComputedStyle(cap).fontSize) || 40, g = 80;
+          const over = () => S.capWrap
+            ? cap.scrollHeight > fs * 1.25 * 2 + 4
+            : cap.scrollWidth > cap.clientWidth + 1;
+          while (g-- > 0 && over() && fs > 8) { fs -= 1; cap.style.fontSize = fs + 'px'; }
+        }
       }
     }
-    if (ci >= 0) {
+    if (ci >= 0 && S.capMode !== 'plain') {
       const words = cues[ci].words;
       const spans = capEl.children;
       for (let j=0;j<spans.length;j++) {
@@ -269,8 +275,17 @@ const RUNTIME = `
     }
     anims = document.getAnimations ? document.getAnimations({ subtree: true }) : [];
     for (const a of anims) { try { a.pause(); } catch(e){} }
+    // P30 loud-font probe: after every declared face is loaded, any requested family that
+    // still can't satisfy document.fonts.check() WILL render as a substitute — surface it.
+    var fontMiss = [];
+    try {
+      (S.fontChecks || []).forEach(function(f){
+        if (document.fonts && !document.fonts.check('16px "' + f + '"')) fontMiss.push(f);
+      });
+    } catch(e){}
+    window.__fontMiss = fontMiss;
     window.__seek(0);
-    return { n: anims.length, gsap: !!window.__tl, tplErr: window.__tplErr };
+    return { n: anims.length, gsap: !!window.__tl, tplErr: window.__tplErr, fontMiss: fontMiss };
   };
   // Real-time → authored-timeline map. S.tplWarp ([[authored, real], ...] control points,
   // strictly increasing on both axes) pins each baked beat to the real moment its word is
@@ -383,6 +398,10 @@ export function buildScenePage(opts) {
       : fx === 'shadow'
         ? 'text-shadow:0 2px 0 rgba(0,0,0,.85),0 5px 16px rgba(0,0,0,.7)'
         : `text-shadow:${theme.glow(capColor)}`;
+  // plain (non-karaoke) captions: base color, steady legibility fx — a colored glow would
+  // read as a highlight, so that one downgrades to a neutral dark halo (P29)
+  const capPlainFx = fx === 'glow' ? 'text-shadow:0 2px 14px rgba(0,0,0,.8)' : capActFx;
+  const capCls = `${opts.captionStyle?.mode === 'plain' ? ' plain' : ''}${opts.capWrap ? ' wrap' : ''}`;
   const grid = theme.grid ? `
     .grid{position:absolute;inset:0;opacity:.10;background-image:linear-gradient(${theme.accents[0]}30 1px,transparent 1px),linear-gradient(90deg,${theme.accents[0]}30 1px,transparent 1px);background-size:${Math.round(w/16)}px ${Math.round(w/16)}px}` : '.grid{display:none}';
   const vig = theme.vignette ? `.vig{position:absolute;inset:0;box-shadow:inset 0 0 ${Math.round(Math.min(w,h)*0.42)}px rgba(0,0,0,${theme.vignette})}` : '.vig{display:none}';
@@ -402,6 +421,11 @@ export function buildScenePage(opts) {
     tplWarp: Array.isArray(opts.tplWarp) && opts.tplWarp.length >= 3 ? opts.tplWarp : null,
     progressStart: opts.progressStart || 0, progressTotal: opts.progressTotal || 0,
     captions: opts.captions || [],
+    // P29 subtitle display contract: plain mode skips the karaoke word sweep, wrap mode
+    // (sentence cues) fits on height across up to 2 lines instead of width on 1.
+    capMode: opts.captionStyle?.mode === 'plain' ? 'plain' : 'karaoke',
+    capWrap: !!opts.capWrap,
+    fontChecks: Array.isArray(opts.fontChecks) ? opts.fontChecks : [],
     theme: { particles: theme.particles, streak: theme.streak, accents: theme.accents },
     live: !!opts.live,
   };
@@ -435,6 +459,8 @@ img.wm{width:${Math.round(Math.min(w,h)*0.085)}px;height:auto}
 .capw.fut{opacity:.4}
 .capw.act{color:${capColor};opacity:1;${capActFx}}
 .capw.past{opacity:.95}
+.cap.wrap{white-space:normal;line-height:1.25}
+.cap.plain .capw{color:${capBase};opacity:1;${capPlainFx}}
 .tpl{position:absolute;inset:0;z-index:10}
 /* baked legibility floor: a dark halo on meaning text so it clears contrast on the dark stage
    even if the codegen model authored no shadow (hf-kw carries its own chrome/neon filter, so it
@@ -448,7 +474,7 @@ ${template.css}${opts.brand ? opts.brand.css : ''}
   <div class="tpl">${template.html}</div>
   ${ov ? '' : '<div class="vig"></div>'}
   ${ov ? '' : (opts.brand ? opts.brand.html : wm)}
-  <div class="cap"><span id="capText"></span></div>
+  <div class="cap${capCls}"><span id="capText"></span></div>
   ${ov ? '' : '<div class="progtrack"><div id="progFill"></div></div>'}
   ${liveBits}
 </div>
