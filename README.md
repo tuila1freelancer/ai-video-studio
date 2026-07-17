@@ -74,7 +74,7 @@ Reliability: a defect-driven validator (`META_LEAK` / `NOT_SPEAKABLE` / `BRACKET
 - 📑 **Export a whole-video .SRT file** (on the correct timeline) to upload YouTube subtitles; **export the canonical scenes JSON** from the Studio toolbar.
 - **Aspect ratios**: 9:16 (TikTok/Reels), 16:9 (YouTube), 1:1, 4:5.
 - **Long videos, no problem**: batched script generation + processed scene by scene + concatenated incrementally → RAM doesn't grow with length.
-- **Fully customizable karaoke subtitles**: font, size, weight, color (palette + custom), position.
+- **Fully customizable subtitles**: two display modes — 🎤 **karaoke** (per-word highlight riding the real voice timing) or 📄 **plain** static lines — and three chunking modes: natural 5–7-word phrases, **one cue per sentence** (wraps to max 2 lines), or a **fixed N words per line** (2–10). Every mode is rebuilt from the same word-level timestamps, so subtitles always stay glued to the voice (P29). Font, size, weight, color (palette + custom), position — and the picked font is **guaranteed to render** in both the animation captions and the libass burn, with a loud warning if a family can't load (P30).
 - **Scene grid**: view/regenerate voice · regenerate scene · re-render individual scenes.
 - **Library** for Brand / BGM / SFX, **Brand Asset Gen**, **Edit Video** (trim), **Metadata** (title/desc/hashtag), **SRT editor**.
 - **Real-time progress** over WebSocket, **stop / resume**, **parallel render**.

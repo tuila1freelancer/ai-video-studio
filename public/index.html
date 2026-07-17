@@ -321,8 +321,26 @@
           <div class="cfg-group" id="grpSubtitle">
             <button class="cfg-head" type="button"><span class="cfg-ic">💬</span><span class="cfg-meta"><span class="cfg-title">Phụ đề</span><span class="cfg-chip" data-chip="subtitle"></span></span><span class="cfg-arr">▾</span></button>
             <div class="cfg-body">
-              <label class="switch-row"><span class="switch"><input type="checkbox" id="cfgSub" checked><span class="sl"></span></span> Karaoke</label>
+              <label class="switch-row"><span class="switch"><input type="checkbox" id="cfgSub" checked><span class="sl"></span></span> Hiện phụ đề</label>
               <div id="subStyle">
+                <div class="grid2" style="margin-bottom:8px">
+                  <div><label class="label">Kiểu hiển thị</label>
+                    <select class="input" id="cfgSubMode">
+                      <option value="karaoke">🎤 Karaoke — nhấn từng từ theo giọng</option>
+                      <option value="plain">📄 Thường — dòng tĩnh, không nhấn từ</option>
+                    </select></div>
+                  <div><label class="label">Cách ngắt dòng</label>
+                    <select class="input" id="cfgSubChunk">
+                      <option value="auto">✨ Tự nhiên — cụm 5–7 từ</option>
+                      <option value="sentence">📝 Theo câu — trọn câu thoại</option>
+                      <option value="words">🔢 Theo số từ</option>
+                    </select></div>
+                </div>
+                <div class="field hidden" id="subWordsRow" style="margin-bottom:8px">
+                  <label class="label">Số từ mỗi dòng: <strong id="cfgSubWordsL">4</strong></label>
+                  <input type="range" class="range" id="cfgSubWords" min="2" max="10" step="1" value="4">
+                </div>
+                <div class="hint" style="margin-bottom:8px">Mọi cách ngắt đều dựng lại từ đúng mốc thời gian từng từ của giọng đọc — phụ đề luôn khớp tiếng.</div>
                 <div class="sub-preset-grid" id="subPresetGrid"></div>
                 <details class="cfg-details">
                   <summary>Tinh chỉnh thủ công</summary>

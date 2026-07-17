@@ -38,6 +38,10 @@ export async function renderScenePage(opts) {
       await page.setContent(html, { waitUntil: 'load', timeout: 30000 });
       const init = await withTimeout(page.evaluate(() => window.__init()), 20000, '__init');
       if (init && init.tplErr) logger.warn(`anim template script failed (scene renders CSS-only): ${init.tplErr}`);
+      if (init && init.fontMiss && init.fontMiss.length) {
+        // P30: never a silent substitute — the owner picked these families explicitly
+        logger.warn(`⚠ font không nạp được, trình duyệt sẽ thay bằng font khác: ${init.fontMiss.join(', ')} — kiểm tra Thư viện → Font chữ`);
+      }
       logger.debug?.(`anim scene init: ${init && init.n != null ? init.n : init} animations${init && init.gsap ? ' + gsap timeline' : ''}`);
 
       // ffmpeg consumer: JPEG frames on stdin + scene audio → h264 mp4

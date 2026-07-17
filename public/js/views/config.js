@@ -69,6 +69,9 @@ export function gatherConfig() {
     videoDuration: +$('#cfgVd').value,
     sceneDuration: +$('#cfgSd').value,
     enableSubtitles: $('#cfgSub').checked,
+    subtitleMode: $('#cfgSubMode')?.value === 'plain' ? 'plain' : 'karaoke',
+    subtitleChunk: $('#cfgSubChunk')?.value || 'auto',
+    subtitleWordsPerCue: +($('#cfgSubWords')?.value || 4),
     subtitlePreset: state.subPreset || undefined,
     subtitleFont: $('#cfgSubFont').value,
     subtitleFontSize: +$('#cfgSubSize').value,
@@ -117,7 +120,15 @@ export function applyConfig(cfg = {}) {
   $('#cfgSub').checked = cfg.enableSubtitles !== false;
   state.subPreset = cfg.subtitlePreset || '';
   renderSubPresetGrid();
-  if (cfg.subtitleFont) $('#cfgSubFont').value = cfg.subtitleFont;
+  if ($('#cfgSubMode')) $('#cfgSubMode').value = cfg.subtitleMode === 'plain' ? 'plain' : 'karaoke';
+  if ($('#cfgSubChunk')) $('#cfgSubChunk').value = ['sentence', 'words'].includes(cfg.subtitleChunk) ? cfg.subtitleChunk : 'auto';
+  if ($('#cfgSubWords')) {
+    $('#cfgSubWords').value = cfg.subtitleWordsPerCue || 4;
+    $('#cfgSubWordsL').textContent = $('#cfgSubWords').value;
+    $('#subWordsRow').classList.toggle('hidden', $('#cfgSubChunk')?.value !== 'words');
+  }
+  // older configs stored the whole CSS stack — normalize to the bare family the options carry
+  if (cfg.subtitleFont) $('#cfgSubFont').value = String(cfg.subtitleFont).split(',')[0].replace(/['"]/g, '').trim() || cfg.subtitleFont;
   if (cfg.subtitleFontSize) $('#cfgSubSize').value = cfg.subtitleFontSize;
   if (cfg.subtitleTextCase) $('#cfgSubCase').value = cfg.subtitleTextCase;
   if (cfg.subtitleColor) { state.subColor = cfg.subtitleColor; buildSubColors(); }
@@ -157,8 +168,10 @@ function wireConfig() {
   $('#cfgSd').addEventListener('input', updateEstimate);
   $('#cfgDurMode')?.addEventListener('change', updateEstimate);
   $('#cfgAr').addEventListener('change', updateEstimate);
-  ['#cfgSub', '#cfgSubFont', '#cfgSubSize', '#cfgSubCase', '#cfgSubPos'].forEach((id) => $(id).addEventListener('change', updateSubPreview));
+  ['#cfgSub', '#cfgSubFont', '#cfgSubSize', '#cfgSubCase', '#cfgSubPos', '#cfgSubMode', '#cfgSubChunk'].forEach((id) => $(id)?.addEventListener('change', updateSubPreview));
   $('#cfgSub').addEventListener('change', () => $('#subStyle').style.display = $('#cfgSub').checked ? 'block' : 'none');
+  $('#cfgSubChunk')?.addEventListener('change', () => $('#subWordsRow').classList.toggle('hidden', $('#cfgSubChunk').value !== 'words'));
+  $('#cfgSubWords')?.addEventListener('input', () => { $('#cfgSubWordsL').textContent = $('#cfgSubWords').value; });
 }
 export function updateEstimate() {
   const vd = +$('#cfgVd').value, sd = +$('#cfgSd').value;
@@ -190,8 +203,12 @@ export function buildSubColors() {
 }
 export function updateSubPreview() {
   const p = $('#subPreview'); if (!p) return;
-  p.style.color = state.subColor; p.style.fontFamily = $('#cfgSubFont').value;
-  let txt = 'Phụ đề mẫu'; const c = $('#cfgSubCase').value;
+  const fam = $('#cfgSubFont').value.split(',')[0].replace(/['"]/g, '').trim();
+  p.style.fontFamily = fam ? `'${fam}', sans-serif` : '';
+  // plain mode shows the base (unsung) color — the accent color is the karaoke highlight
+  const plain = $('#cfgSubMode')?.value === 'plain';
+  p.style.color = plain ? '#FFFFFF' : state.subColor;
+  let txt = plain ? 'Phụ đề thường — dòng tĩnh' : 'Phụ đề mẫu'; const c = $('#cfgSubCase').value;
   if (c === 'uppercase') txt = txt.toUpperCase(); else if (c === 'lowercase') txt = txt.toLowerCase();
   p.textContent = txt;
 }
@@ -307,12 +324,13 @@ export async function loadFontFamilies() {
   }
   const sf = $('#cfgSubFont');
   if (sf) {
+    // option value = BARE family name (P30): one canonical form feeds both the harness
+    // captions (quoted into a stack there) and the ASS FontName (must be a plain family)
     const have = new Set([...sf.options].map((o) => o.value));
     for (const f of families) {
-      const stack = `'${f.name}', sans-serif`;
-      if (!have.has(stack)) {
+      if (!have.has(f.name)) {
         const o = document.createElement('option');
-        o.value = stack; o.textContent = `${f.source === 'uploaded' ? '📤 ' : ''}${f.name}`;
+        o.value = f.name; o.textContent = `${f.source === 'uploaded' ? '📤 ' : ''}${f.name}`;
         sf.appendChild(o);
       }
     }
@@ -375,12 +393,15 @@ export function updateCfgChips() {
   set('format', `${mode}${theme} — ${$('#cfgAr').value} · ${$('#cfgFps').value}fps · ${res} · ${durTxt} · cảnh ${$('#cfgSd').value}s`);
   const bk = activeChannelBrand();
   set('brand', bk
-    ? `${bk.channelName || 'Brand kit (chỉ logo)'} · chèn ${bk.placement === 'always' ? 'cố định' : bk.placement === 'off' ? 'tắt' : 'thông minh'}${bk.logo ? ' · có logo' : ''}`
+    ? `${bk.channelName || 'Brand kit (chỉ logo)'}${bk.finalOverlay?.enabled && bk.logo ? ' · đóng dấu logo' : ''}${bk.watermark?.enabled ? ' · watermark trôi' : ''}${bk.nameBadge?.enabled !== false && bk.channelName ? ' · tên kênh' : ''}`
     : ($('#cfgWatermark').value.trim() ? `Watermark: ${$('#cfgWatermark').value.trim()}` : 'Chưa cấu hình — bấm để thiết lập'));
   const sp = state.subPresets.find((p) => p.id === state.subPreset);
   const pos = { bot: 'dưới', mid: 'giữa', top: 'trên' }[$('#cfgSubPos').value] || 'dưới';
+  const subMode = $('#cfgSubMode')?.value === 'plain' ? 'thường' : 'karaoke';
+  const subChunk = $('#cfgSubChunk')?.value === 'sentence' ? ' · theo câu'
+    : $('#cfgSubChunk')?.value === 'words' ? ` · ${$('#cfgSubWords')?.value || 4} từ/dòng` : '';
   set('subtitle', $('#cfgSub').checked
-    ? `${sp ? sp.name : 'Tuỳ chỉnh'} · ${$('#cfgSubFont').value.split(',')[0].replace(/['"]/g, '')} · cỡ ${$('#cfgSubSize').value} · vị trí ${pos}`
+    ? `${sp ? sp.name : 'Tuỳ chỉnh'} · ${subMode}${subChunk} · ${$('#cfgSubFont').value.split(',')[0].replace(/['"]/g, '')} · cỡ ${$('#cfgSubSize').value} · vị trí ${pos}`
     : 'Tắt phụ đề');
   const lv = state.settings?.tts?.langVoices?.vi;
   const voice = lv ? `${lv.voice} (${lv.provider})` : (state.settings?.tts?.provider ? `provider ${state.settings.tts.provider}` : 'tự chọn');
