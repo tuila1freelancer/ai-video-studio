@@ -148,7 +148,7 @@ export function splitSentences(text) {
     .filter((s) => s.length > 1);
 }
 
-function topNouns(text, n = 4) {
+export function topNouns(text, n = 4) {
   const stop = new Set('the a an and or but of to in on for with is are was were be this that những và của là một các cho với trong đã sẽ được'.split(' '));
   const freq = {};
   for (const w of (text.toLowerCase().match(/[\p{L}\p{N}]+/gu) || [])) {
@@ -159,7 +159,7 @@ function topNouns(text, n = 4) {
 }
 
 // Build a script from arbitrary text, chunked to fit sceneCount scenes ~ wordsPerScene.
-function offlineScript(sourceText, { title, sceneCount, wordsPerScene, structure = false }) {
+export function offlineScript(sourceText, { title, sceneCount, wordsPerScene, structure = false }) {
   // Long-video structure without an LLM: paragraphs become chapters with a
   // chapter-break scene (narrated heading) so tens-of-minutes videos get an arc.
   if (structure && sceneCount >= 18) {
@@ -226,8 +226,8 @@ function offlineScript(sourceText, { title, sceneCount, wordsPerScene, structure
 // so neural voices land near the reference channel's ~270 syllables/min. Undershooting this
 // (the old flat 2.6) produced scenes that ran seconds shorter than their slot.
 export const LANG_WPS = { vi: 4.4, en: 2.6, ja: 3.4, ko: 3.1, zh: 3.4, ru: 2.4 };
-const LANG_NAME = { vi: 'Vietnamese', en: 'English (US)', ja: 'Japanese', ko: 'Korean', zh: 'Chinese', ru: 'Russian' };
-function scriptLang(config, sourceText) {
+export const LANG_NAME = { vi: 'Vietnamese', en: 'English (US)', ja: 'Japanese', ko: 'Korean', zh: 'Chinese', ru: 'Russian' };
+export function scriptLang(config, sourceText) {
   const c = String(config?.language || '').toLowerCase();
   if (c && c !== 'auto') return c;
   return detectLang(String(sourceText || '').slice(0, 400));
@@ -255,7 +255,7 @@ const CJK_LANGS = new Set(['ja', 'zh']); // no whitespace word boundaries — wo
 // Soft budget validator for chatJson: only GROSS overruns re-ask (mean words/scene > 1.5×
 // target) — a strict gate here would push good-but-chatty replies into the offline
 // fallback; the deterministic budget-fit pass (stages/budget.js) owns fine trimming.
-function scriptBudgetOk(scenes, wordsPerScene, language) {
+export function scriptBudgetOk(scenes, wordsPerScene, language) {
   if (CJK_LANGS.has(language)) return true; // whitespace counting would misfire wildly
   const arr = (scenes || []).map((s) => String(s.voice || s.text || '')).filter(Boolean);
   if (!arr.length) return false;
@@ -265,7 +265,7 @@ function scriptBudgetOk(scenes, wordsPerScene, language) {
 
 // Additive Show-Bible block (channel persona + anti-repeat ledger). Purely appended to
 // prompts — never restructures the JSON schema or touches the scene-count guard (P4).
-function bibleBlock(memory) {
+export function bibleBlock(memory) {
   if (!memory) return '';
   const lines = [];
   if ((memory.bible || '').trim()) lines.push(`CHANNEL CONTEXT (Show Bible — stay true to this identity, never read it aloud): ${memory.bible.trim().slice(0, 800)}`);
