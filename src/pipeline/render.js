@@ -6,7 +6,7 @@ import { logoRect } from '../media/logo-overlay.js';
 import { perimeterExpr, WM_SPEEDS } from '../media/watermark.js';
 import { buildKaraokeAss } from './srt.js';
 import { rechunkCues } from '../subtitles/chunk.js';
-import { buildSceneBackground, buildTitleCard } from './visuals.js';
+import { buildSceneBackground } from './visuals.js';
 import { ratioToSize, newId } from '../util/util.js';
 import { VENDOR_DIR, DIRS } from '../config/paths.js';
 
@@ -289,23 +289,8 @@ export async function concatScenes(sceneVideos, project, { dir, size, bgmPath, s
   return { path: finalOut, thumb, duration: total };
 }
 
-// Render an intro/outro title card clip (same codec params as scenes so concat is clean).
-export async function renderCard(title, subtitle, { dir, size, bgImage, duration = 2.6, idx = 0, onLog } = {}) {
-  const ow = size.w, oh = size.h, frames = Math.round(duration * FPS);
-  const img = await buildTitleCard(title, subtitle, size, dir, bgImage);
-  const silence = join(dir, `cardsil_${newId('')}.m4a`);
-  await makeSilence(silence, duration);
-  const out = join(dir, `card_${idx}_${newId('')}.mp4`);
-  const vf = `scale=${Math.round(ow * 1.25)}:${Math.round(oh * 1.25)}:force_original_aspect_ratio=increase,`
-    + `crop=${Math.round(ow * 1.25)}:${Math.round(oh * 1.25)},`
-    + `zoompan=z='min(1.0+0.0011*on,1.12)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${frames}:s=${ow}x${oh}:fps=${FPS},`
-    + `format=yuv420p,fade=t=in:st=0:d=0.4,fade=t=out:st=${Math.max(0.1, duration - 0.5).toFixed(2)}:d=0.5`;
-  await ffmpeg(['-loop', '1', '-i', img, '-i', silence, '-filter_complex', `[0:v]${vf}[v]`,
-    '-map', '[v]', '-map', '1:a', '-t', String(duration),
-    '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-pix_fmt', 'yuv420p', '-r', String(FPS),
-    '-c:a', 'aac', '-b:a', '160k', '-ar', '44100', '-ac', '2', '-movflags', '+faststart', out], { onLog });
-  return out;
-}
+// (renderCard — the hardcoded intro/outro title-card clip — was removed with the synthetic
+// card lane, P31: the program is the script's scenes only, like the reference app.)
 
 function logoPos(pos, ow, oh, lw, m = 40) {
   // Free positioning: {xPct,yPct} = element CENTER as a fraction of the frame (brand kit).

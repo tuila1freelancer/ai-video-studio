@@ -20,12 +20,12 @@ export function retryHook(id, stepName, idx) {
 
 /**
  * Cumulative time offsets so the burned-in progress bar is continuous across the whole video.
- * @returns {{offsets:number[], total:number, outroStart:number}}
+ * The program is the script's scenes only (no synthetic cards — P31), so total = Σ durations.
+ * @returns {{offsets:number[], total:number}}
  */
 export function progressPlan(scenes, config) {
   const durs = scenes.map((s) => Math.max(1.5, s.duration || config.sceneDuration || 6));
   const offsets = []; let acc = 0;
   for (const d of durs) { offsets.push(acc); acc += d; }
-  const outro = config.outro !== false ? 2.6 : 0;
-  return { offsets, total: acc + outro, outroStart: acc };
+  return { offsets, total: acc };
 }

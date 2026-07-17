@@ -81,9 +81,12 @@ export const SIGNATURES = {
  * @param {{energy?:string, mood?:string, isHook?:boolean, isClimax?:boolean}} direction
  * @param {number} [idx] scene index (0-based); omitted → legacy fixed mapping
  */
-export function motionSignature(direction = {}, idx = 0) {
+export function motionSignature(direction = {}, idx = 0, salt = 0) {
   const { energy, mood, isHook, isClimax } = direction;
-  const i = Number.isFinite(+idx) ? Math.max(0, idx | 0) : 0;
+  // salt (P31): a per-project offset so scene N of different videos rotates onto DIFFERENT
+  // signatures — role-driven picks (hook/climax/dramatic) stay role-driven, only the
+  // modulo rotations shift. salt 0 → the legacy fixed mapping, unchanged.
+  const i = (Number.isFinite(+idx) ? Math.max(0, idx | 0) : 0) + (Number.isFinite(+salt) ? Math.abs(salt | 0) : 0);
   if (isHook) return SIGNATURES['maximalist-impact'];                              // open at max power
   if (isClimax) return energy === 'high' ? SIGNATURES['maximalist-impact'] : SIGNATURES['shadow-cut'];
   if (energy === 'high') return SIGNATURES[['maximalist-impact', 'deconstructed-industrial'][i % 2]];

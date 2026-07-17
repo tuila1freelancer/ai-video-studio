@@ -11,7 +11,17 @@ import { renderScenePage, renderPreviewFrame } from './renderer.js';
 import { resolveBrandKit, planBrandPlacement, buildBrandLayer, imgDataUri } from './branding.js';
 import { captionStyleFrom, familyName } from '../subtitles/presets.js';
 import { rechunkCues } from '../subtitles/chunk.js';
-import { ratioToSize } from '../util/util.js';
+import { ratioToSize, hash32 } from '../util/util.js';
+
+// Per-project seed salt (P31): scene N of two different videos must NOT share randomness
+// (particles, ambient layout, FX picks) — before this, seed was `idx + 1` for every video,
+// so same-index scenes came out near-identical across projects. Determinism per project is
+// preserved (same project + idx → same seed forever); no project id → the legacy seed,
+// byte-identical (previews, tests, harness runs without a real project).
+export function sceneSeed(project, idx) {
+  const base = (idx | 0) + 1;
+  return project?.id ? ((hash32(String(project.id)) ^ base) >>> 0) : base;
+}
 
 export { listTemplates, planScenes, planScene, resolveBrandKit };
 
@@ -71,7 +81,7 @@ export function buildSceneHtml(scene, project, config, extras = {}) {
       chunk: config.subtitleChunk, wordsPerCue: config.subtitleWordsPerCue, text: scene.voice_text,
     })
     : [];
-  const ctx = makeCtx({ w, h, theme, seed: scene.idx + 1, duration, idx: scene.idx, captions: scene.srt_json || [] });
+  const ctx = makeCtx({ w, h, theme, seed: sceneSeed(project, scene.idx), duration, idx: scene.idx, captions: scene.srt_json || [] });
   const tpl = buildTemplate(plan.template, plan.props, ctx);
   applyCustomOverride(tpl, plan.props);
   // Canvas provenance: a hyperframe spec authored on a different canvas (stamped at codegen)
@@ -89,7 +99,7 @@ export function buildSceneHtml(scene, project, config, extras = {}) {
     templateId: plan.template, idx: scene.idx, total: extras.total || 9999, captionsOn: captions.length > 0,
   }) : null;
   return buildScenePage({
-    w, h, zoom: Math.max(1, +extras.zoom || 1), theme, seed: scene.idx + 1, duration,
+    w, h, zoom: Math.max(1, +extras.zoom || 1), theme, seed: sceneSeed(project, scene.idx), duration,
     // Time-warp (scenes-first order): a hyperframe script bakes absolute animation seconds
     // for the duration it was AUTHORED at (props.plannedDur — an estimate when visuals ran
     // before TTS). tplScale = planned/real lets the harness drive the template timeline in
@@ -178,7 +188,7 @@ export function sceneTemplateSource(scene, project, config) {
       ? themeFromGuide(resolveGuide(config))
       : getTheme(config.theme || 'neon-tech'));
   ({ plan, theme } = applyBrandFont(plan, theme, config));
-  const ctx = makeCtx({ w, h, theme, seed: scene.idx + 1, duration, idx: scene.idx, captions: scene.srt_json || [] });
+  const ctx = makeCtx({ w, h, theme, seed: sceneSeed(project, scene.idx), duration, idx: scene.idx, captions: scene.srt_json || [] });
   const tpl = buildTemplate(plan.template, plan.props, ctx);
   applyCustomOverride(tpl, plan.props);
   return { template: plan.template, html: tpl.html || '', css: tpl.css || '', script: tpl.script || '', hasCustom: !!plan.props?.__custom };
@@ -213,21 +223,10 @@ export async function renderAnimationScene(scene, project, config, { dir, progre
   return { ...res, preview: existsSync(previewPath) ? previewPath : null };
 }
 
-// Render a synthetic outro clip (no narration). CTA carries the channel name when branded.
-export async function renderOutroScene(project, config, { dir, progressStart, progressTotal, duration = 2.6, related = null } = {}) {
-  const brand = resolveBrandKit(config);
-  const scene = {
-    idx: 998, voice_text: '', srt_json: [], duration,
-    template: 'cta-outro',
-    props: {
-      heading: 'Cảm ơn đã xem', sub: (project.title || '').slice(0, 60),
-      cta: brand?.channelName ? `Đăng ký ${brand.channelName}` : 'Đăng ký kênh',
-      next: related ? String(related).slice(0, 56) : undefined, // end-screen cross-promo line
-    },
-  };
-  const res = await renderAnimationScene(scene, project, config, { dir, progressStart, progressTotal });
-  return res;
-}
+// (The synthetic "Cảm ơn đã xem" outro clip was removed — P31, owner order 2026-07-18:
+// the video ends on the script's own closing-CTA scene, codegen'd like every other scene,
+// exactly as the reference app does. cta-outro remains a normal TEMPLATE the animation-mode
+// planner may pick for a narrated closing scene — content then comes from the script.)
 
 // One preview frame (UI helper).
 export async function previewSceneFrame(scene, project, config, { outPath, t } = {}) {

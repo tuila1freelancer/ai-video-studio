@@ -11,6 +11,7 @@ import { imageGenEnabled } from '../../providers/imagegen.js';
 import { planScenes, resolveBrandKit, animSize } from '../../animation/index.js';
 import { generateSceneSpec } from '../../hyperframe/codegen.js';
 import { heroMediaUri } from '../../util/asset-uri.js';
+import { hash32 } from '../../util/util.js';
 import { resolveGuide } from '../../styleguide/index.js';
 import { buildSceneBackground } from '../visuals.js';
 import { withRetry } from '../../util/retry.js';
@@ -123,6 +124,7 @@ export async function runVisuals(ctx) {
           density: config.hyperframe?.density, creativeDirection: config.hyperframe?.direction, captionsOn: config.enableSubtitles !== false,
           hookVisual: sc.idx > 0 ? hookVisual : '',
           consistent: hfConsistent, imageFullAssets: mediaFor(sc), overlay: config.overlay?.enabled === true,
+          diversitySalt: hash32(String(projectId)), // P31: signature rotation differs per video
           onLog: (m) => logger.warn(m, { projectId }),
         });
         // clear any stale clip: on resume a scene that just got FRESH visuals must re-render.
