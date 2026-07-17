@@ -54,7 +54,13 @@ export function gatherConfig() {
       density: $('#cfgHfDensity').value,
       direction: $('#cfgHfDirection').value.trim() || undefined,
       model: $('#cfgHfModel').value.trim() || undefined,
+      consistent: $('#cfgHfConsistent')?.checked || false,
+      imageFull: $('#cfgHfImageFull') ? $('#cfgHfImageFull').checked : true,
     },
+    overlay: $('#cfgOverlay')?.checked
+      ? { enabled: true, source: $('#cfgOverlaySrc')?.value.trim() || null }
+      : { enabled: false },
+    soundDesign: $('#cfgSoundDesign') ? $('#cfgSoundDesign').checked : true,
     theme: $('#cfgTheme').value,
     fps: +$('#cfgFps').value,
     resolutionScale: +$('#cfgRes').value,
@@ -126,6 +132,14 @@ export function applyConfig(cfg = {}) {
   if ('intro' in cfg) $('#cfgIntro').checked = cfg.intro !== false;
   if ('autoBgm' in cfg) $('#cfgBgmAuto').checked = cfg.autoBgm !== false;
   if ('generateMetadata' in cfg) $('#cfgMeta').checked = cfg.generateMetadata !== false;
+  if ($('#cfgSoundDesign')) $('#cfgSoundDesign').checked = cfg.soundDesign !== false;
+  if ($('#cfgHfConsistent')) $('#cfgHfConsistent').checked = cfg.hyperframe?.consistent === true;
+  if ($('#cfgHfImageFull')) $('#cfgHfImageFull').checked = cfg.hyperframe?.imageFull !== false;
+  if ($('#cfgOverlay')) {
+    $('#cfgOverlay').checked = cfg.overlay?.enabled === true;
+    if ($('#cfgOverlaySrc')) $('#cfgOverlaySrc').value = cfg.overlay?.source || '';
+    const oo = $('#overlayOpts'); if (oo) oo.style.display = cfg.overlay?.enabled ? 'block' : 'none';
+  }
   updateEstimate(); updateSubPreview(); syncSegs(); updateCfgChips();
 }
 
@@ -137,6 +151,7 @@ function syncVisualModeOpts() {
 }
 function wireConfig() {
   $('#cfgVisualMode').addEventListener('change', syncVisualModeOpts);
+  $('#cfgOverlay')?.addEventListener('change', () => { const oo = $('#overlayOpts'); if (oo) oo.style.display = $('#cfgOverlay').checked ? 'block' : 'none'; });
   wireHfStyle();
   $('#cfgVd').addEventListener('input', updateEstimate);
   $('#cfgSd').addEventListener('input', updateEstimate);
