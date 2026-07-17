@@ -201,7 +201,14 @@ Rationale for each layer:
 | Trend autopilot + calendar + dashboard | `providers/trends.js` (RSS/Atom + feed packs) · `api/services/topic-autopilot.js` · `db/repositories/calendar.js` · `features/autopilot.js` |
 | Content assistant v2 (history + config sheet + series + plan-week) | `db/repositories/suggestions.js` · `api/services/assistant.js` · `features/{assistant-sheet,assistant-history}.js` |
 | Master script engine (B2: one master prompt → canonical scenes JSON; modes topic/script/json/source, word-balanced source partition + adaptive span split for long scripts) | `content/master-script.js` (plan/prompt/validate/repair/batching + `sourceSlicer`/`generateSpan` + `scenesJsonFromRows`) · `pipeline/stages/script.js` (routing + fetchLink→source + artifact) · `GET /projects/:id/scenes-json` · toolbar export buttons in `views/studio.js` · fixture gate `tests/fixtures/rag-scenes.json` |
-| Tests + CI | `tests/` (named test per P1–P19) · `.github/workflows/ci.yml` · `npm test` |
+| Overlay mode (keyed scenes → colorkey composite onto owner footage) | `animation/harness.js` (`opts.overlay`) · `animation/templates/hyperframe.js` (`props.overlay`) · `hyperframe/prompt.js` `overlayBlock` · `media/ffmpeg.js` `compositeColorkey` · `animation/index.js` |
+| LLM SRT correction (whisper lane, timestamp-pinned) | `subtitles/llm-correct.js` · `providers/subtitle.js` |
+| LLM sound design (BGM pick + SFX by cue sheet, clamped) | `audio/sound-design.js` · `pipeline/stages/finalize.js` |
+| Consistent-scenes / image-full mode blocks + scene assets | `hyperframe/codegen.js` (blocks + `applyAssetMedia`) · `util/asset-uri.js` · migration 4 (`scenes.assets`) |
+| Edit scene by prompt (gated LLM edit + takes) | `api/services/edit-scene.js` · `POST /scenes/:id/edit-html` |
+| Language expansion (12 langs, voice notes, script text rules) | `providers/llm.js` (`LANG_WPS/LANG_NAME`) · `content/master-script.js` (`LANG_VOICE_NOTES`) · `hyperframe/prompt.js` `scriptTextRule` |
+| Visual-parity harness vs the reference app | `scripts/parity/{select,run,audit,blind,lib}.mjs` · `tests/fixtures/parity-manifest.json` · `docs/reference/gap-matrix.md` |
+| Tests + CI | `tests/` (named test per P1–P24) · `.github/workflows/ci.yml` · `npm test` |
 | HyperFrames adoption (doctrine + gates) | `docs/reference/hyperframes-notes.md` (source map) · `hyperframe/lint.js` (static pre-render gate) · `hyperframe/validate.js` (persistence tiering, occlusion, beat adherence) · `animation/templates/_shared.js` (zoomThrough/jitter/targetZoom/dofBlur/streakIn/iconSpin, camPush `profile:'front'`) · `animation/harness.js` `__fitText` · `pipeline/direction.js` (roles + choreography verbs + blueprint layouts) · `pipeline/render.js` `planTransitions` (role-driven cuts/blends; `config.transitions` = smart mode, legacy uniform fade when no roles) · `GET /projects/:id/contact-sheet` |
 
 ## 6. "Want to change X → go to file Y" table (current structure)
@@ -228,6 +235,9 @@ Rationale for each layer:
 | Change binary path / runtime directory | `config/paths.js` |
 | Change the video-export config UI | `public/js/views/config.js` |
 | Change the realtime progress display | `public/js/views/progress.js` + `ws/hub.js` |
+| Change overlay-mode rules (key color, zones, composite) | `hyperframe/prompt.js` `overlayBlock` · `hyperframe/{lint,validate}.js` (overlay gates) · `media/ffmpeg.js` `compositeColorkey` |
+| Change SRT-correction / sound-design prompts or clamps | `subtitles/llm-correct.js` · `audio/sound-design.js` |
+| Change the parity checklist / samples | `scripts/parity/audit.mjs` · `tests/fixtures/parity-manifest.json` (rebuild: `scripts/parity/select.mjs`) |
 
 ---
 
