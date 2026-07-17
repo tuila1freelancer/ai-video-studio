@@ -115,7 +115,7 @@ export async function runVisuals(ctx) {
           scene: sc, guide, w: hfSize.w, h: hfSize.h, idx: sc.idx, total: totalHf, ai: hfAi,
           density: config.hyperframe?.density, creativeDirection: config.hyperframe?.direction, captionsOn: config.enableSubtitles !== false,
           hookVisual: sc.idx > 0 ? hookVisual : '',
-          consistent: hfConsistent, imageFullAssets: mediaFor(sc),
+          consistent: hfConsistent, imageFullAssets: mediaFor(sc), overlay: config.overlay?.enabled === true,
           onLog: (m) => logger.warn(m, { projectId }),
         });
         // clear any stale clip: on resume a scene that just got FRESH visuals must re-render.
@@ -140,7 +140,7 @@ export async function runVisuals(ctx) {
               ai: { ...hfAi, llm: { ...hfAi.llm, model: fbModel } },
               density: config.hyperframe?.density, creativeDirection: config.hyperframe?.direction, captionsOn: config.enableSubtitles !== false,
               hookVisual: sc.idx > 0 ? hookVisual : '', maxAttempts: 2,
-              consistent: hfConsistent, imageFullAssets: mediaFor(sc),
+              consistent: hfConsistent, imageFullAssets: mediaFor(sc), overlay: config.overlay?.enabled === true,
               onLog: (m) => logger.warn(m, { projectId }),
             });
           } catch (e2) { logger.warn(`hyperframe scene ${sc.idx}: fallback-model retry failed: ${e2.message}`, { projectId }); }

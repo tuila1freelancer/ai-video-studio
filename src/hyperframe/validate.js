@@ -60,7 +60,8 @@ const PROBE = `(() => {
   const out=[],nodes=[],seen=new Set();
   // decor: painted non-text elements (rings, ghost glyph boxes, cards, tracks) — they carry
   // real visual presence, so mid-scene deadness must count them (prompt v5 mandates them)
-  let decorArea=0;
+  let decorArea=0, centerCover=0;
+  const cb={x:W*0.25,y:H*0.25,w:W*0.5,h:H*0.5};
   for(const el of cam.querySelectorAll('div,section,figure')){
     if(el.closest('.hf-far'))continue;
     const s=getComputedStyle(el);
@@ -70,7 +71,16 @@ const PROBE = `(() => {
     const o=eff(el); if(o<0.12)continue;
     const r=el.getBoundingClientRect();
     if(r.width*r.height>=0.02*W*H&&r.left<W&&r.right>0&&r.top<H&&r.bottom>0) decorArea+=Math.min(r.width*r.height,0.2*W*H);
+    // overlay gate input: how much of the CENTER window is blocked by solid-ish paint
+    const am=(s.backgroundColor||'').match(/rgba?\\(([^)]+)\\)/);
+    const alpha=am?(am[1].split(',').length>3?parseFloat(am[1].split(',')[3]):1):(s.backgroundImage!=='none'?0.6:0);
+    if(o*alpha>0.45){
+      const ix=Math.max(0,Math.min(r.right,cb.x+cb.w)-Math.max(r.left,cb.x));
+      const iy=Math.max(0,Math.min(r.bottom,cb.y+cb.h)-Math.max(r.top,cb.y));
+      centerCover+=ix*iy/(cb.w*cb.h);
+    }
   }
+  centerCover=Math.min(1,centerCover);
   for(const el of cam.querySelectorAll('*')){ if(seen.has(el))continue; seen.add(el);
     const ownText=[...el.childNodes].some(n=>n.nodeType===3&&n.textContent.trim().length);
     const isIcon=el.classList.contains('hf-iconbox')||el.tagName==='svg';
@@ -144,23 +154,24 @@ const PROBE = `(() => {
         break; // only the topmost relevant element decides this probe point
       } }
     if(cov>=3) occluded.push({txt:(n.el.textContent||'').trim().slice(0,20),by:coverBy}); }
-  return {W,H,els:out,overlaps,lowContrast,occluded,decorArea:+(decorArea/(W*H)).toFixed(4)};
+  return {W,H,els:out,overlaps,lowContrast,occluded,decorArea:+(decorArea/(W*H)).toFixed(4),centerCover:+centerCover.toFixed(3)};
 })()`;
 
 /**
  * @returns {ok, defects:[string], tlDur, skipped?} — defects are phrased as instructions the
  *   LLM can act on when re-prompted.
  */
-export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration = 6, beats = [], narration = '', captionsOn = true }) {
+export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration = 6, beats = [], narration = '', captionsOn = true, overlay = false }) {
   if (!chromeAvailable()) return { ok: true, skipped: true, defects: [] };
   const dur = Math.max(1.5, duration);
   const g = normalizeGuide(guide || spec.guide);
   const theme = themeFromGuide(g);
   const ctx = makeCtx({ w, h, theme, seed: 3, duration: dur, idx: 2 });
-  const tpl = buildTemplate('hyperframe', { ...spec, guide: g }, ctx);
+  const tpl = buildTemplate('hyperframe', { ...spec, guide: g, ...(overlay ? { overlay: true } : {}) }, ctx);
   const html = buildScenePage({
     w, h, theme, seed: 3, duration: dur, progressStart: 0, progressTotal: dur,
     template: tpl, captions: [], watermark: null, captionStyle: {},
+    overlay: overlay ? {} : null,
   });
   const browser = await getBrowser();
   const page = await browser.newPage();
@@ -219,8 +230,10 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
       if (cur) cur.n++;
       else map.set(k, { ...data, n: 1 });
     };
+    let maxCenterCover = 0;
     for (const t of T) {
-      const { W, H, els, overlaps = [], lowContrast = [], occluded = [], decorArea = 0 } = await page.evaluate((tt, probe) => { window.__seek(tt); return eval(probe); }, t, PROBE);
+      const { W, H, els, overlaps = [], lowContrast = [], occluded = [], decorArea = 0, centerCover = 0 } = await page.evaluate((tt, probe) => { window.__seek(tt); return eval(probe); }, t, PROBE);
+      maxCenterCover = Math.max(maxCenterCover, centerCover);
       if (pairTimes.has(t)) snaps.set(t, els);
       for (const p of overlaps) bump(ovl, `${p.a}|${p.b}`, { t, ...p });
       for (const p of lowContrast) bump(lowc, p.txt, { t, ...p });
@@ -231,7 +244,7 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
       // moment would contradict the slow-pacing contract (0.5–0.9s eases). After the first
       // entrance window, SOMETHING substantial must be on screen: a meaning element OR the
       // living mid-layer decor prompt v5 mandates (rings/ghost glyphs are real presence).
-      if (deadAt == null && gapTimes.has(t) && t > 1.4 && t < dur - 0.3
+      if (deadAt == null && !overlay && gapTimes.has(t) && t > 1.4 && t < dur - 0.3
         && decorArea < 0.03
         && !els.some((e) => e.o >= 0.25 && e.w * e.h >= 0.015 * W * H)) deadAt = t;
       for (const e of vis) heroFrac = Math.max(heroFrac, e.w / W);
@@ -272,8 +285,13 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
     // sea of black. A balanced or distributed layout that fills a reasonable share of the width
     // is fine (the model chooses the arrangement); this just catches the lone-small-keyword miss,
     // so the threshold is deliberately loose and does NOT force a single dominant hero.
-    if (anyVisible && heroFrac > 0 && heroFrac < 0.30 && unionFrac < 0.44) {
+    if (!overlay && anyVisible && heroFrac > 0 && heroFrac < 0.30 && unionFrac < 0.44) {
       defects.push(`the scene reads sparse — the widest element spans ${Math.round(heroFrac * 100)}% and everything together covers only ${Math.round(unionFrac * 100)}% of the frame width, leaving most of it empty. Fill the frame more — spread the composition across the width or enlarge the main element (the arrangement is yours; just don't leave it near-empty).`);
+    }
+    // overlay contract: the footage must stay visible — solid paint may not blanket the
+    // center window (transient entrances are tolerated by the 0.45-alpha/held threshold).
+    if (overlay && maxCenterCover > 0.4) {
+      defects.push(`overlay mode: solid elements cover ${Math.round(maxCenterCover * 100)}% of the center of the frame — the owner's footage must stay visible. Keep the center ~40-50% clear; move panels/keywords to the edges, lower-third or side columns, and never use filled backgrounds larger than a chip.`);
     }
     // beat adherence: compare the snapshot before each beat with one after its entrance
     // window — some element must ENTER (newly visible) or take EMPHASIS (opacity/size jump).

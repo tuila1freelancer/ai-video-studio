@@ -104,6 +104,37 @@ async function refPage(browser, htmlPath) {
 const results = [];
 const browser = await getBrowser();
 
+// --rescore: re-run ONLY the checklist on previously saved ours.html pages (no LLM, no
+// frames) — the cheap loop for calibrating audit thresholds against a fixed render set.
+if (args.includes('--rescore')) {
+  for (const s of samples) {
+    const label = `${s.sid.replace('sess_', '')}_${s.n}`;
+    const dir = join(OUT, label);
+    const htmlPath = join(dir, 'ours.html');
+    if (!existsSync(htmlPath)) continue;
+    const p = refPaths(s.sid, s.n);
+    const duration = Math.max(1.5, +ffprobeDur(p.video).toFixed(3));
+    const cues = parseSrt(readFileSync(p.srt, 'utf8'));
+    const beats = extractBeats(cuesToSrtJson(cues), [], duration);
+    const page = await browser.newPage();
+    await page.setViewport({ width: SIZE.w, height: SIZE.h, deviceScaleFactor: 1 });
+    await page.setContent(readFileSync(htmlPath, 'utf8'), { waitUntil: 'load', timeout: 30000 });
+    const init = await page.evaluate(() => window.__init());
+    const entry = { ...s, label, duration };
+    if (!init?.tplErr) {
+      const seek = (t) => page.evaluate((tt) => window.__seek(tt), t);
+      entry.audit = await auditScene({ page, seek, duration, beats, hasBeats: true });
+      console.log(`${label}: ${entry.audit.passed}/${entry.audit.scored} ${JSON.stringify(Object.fromEntries(Object.entries(entry.audit.checks).map(([k, v]) => [k, v.pass === null ? '-' : v.pass ? 'P' : 'F'])))}`);
+      for (const [k, v] of Object.entries(entry.audit.checks)) if (v.pass === false) console.log(`   ✗ ${k}: ${v.detail}`);
+    } else { entry.error = init.tplErr; console.log(`${label}: __init error ${init.tplErr}`); }
+    await page.close().catch(() => {});
+    results.push(entry);
+  }
+  summarize(results);
+  await closeBrowser();
+  process.exit(0);
+}
+
 for (const s of samples) {
   const p = refPaths(s.sid, s.n);
   const label = `${s.sid.replace('sess_', '')}_${s.n}`;
@@ -185,36 +216,37 @@ for (const s of samples) {
   results.push(entry);
 }
 
-// summary
-const scored = results.filter((r) => r.audit);
-const fullPass = scored.filter((r) => r.audit.full);
-const perCheck = {};
-for (const r of scored) for (const [k, v] of Object.entries(r.audit.checks)) {
-  if (v.pass === null) continue;
-  perCheck[k] = perCheck[k] || { pass: 0, total: 0 };
-  perCheck[k].total++; if (v.pass) perCheck[k].pass++;
-}
-const summary = {
-  when: new Date().toISOString(), model: NO_LLM ? null : ai?.llm?.model, aspect: ASPECT,
-  samples: results.length, scoredSamples: scored.length,
-  fullPass: fullPass.length,
-  fullPassRate: scored.length ? +(fullPass.length / scored.length).toFixed(3) : 0,
-  perCheck, tiers: Object.fromEntries(scored.map((r) => [r.label, r.tier])),
-  failures: Object.fromEntries(scored.filter((r) => !r.audit.full).map((r) => [r.label,
-    Object.entries(r.audit.checks).filter(([, v]) => v.pass === false).map(([k, v]) => `${k}: ${v.detail}`)])),
-  errors: Object.fromEntries(results.filter((r) => r.error).map((r) => [r.label, r.error])),
-  refAudit: AUDIT_REF ? Object.fromEntries(results.filter((r) => r.refAudit).map((r) => [r.label, { passed: r.refAudit.passed, scored: r.refAudit.scored, checks: Object.fromEntries(Object.entries(r.refAudit.checks).map(([k, v]) => [k, v.pass])) }])) : undefined,
-};
-writeFileSync(join(OUT, 'summary.json'), JSON.stringify(summary, null, 2));
-writeFileSync(join(OUT, 'results.json'), JSON.stringify(results.map(({ ...r }) => r), null, 2));
-
+summarize(results);
 // mega contact sheet (one row per sample: 4 ours + 4 ref)
 const sheetRows = results.filter((r) => r.sheet).map((r) => r.sheet);
 if (sheetRows.length) tileImages(sheetRows, 1, 1920, join(OUT, 'contact-sheet-all.jpg'));
-
-console.log(`\n==== PARITY SUMMARY ====`);
-console.log(`full-checklist pass: ${fullPass.length}/${scored.length} (${Math.round((summary.fullPassRate) * 100)}%)`);
-console.log(`per-check: ${Object.entries(perCheck).map(([k, v]) => `${k}=${v.pass}/${v.total}`).join(' ')}`);
-console.log(`output: ${OUT}`);
 await closeBrowser();
 process.exit(0);
+
+function summarize(res) {
+  const scored = res.filter((r) => r.audit);
+  const fullPass = scored.filter((r) => r.audit.full);
+  const perCheck = {};
+  for (const r of scored) for (const [k, v] of Object.entries(r.audit.checks)) {
+    if (v.pass === null) continue;
+    perCheck[k] = perCheck[k] || { pass: 0, total: 0 };
+    perCheck[k].total++; if (v.pass) perCheck[k].pass++;
+  }
+  const summary = {
+    when: new Date().toISOString(), model: NO_LLM ? null : ai?.llm?.model, aspect: ASPECT,
+    samples: res.length, scoredSamples: scored.length,
+    fullPass: fullPass.length,
+    fullPassRate: scored.length ? +(fullPass.length / scored.length).toFixed(3) : 0,
+    perCheck, tiers: Object.fromEntries(scored.map((r) => [r.label, r.tier])),
+    failures: Object.fromEntries(scored.filter((r) => !r.audit.full).map((r) => [r.label,
+      Object.entries(r.audit.checks).filter(([, v]) => v.pass === false).map(([k, v]) => `${k}: ${v.detail}`)])),
+    errors: Object.fromEntries(res.filter((r) => r.error).map((r) => [r.label, r.error])),
+    refAudit: AUDIT_REF ? Object.fromEntries(res.filter((r) => r.refAudit).map((r) => [r.label, { passed: r.refAudit.passed, scored: r.refAudit.scored, checks: Object.fromEntries(Object.entries(r.refAudit.checks).map(([k, v]) => [k, v.pass])) }])) : undefined,
+  };
+  writeFileSync(join(OUT, 'summary.json'), JSON.stringify(summary, null, 2));
+  writeFileSync(join(OUT, 'results.json'), JSON.stringify(res.map(({ ...r }) => r), null, 2));
+  console.log(`\n==== PARITY SUMMARY ====`);
+  console.log(`full-checklist pass: ${fullPass.length}/${scored.length} (${Math.round((summary.fullPassRate) * 100)}%)`);
+  console.log(`per-check: ${Object.entries(perCheck).map(([k, v]) => `${k}=${v.pass}/${v.total}`).join(' ')}`);
+  console.log(`output: ${OUT}`);
+}

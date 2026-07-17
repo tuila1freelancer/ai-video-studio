@@ -39,7 +39,7 @@ export function ttsFingerprint(scene, { config, channel, ai }) {
 // Config keys that shape a rendered CLIP (visual identity + captions + branding).
 // Duration is deliberately excluded: the A/V-mismatch verify (P6) owns timing drift, and a
 // QC-repaired clip must not read as stale on the next resume.
-const RENDER_CFG_KEYS = /^(sub|brandKit|hyperframe|styleId|richAnimation|renderMode|visualMode|resolutionScale|logo|watermark)/;
+const RENDER_CFG_KEYS = /^(sub|brandKit|hyperframe|styleId|richAnimation|renderMode|visualMode|resolutionScale|logo|watermark|overlay)/;
 
 /** Inputs that shape a scene's rendered clip (video_path). */
 export function renderFingerprint(scene, { config, project }) {

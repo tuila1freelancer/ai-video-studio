@@ -95,6 +95,28 @@ function guideV2Block(guide) {
   return parts.length ? `\n${parts.join('\n')}` : '';
 }
 
+// Overlay-mode doctrine (the reference app's 19 KB overlay prompt distilled): the scene
+// composites onto REAL FOOTAGE via colorkey, so the design rules flip from "build a stage"
+// to "decorate a living picture without hiding it".
+export function overlayBlock() {
+  return `OVERLAY MODE ACTIVE (this scene composites ON TOP of the owner's real footage — the themed stage is NOT rendered; your background is keyed transparent):
+- KEEP THE CENTER ~40-50% OF THE FRAME CLEAR — the viewer must see the footage. Design with edges, corners, top bar, lower-third and side columns; a keyword may CROSS the center only during a brief entrance/exit.
+- FORBIDDEN (breaks the key or hides the footage): solid panels/cards with filled backgrounds, backdrop-filter of any kind, any filled rectangle covering >30% of the frame, any element with opacity >0.5 that is not text / a thin line (≤4px) / an icon (≤80px). A "container" is border-only (≤2px, opacity ≤0.4), never filled.
+- TEXT MUST READ OVER VIDEO: active text at opacity 1.0, solid fill (white or a bright accent) + a 3-layer shadow (tight glow, wide glow, dark drop — e.g. 0 0 15px rgba(255,255,255,.8), 0 0 30px rgba(255,255,255,.4), 0 4px 12px rgba(0,0,0,.9)). Outline-only text is an entrance state ONLY (≤0.3s, then fill).
+- AMBIENT stays subtle: a few drifting dots at the margins, corner brackets that breathe, one thin light-streak sweep every ~5-7s. Never a full-frame wash.
+- Per-beat protocol is unchanged (one keyword enters on its word, holds alive, exits before the next; position rotation; final climax + callback) — but keep each beat's element NEAR the edges/thirds, never parked dead-center.`;
+}
+
+// Script-specific typography rules (reference-app per-language textRule parity): tall-mark
+// scripts clip without extra line-height; detected from the narration itself.
+export function scriptTextRule(voiceText) {
+  const t = String(voiceText || '');
+  if (/[ऀ-ॿ]/.test(t)) return '\nSCRIPT RULE (Devanagari): matras extend far above/below the baseline — every text element needs line-height ≥1.8 and padding-top ~0.2em; NEVER overflow:hidden on text.';
+  if (/[฀-๿]/.test(t)) return '\nSCRIPT RULE (Thai): stacked tone marks need line-height ≥1.7 and extra top padding; NEVER overflow:hidden on text.';
+  if (/[぀-ヿ一-鿿가-힯]/.test(t)) return '\nSCRIPT RULE (CJK): avoid aggressive letter-spacing on body text; character wrapping is natural; keep display weights ≥500 so strokes stay crisp.';
+  return '';
+}
+
 // Hard viewport numbers (reference-app parity: their ASPECT_RATIO_RULES ship exact px per
 // ratio). Computed from the actual canvas so any aspect — 16:9, 9:16, 1:1, 4:5 — gets
 // correct bounds. The caption band matches the validate.js geometry gate (bottom 20%).
@@ -133,7 +155,7 @@ export function buildCodegenPrompt({ scene, beats, direction, guide, w, h, durat
 ${densityNote}${dirNote}${rhymeNote}${modeNote}
 
 SCENE ${idx + 1}/${total} — CANVAS ${w}x${h} CSS px (${vertical ? 'vertical 9:16-class' : 'horizontal'}), DUR = ${(+duration).toFixed(3)}s
-${viewportBlock(w, h, captionsOn)}
+${viewportBlock(w, h, captionsOn)}${scriptTextRule(scene.voice_text)}
 ${subNote}
 NARRATION (voice${captionsOn ? ', shown as karaoke subtitles at the bottom' : ' — subtitles are OFF, not shown on screen'} — do NOT repeat it verbatim on screen):
 "${(scene.voice_text || '').trim()}"

@@ -349,6 +349,12 @@ const RUNTIME = `
  */
 export function buildScenePage(opts) {
   const { w, h, theme, template } = opts;
+  // Overlay mode (reference-app parity): the page renders on a SOLID key color that ffmpeg
+  // later keys transparent, so the graphics composite onto the owner's footage. Every stage
+  // dressing that would pollute the key (particle canvas, grid, vignette, watermark,
+  // progress bar) is omitted; captions stay — they belong on top of the footage.
+  const ov = opts.overlay || null;
+  const KEY = ov?.key || '#050510';
   // Lossless upscale: layout stays in the logical w×h px space; zoom re-rasterizes text/SVG
   // at device resolution (renderer viewport = w*Z × h*Z). The bg canvas gets a Z× backing
   // store with a scaled context so particles stay crisp too.
@@ -407,10 +413,10 @@ export function buildScenePage(opts) {
 ${fontsCss()}
 ${userFontsCss()}
 *{margin:0;padding:0;box-sizing:border-box}
-html,body{width:${w}px;height:${h}px;overflow:hidden;background:${theme.bg}}
+html,body{width:${w}px;height:${h}px;overflow:hidden;background:${ov ? KEY : theme.bg}}
 ${Z !== 1 ? `body{zoom:${Z}}` : ''}
 body{font-family:${theme.font};color:${theme.ink};-webkit-font-smoothing:antialiased}
-.stage{position:absolute;inset:0;background:radial-gradient(130% 110% at 28% 6%, ${theme.bg2} 0%, ${theme.bg} 62%)}
+.stage{position:absolute;inset:0;background:${ov ? KEY : `radial-gradient(130% 110% at 28% 6%, ${theme.bg2} 0%, ${theme.bg} 62%)`}}
 #bgCanvas{position:absolute;inset:0;width:${w}px;height:${h}px}
 ${grid}
 ${vig}
@@ -432,13 +438,13 @@ img.wm{width:${Math.round(Math.min(w,h)*0.085)}px;height:auto}
 ${template.css}${opts.brand ? opts.brand.css : ''}
 </style></head><body>
 <div class="stage">
-  <canvas id="bgCanvas" width="${w * Z}" height="${h * Z}"></canvas>
-  <div class="grid"></div>
+  ${ov ? '' : `<canvas id="bgCanvas" width="${w * Z}" height="${h * Z}"></canvas>
+  <div class="grid"></div>`}
   <div class="tpl">${template.html}</div>
-  <div class="vig"></div>
-  ${opts.brand ? opts.brand.html : wm}
+  ${ov ? '' : '<div class="vig"></div>'}
+  ${ov ? '' : (opts.brand ? opts.brand.html : wm)}
   <div class="cap"><span id="capText"></span></div>
-  <div class="progtrack"><div id="progFill"></div></div>
+  ${ov ? '' : '<div class="progtrack"><div id="progFill"></div></div>'}
   ${liveBits}
 </div>
 <script>window.__scene=${JSON.stringify(sceneData).replace(/</g, '\\u003c')};<\/script>

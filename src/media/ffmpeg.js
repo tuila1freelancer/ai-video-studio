@@ -88,6 +88,30 @@ export async function normalizeVoice(inPath, outPath, { padMs = 500 } = {}) {
 }
 
 // Make silent audio of given seconds (fallback when TTS missing).
+// Overlay-mode composite (reference-app parity): the scene clip's key color becomes
+// transparent and the motion graphics land on a slice of the owner's base footage. The
+// slice offset wraps around the footage length so any video length works; footage shorter
+// than the scene is frozen on its last frame (tpad clone) rather than cut to black.
+// Scene AUDIO (the narration) is kept; the footage's own audio is dropped.
+export async function compositeColorkey(scenePath, footagePath, outPath, {
+  start = 0, duration, w, h, fps = 30, key = '0x050510', similarity = 0.3, blend = 0.2,
+} = {}) {
+  const footDur = await probeDuration(footagePath);
+  const dur = duration || (await probeDuration(scenePath));
+  const off = footDur > 1 ? (Math.max(0, start) % Math.max(0.5, footDur - Math.min(dur, footDur * 0.5))) : 0;
+  await ffmpeg([
+    '-ss', off.toFixed(3), '-i', footagePath, '-i', scenePath,
+    '-filter_complex',
+    `[0:v]scale=${w}:${h}:force_original_aspect_ratio=increase,crop=${w}:${h},fps=${fps},tpad=stop_mode=clone:stop_duration=${dur.toFixed(3)},setsar=1[bg];` +
+    `[1:v]colorkey=${key}:${similarity}:${blend}[fg];` +
+    `[bg][fg]overlay=0:0:shortest=1[v]`,
+    '-map', '[v]', '-map', '1:a?', '-t', dur.toFixed(3),
+    '-c:v', 'libx264', '-preset', 'medium', '-crf', '19', '-pix_fmt', 'yuv420p',
+    '-c:a', 'aac', '-b:a', '192k', outPath,
+  ]);
+  return outPath;
+}
+
 export async function makeSilence(outPath, seconds) {
   await ffmpeg(['-f', 'lavfi', '-i', `anullsrc=r=44100:cl=stereo`, '-t', String(seconds), '-c:a', 'aac', outPath]);
   return outPath;

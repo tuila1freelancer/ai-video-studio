@@ -9,7 +9,7 @@ import { chat } from '../providers/llm.js';
 import { buildTemplate, makeCtx } from '../animation/templates.js';
 import { getTheme } from '../animation/themes.js';
 import { extractBeats, cinematicDirection } from './beats.js';
-import { buildCodegenPrompt } from './prompt.js';
+import { buildCodegenPrompt, overlayBlock } from './prompt.js';
 import { lintSpec } from './lint.js';
 import { renderValidate } from './validate.js';
 
@@ -106,11 +106,12 @@ export function imageFullBlock(assetNames) {
  * Generate one scene's hyperframe props. Returns { props, beats, direction, warnings }.
  * Throws after all attempts fail (caller decides the fallback).
  */
-export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, onLog = () => {}, renderCheck = true, maxAttempts = 4, density, creativeDirection, hookVisual = '', captionsOn = true, consistent = false, imageFullAssets = null }) {
+export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, onLog = () => {}, renderCheck = true, maxAttempts = 4, density, creativeDirection, hookVisual = '', captionsOn = true, consistent = false, imageFullAssets = null, overlay = false }) {
   const duration = Math.max(1.5, scene.duration || 6);
   const beats = extractBeats(scene.srt_json, scene.keywords, duration);
   const direction = cinematicDirection(scene, idx, total);
   const modeBlocks = [];
+  if (overlay) modeBlocks.push(overlayBlock());
   if (consistent) modeBlocks.push(consistentScenesBlock(guide));
   const media = (Array.isArray(imageFullAssets) ? imageFullAssets : []).filter((a) => a?.name && a?.uri);
   if (media.length) modeBlocks.push(imageFullBlock(media.map((a) => a.name)));
@@ -145,7 +146,7 @@ export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, on
       continue;
     }
     normalizeSpec(clean, { guide, duration }); // reclaim attempts from mechanical mistakes
-    const { errors, warnings } = lintSpec(clean);
+    const { errors, warnings } = lintSpec(clean, { overlay });
     // static: lint + parse. Cheap — always first.
     if (!errors.length) {
       try { syntaxCheck(clean, guide, { w, h, duration }); }
@@ -158,7 +159,7 @@ export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, on
     let renderDefects = [];
     if (!errors.length && renderCheck) {
       try {
-        const rv = await renderValidate({ spec: { ...clean, guide }, guide, w, h, duration, beats, narration: scene.voice_text || '', captionsOn });
+        const rv = await renderValidate({ spec: { ...clean, guide }, guide, w, h, duration, beats, narration: scene.voice_text || '', captionsOn, overlay });
         if (!rv.skipped) rvRan = true; // Chrome-less runs return skipped:true → tier stays 'unverified'
         if (!rv.ok) renderDefects = rv.defects;
         // Auto-contrast repair: unreadable text is a deterministic colour mistake — force the
@@ -198,7 +199,7 @@ export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, on
       // quality tier persisted per scene (G2): 'premium' = rendered clean; 'repaired' = shipped
       // after the deterministic contrast fix; 'unverified' = no headless verdict (Chrome-less).
       const tier = !renderCheck ? 'unverified' : (contrastRepaired ? 'repaired' : (rvRan ? 'premium' : 'unverified'));
-      return { props: { ...clean, guide, beats, plannedDur: duration, canvasW: w, canvasH: h }, beats, direction, warnings, tier };
+      return { props: { ...clean, guide, beats, plannedDur: duration, canvasW: w, canvasH: h, ...(overlay ? { overlay: true } : {}) }, beats, direction, warnings, tier };
     }
     lastErrors = allIssues;
     onLog(`cảnh ${idx + 1}: spec chưa đạt (lần ${attempt}/${maxAttempts}) — ${allIssues.join(' | ').slice(0, 240)}`);
@@ -212,7 +213,7 @@ export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, on
   // hard runtime error, ship it (a slightly-imperfect real scene beats a generic template).
   if (lastGood) {
     onLog(`cảnh ${idx + 1}: dùng spec tốt nhất đạt được (còn cảnh báo hình học sau ${maxAttempts} lần)`);
-    return { props: { ...lastGood, guide, beats, plannedDur: duration, canvasW: w, canvasH: h }, beats, direction, warnings: ['render-imperfect'], tier: 'imperfect' };
+    return { props: { ...lastGood, guide, beats, plannedDur: duration, canvasW: w, canvasH: h, ...(overlay ? { overlay: true } : {}) }, beats, direction, warnings: ['render-imperfect'], tier: 'imperfect' };
   }
   throw new Error(`codegen thất bại sau ${maxAttempts} lần: ${lastErrors?.join(' | ').slice(0, 200)}`);
 }

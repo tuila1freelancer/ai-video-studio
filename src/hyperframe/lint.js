@@ -45,12 +45,15 @@ const PROTECTED_SEL = /(\.cap|#capText|#progFill|\.progtrack|#bgCanvas|\.wm|\.vi
 
 const CAP = 24000; // chars per field — a scene spec should be small
 
-export function lintSpec(spec) {
+export function lintSpec(spec, { overlay = false } = {}) {
   const errors = [], warnings = [];
   const css = String(spec.css || ''), html = String(spec.html || ''), script = String(spec.script || '');
   for (const [re, msg] of SCRIPT_BANNED) if (re.test(script)) errors.push(`script: ${msg}`);
   for (const [re, msg] of HTML_BANNED) if (re.test(html)) errors.push(`html: ${msg}`);
   for (const [re, msg] of CSS_BANNED) if (re.test(css)) errors.push(`css: ${msg}`);
+  if (overlay && /backdrop-filter/i.test(css + html)) {
+    errors.push('overlay mode: backdrop-filter is forbidden — it smears the key color into a halo; use border-only containers');
+  }
   if (PROTECTED_SEL.test(script) || PROTECTED_SEL.test(css) || PROTECTED_SEL.test(html)) {
     errors.push('touches a harness infrastructure selector (.cap/#progFill/#bgCanvas/.progtrack/.wm)');
   }

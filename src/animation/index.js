@@ -48,6 +48,9 @@ export function buildSceneHtml(scene, project, config, extras = {}) {
   let plan = scene.template && scene.props
     ? { template: scene.template, props: scene.props }
     : planScene(scene, { idx: scene.idx, total: extras.total || 9999, title: project.title, brand });
+  if (config.overlay?.enabled && plan.props && !plan.props.overlay) {
+    plan = { ...plan, props: { ...plan.props, overlay: true } };
+  }
   // HyperFrame scenes carry their style guide in props — the whole page (bg canvas, captions,
   // progress bar) follows the guide's palette instead of the classic theme. In a hyperframe
   // project the guide also drives FALLBACK-template scenes and the outro, so a scene that
@@ -70,6 +73,10 @@ export function buildSceneHtml(scene, project, config, extras = {}) {
   if (plan.template === 'hyperframe' && plan.props?.canvasW > 0 && plan.props.canvasW !== w) {
     tpl.css = `${tpl.css || ''}\n.hf-cam{zoom:${(w / plan.props.canvasW).toFixed(4)}}`;
   }
+  // Overlay mode: scenes render on the solid key color and later composite onto the
+  // owner's footage — the hyperframe template already dropped its stage dressing via
+  // props.overlay (set at plan time below), and the page drops its own here.
+  const overlayCfg = config.overlay?.enabled ? { key: config.overlay.key || '#050510' } : null;
   if (config.gsapFx === false) delete tpl.script; // safety valve: pure-CSS render
   const placement = brand ? planBrandPlacement(brand, {
     templateId: plan.template, idx: scene.idx, total: extras.total || 9999, captionsOn: captions.length > 0,
@@ -96,6 +103,7 @@ export function buildSceneHtml(scene, project, config, extras = {}) {
     watermark: brand ? null : resolveWatermark(config),
     brand: placement ? buildBrandLayer(brand, placement, { w, h, theme }) : null,
     captionStyle: captionStyleFrom(config, theme, { w, h }),
+    overlay: overlayCfg,
   });
 }
 
@@ -164,20 +172,32 @@ export function sceneTemplateSource(scene, project, config) {
   return { template: plan.template, html: tpl.html || '', css: tpl.css || '', script: tpl.script || '', hasCustom: !!plan.props?.__custom };
 }
 
-// Render a full scene → mp4 (+ mid-frame preview jpeg).
+// Render a full scene → mp4 (+ mid-frame preview jpeg). In overlay mode the keyed scene
+// then composites onto the owner's base footage (slice offset = the scene's start on the
+// final timeline, so consecutive scenes ride one continuous shot).
 export async function renderAnimationScene(scene, project, config, { dir, progressStart, progressTotal, total, onProgress, onLog } = {}) {
   const k = (config.resolutionScale || 1) >= 2 ? 2 : 1;
   const { w, h } = animSize(project.aspect_ratio, k); // PHYSICAL viewport (4K when k=2)
   const fps = parseInt(config.fps || 30, 10);
   const duration = Math.max(1.5, scene.duration || config.sceneDuration || 6);
   const html = buildSceneHtml(scene, project, config, { progressStart, progressTotal, total, durationOverride: duration, zoom: k });
-  const outPath = join(dir, `scene_${String(scene.idx).padStart(3, '0')}.mp4`);
+  const overlayOn = !!(config.overlay?.enabled && config.overlay.source && existsSync(config.overlay.source));
+  const outPath = join(dir, `scene_${String(scene.idx).padStart(3, '0')}${overlayOn ? '_key' : ''}.mp4`);
   const previewPath = join(dir, `scene_${String(scene.idx).padStart(3, '0')}_preview.jpg`);
   const res = await renderScenePage({
     html, w, h, fps, duration,
     audioPath: scene.audio_path && existsSync(scene.audio_path) ? scene.audio_path : null,
     outPath, previewPath, onProgress, onLog,
   });
+  if (overlayOn) {
+    const { compositeColorkey } = await import('../media/ffmpeg.js');
+    const finalPath = join(dir, `scene_${String(scene.idx).padStart(3, '0')}.mp4`);
+    await compositeColorkey(res.path, config.overlay.source, finalPath, {
+      start: progressStart || 0, duration: res.duration, w, h, fps,
+      key: (config.overlay.key || '#050510').replace('#', '0x'),
+    });
+    return { ...res, path: finalPath, preview: existsSync(previewPath) ? previewPath : null };
+  }
   return { ...res, preview: existsSync(previewPath) ? previewPath : null };
 }
 

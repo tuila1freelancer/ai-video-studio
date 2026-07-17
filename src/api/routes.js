@@ -682,6 +682,27 @@ export function mountRoutes(app, { version }) {
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
+  // Edit-by-prompt (reference-app parity): a plain instruction rewrites the scene's current
+  // effective source via ONE LLM call; the result passes the same lint/render gates as fresh
+  // codegen, snapshots a take, and invalidates the clip. Bad edits are rejected with defects.
+  r.post('/scenes/:id/edit-html', async (req, res) => {
+    try {
+      const { editSceneByPrompt } = await import('./services/edit-scene.js');
+      const r2 = await editSceneByPrompt(req.params.id, req.body?.prompt);
+      if (!r2.ok) return res.status(422).json(r2);
+      const sc = DB.getScene(req.params.id);
+      const p = DB.getProject(sc.project_id);
+      const { previewSceneFrame } = await import('../animation/index.js');
+      const out = join(DB.projectDirFor(p.id), 'render', `scene_${String(sc.idx).padStart(3, '0')}_preview.jpg`);
+      try {
+        await previewSceneFrame(sc, p, p.config || {}, { outPath: out });
+        DB.updateScene(sc.id, { image_path: out });
+      } catch { /* preview is best-effort — the edit itself is already persisted */ }
+      hub.toProject(p.id, { type: 'scene', sceneId: sc.id, idx: sc.idx, status: 'html', image: `/api/file?path=${encodeURIComponent(out)}` });
+      res.json({ ...r2, image: `/api/file?path=${encodeURIComponent(out)}` });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
   // ---- scenes ----
   r.put('/scenes/:id', (req, res) => {
     // Edit-aware invalidation: a USER edit through this route marks downstream artifacts
