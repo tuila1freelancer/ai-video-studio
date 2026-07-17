@@ -104,9 +104,11 @@ export function imageFullBlock(assetNames) {
 
 /**
  * Generate one scene's hyperframe props. Returns { props, beats, direction, warnings }.
- * Throws after all attempts fail (caller decides the fallback).
+ * Owner's contract (2026-07-17): the PRIMARY model gets up to 10 attempts; when they are
+ * exhausted this THROWS and the failure surfaces loudly — no fallback model, no heuristic
+ * template (fallback output sits below the quality bar).
  */
-export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, onLog = () => {}, renderCheck = true, maxAttempts = 4, density, creativeDirection, hookVisual = '', captionsOn = true, consistent = false, imageFullAssets = null, overlay = false }) {
+export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, onLog = () => {}, renderCheck = true, maxAttempts = 10, density, creativeDirection, hookVisual = '', captionsOn = true, consistent = false, imageFullAssets = null, overlay = false }) {
   const duration = Math.max(1.5, scene.duration || 6);
   const beats = extractBeats(scene.srt_json, scene.keywords, duration);
   const direction = cinematicDirection(scene, idx, total);
@@ -122,7 +124,10 @@ export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, on
     let rvRan = false, contrastRepaired = false; // per-attempt verification state (→ quality tier)
     let raw;
     try {
-      raw = await chat(messages, { maxTokens: 6500, temperature: attempt === 1 ? 0.7 : 0.45, llm: ai?.llm || null });
+      // temperature ladder: precise while fixing (0.45), one notch warmer late in the run
+      // (≥6) so a stuck design can escape its local minimum instead of repeating itself.
+      const temperature = attempt === 1 ? 0.7 : attempt >= 6 ? 0.65 : 0.45;
+      raw = await chat(messages, { maxTokens: 6500, temperature, llm: ai?.llm || null });
     } catch (e) {
       lastErrors = [`LLM error: ${String(e.message).slice(0, 80)}`];
       onLog(`cảnh ${idx + 1}: LLM lỗi (lần ${attempt}/${maxAttempts}) — thử lại`);
@@ -142,6 +147,7 @@ export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, on
       // Unparseable reply must NOT kill the scene — cost it one attempt and re-instruct the format.
       lastErrors = ['reply did not match the required format'];
       onLog(`cảnh ${idx + 1}: reply sai định dạng (lần ${attempt}/${maxAttempts}) — thử lại`);
+      messages.length = 2; // bounded history (see below) — one standing format reminder
       messages.push({ role: 'user', content: 'Your reply did not match the format. Reply with EXACTLY the three fenced blocks and nothing else:\n@@@CSS@@@\n(css)\n@@@HTML@@@\n(html)\n@@@SCRIPT@@@\n(js)\n@@@END@@@' });
       continue;
     }
@@ -203,6 +209,10 @@ export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, on
     }
     lastErrors = allIssues;
     onLog(`cảnh ${idx + 1}: spec chưa đạt (lần ${attempt}/${maxAttempts}) — ${allIssues.join(' | ').slice(0, 240)}`);
+    // Keep the conversation BOUNDED across up to 10 attempts: system + original brief +
+    // ONLY the latest attempt/fix pair. Older failures add tokens, not signal — the fix
+    // note always carries the full current issue list.
+    messages.length = 2;
     messages.push({ role: 'assistant', content: `@@@CSS@@@\n${clean.css}\n@@@HTML@@@\n${clean.html}\n@@@SCRIPT@@@\n${clean.script}\n@@@END@@@`.slice(0, 5000) });
     messages.push({
       role: 'user',

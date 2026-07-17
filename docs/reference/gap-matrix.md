@@ -53,7 +53,7 @@ Decision legend: **IMPLEMENT** (built in this repo), **HAVE** (already equivalen
 
 ## C. What the reference app lacks (kept ours — do NOT import their weaknesses)
 
-- No render-validation / QC gate / quality tiers / self-heal ladder — ours stays.
+- No render-validation / QC gate / quality tiers / render-crash self-heal — ours stays. (Codegen itself follows the owner's NO-FALLBACK contract, P25: primary model ×10 then loud fail.)
 - Fixed-duration render (no per-word time-warp) — our beat-anchored warp stays.
 - No broadcast master (−16 LUFS two-pass + sidechain ducking) — ours stays.
 - No durable job queue / governor / content-hash resume / budget guardrail / gates — ours stay.

@@ -54,7 +54,6 @@ export function gatherConfig() {
       density: $('#cfgHfDensity').value,
       direction: $('#cfgHfDirection').value.trim() || undefined,
       model: $('#cfgHfModel').value.trim() || undefined,
-      modelFallback: $('#cfgHfModelFb')?.value.trim() || undefined,
       consistent: $('#cfgHfConsistent')?.checked || false,
       imageFull: $('#cfgHfImageFull') ? $('#cfgHfImageFull').checked : true,
     },
@@ -106,7 +105,6 @@ export function applyConfig(cfg = {}) {
   if ($('#cfgHfDensity')) $('#cfgHfDensity').value = cfg.hyperframe?.density || 'balanced';
   if ($('#cfgHfDirection')) $('#cfgHfDirection').value = cfg.hyperframe?.direction || '';
   if ($('#cfgHfModel')) $('#cfgHfModel').value = cfg.hyperframe?.model || '';
-  if ($('#cfgHfModelFb')) $('#cfgHfModelFb').value = cfg.hyperframe?.modelFallback || '';
   renderHfStyleButton();
   if (cfg.theme) $('#cfgTheme').value = cfg.theme;
   if (cfg.fps) $('#cfgFps').value = cfg.fps;
