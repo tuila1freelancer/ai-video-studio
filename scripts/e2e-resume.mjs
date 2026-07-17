@@ -12,6 +12,19 @@ const TIMEOUT_MS = parseInt(process.argv[3] || '3600000', 10);
 if (!process.env.AVS_DATA_DIR) { console.error('[e2e-resume] AVS_DATA_DIR is required'); process.exit(2); }
 
 function log(...a) { console.log('[e2e-resume]', ...a); }
+
+// AVS_HF_MODEL: the no-fallback contract's owner remedy — before resuming, point the
+// project's codegen at a stronger PRIMARY model (this is a config change the owner would
+// make in the UI, not a silent fallback). Applied via the DB before the server boots.
+if (process.env.AVS_HF_MODEL) {
+  const DB = await import('../src/db/index.js');
+  const pr = PROJECT ? DB.getProject(PROJECT) : DB.listProjects()[0];
+  if (pr) {
+    const cfg = { ...(pr.config || {}), hyperframe: { ...(pr.config?.hyperframe || {}), model: process.env.AVS_HF_MODEL } };
+    DB.updateProject(pr.id, { config: cfg });
+    log(`project ${pr.id}: hyperframe.model → ${process.env.AVS_HF_MODEL}`);
+  }
+}
 const srv = spawn('node', ['src/server.js'], { env: { ...process.env, AVS_PORT: '0', AVS_DEBUG: '' }, stdio: ['ignore', 'pipe', 'pipe'] });
 let base = null;
 const ready = new Promise((res) => {

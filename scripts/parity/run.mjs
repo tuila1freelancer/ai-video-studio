@@ -76,8 +76,8 @@ const gsapVendor = readFileSync(join(ROOT, 'vendor/gsap/gsap.min.js'), 'utf8');
 const fontsCss = existsSync(join(ROOT, 'vendor/fonts/fonts.css')) ? readFileSync(join(ROOT, 'vendor/fonts/fonts.css'), 'utf8') : '';
 
 const OFFLINE_REF = args.includes('--offline-ref');
-async function refPage(browser, htmlPath) {
-  const page = await browser.newPage();
+async function refPage(_b, htmlPath) {
+  const page = await (await getBrowser()).newPage();
   await page.setViewport({ width: 1920, height: 1080, deviceScaleFactor: 1 });
   if (OFFLINE_REF) {
     // no network: swap the CDN gsap for our vendor copy and drop webfont links
@@ -104,7 +104,6 @@ async function refPage(browser, htmlPath) {
 }
 
 const results = [];
-const browser = await getBrowser();
 
 // --rescore: re-run ONLY the checklist on previously saved ours.html pages (no LLM, no
 // frames) — the cheap loop for calibrating audit thresholds against a fixed render set.
@@ -118,7 +117,7 @@ if (args.includes('--rescore')) {
     const duration = Math.max(1.5, +ffprobeDur(p.video).toFixed(3));
     const cues = parseSrt(readFileSync(p.srt, 'utf8'));
     const beats = extractBeats(cuesToSrtJson(cues), [], duration);
-    const page = await browser.newPage();
+    const page = await (await getBrowser()).newPage();
     await page.setViewport({ width: SIZE.w, height: SIZE.h, deviceScaleFactor: 1 });
     await page.setContent(readFileSync(htmlPath, 'utf8'), { waitUntil: 'load', timeout: 30000 });
     const init = await page.evaluate(() => window.__init());
@@ -156,7 +155,7 @@ for (const s of samples) {
   if (AUDIT_REF) {
     try {
       const withTO = (pr, ms, lbl) => Promise.race([pr, new Promise((_, rej) => setTimeout(() => rej(new Error(`timeout ${lbl}`)), ms))]);
-      const { page, ok } = await withTO(refPage(browser, p.html), 45000, 'refPage');
+      const { page, ok } = await withTO(refPage(null, p.html), 45000, 'refPage');
       if (ok) {
         const seek = (t) => page.evaluate((tt) => { try { window.__ptl.seek(tt, false); } catch { window.__ptl.progress(Math.min(1, tt / window.__ptl.duration())); } }, t);
         entry.refAudit = await withTO(auditScene({ page, seek, duration, beats: [], hasBeats: false }), 90000, 'refAudit');
@@ -188,7 +187,7 @@ for (const s of samples) {
       const sceneRow = { ...scene, template: 'hyperframe', props: gen.props };
       const html = buildSceneHtml(sceneRow, project, config, { total: 100, durationOverride: duration });
       writeFileSync(join(dir, 'ours.html'), html);
-      const page = await browser.newPage();
+      const page = await (await getBrowser()).newPage();
       await page.setViewport({ width: SIZE.w, height: SIZE.h, deviceScaleFactor: 1 });
       await page.setContent(html, { waitUntil: 'load', timeout: 30000 });
       const init = await page.evaluate(() => window.__init());
