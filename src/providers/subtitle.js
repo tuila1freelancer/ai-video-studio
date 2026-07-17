@@ -8,6 +8,7 @@
 import { aiSettings } from '../db/index.js';
 import { transcribeWords, whisperAvailable, groupWordsIntoCues } from '../media/whisper.js';
 import { alignWords } from '../media/align.js';
+import { correctCues } from '../subtitles/llm-correct.js';
 import { logger } from '../util/log.js';
 
 // Ratio of ACTUAL spoken pace to the LANG_WPS writing budget. LANG_WPS (vi 4.4) sizes how
@@ -59,7 +60,18 @@ export async function buildSubtitles(audioPath, text, duration, { language, onLo
       try {
         const r = await transcribeWords(audioPath, { language, onLog, prompt: engine === 'align' ? text : '' });
         if (r.words.length) {
-          if (engine === 'whisper') return r; // caller wants the transcription verbatim
+          if (engine === 'whisper') {
+            // Raw transcription may mishear proper nouns / numbers / foreign terms — the
+            // LLM correction lane (reference-app parity) fixes wording while the contract
+            // pins every timestamp + block count. align-engine scenes never need this:
+            // their displayed words ARE the script. Toggle: ai.subtitle.llmCorrect.
+            const sub = aiSettings().subtitle || {};
+            if (sub.llmCorrect !== false) {
+              const fixed = await correctCues(r.cues, text, { lang: language, onLog: (m) => logger.info(m) });
+              if (fixed.corrected) return { words: r.words, cues: fixed.cues };
+            }
+            return r; // caller wants the transcription verbatim
+          }
           const aligned = alignWords(text, r.words, duration);
           if (aligned) return { words: aligned, cues: groupWordsIntoCues(aligned) };
           logger.warn('forced alignment matched <50% — falling back to estimated timing (script words win)');
