@@ -403,19 +403,127 @@
       </div>
     </section>
 
-    <!-- BRAND GEN -->
+    <!-- BRAND GEN (reference-app clone + in-page image provider/model picker) -->
     <section class="page" id="page-brandgen">
       <div class="center-narrow">
         <h1>🎨 Tạo Brand Asset</h1>
-        <p class="sub" style="color:var(--muted);margin:6px 0 18px">Upload ảnh tham chiếu → tạo bộ nhân vật nhiều cảm xúc. (Offline tạo placeholder; cắm API ảnh để có nhân vật thật.)</p>
-        <div class="field"><label class="label">Ảnh tham chiếu</label>
-          <label class="btn sm">📁 Chọn ảnh<input type="file" id="bgRef" accept="image/*" hidden></label>
-          <span id="bgRefName" class="hint">Chưa chọn</span></div>
-        <div class="field"><label class="label">Tên nhân vật</label><input class="input" id="bgName" placeholder="ema, luna, alex..."></div>
-        <div class="field"><label class="label">Style</label>
-          <select class="input" id="bgStyle"><option>2D Anime style</option><option>3D Pixar style</option><option>Realistic</option><option>Comic</option></select></div>
-        <button class="btn primary big" id="bgGo">✨ Tạo Brand Asset</button>
-        <div class="libgrid" id="bgResults"></div>
+        <p class="sub" style="color:var(--muted);margin:6px 0 18px">Upload ảnh tham chiếu → AI tạo bộ character với nhiều cảm xúc/hành động khác nhau. Nền ảnh luôn trong suốt để chèn thẳng vào video.</p>
+
+        <div class="bg-card"><div class="bg-sec">1. Ảnh tham chiếu</div>
+          <div class="row">
+            <label class="btn sm">📁 Chọn ảnh<input type="file" id="bgRef" accept="image/*" hidden></label>
+            <span id="bgRefName" class="hint">Chưa chọn</span>
+          </div>
+          <img id="bgRefPreview" class="hidden" style="max-width:140px;max-height:140px;border-radius:8px;margin-top:8px" alt="">
+        </div>
+
+        <div class="bg-card"><div class="bg-sec">2. Tên nhân vật</div>
+          <input class="input" id="bgName" placeholder="Ví dụ: ema, luna, alex...">
+        </div>
+
+        <div class="bg-card"><div class="bg-sec">3. Style nhân vật</div>
+          <div class="row wrap" id="bgStyleChips" style="gap:6px">
+            <button type="button" class="btn sm bg-chip active" data-style="2D Anime style">🎨 2D Anime</button>
+            <button type="button" class="btn sm bg-chip" data-style="Manhwa style">📖 Manhwa</button>
+            <button type="button" class="btn sm bg-chip" data-style="3D Pixar style">🧸 3D Pixar</button>
+            <button type="button" class="btn sm bg-chip" data-style="3D Realistic style">🎬 3D Realistic</button>
+            <button type="button" class="btn sm bg-chip" data-style="Minecraft style">⛏ Minecraft</button>
+            <button type="button" class="btn sm bg-chip" data-style="">✏️ Khác</button>
+          </div>
+          <input class="input hidden" id="bgStyleCustom" placeholder="Nhập style tuỳ ý… (vd: watercolor style)" style="margin-top:8px">
+        </div>
+
+        <div class="bg-card"><div class="bg-sec">4. Brand đích</div>
+          <div class="row">
+            <select class="input" id="bgBrand" style="flex:1"></select>
+            <button class="btn sm" id="bgBrandNew">＋ Brand</button>
+          </div>
+          <div class="row hidden" id="bgBrandForm" style="margin-top:8px">
+            <input class="input" id="bgBrandName" placeholder="Tên brand mới…" style="flex:1">
+            <button class="btn sm primary" id="bgBrandSave">Tạo</button>
+          </div>
+        </div>
+
+        <div class="bg-card"><div class="bg-sec">5. Danh sách cảm xúc / hành động</div>
+          <div class="row" style="gap:8px">
+            <button type="button" class="btn sm bg-mode active" data-mode="auto" style="flex:1">🤖 AI tự sinh</button>
+            <button type="button" class="btn sm bg-mode" data-mode="manual" style="flex:1">✍ Nhập thủ công</button>
+          </div>
+          <div id="bgModeAuto" style="margin-top:10px">
+            <div class="row">
+              <label class="label" style="margin:0">Số lượng:</label>
+              <input class="input" id="bgCount" type="number" min="1" max="50" value="20" style="max-width:80px">
+              <button class="btn sm" id="bgGenEmotions">📋 Sinh danh sách</button>
+            </div>
+            <textarea class="input" id="bgContext" rows="4" style="margin-top:8px" placeholder="(Tuỳ chọn) Mô tả thêm về nhân vật để AI sinh emotions chính xác hơn. VD: nhân vật nữ, chủ đề crypto/tài chính, phong cách dễ thương..."></textarea>
+          </div>
+          <div id="bgModeManual" class="hidden" style="margin-top:10px">
+            <textarea class="input" id="bgManual" rows="6" placeholder="Mỗi dòng một cảm xúc/hành động (tiếng Anh)…&#10;smiling brightly&#10;crying&#10;pointing at rising chart"></textarea>
+            <button class="btn sm" id="bgParseManual" style="margin-top:8px">📋 Dùng danh sách này</button>
+          </div>
+          <div id="bgPreviewSec" class="hidden" style="margin-top:10px">
+            <div class="hint">Sẽ tạo <strong id="bgPreviewCount">0</strong> ảnh:</div>
+            <div id="bgPreviewList" class="bg-prevlist"></div>
+          </div>
+        </div>
+
+        <div class="bg-card"><div class="bg-sec">6. Provider & model tạo ảnh</div>
+          <div class="grid2">
+            <div><label class="label">Provider (images/edits)</label>
+              <div class="row">
+                <select class="input" id="bgProvider" style="flex:1"></select>
+                <button class="btn sm" id="bgProviderNew" title="Thêm provider">＋</button>
+                <button class="btn sm danger" id="bgProviderDel" title="Xoá provider đang chọn">🗑</button>
+              </div></div>
+            <div><label class="label">Model</label>
+              <input class="input" id="bgModel" list="bgModelList" placeholder="gpt-image-2">
+              <datalist id="bgModelList">
+                <option value="gpt-image-2"></option><option value="gpt-image-1"></option>
+                <option value="gemini-2.5-flash-image"></option><option value="seedream-4.5"></option>
+                <option value="flux-kontext-pro"></option>
+              </datalist></div>
+          </div>
+          <div class="grid2" style="margin-top:8px">
+            <div><label class="label">Kích thước</label>
+              <select class="input" id="bgSize">
+                <option value="1024x1536" selected>1024×1536 — dọc (như app tham khảo)</option>
+                <option value="1024x1024">1024×1024 — vuông</option>
+                <option value="1536x1024">1536×1024 — ngang</option>
+              </select></div>
+            <div></div>
+          </div>
+          <div id="bgProviderForm" class="hidden" style="margin-top:10px;border:1px dashed var(--hairline-2);border-radius:8px;padding:10px">
+            <div class="grid2">
+              <div><label class="label">Tên hiển thị</label><input class="input" id="bgPfLabel" placeholder="vd: Infinity API"></div>
+              <div><label class="label">Base URL</label><input class="input" id="bgPfUrl" placeholder="https://infinityapis.com/v1"></div>
+            </div>
+            <div class="field" style="margin-top:8px"><label class="label">API key</label><input class="input" id="bgPfKey" type="password" placeholder="sk-…"></div>
+            <div class="row" style="margin-top:8px">
+              <button class="btn sm primary" id="bgPfSave">💾 Lưu provider</button>
+              <button class="btn sm" id="bgPfCancel">Huỷ</button>
+            </div>
+          </div>
+          <div class="hint" id="bgProviderHint" style="margin-top:6px"></div>
+        </div>
+
+        <div class="row" style="margin:14px 0 6px">
+          <button class="btn primary big" id="bgGo" style="flex:1">✨ Bắt đầu tạo ảnh</button>
+          <button class="btn danger hidden" id="bgStop">⏹ Dừng</button>
+        </div>
+        <div id="bgProgressWrap" class="hidden">
+          <div class="bg-progress"><div id="bgProgressFill"></div></div>
+          <div class="hint" id="bgProgressLabel" style="text-align:center">0 / 0</div>
+        </div>
+        <div id="bgLog" class="bg-log hidden"></div>
+        <div class="libgrid" id="bgResults" style="margin-top:12px"></div>
+        <div id="bgCopySec" class="bg-card hidden" style="margin-top:12px">
+          <div class="bg-sec">Copy sang brand khác</div>
+          <div class="row">
+            <select class="input" id="bgCopyTarget" style="flex:1"></select>
+            <button class="btn sm" id="bgCopyGo">📂 Copy</button>
+          </div>
+          <div class="hint" id="bgCopyStatus" style="margin-top:6px"></div>
+        </div>
       </div>
     </section>
 
@@ -714,11 +822,14 @@
     <div class="brand-editor">
       <div class="brand-stage-wrap">
         <div class="brand-stage" id="brandStage">
-          <div class="bst-ghost bst-logo hidden" id="bstLogo" title="Kéo để đặt vị trí logo"><img id="bstLogoImg" alt=""></div>
+          <div class="bst-guide v" id="bstGuideV"></div>
+          <div class="bst-guide h" id="bstGuideH"></div>
+          <div class="bst-ghost bst-logo hidden" id="bstLogo" title="Kéo để đặt vị trí logo — lăn chuột / kéo chấm góc để chỉnh cỡ" tabindex="0"><img id="bstLogoImg" alt=""><div class="bst-rsz" id="bstRsz" title="Kéo để chỉnh cỡ"></div></div>
           <div class="bst-ghost bst-badge hidden" id="bstBadge" title="Kéo để đặt vị trí tên kênh">TÊN KÊNH</div>
           <div class="bst-capband" title="Vùng phụ đề"></div>
         </div>
         <div class="hint" style="margin-top:6px">Kéo logo / tên kênh trên khung để đặt vị trí. Nền = cảnh thật gần nhất của kênh.</div>
+        <div class="hint" id="bstReadout" style="margin-top:4px;font-variant-numeric:tabular-nums"></div>
       </div>
       <div class="brand-form">
         <div class="field"><label class="label">Tên kênh (hiện trên video)</label><input class="input" id="brandName" placeholder="vd: TuiLa Dev"></div>
@@ -744,6 +855,7 @@
           <select class="input" id="brandPlacement">
             <option value="smart">🧠 Thông minh — tự né nội dung & phụ đề từng cảnh</option>
             <option value="always">📌 Cố định — đúng vị trí đã kéo</option>
+            <option value="final">🎞 Đóng dấu cả video — chèn 1 lần ở bước ghép cuối, đúng 100% vị trí xem trước</option>
             <option value="off">Tắt</option>
           </select>
         </div>

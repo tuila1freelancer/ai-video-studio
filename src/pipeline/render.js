@@ -1,7 +1,8 @@
 // Scene rendering (B6) + final concat/mix (B7) with ffmpeg.
 import { writeFileSync, existsSync, readdirSync, rmSync, mkdirSync, copyFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { ffmpeg, ffmpegAss, probeDuration, makeSilence } from '../media/ffmpeg.js';
+import { ffmpeg, ffmpegAss, probeDuration, makeSilence, probeImageSize } from '../media/ffmpeg.js';
+import { logoRect } from '../media/logo-overlay.js';
 import { buildKaraokeAss } from './srt.js';
 import { buildSceneBackground, buildTitleCard } from './visuals.js';
 import { ratioToSize, newId } from '../util/util.js';
@@ -220,9 +221,20 @@ export async function concatScenes(sceneVideos, project, { dir, size, bgmPath, s
   }
   if (logo && logo.path && existsSync(logo.path)) {
     args.push('-i', logo.path);
-    const lw = Math.round((logo.size || 110) * (oh / 1080));
-    const pos = logoPos(logo.position || 'br', ow, oh, lw);
-    fc.push(`[${nextIdx}:v]scale=${lw}:-1[lg]`, `${vbase}[lg]overlay=${pos}[vov]`);
+    if (Number.isFinite(+logo.wPct)) {
+      // P26 WYSIWYG shape {cxPct,cyPct,wPct,opacity}: logoRect computes the SAME integers the
+      // Brand Kit preview shows — literal scale + overlay coordinates, no runtime expressions.
+      const isz = await probeImageSize(logo.path);
+      const rect = logoRect(logo, { W: ow, H: oh, logoW: isz?.w || 1, logoH: isz?.h || 1 });
+      const op = Math.min(1, Math.max(0.2, Number.isFinite(+logo.opacity) ? +logo.opacity : 0.9));
+      fc.push(`[${nextIdx}:v]scale=${rect.lw}:${rect.lh}:flags=lanczos,format=rgba,colorchannelmixer=aa=${op.toFixed(2)}[lg]`,
+        `${vbase}[lg]overlay=${rect.x}:${rect.y}[vov]`);
+    } else {
+      // legacy shape {size(px@1080), position('br'|{xPct,yPct})} — old configs keep rendering
+      const lw = Math.round((logo.size || 110) * (oh / 1080));
+      const pos = logoPos(logo.position || 'br', ow, oh, lw);
+      fc.push(`[${nextIdx}:v]scale=${lw}:-1[lg]`, `${vbase}[lg]overlay=${pos}[vov]`);
+    }
     vbase = '[vov]'; nextIdx++;
   }
   fc.push(`${vbase}fade=t=in:st=0:d=0.5,fade=t=out:st=${fadeOut.toFixed(2)}:d=0.6[vout]`);

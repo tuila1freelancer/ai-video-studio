@@ -911,10 +911,51 @@ export function mountRoutes(app, { version }) {
     res.json({ files: out });
   });
 
-  // ---- brand gen ----
-  r.post('/brandgen', upload.single('image'), async (req, res) => {
-    try { res.json(await Pipeline.brandGen(req.body, req.file)); }
-    catch (e) { res.status(500).json({ error: e.message }); }
+  // ---- brand gen (P27 — reference-app clone; prompts verbatim, ×10 no-fallback) ----
+  r.get('/brands', (req, res) => res.json({ brands: DB.brandFolders() }));
+  r.post('/brands', async (req, res) => {
+    try {
+      const { createBrand } = await import('./services/brand-gen.js');
+      res.json(createBrand(req.body?.name));
+    } catch (e) { res.status(400).json({ error: e.message }); }
+  });
+  r.post('/brandgen/emotions', async (req, res) => {
+    try {
+      const { generateEmotions } = await import('./services/brand-gen.js');
+      res.json({ ok: true, ...(await generateEmotions(req.body || {})) });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+  r.post('/brandgen/generate', upload.single('image'), async (req, res) => {
+    try {
+      if (!req.file) return res.status(400).json({ error: 'Thiếu ảnh tham chiếu' });
+      const { generateBrandAsset } = await import('./services/brand-gen.js');
+      const out = await generateBrandAsset({
+        imagePath: req.file.path, characterName: req.body?.characterName,
+        emotion: req.body?.emotion, brand: req.body?.brand, style: req.body?.style,
+      });
+      res.json(out);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+    finally { if (req.file) { try { unlinkSync(req.file.path); } catch { /* temp cleanup */ } } }
+  });
+  r.post('/brandgen/copy', async (req, res) => {
+    try {
+      const { copyToBrand } = await import('./services/brand-gen.js');
+      res.json(copyToBrand(req.body || {}));
+    } catch (e) { res.status(400).json({ error: e.message }); }
+  });
+  // provider list mutations live server-side: a masked-key array round-trip via PUT
+  // /settings would clobber real keys (arrays replace wholesale in applyMaskedUpdate)
+  r.post('/brandgen/providers', async (req, res) => {
+    try {
+      const { addEditProvider } = await import('./services/brand-gen.js');
+      res.json(addEditProvider(req.body || {}));
+    } catch (e) { res.status(400).json({ error: e.message }); }
+  });
+  r.delete('/brandgen/providers/:id', async (req, res) => {
+    try {
+      const { removeEditProvider } = await import('./services/brand-gen.js');
+      res.json(removeEditProvider(req.params.id));
+    } catch (e) { res.status(400).json({ error: e.message }); }
   });
 
   // ---- internal media file serving (data/ + every registered channel root; guard in services/file-access) ----
