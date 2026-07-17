@@ -6,6 +6,13 @@
 > inventory is strictly more complete than a manual UI walk-through: every screen, toggle
 > and pipeline step exists in `index.html`/routes, and every behavior in the bundle.
 > Reference app remains READ-ONLY throughout.
+>
+> UI walk-through note: the app WAS launched (its backend serves `localhost:45678`), but
+> its web UI sits behind the vendor's Google-login licensing wall in any fresh browser
+> session — authenticating on the owner's behalf is out of bounds, so feature discovery
+> relies on the (complete) markup/route/prompt inventory above: all 24 config checkboxes,
+> every select, all 131 routes and the B1–B9/E1–E7 pipeline panels are enumerated in
+> `index.html` and were cross-checked against the bundle's handlers.
 
 Decision legend: **IMPLEMENT** (built in this repo), **HAVE** (already equivalent or better),
 **ADAPT** (absorbed in different form), **DROP** (cost > value — reason recorded).
