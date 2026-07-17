@@ -11,6 +11,8 @@
 import * as DB from '../../db/index.js';
 import { logger } from '../../util/log.js';
 import { chatJson, llmEnabled, LANG_WPS, wordsForSlot, splitSentences } from '../../providers/llm.js';
+import { SCRIPT_MODE_MIN_WORDS } from '../../content/master-script.js';
+import { wordCount } from '../../util/util.js';
 import { checkStop } from '../stop.js';
 import { op } from '../progress.js';
 
@@ -91,6 +93,11 @@ export async function runBudgetFit(ctx) {
     if (lg === 'ja' || lg === 'zh') return;          // no word boundaries — word math misfires
   }
   if (project.input_type === 'json') return;         // owner-authored scenes — never cut
+  // Master engine 'script' mode: a pasted DETAILED script is the owner's words — the video's
+  // duration follows the content (same doctrine as auto mode / pasted JSON), so the fitter
+  // must never trim it toward a target. Same threshold the engine itself uses.
+  if (config.scriptEngine !== 'legacy' && project.input_type !== 'url'
+    && wordCount(project.topic) >= SCRIPT_MODE_MIN_WORDS) return;
   const scenes = DB.getScenes(projectId);
   // one-shot, pre-seed — same downstream-binding guards as editorial
   if (!scenes.length || project.scenes_approved_at

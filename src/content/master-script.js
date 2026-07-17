@@ -36,6 +36,9 @@ export const VISUAL_BRACKETS = ['ENVIRONMENT', 'MAIN FOCUS', 'CAMERA', 'MOTION F
 const MIN_BRACKETS = 5;
 const BATCH_TRIGGER = 30; // > this many target scenes → batched generation
 const BATCH_SIZE = 25;
+// Inputs of at least this many words are a DETAILED SCRIPT (light-polish mode), not a topic.
+// Shared with stages/budget.js so "owner's words → duration follows content" uses the same line.
+export const SCRIPT_MODE_MIN_WORDS = 80;
 
 // ---------------------------------------------------------------- duration planner
 function structureGuideFor(videoDuration) {
@@ -403,7 +406,7 @@ export async function generateMasterScenes({ input, config = {}, ai = null, memo
     return toPipelineShape(spec, { mode: 'json', defects: v.defects });
   }
 
-  const mode = wordCount(text) >= 80 ? 'script' : 'topic';
+  const mode = wordCount(text) >= SCRIPT_MODE_MIN_WORDS ? 'script' : 'topic';
   const plan = planScenes({ videoDuration: config.videoDuration, sceneDuration: config.sceneDuration, language });
   // 'script' mode: the owner's content decides the length — the duration target does not.
   const targetCount = mode === 'script'

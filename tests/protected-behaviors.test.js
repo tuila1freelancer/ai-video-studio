@@ -150,3 +150,29 @@ test('P17: scene gate holds cleanly and only the explicit owner route approves i
   // a scenes hold settles the durable job as done (not error)
   assert.match(src('src/pipeline/scheduler.js'), /status === 'scenes'\) return \{ status: 'done' \}/);
 });
+
+test('P18: master scenes JSON contract — no META_LEAK persisted, canonical export shape', () => {
+  const eng = src('src/content/master-script.js');
+  // every path out of the engine runs the deterministic repair when defects remain…
+  assert.match(eng, /best\.ok \? best\.spec : repairScenesSpec\(best\.spec, best\.defects\)/, 'LLM chunks repair before returning');
+  assert.match(eng, /v\.ok \? v\.spec : repairScenesSpec\(v\.spec, v\.defects\)/, 'pasted-JSON imports repair before returning');
+  // …and the repair DROPS unspeakable voices (CTA notes / hashtag lines / thumbnail prompts)
+  const rep = eng.slice(eng.indexOf('export function repairScenesSpec'), eng.indexOf('// ----', eng.indexOf('export function repairScenesSpec')));
+  assert.match(rep, /'META_LEAK' \|\| d\.code === 'NOT_SPEAKABLE' \|\| d\.code === 'EMPTY'/, 'repair drops meta/unspeakable/empty scenes');
+  assert.match(rep, /filter\(\(sc\) => !dropStt\.has\(sc\.stt\)\)/, 'dropped scenes never survive');
+  // the canonical export carries ONLY the factory fields (stt/voice/visual/assets + thumbnail)
+  const exp = eng.slice(eng.indexOf('export function scenesJsonFromRows'), eng.indexOf('// ----', eng.indexOf('export function scenesJsonFromRows')));
+  for (const field of ['stt: i + 1', 'voice: String(r.voice_text', 'visual: String(r.visual_prompt', 'assets: []']) {
+    assert.ok(exp.includes(field), `canonical export pins field: ${field}`);
+  }
+  assert.ok(!/duration/.test(exp), 'no duration field in the canonical export');
+  // B2 routes through the engine and writes the canonical artifact from DB rows
+  const b2 = src('src/pipeline/stages/script.js');
+  assert.match(b2, /generateMasterScenes/, 'B2 uses the master engine by default');
+  assert.match(b2, /config\.scriptEngine !== 'legacy'/, 'legacy escape hatch stays');
+  assert.match(b2, /scenesJsonFromRows\(DB\.getProject\(projectId\), scenes\)/, 'artifact is rebuilt from persisted rows');
+  // the export route serves the same canonical builder
+  assert.match(src('src/api/routes.js'), /scenes-json/, 'export route exists');
+  // owner's detailed script: duration follows content — the fitter must skip it
+  assert.match(src('src/pipeline/stages/budget.js'), /SCRIPT_MODE_MIN_WORDS\) return;/, 'budget fit never trims a pasted detailed script');
+});

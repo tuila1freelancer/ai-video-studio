@@ -28,6 +28,8 @@ export async function runMetadata(ctx) {
     }
     md.chapters = chapters;
     md.description = `${md.description || ''}\n\n📑 Chương:\n${chapters.join('\n')}`.trim();
-    DB.updateProject(projectId, { metadata: md });
+    // merge, don't overwrite — B2 may have stored the master script's thumbnail {title,prompt}
+    const prev = DB.getProject(projectId).metadata || {};
+    DB.updateProject(projectId, { metadata: { ...prev, ...md } });
   } catch (e) { logger.warn(`metadata: ${e.message}`, { projectId }); }
 }

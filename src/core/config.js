@@ -38,6 +38,9 @@ const NEW_PROJECT_DEFAULTS = {
   // dissolve (planTransitions), with 1-2 role-driven hero transitions punching above it. Sits
   // under every layer, so an explicit request/preset/channel value still wins.
   transitions: true,
+  // B2 script path: 'master' = the master script engine (one master prompt → canonical
+  // scenes JSON with per-scene 8-bracket visuals). 'legacy' restores the old generateScript.
+  scriptEngine: 'master',
 };
 
 // Effective config for a new project. `preset` = the channel's default preset row (or null).
