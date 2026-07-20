@@ -43,3 +43,8 @@ from the studio's own database — every number is real production data.
 - Scenes with rendered clips (active projects): 0 · Jobs: 0 done / 0 error / 0 cancelled
 - AI usage: 0 calls · 0 tokens in / 0 out · 0 TTS chars · est. $0.00
 - Published: — · Calendar-driven runs: —
+## 2026-07-20
+- Videos: 1 created · 1 completed — “Cảnh Báo: AI Đang Âm Thầm Làm Bạn "Ngu Đi"?”
+- Scenes with rendered clips (active projects): 10 · Jobs: 2 done / 0 error / 0 cancelled
+- AI usage: 42 calls · 421k tokens in / 75.2k out · 1.0k TTS chars · est. $0.36
+- Published: — · Calendar-driven runs: —
