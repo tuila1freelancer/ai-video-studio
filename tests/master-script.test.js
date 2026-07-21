@@ -313,7 +313,17 @@ test('generateMasterScenes (long video): batches of 25 with rolling context, stt
   const tag = (n) => `${W[n % 20]} ${W[(n * 7 + 3) % 20]} ${W[(n * 13 + 5) % 20]}`;
   globalThis.fetch = async (url, init) => {
     const body = JSON.parse(init.body); bodies.push(body);
-    const m = body.messages[1].content.match(/Produce scenes (\d+) to (\d+)/);
+    const c = body.messages[1].content;
+    if (c.includes('"chapters"')) { // P33 pinned-outline planning call (runs once, before batch 1)
+      return okResponse({
+        throughline: 'API là hợp đồng giữa các phần mềm.', spine: ['gap', 'proof', 'payoff'],
+        chapters: [
+          { from: 1, to: 25, goal: 'mở vấn đề', keyPoints: ['hợp đồng'], bridgeOut: 'sang cách gọi API' },
+          { from: 26, to: 40, goal: 'cách dùng', keyPoints: ['ví dụ'], bridgeOut: '' },
+        ],
+      });
+    }
+    const m = c.match(/Produce scenes (\d+) to (\d+)/);
     const [from, to] = [Number(m[1]), Number(m[2])];
     const scenes = [];
     for (let s = from; s <= to; s++) scenes.push({ stt: s, voice: `Cảnh ${s} tiếp tục mạch nội dung video dài.`, visual: mkVisual(`${FOCI[s % FOCI.length]} ${tag(s)}`), assets: [] });
@@ -321,11 +331,16 @@ test('generateMasterScenes (long video): batches of 25 with rolling context, stt
   };
   try {
     const out = await generateMasterScenes({ input: 'API là gì', config: { videoDuration: 280, sceneDuration: 7 }, ai: { llm: FAKE_LLM } });
-    assert.equal(bodies.length, 2, '40 scenes → 2 batches');
+    assert.equal(bodies.length, 3, '40 scenes → 1 outline + 2 batches');
     assert.equal(out.scenes.length, 40);
     assert.deepEqual(out.raw.scenes.map((s) => s.stt), Array.from({ length: 40 }, (_, i) => i + 1));
-    assert.ok(bodies[1].messages[1].content.includes('batch 2/2'));
-    assert.ok(bodies[1].messages[1].content.includes('Cảnh 25'), 'rolling context carries the previous tail');
+    assert.ok(bodies[2].messages[1].content.includes('batch 2/2'));
+    assert.ok(bodies[2].messages[1].content.includes('Cảnh 25'), 'rolling context carries the previous tail');
+    // P33: both batch prompts carry the SAME pinned plan; the middle batch is CTA-free by order
+    assert.ok(bodies[1].messages[1].content.includes('PINNED VIDEO PLAN'));
+    assert.ok(bodies[1].messages[1].content.includes('API là hợp đồng giữa các phần mềm.'));
+    assert.ok(bodies[2].messages[1].content.includes('API là hợp đồng giữa các phần mềm.'));
+    assert.ok(bodies[1].messages[1].content.includes('CTA PLAN'));
     assert.deepEqual(out.thumbnail, { title: 'TH', prompt: 'PR' });
   } finally { globalThis.fetch = realFetch; }
 });

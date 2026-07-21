@@ -31,6 +31,7 @@ import {
   LANG_WPS, LANG_NAME, scriptLang, topNouns, offlineScript, scriptBudgetOk, bibleBlock,
 } from '../providers/llm.js';
 import { HF_LAYOUTS, guideBrief } from '../pipeline/direction.js';
+import { auditCtas, stripCtaSentences } from './cta-audit.js';
 import { wordCount, safeJson } from '../util/util.js';
 
 // The 8 canonical visual sections (factory schema hard gate). A master visual must carry
@@ -48,6 +49,18 @@ function structureGuideFor(videoDuration) {
   if (videoDuration < 90) return 'hook → one core insight → one concrete example → payoff + CTA';
   if (videoDuration < 300) return 'hook → the problem → the core explanation → 2-3 concrete examples/steps → one common mistake + fix → recap + CTA';
   return 'hook → problem/misconception → core concept explained simply → step-by-step process → 3+ real examples → common mistakes + fixes → checklist recap → CTA';
+}
+
+/**
+ * P33 — the per-video CTA budget: ONE soft CTA near 30% + the closing line in the final
+ * scene. Batched prompts reference these as absolute stt AND span-relative positions;
+ * everything else gets an explicit prohibition (the per-batch CTA duplication this kills
+ * was measured on real output: subscribe blocks at every 25-scene boundary + a farewell
+ * at scene 175/200).
+ */
+export function ctaPlanFor(targetCount) {
+  const softStt = Math.min(Math.max(2, Math.round(targetCount * 0.3)), Math.max(2, targetCount - 2));
+  return { softStt, closingStt: targetCount };
 }
 
 /** Word/scene arithmetic shared by the prompt, the validator and the batcher. */
@@ -296,6 +309,13 @@ export function buildMasterPrompt({
   const langOverride = language !== 'vi' && language !== 'en'
     ? `\n- LANGUAGE: the "voice" field MUST be written in ${langName}. The "visual" field MUST remain in English (it feeds an English-instruction rendering engine) — except [ON-SCREEN TEXT] labels, which are in ${langName}. thumbnail.title in ${langName}; thumbnail.prompt in English.` : '';
   const n = expect || plan.sceneCount;
+  // P33 — a PARTIAL span (any call that is not the whole video in one go, batches AND
+  // adaptive splits alike) must not carry the whole-video CTA instructions: the closing-CTA
+  // order lives in THREE head sources (the scene-1/final-scene line, the CTA-placement line
+  // and the structure guide's "+ CTA" tail) and every one of them made each 25-scene batch
+  // write its own subscribe block + farewell. Partial prompts defer entirely to the CTA PLAN
+  // inside the batch note; the single-call head stays byte-identical (test-pinned).
+  const partial = !!batchNote;
 
   const opener = mode === 'source'
     ? `Write the COMPLETE production script for a ${langName} video from the SOURCE ARTICLE below.
@@ -309,7 +329,9 @@ REWRITE, NEVER COPY — the article is research material, not the deliverable:
   const head = mode === 'script'
     ? `Convert the channel owner's detailed script below into the production scenes JSON. LIGHT EDIT ONLY:
 - Keep ≥90% of the original wording and EVERY idea, in the original order — the owner's text is the deliverable, you are its editor, not its author.
-- You may only: fix broken/truncated sentences and grammar slips, smooth the joins so consecutive scenes read as one continuous talk, and ADD a soft mid-video CTA (a natural spoken sentence, around 25-40% of the way through) plus a closing CTA if the script lacks them.
+${partial
+    ? '- You may only: fix broken/truncated sentences and grammar slips, and smooth the joins so consecutive scenes read as one continuous talk. CTAs follow the CTA PLAN in the BATCH CONTEXT below — NEVER add any CTA or farewell it does not explicitly plan.'
+    : '- You may only: fix broken/truncated sentences and grammar slips, smooth the joins so consecutive scenes read as one continuous talk, and ADD a soft mid-video CTA (a natural spoken sentence, around 25-40% of the way through) plus a closing CTA if the script lacks them.'}
 - NEVER invent new content, new examples or new claims; never change the register or persona.${persona}
 - Slice at natural idea boundaries, ~${plan.wordsPerScene} words per scene (${plan.minWords}–${plan.maxWords} fine); the total scene count follows the CONTENT.`
     : `${opener}
@@ -323,14 +345,19 @@ DURATION SPECS (estimates to pace the writing — real timing follows the TTS):
 - total ≈ ${plan.videoDuration}s · ~${plan.sceneDuration}s per scene · target ${n} scenes (exact ${n} preferred)
 - voice ≈ ${plan.wordsPerScene} words/scene (safe band ${plan.minWords}–${plan.maxWords}) · whole video ≈ ${n * plan.wordsPerScene} words
 - TTS speaks ~${wps.toFixed(1)} words/second and reads FASTER than you imagine — write ENOUGH words, never stubby scenes.
-- Content arc: ${plan.structureGuide}.
+${partial
+    ? `- Content arc of the WHOLE video: ${plan.structureGuide.replace(/\s*\+\s*CTA\b/gi, '')} — this call writes ONLY its assigned span of that arc.`
+    : `- Content arc: ${plan.structureGuide}.`}
 
 VALUE ARCHITECTURE:
 - Every scene TEACHES one concrete, true, non-obvious thing: claim → why/how → ONE specific named example. A scene that is only setup, a transition or a rhetorical question is a FAILED scene.
 - Ground every figure: NEVER invent a statistic, percentage or count. A precise verb beats a fake number.
 - Scenes connect by LOGIC with forward connectors (${language === 'vi' ? '"vì vậy…", "nhưng…", "vậy nên…"' : '"so…", "but…", "which is why…"'}) — never tease-questions; at most ONE genuine viewer question in the whole video.
-- Scene 1 opens cold and concrete on the exact gap; the final scene resolves that same gap, then one natural line to subscribe.
-- CTA placement: ONE soft CTA woven in around 25-40% of the video (save/share if the framework helps) + the closing CTA — both as natural spoken sentences tied to the content, never a production note.${persona}${langOverride}
+${partial
+    ? `- The video's scene 1 opens cold on the exact gap and the video's FINAL scene resolves it — either may live OUTSIDE this span; write only your span, mid-flow.
+- CTA placement: follow the CTA PLAN in the BATCH CONTEXT below EXACTLY — a CTA, a thanks-for-watching or a farewell anywhere it is not explicitly planned is a DEFECT.`
+    : `- Scene 1 opens cold and concrete on the exact gap; the final scene resolves that same gap, then one natural line to subscribe.
+- CTA placement: ONE soft CTA woven in around 25-40% of the video (save/share if the framework helps) + the closing CTA — both as natural spoken sentences tied to the content, never a production note.`}${persona}${langOverride}
 - ALL narration written in ${langName}.`;
 
   const styleBits = [guide ? `\nLOCKED VISUAL STYLE for the whole video:\n${guideBrief(guide)}` : '', bibleBlock(memory), assetsBlock(assets)]
@@ -373,19 +400,102 @@ export function scenesJsonFromRows(project, rows) {
 }
 
 // ---------------------------------------------------------------- orchestrator
-function toPipelineShape(spec, { mode, defects = [] } = {}) {
+// P33 deterministic floor — a farewell BEFORE the final scene can never ship, in ANY mode
+// (topic/source/script LLM output and zero-LLM json imports alike; the factory's own files
+// carry 8 goodbye blocks per 200 scenes). Farewell sentences are standalone by nature, so
+// a plain strip reads clean; a farewell-ONLY scene is DROPPED (P18 precedent). Mid-video
+// CTA excess is left to the editorial LLM rewrite (nicer prose) — b2.5 owns that.
+function enforceCtaFloor(scenes, onLog = () => {}) {
+  // the FAREWELL_MID defect already encodes the closing-zone rule — reuse it verbatim
+  const fw = auditCtas(scenes.map((s) => s.voice)).defects.find((d) => d.code === 'FAREWELL_MID');
+  const mid = new Set(fw ? fw.idx : []);
+  if (!mid.size) return scenes;
+  const out = [];
+  scenes.forEach((sc, i) => {
+    if (!mid.has(i)) { out.push(sc); return; }
+    const { voice, removed, gutted } = stripCtaSentences(sc.voice, { farewellOnly: true });
+    if (gutted) {
+      onLog(`Kỷ luật CTA: cảnh ${i + 1} chỉ là lời chào tạm biệt giữa video — XOÁ cảnh (video vẫn còn tiếp diễn)`);
+      return;
+    }
+    onLog(`Kỷ luật CTA: cảnh ${i + 1} — bỏ câu tạm biệt giữa video: "${removed.join(' | ').slice(0, 90)}"`);
+    out.push({ ...sc, voice });
+  });
+  return out.map((s, i) => ({ ...s, stt: i + 1 }));
+}
+
+function toPipelineShape(spec, { mode, defects = [], onLog = () => {} } = {}) {
+  const scenes = enforceCtaFloor(spec.scenes, onLog);
   return {
-    title: (spec.title || spec.thumbnail?.title || spec.scenes[0]?.voice || 'Video mới').slice(0, 64),
+    title: (spec.title || spec.thumbnail?.title || scenes[0]?.voice || 'Video mới').slice(0, 64),
     thumbnail: spec.thumbnail,
-    scenes: spec.scenes.map((s) => ({
+    scenes: scenes.map((s) => ({
       voice: s.voice,
       visualPrompt: s.visual, // [MAIN FOCUS] inside → direction pass skips this scene
       keywords: topNouns(s.voice, 3),
     })),
-    raw: { thumbnail: spec.thumbnail, scenes: spec.scenes },
+    raw: { thumbnail: spec.thumbnail, scenes },
     mode,
     warnings: defects,
   };
+}
+
+// ---------------------------------------------------------------- pinned outline (P33)
+/** Deterministic chapter normalizer: sorted, gapless, exact 1..targetCount coverage. */
+export function normalizeChapters(raw, targetCount) {
+  const chs = (raw || []).map((c) => ({
+    from: Math.max(1, parseInt(c?.from, 10) || 1),
+    to: Math.min(targetCount, parseInt(c?.to, 10) || targetCount),
+    goal: String(c?.goal || '').trim().slice(0, 300),
+    keyPoints: Array.isArray(c?.keyPoints) ? c.keyPoints.map((k) => String(k).trim()).filter(Boolean).slice(0, 4) : [],
+    bridgeOut: String(c?.bridgeOut || '').trim().slice(0, 200),
+  })).filter((c) => c.to >= c.from).sort((a, b) => a.from - b.from);
+  if (!chs.length) return [{ from: 1, to: targetCount, goal: '', keyPoints: [], bridgeOut: '' }];
+  const out = [];
+  let cursor = 1;
+  for (const c of chs) {
+    if (cursor > targetCount) break;
+    out.push({ ...c, from: cursor, to: Math.min(Math.max(c.to, cursor), targetCount) });
+    cursor = out[out.length - 1].to + 1;
+  }
+  out[out.length - 1].to = targetCount;
+  return out;
+}
+
+/**
+ * ONE planning call before any batch of a long topic/source video: throughline + spine +
+ * batch-aligned chapters (goal/keyPoints/bridgeOut). Every batch then follows the SAME arc
+ * instead of inventing its own. Best-effort: any failure returns null → legacy behavior
+ * (the rolling tail alone), never a dead run. 'script' mode skips this — the owner's text
+ * IS the arc and the word-balanced slicer already preserves it.
+ */
+async function generateOutline({ plan, language, llm, onLog, targetCount, topicText, sourceDoc, mode }) {
+  const langName = LANG_NAME[language] || language;
+  const nCh = Math.ceil(targetCount / BATCH_SIZE);
+  const srcBlock = mode === 'source' && sourceDoc?.text
+    ? `\nSOURCE ARTICLE (research material):\n"""\n${String(sourceDoc.text).slice(0, 16000)}\n"""` : '';
+  try {
+    const parsed = await chatJson([
+      { role: 'system', content: 'You are a film director planning a long educational video. Reply with pure JSON only.' },
+      { role: 'user', content: `Plan a ${targetCount}-scene ${langName} video about: "${String(topicText).trim().slice(0, 400)}".${srcBlock}
+Design the ONE arc the whole video argues, then cut it into ~${nCh} sequential chapters. Each chapter will be WRITTEN in a separate call by a writer who sees ONLY this plan + the previous batch's last lines — the plan must carry the thread for them.
+JSON: {"throughline":"ONE sentence: the single argument the whole video makes","spine":["ordered steps that prove it — first = the exact gap to open on, last = the payoff that resolves it"],"chapters":[{"from":1,"to":${Math.min(BATCH_SIZE, targetCount)},"goal":"what this chapter must accomplish","keyPoints":["2-4 concrete points"],"bridgeOut":"the one-line idea that hands over to the next chapter"}]}
+HARD RULES: chapters cover scenes 1..${targetCount} exactly, in order, no gaps or overlaps; goals/keyPoints are concrete and specific to THIS topic (never generic filler); throughline/spine/goals written in ${langName}.` },
+    ], {
+      maxTokens: 3500, attempts: 2, llm,
+      validate: (p) => !!(p && p.throughline && Array.isArray(p.spine) && p.spine.length && Array.isArray(p.chapters) && p.chapters.length),
+    });
+    const outline = {
+      throughline: String(parsed.throughline).trim().slice(0, 300),
+      spine: parsed.spine.map((s) => String(s).trim()).filter(Boolean).slice(0, 12),
+      chapters: normalizeChapters(parsed.chapters, targetCount),
+    };
+    onLog(`Kịch bản: đã ghim dàn ý — ${outline.chapters.length} chương, throughline: "${outline.throughline.slice(0, 80)}"`);
+    return outline;
+  } catch (e) {
+    onLog(`Kịch bản: không tạo được dàn ý ghim (${String(e.message).slice(0, 80)}) — chạy kiểu cũ`);
+    return null;
+  }
 }
 
 async function askOnce({ messages, expect, plan, mode, source, language, llm, onLog }) {
@@ -457,12 +567,44 @@ function sceneTail(scenes) {
   return scenes.slice(-3).map((s) => `  - "${s.voice.slice(0, 90)}${s.voice.length > 90 ? '…' : ''}"`).join('\n');
 }
 
-function batchNoteFor({ label, from, to, targetCount, tail, closes }) {
+// P33 — the pinned-plan block for one span: throughline/spine written ONCE (before batch 1)
+// and restated verbatim to every batch, plus the chapters this span covers. Without this,
+// batch 2+ re-planned its own arc from a 3-voice tail — 8 loosely-stitched essays.
+function outlineNoteFor(outline, from, to) {
+  if (!outline) return '';
+  const chaps = (outline.chapters || []).filter((c) => c.to >= from && c.from <= to);
+  return `\n\nPINNED VIDEO PLAN (written once for the whole video — IMMUTABLE; restate it verbatim in your "throughline"/"spine" fields, never re-plan):
+- Throughline: ${outline.throughline}
+- Spine: ${outline.spine.map((s, i) => `${i + 1}) ${s}`).join(' ')}
+This span covers:
+${chaps.map((c) => `- Scenes ${c.from}–${c.to}: ${c.goal || 'continue the arc'}${c.keyPoints?.length ? ` · key points: ${c.keyPoints.join('; ')}` : ''}${c.bridgeOut ? ` · hands over on: ${c.bridgeOut}` : ''}`).join('\n') || '- (continue the arc)'}`;
+}
+
+// P33 — one CTA line per span, derived from the LIVE [from..to] at call time (adaptive
+// splits rebuild it per sub-span, so a split batch can never lose or duplicate its CTA).
+function ctaNoteFor({ from, to, ctaPlan, closes, mode, bridgeOut = '' }) {
+  if (!ctaPlan) return '';
+  const lines = [];
+  const softIn = ctaPlan.softStt >= from && ctaPlan.softStt <= to;
+  if (softIn) {
+    lines.push(`- CTA PLAN: scene ${ctaPlan.softStt} (scene ${ctaPlan.softStt - from + 1} of this span) carries this video's ONE soft CTA — a single natural spoken sentence (save/share/follow) tied to the content. ${mode === 'script' ? "Add it only if the owner's script lacks it." : 'Write it there and nowhere else.'} No other scene in this span may contain any CTA.`);
+  }
+  if (closes) {
+    lines.push(`- CTA PLAN: the video ENDS in this span — the final scene resolves the opening gap, then ONE natural closing line (subscribe). ${mode === 'script' ? "Add it only if the owner's script lacks it. " : ''}No other CTA in this span${softIn ? ' beyond the two planned ones' : ''}.`);
+  }
+  if (!softIn && !closes) {
+    lines.push(`- CTA PLAN: this span carries NO call-to-action and NO farewell of any kind — no subscribe/like/share/bell, no thanks-for-watching, no goodbye, no "hẹn gặp lại". The video CONTINUES after scene ${to}: never conclude or wrap up${bridgeOut ? `; end mid-flow, handing over on: ${bridgeOut}` : ', end mid-flow'}.`);
+  }
+  return `\n${lines.join('\n')}`;
+}
+
+export function batchNoteFor({ label, from, to, targetCount, tail, closes, ctaPlan = null, mode = 'topic', outline = null }) {
   if (from === 1 && to === targetCount && !tail) return ''; // the whole video in one call
-  return `\n\nBATCH CONTEXT:
+  const bridgeOut = outline?.chapters?.find((c) => to >= c.from && to <= c.to)?.bridgeOut || '';
+  return `${outlineNoteFor(outline, from, to)}\n\nBATCH CONTEXT:
 - This is ${label || 'one batch'} of a ${targetCount}-scene video. Produce scenes ${from} to ${to} (${to - from + 1} scenes), "stt" numbered from ${from}.
 ${tail ? `- The last scenes so far (CONTINUE this thread naturally, do not repeat it):\n${tail}` : '- Open with the strongest hook.'}
-${from > 1 ? '- Do NOT re-open the video: no new greeting, no re-introduction.' : ''}${closes ? '\n- This batch ENDS the video: resolve the opening gap + closing CTA.' : ''}`;
+${from > 1 ? '- Do NOT re-open the video: no new greeting, no re-introduction.' : ''}${closes ? '\n- This span ENDS the video: resolve the opening gap.' : ''}${ctaNoteFor({ from, to, ctaPlan, closes, mode, bridgeOut })}`;
 }
 
 /**
@@ -482,7 +624,10 @@ async function generateSpan({ common, from, to, targetCount, label, tail, closes
     common.onLog(`Kịch bản: cảnh ${from}–${to} không có từ nguồn (câu dài rơi sang span kề) — bỏ qua`);
     return { spec: { title: '', thumbnail: null, scenes: [] }, defects: [] };
   }
-  const batchNote = batchNoteFor({ label, from, to, targetCount, tail, closes });
+  const batchNote = batchNoteFor({
+    label, from, to, targetCount, tail, closes,
+    ctaPlan: common.ctaPlan, mode: common.mode, outline: common.outline,
+  });
   let why;
   try {
     const r = await generateChunk({ ...common, input, expect, sttBase: from, batchNote });
@@ -523,7 +668,7 @@ export async function generateMasterScenes({ input, source = null, config = {}, 
     const spec = v.ok ? v.spec : repairScenesSpec(v.spec, v.defects);
     if (!spec.scenes.length) throw new Error('Scenes JSON has no usable narration scenes');
     for (const d of v.defects) onLog(`Nhập scenes-json: ${d.code}${d.stt != null ? ` @${Array.isArray(d.stt) ? d.stt.join(',') : d.stt}` : ''} — ${d.detail}`);
-    return toPipelineShape(spec, { mode: 'json', defects: v.defects });
+    return toPipelineShape(spec, { mode: 'json', defects: v.defects, onLog });
   }
 
   // 'source' (fetched article) outranks the word-count sniff: a long article is research
@@ -553,7 +698,10 @@ export async function generateMasterScenes({ input, source = null, config = {}, 
   }
 
   const sourceDoc = mode === 'source' ? { title: String(source?.title || '').trim(), text: sourceText } : null;
-  const common = { mode, plan, language, guide, memory, assets, llm, onLog, sourceDoc };
+  // P33: ONE soft CTA (~30%) + closing only — every span references the same plan; the
+  // pinned outline (set below for batched topic/source) keeps batch 2+ on batch 1's arc.
+  const ctaPlan = ctaPlanFor(targetCount);
+  const common = { mode, plan, language, guide, memory, assets, llm, onLog, sourceDoc, ctaPlan, outline: null };
   // 'script' mode hands every span its word-balanced share of the owner's text; the shared
   // cut points guarantee batch (and split) boundaries never drop or repeat a sentence.
   const slice = mode === 'script' ? sourceSlicer(splitSentences(text), targetCount) : null;
@@ -562,12 +710,15 @@ export async function generateMasterScenes({ input, source = null, config = {}, 
   if (targetCount <= BATCH_TRIGGER) {
     const { spec, defects } = await generateSpan({ common, from: 1, to: targetCount, targetCount, label: '', tail: '', closes: false, slice, topicText: text });
     if (!spec.scenes.length) throw new Error('master-script: no usable scenes after repair');
-    return toPipelineShape({ ...spec, scenes: spec.scenes.map((s, i) => ({ ...s, stt: i + 1 })) }, { mode, defects });
+    return toPipelineShape({ ...spec, scenes: spec.scenes.map((s, i) => ({ ...s, stt: i + 1 })) }, { mode, defects, onLog });
   }
 
   // 4) Long video → adaptive batches of 25 with rolling context; thumbnail comes from batch 1.
   const nBatches = Math.ceil(targetCount / BATCH_SIZE);
   onLog(`Kịch bản: video dài (${targetCount} cảnh) → ${nBatches} đợt × ~${BATCH_SIZE} cảnh`);
+  if (mode !== 'script') {
+    common.outline = await generateOutline({ plan, language, llm, onLog, targetCount, topicText: text, sourceDoc, mode });
+  }
   const all = []; let thumbnail = null; let title = ''; const warnings = [];
   for (let b = 0; b < nBatches; b++) {
     const from = b * BATCH_SIZE + 1;
@@ -582,5 +733,5 @@ export async function generateMasterScenes({ input, source = null, config = {}, 
   }
   if (!all.length) throw new Error('master-script: no usable scenes after repair');
   const spec = { title, thumbnail: thumbnail || synthThumbnail({}, title || text), scenes: all.map((s, i) => ({ ...s, stt: i + 1 })) };
-  return toPipelineShape(spec, { mode, defects: warnings });
+  return toPipelineShape(spec, { mode, defects: warnings, onLog });
 }
