@@ -113,7 +113,7 @@ export async function synthesizeVoice(text, outPath, opts = {}) {
         return { ...r, provider: pid, fallback: ci > 0 };
       } catch (e) {
         lastErr = e;
-        logger.warn(`TTS ${pid} failed (${e.message.slice(0, 120)})${a < tries - 1 ? '; retrying same voice' : '; trying next'}`);
+        logger.warn(`Giọng đọc ${pid} lỗi (${e.message.slice(0, 120)})${a < tries - 1 ? ' — thử lại cùng giọng' : ' — chuyển giọng kế tiếp'}`);
         if (a < tries - 1) await sleep(1200 * (a + 1));
       }
     }

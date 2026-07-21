@@ -23,6 +23,6 @@ export function seedEstimatedTiming(ctx) {
     DB.updateScene(sc.id, { duration, srt_json: cues });
     seeded++;
   }
-  if (seeded) logger.info(`seeded estimated timing for ${seeded} scene(s)`, { projectId });
+  if (seeded) logger.info(`⏱ Ước tính nhịp thời gian cho ${seeded} cảnh (giọng thật sẽ ghi đè sau)`, { projectId });
   return seeded;
 }

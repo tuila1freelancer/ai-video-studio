@@ -40,7 +40,7 @@ export function startBatch({ topics = [], config = {} } = {}) {
     (async () => {
       for (const p of created) {
         try { await Pipeline.startProject(p.id); }
-        catch (e) { logger.error(`batch item failed: ${e.message}`, { projectId: p.id }); }
+        catch (e) { logger.error(`Hàng loạt: mục lỗi (${e.message})`, { projectId: p.id }); }
       }
       hub.broadcast({ type: 'batch-done', count: created.length });
     })();

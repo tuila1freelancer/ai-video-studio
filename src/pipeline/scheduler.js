@@ -11,6 +11,7 @@ import { logger } from '../util/log.js';
 import { withRunContext } from '../util/run-context.js';
 import { resolveProjectConfig } from '../core/config.js';
 import { runPipeline, renderOnly } from './runner.js';
+import { jlog } from './journal.js';
 
 // Per-kind lanes: how many jobs of a kind may run at once across the whole process.
 // Two interactive pipelines may overlap (matches the old per-project Map semantics);
@@ -32,8 +33,9 @@ function laneCapacity() {
 
 async function execute(job) {
   const projectId = job.project_id;
-  // attribution for the cost meter: every llm/tts call in this async chain bills the project
-  return withRunContext({ projectId, channelId: DB.getProject(projectId)?.channel_id || null }, () => executeInner(job));
+  // attribution for the cost meter AND the journal (P32): every llm/tts call in this async
+  // chain bills the project, and every journal row in the chain carries this run's job id.
+  return withRunContext({ projectId, channelId: DB.getProject(projectId)?.channel_id || null, jobId: job.id }, () => executeInner(job));
 }
 
 async function executeInner(job) {
@@ -97,11 +99,14 @@ function promoteDueSlots() {
       DB.markSlotCreated(slot.id, project.id);
       // linkage is bookkeeping — its failure must never reach the cancelSlot error path
       try { DB.linkSuggestionProject(slot.id, project.id); } catch { /* best-effort */ }
-      DB.enqueueJob({ kind: 'pipeline', projectId: project.id, payload: {}, priority: -1 });
+      const j = DB.enqueueJob({ kind: 'pipeline', projectId: project.id, payload: {}, priority: -1 });
       hub.broadcast({ type: 'calendar', slotId: slot.id, projectId: project.id, topic: slot.topic });
-      logger.info(`calendar: slot due → project ${project.id} "${slot.topic}"`, { projectId: project.id });
+      jlog(project.id, { kind: 'enqueue', jobId: j.id, msg: '⏳ Đã xếp vào hàng đợi sản xuất (video hẹn lịch)' });
+      logger.info(`🗓 Đến hạn lịch — tạo dự án "${slot.topic}"`, { projectId: project.id });
     } catch (e) {
       logger.error(`calendar promote failed: ${e.message}`);
+      // system lane: no project exists yet, but the failed task must still be auditable
+      jlog(null, { kind: 'sys', level: 'error', stage: 'sys', msg: `⛔ Slot lịch "${slot.topic}" không tạo được video: ${e.message}` });
       DB.cancelSlot(slot.id); // a broken slot must not wedge every future tick
     }
   }
@@ -143,6 +148,8 @@ export function submit({ kind, projectId, batchId = null, payload = {}, priority
   if (existing) return { job: existing, done: promiseFor(existing.id) };
   const job = DB.enqueueJob({ kind, projectId, batchId, payload, priority });
   hub.broadcast({ type: 'job', id: job.id, kind, projectId, status: 'queued' });
+  jlog(projectId, { kind: 'enqueue', jobId: job.id,
+    msg: kind === 'render' ? '⏳ Đã xếp render vào hàng đợi' : '⏳ Đã xếp vào hàng đợi sản xuất' });
   const done = promiseFor(job.id);
   scheduleTick(0);
   return { job, done };
@@ -159,6 +166,10 @@ function promiseFor(jobId) {
 /** Boot: requeue jobs orphaned by a dead process (after P13's project recovery), then start. */
 export function startScheduler() {
   const { requeued, dead } = DB.requeueZombieJobs();
-  if (requeued || dead) logger.info(`job recovery: ${requeued} requeued, ${dead} marked dead`);
+  if (requeued || dead) {
+    logger.info(`job recovery: ${requeued} requeued, ${dead} marked dead`);
+    jlog(null, { kind: 'sys', level: 'warn', stage: 'sys',
+      msg: `🧯 Khôi phục sau khởi động: ${requeued} tác vụ xếp lại hàng đợi, ${dead} đánh dấu lỗi` });
+  }
   scheduleTick(500); // give boot a beat before resuming heavy work
 }

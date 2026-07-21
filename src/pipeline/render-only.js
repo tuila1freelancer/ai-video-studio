@@ -11,6 +11,7 @@ import { renderScene } from './render.js';
 import { buildSceneBackground } from './visuals.js';
 import { clearStop, checkStop } from './stop.js';
 import { step, op, progressPlan } from './progress.js';
+import { jlog } from './journal.js';
 import { mapPool, visualOpts, subtitleStyleFrom } from './helpers.js';
 import { finalize } from './stages/finalize.js';
 
@@ -23,6 +24,7 @@ export async function renderOnly(projectId, { mode = 'all', sceneIds = [] }) {
   const dir = DB.projectDirFor(projectId);
   DB.updateProject(projectId, { status: 'running' });
   hub.toProject(projectId, { type: 'status', status: 'running' });
+  jlog(projectId, { kind: 'status', msg: `🎬 Bắt đầu render lại (${mode === 'scenes' ? `${sceneIds.length} cảnh đã chọn` : mode === 'concat' ? 'ghép lại' : 'toàn bộ'})` });
   try {
     const visualMode = config.visualMode || 'animation';
     const allScenes = DB.getScenes(projectId);
@@ -91,13 +93,20 @@ export async function renderOnly(projectId, { mode = 'all', sceneIds = [] }) {
     DB.updateProject(projectId, { status: endStatus });
     if (endStatus !== 'done') {
       hub.toProject(projectId, { type: 'status', status: endStatus });
+      jlog(projectId, { kind: 'status', msg: `✓ Render xong — trạng thái: ${endStatus}` });
     } else {
       const fin = DB.getProject(projectId);
       hub.toProject(projectId, { type: 'done', video: fin.video_path ? `/api/file?path=${encodeURIComponent(fin.video_path)}` : null,
         thumb: fin.thumb_path ? `/api/file?path=${encodeURIComponent(fin.thumb_path)}` : null });
+      jlog(projectId, { kind: 'done', level: 'success', msg: '🎉 Render + ghép hoàn tất' });
     }
   } catch (e) {
-    if (e.stopped) { DB.updateProject(projectId, { status: 'paused' }); hub.toProject(projectId, { type: 'status', status: 'paused' }); }
-    else { DB.updateProject(projectId, { status: 'error', error: e.message }); hub.toProject(projectId, { type: 'error', msg: e.message }); }
+    if (e.stopped) {
+      DB.updateProject(projectId, { status: 'paused' }); hub.toProject(projectId, { type: 'status', status: 'paused' });
+      jlog(projectId, { kind: 'status', msg: '⏹ Đã dừng render theo yêu cầu' });
+    } else {
+      DB.updateProject(projectId, { status: 'error', error: e.message }); hub.toProject(projectId, { type: 'error', msg: e.message });
+      jlog(projectId, { kind: 'error', level: 'error', msg: `⛔ Render lỗi: ${e.message}` });
+    }
   } finally { clearStop(projectId); }
 }

@@ -53,8 +53,4 @@ export function setStep(k, state2, detail) {
 
 export function showOp(t, retrying = false) { $('#curOp').classList.remove('hidden'); $('#curOp').classList.toggle('retrying', !!retrying); $('#curOpText').textContent = t; }
 export function hideOp() { $('#curOp').classList.add('hidden'); }
-export function appendLog(m) {
-  const b = $('#logBody'); const line = el('div', 'lg-' + (m.level || 'info'), `[${new Date(m.at).toLocaleTimeString('vi-VN')}] ${m.msg}`);
-  b.appendChild(line); b.scrollTop = b.scrollHeight;
-  while (b.children.length > 300) b.firstChild.remove();
-}
+// The journal panel (features/journal.js, P32) replaced the old appendLog flat stream.

@@ -15,6 +15,7 @@ const VERSION = '1.0.0';
 
 ensureDirs();
 bindHub(hub);
+await import('./pipeline/journal.js'); // P32 journal: bindJournal before any logger fanout
 await import('./core/metering.js'); // cost meter: subscribe to provider usage before any run
 try {
   const { recoverZombieProjects } = await import('./db/index.js');

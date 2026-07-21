@@ -158,7 +158,7 @@ ${listing}` },
           if (after < before) DB.updateScene(target.id, { voice_text: v });
         }
         a = ask();
-      } catch (e) { logger.warn(`budget-fit LLM pass failed: ${e.message}`, { projectId }); }
+      } catch (e) { logger.warn(`Khớp thời lượng: bước LLM lỗi (${e.message}) — dùng cách cắt tự động`, { projectId, stage: 'b2' }); }
     }
   }
 

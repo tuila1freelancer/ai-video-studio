@@ -27,7 +27,7 @@ export async function runEditorial(ctx) {
 
   const { issues, flaggedIdx } = scoreScript(scenes, config);
   if (!issues.length) { op(projectId, '🪶 Biên tập: kịch bản đạt — không lỗi ngôn ngữ/cụt câu/lặp'); return; }
-  for (const i of issues.slice(0, 12)) logger.warn(`editorial: scene ${i.idx + 1} [${i.type}] ${i.detail}`, { projectId });
+  for (const i of issues.slice(0, 12)) logger.warn(`Biên tập: cảnh ${i.idx + 1} [${i.type}] ${i.detail}`, { projectId, stage: 'b2', sceneIdx: i.idx });
   op(projectId, `🪶 Biên tập: ${flaggedIdx.length} cảnh cần sửa (${[...new Set(issues.map((x) => x.type))].join(', ')})`);
 
   if (!llmEnabled(ai?.llm)) return; // scorer findings are logged; offline mode keeps the script
@@ -82,8 +82,8 @@ JSON: {"scenes":[{"idx":${flagged[0].idx},"voice":"..."}]} — exactly ${flagged
     // re-score for the log so regressions are visible, never fatal
     const after = scoreScript(DB.getScenes(projectId), config);
     op(projectId, `🪶 Biên tập: đã viết lại ${fixed}/${flagged.length} cảnh — còn ${after.flaggedIdx.length} cảnh có ghi chú`);
-    logger.info(`editorial rewrite: ${fixed}/${flagged.length} fixed, ${after.flaggedIdx.length} still flagged`, { projectId });
+    logger.info(`🪶 Biên tập: sửa ${fixed}/${flagged.length} cảnh, còn ${after.flaggedIdx.length} cảnh bị đánh dấu`, { projectId, stage: 'b2' });
   } catch (e) {
-    logger.warn(`editorial rewrite failed: ${e.message} — keeping the original script`, { projectId });
+    logger.warn(`Biên tập lỗi: ${e.message} — giữ kịch bản gốc`, { projectId, stage: 'b2' });
   }
 }

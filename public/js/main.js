@@ -19,6 +19,8 @@ import { initBrandKit, refreshBrandSummary } from './features/brandkit.js';
 import { initSrt } from './features/srt.js';
 import { initBatch } from './features/batch.js';
 import { initAutopilot } from './features/autopilot.js';
+import { initJournal } from './features/journal.js';
+import { initTasks } from './features/tasks.js';
 import { initSceneStudio } from './features/scene-studio.js';
 import { initTemplateGallery } from './features/template-gallery.js';
 import { initPalette } from './ui/palette.js';
@@ -43,6 +45,8 @@ async function init() {
   initSrt();
   initBatch();
   initAutopilot();
+  initJournal();
+  initTasks();
   initSceneStudio();
   initTemplateGallery();
   initPalette();
