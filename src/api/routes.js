@@ -4,13 +4,14 @@ import multer from 'multer';
 import { existsSync, statSync, mkdirSync, unlinkSync, renameSync } from 'node:fs';
 import { join, resolve, extname, basename } from 'node:path';
 import * as DB from '../db/index.js';
+import db from '../db/index.js';
 import { hub } from '../ws/hub.js';
 import { DIRS, PATHS, depStatus } from '../config/paths.js';
 import { logger } from '../util/log.js';
 import { detectInputType, newId, ratioToSize, wordCount } from '../util/util.js';
 import { fetchLink } from '../providers/fetchlink.js';
 import { imageSearch } from '../providers/imagesearch.js';
-import { generateMetadata, wordsForSlot } from '../providers/llm.js';
+import { generateMetadata, wordsForSlot, LANG_WPS } from '../providers/llm.js';
 import * as Pipeline from '../pipeline/queue.js';
 import { resolveProjectConfig, maskSecrets, applyMaskedUpdate, ttsOverrideFor } from '../core/config.js';
 import { estimateCost } from '../core/pricing.js';
@@ -306,6 +307,38 @@ export function mountRoutes(app, { version }) {
     const { mode = 'all', sceneIds = [] } = req.body || {};
     Pipeline.renderProject(req.params.id, { mode, sceneIds }).catch((e) => logger.error(e.message, { projectId: req.params.id }));
     res.json({ ok: true });
+  });
+  // P34 — PRE-create cost preview (assistant sheet): TTS chars priced by the pricing table,
+  // LLM extrapolated from THIS installation's own history (avg LLM est_cost per scene over
+  // recent projects — honest zero/null when there is no history). NOT /estimate — that route
+  // is the duration-estimate helper and its contract stays untouched.
+  r.post('/estimate-cost', (req, res) => {
+    const b = req.body || {};
+    const config = b.config || {};
+    const duration = Math.max(10, parseInt(b.videoDuration || config.videoDuration, 10) || 60);
+    const lang = (config.language && config.language !== 'auto') ? config.language : 'vi';
+    const words = Math.round(duration * (LANG_WPS[lang] || 3.0));
+    const chars = Math.round(words * (lang === 'vi' ? 5.5 : 6));
+    const o = config.tts || null;
+    const s = { ...(DB.aiSettings().tts || {}), ...(o || {}) };
+    const { pid: provider } = resolveVoiceTarget(s, lang, o);
+    const ttsUsd = estimateCost({ kind: 'tts', provider, chars }) || 0;
+    // history-based LLM estimate: mean llm cost per scene across the last ~20 usage-bearing projects
+    const hist = db.prepare(`
+      SELECT SUM(u.est_cost) AS cost, (SELECT COUNT(*) FROM scenes sc WHERE sc.project_id = u.project_id) AS scenes
+      FROM provider_usage u WHERE u.kind='llm' AND u.project_id IS NOT NULL
+      GROUP BY u.project_id ORDER BY MAX(u.at) DESC LIMIT 20`).all()
+      .filter((r2) => r2.scenes > 0 && r2.cost > 0);
+    const perScene = hist.length ? hist.reduce((a, r2) => a + r2.cost / r2.scenes, 0) / hist.length : null;
+    const scenes = Math.max(1, Math.round(duration / Math.min(12, Math.max(4, +config.sceneDuration || 7))));
+    const llmUsd = perScene != null ? +(perScene * scenes).toFixed(2) : null;
+    res.json({
+      scenes, chars, provider,
+      credits: provider === 'larvoice' ? chars : null,
+      ttsUsd: ttsUsd || null, llmUsd,
+      usd: ttsUsd || llmUsd ? +((ttsUsd || 0) + (llmUsd || 0)).toFixed(2) : null,
+      basis: perScene != null ? 'lịch sử kênh' : 'chưa đủ lịch sử để ước tính LLM',
+    });
   });
 
   // ---- self-serve diagnostics bundle (masked, P14) ----

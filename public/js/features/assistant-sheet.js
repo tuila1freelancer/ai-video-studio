@@ -9,6 +9,8 @@ import { toast } from '../ui/toast.js';
 import { state } from '../state.js';
 import { openDialog } from '../ui/dialog.js';
 import { gatherConfig } from '../views/config.js';
+import { closeModal } from '../ui/modals.js';
+import { openProject } from '../views/studio.js';
 
 function toLocalInput(ts) {
   const d = new Date(ts);
@@ -27,10 +29,19 @@ export function channelAssistant() {
   return ch?.config?.assistant || null;
 }
 
+/** The channel's script language ('vi' fallback) — voices and suggestions follow it (P34). */
+function channelLang() {
+  const ch = (state.channels || []).find((c) => c.id === state.activeChannel);
+  const l = ch?.config?.language;
+  return l && l !== 'auto' ? l : 'vi';
+}
+
 function voiceOptions() {
+  const lang = channelLang();
   const favs = new Set(state.settings?.tts?.favVoices || []);
-  const current = state.settings?.tts?.langVoices?.vi;
-  const vi = (state.voiceCatalog || []).filter((v) => v.lang === 'vi');
+  const current = state.settings?.tts?.langVoices?.[lang] || state.settings?.tts?.langVoices?.vi;
+  let vi = (state.voiceCatalog || []).filter((v) => v.lang === lang);
+  if (!vi.length) vi = (state.voiceCatalog || []).filter((v) => v.lang === 'vi'); // catalog gap → vi fallback
   vi.sort((a, b) => (favs.has(b.provider + '/' + b.id) - favs.has(a.provider + '/' + a.id)) || a.name.localeCompare(b.name));
   const opts = vi.slice(0, 120).map((v) => {
     const key = `${v.provider}|${v.id}`;
@@ -102,11 +113,18 @@ export function configSheet({ row, mode, due = null }) {
       <label class="label">Giọng đọc video này</label>
       <select class="input" data-a="voice">${voiceOptions()}</select>
     </div>
+    <label class="as-radio" style="margin:2px 0 6px">
+      <input type="checkbox" data-a="gate" ${mode === 'now' ? 'checked' : ''}>
+      <span>🔍 Duyệt kịch bản trước khi dựng <i class="hint">${mode === 'now'
+    ? '(dừng chờ bạn xem storyboard — chưa tốn phí lồng tiếng)'
+    : '(video hẹn lịch vốn chạy tự động — bật nếu muốn nó dừng chờ bạn duyệt)'}</i></span>
+    </label>
     ${mode === 'schedule' ? `
     <div class="field as-block">
       <label class="label">Thời điểm sản xuất</label>
       <input class="input" type="datetime-local" data-a="due" value="${due ? toLocalInput(due) : defaultDue()}">
     </div>` : ''}
+    <div class="hint" id="asCost" style="margin:2px 0 4px"></div>
     <div class="hint" style="margin:4px 0 12px">Máy chủ vẫn xếp lớp: mặc định app → kênh → preset mặc định → lựa chọn ở đây.</div>
     <div class="dlg-actions">
       <button class="btn" data-a="cancel">Huỷ</button>
@@ -118,6 +136,23 @@ export function configSheet({ row, mode, due = null }) {
         const r = dlg.querySelector('input[name=asSrc][value=preset]');
         if (r && !r.disabled) r.checked = true;
       });
+      // P34 cost preview — honest estimate line, refreshed when the duration override changes
+      const costLine = dlg.querySelector('#asCost');
+      const refreshCost = async () => {
+        if (!costLine) return;
+        try {
+          const ch = (state.channels || []).find((c) => c.id === state.activeChannel);
+          const vd = +(dlg.querySelector('[data-a=vd]')?.value) || ch?.config?.videoDuration || 60;
+          const est = await api.post('/estimate-cost', { videoDuration: vd, config: { language: channelLang() } });
+          const bits = [`~${est.scenes} cảnh`];
+          if (est.credits != null) bits.push(`${est.credits.toLocaleString('vi-VN')} credits LarVoice`);
+          else if (est.ttsUsd) bits.push(`TTS ≈ $${est.ttsUsd.toFixed(2)}`);
+          if (est.llmUsd != null) bits.push(`LLM ≈ $${est.llmUsd.toFixed(2)} (${est.basis})`);
+          costLine.textContent = `💸 Ước tính: ${bits.join(' · ')}`;
+        } catch { costLine.textContent = ''; }
+      };
+      refreshCost();
+      dlg.querySelector('[data-a=vd]')?.addEventListener('change', refreshCost);
       dlg.querySelector('[data-a=cancel]').addEventListener('click', () => close(null));
       dlg.querySelector('[data-a=ok]').addEventListener('click', () => {
         const src = dlg.querySelector('input[name=asSrc]:checked')?.value || 'channel';
@@ -132,9 +167,11 @@ export function configSheet({ row, mode, due = null }) {
         }
         const v = (a) => dlg.querySelector(`[data-a=${a}]`)?.value || '';
         if (v('ar')) config.aspectRatio = v('ar');
-        if (v('vd')) config.videoDuration = +v('vd'); config.durationMode = 'target'; // an explicit duration pick must beat an inherited 'auto'
+        if (v('vd')) { config.videoDuration = +v('vd'); config.durationMode = 'target'; } // an explicit duration pick must beat an inherited 'auto' — and ONLY then
         if (v('vm')) config.visualMode = v('vm');
         if (v('sub')) config.enableSubtitles = v('sub') === 'on';
+        // the checkbox shows its state — what you see is what the run does (P34)
+        config.sceneGate = !!dlg.querySelector('[data-a=gate]')?.checked;
         if (v('voice')) {
           const [provider, ...rest] = v('voice').split('|');
           config.tts = { provider, voice: rest.join('|') };
@@ -290,8 +327,10 @@ export async function runSuggestionAction(row, act, { due = null } = {}) {
   if (!picked) return false;
   try {
     if (mode === 'now') {
-      await api.post(`/topics/${row.id}/accept`, { config: picked.config, title: picked.title || null });
+      const r = await api.post(`/topics/${row.id}/accept`, { config: picked.config, title: picked.title || null });
       toast('Đã đưa vào hàng đợi sản xuất 🎬', 'success');
+      // P34: land the owner on the new project — the journal narrates from second one
+      if (r?.projectId) { closeModal('#autopilotModal'); openProject(r.projectId); }
     } else {
       await api.post(`/topics/${row.id}/schedule`, { dueAt: picked.dueAt, config: picked.config, title: picked.title || null });
       toast('Đã hẹn lịch 🗓', 'success');
