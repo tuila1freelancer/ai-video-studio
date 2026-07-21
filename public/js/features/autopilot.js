@@ -10,7 +10,7 @@ import { state } from '../state.js';
 import { gatherConfig } from '../views/config.js';
 import {
   runSuggestionAction, slotConfigSheet, slotTimeDialog, planWeekDialog,
-  addRecurrenceDialog, channelAssistant,
+  addRecurrenceDialog, channelAssistant, configSheet,
 } from './assistant-sheet.js';
 import { initHistoryTab, renderHistory } from './assistant-history.js';
 
@@ -185,9 +185,12 @@ async function renderPool() {
   if (!pool.length) { box.innerHTML = '<div class="hint">Pool trống — bấm "Gợi ý" để trợ lý quét xu hướng và đề xuất chủ đề.</div>'; return; }
   box.innerHTML = pool.map((t) => {
     const score = t.score ? `<span class="as-score" title="${esc(t.score.why || '')}">🔥${t.score.viral ?? '–'} 🌲${t.score.evergreen ?? '–'} ⚙${t.score.difficulty ?? '–'}</span>` : '';
+    // pending ideas silently expire after 14 days — surface the countdown near the end (P34)
+    const daysLeft = 14 - Math.floor((Date.now() - (t.created_at || Date.now())) / 86400000);
+    const expiry = daysLeft <= 3 ? `<span class="as-score" style="color:#fbbf24" title="Gợi ý chờ quá 14 ngày sẽ tự hết hạn">⏳ còn ${Math.max(0, daysLeft)} ngày</span>` : '';
     return `<div class="ap-topic" data-id="${esc(t.id)}">
       <div style="flex:1;min-width:0">
-        <div class="t">${esc(t.topic)} ${score}</div>
+        <div class="t">${esc(t.topic)} ${score} ${expiry}</div>
         ${t.angle || t.source ? `<div class="hint">${esc(t.angle || '')}${t.source ? `${t.angle ? ' · ' : ''}${esc(t.source)}` : ''}</div>` : ''}
       </div>
       <button class="btn sm" data-act="now" title="Chọn cấu hình rồi tạo ngay">▶ Làm ngay</button>
@@ -232,9 +235,13 @@ async function seriesFlow(row) {
       body: `${r.suggestions.length} tập, mỗi ngày 1 tập lúc ${times[0]}, bắt đầu từ ngày mai.`,
       okText: '🗓 Xếp lịch',
     })) {
+      // P34: the series episodes get a REVIEWED config too (one sheet, applied to every
+      // episode) — before this they were scheduled with no config at all
+      const picked = await configSheet({ row: { topic: `📚 ${r.series.name} (áp cho mọi tập)` }, mode: 'edit' });
       const p = await api.post('/calendar/plan', {
         topicIds: r.suggestions.map((s) => s.id),
         days: r.suggestions.length + 1, perDay: 1, times: [times[0]],
+        config: picked?.config || {},
       });
       toast(`📅 Đã xếp ${p.planned} tập vào lịch.`, 'success');
       renderPool(); refreshOverview();
@@ -296,10 +303,15 @@ async function suggest() {
   const note = $('#apSuggestNote');
   if (note) note.textContent = '⏳ Đang quét xu hướng + soạn gợi ý…';
   try {
-    const r = await api.post('/topics/suggest', { niche: $('#apNiche').value.trim(), count: 8 });
+    const count = parseInt($('#apCount')?.value, 10) || 8;
+    const r = await api.post('/topics/suggest', { niche: $('#apNiche').value.trim(), count });
     if (note) {
+      // honest sourcing (P34): "AI + xu hướng" only when trend signals actually arrived
+      const src = r.source === 'llm'
+        ? (r.trends ? `AI + ${r.trends} tín hiệu xu hướng` : 'AI thuần — không lấy được nguồn xu hướng nào (mạng/feed lỗi)')
+        : 'xu hướng thô — bật LLM để có góc tiếp cận & điểm số';
       note.textContent = r.topics.length
-        ? `✓ Thêm ${r.topics.length} gợi ý mới (${r.source === 'llm' ? 'AI + xu hướng' : 'xu hướng thô — bật LLM để có góc tiếp cận & điểm số'})`
+        ? `✓ Thêm ${r.topics.length} gợi ý mới (${src})`
         : 'Không có gợi ý mới — mọi ý tưởng đã có trong pool/lịch sử hoặc trùng chủ đề cũ.';
     }
     await renderPool();

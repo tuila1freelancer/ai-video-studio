@@ -21,7 +21,9 @@ export function startBatch({ topics = [], config = {} } = {}) {
   });
   const created = clean.map((topic) => {
     const p = DB.createProject({
-      title: (topic.split(/[.!?…\n]/)[0] || topic).slice(0, 64),
+      // P34: an assistant-picked click title is display metadata — it names the project,
+      // while the researched topic below stays the script engine's input
+      title: (batchConfig.titleOverride || topic.split(/[.!?…\n]/)[0] || topic).slice(0, 64),
       topic, inputType: detectInputType(topic),
       aspectRatio: batchConfig.aspectRatio || '9:16',
       config: batchConfig, channelId: batchChannel?.id,

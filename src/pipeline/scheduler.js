@@ -85,14 +85,14 @@ function settle(job, { status, error = null }) {
 
 // Content calendar: promote due slots into real projects + queued jobs — piggybacks the
 // scheduler tick (no second timer). Slot topics were chosen BY THE OWNER when scheduling.
-function promoteDueSlots() {
+export function promoteDueSlots() {
   for (const slot of DB.dueSlots()) {
     try {
       const channel = slot.channel_id ? DB.getChannel(slot.channel_id) : DB.getChannel(DB.activeChannelId());
       // same layering as every other creation path: app defaults → channel → preset → slot
       const config = resolveProjectConfig({ channel, preset: DB.defaultPresetFor(channel?.id), request: slot.config || {} });
       const project = DB.createProject({
-        title: slot.topic.slice(0, 80), topic: slot.topic, inputType: 'text',
+        title: (config.titleOverride || slot.topic).slice(0, 80), topic: slot.topic, inputType: 'text',
         aspectRatio: config.aspectRatio || '9:16', config, channelId: channel?.id || null,
       });
       DB.projectDirFor(project.id);
@@ -106,8 +106,10 @@ function promoteDueSlots() {
     } catch (e) {
       logger.error(`calendar promote failed: ${e.message}`);
       // system lane: no project exists yet, but the failed task must still be auditable
-      jlog(null, { kind: 'sys', level: 'error', stage: 'sys', msg: `⛔ Slot lịch "${slot.topic}" không tạo được video: ${e.message}` });
+      jlog(null, { kind: 'sys', level: 'error', stage: 'sys', msg: `⛔ Slot lịch "${slot.topic}" không tạo được video: ${e.message} — ý tưởng đã trả về pool gợi ý` });
       DB.cancelSlot(slot.id); // a broken slot must not wedge every future tick
+      // P34: the idea must not be stranded — same restore the manual slot-delete path does
+      try { DB.restoreSuggestionBySlot(slot.id); } catch { /* linkage is best-effort */ }
     }
   }
 }

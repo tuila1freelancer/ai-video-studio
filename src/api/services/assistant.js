@@ -13,12 +13,17 @@ function loadPending(id) {
   return row;
 }
 
-/** Owner clicked "make it now": create the project (with reviewed config) and mark the row. */
+/** Owner clicked "make it now": create the project (with reviewed config) and mark the row.
+ *  P34: the RESEARCHED topic always feeds B2; a picked click-title is display metadata
+ *  (config.titleOverride) — it must never replace the topic the script engine writes from. */
 export function acceptSuggestion(id, { config = {}, title = null } = {}) {
   const row = loadPending(id);
-  const topicText = (title || row.topic).trim();
-  const request = { ...config, assistantBrief: { suggestionId: row.id, angle: row.angle || '', source: row.source || '' } };
-  const { projects } = startBatch({ topics: [topicText], config: request });
+  const request = {
+    ...config,
+    assistantBrief: { suggestionId: row.id, angle: row.angle || '', source: row.source || '' },
+    ...(title ? { titleOverride: String(title).trim().slice(0, 100) } : {}),
+  };
+  const { projects } = startBatch({ topics: [row.topic.trim()], config: request });
   DB.setSuggestionStatus(id, 'accepted', { projectId: projects[0] });
   return { projectId: projects[0] };
 }
@@ -26,8 +31,12 @@ export function acceptSuggestion(id, { config = {}, title = null } = {}) {
 /** Owner scheduled it: create a calendar slot carrying the reviewed config. No job here. */
 export function scheduleSuggestion(id, { dueAt, config = {}, title = null } = {}) {
   const row = loadPending(id);
-  const request = { ...config, assistantBrief: { suggestionId: row.id, angle: row.angle || '', source: row.source || '' } };
-  const slot = DB.addSlot({ channelId: row.channel_id, topic: (title || row.topic).trim(), config: request, dueAt });
+  const request = {
+    ...config,
+    assistantBrief: { suggestionId: row.id, angle: row.angle || '', source: row.source || '' },
+    ...(title ? { titleOverride: String(title).trim().slice(0, 100) } : {}),
+  };
+  const slot = DB.addSlot({ channelId: row.channel_id, topic: row.topic.trim(), config: request, dueAt });
   DB.setSuggestionStatus(id, 'scheduled', { slotId: slot.id });
   return { slot };
 }

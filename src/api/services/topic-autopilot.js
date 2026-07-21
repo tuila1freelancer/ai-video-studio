@@ -4,7 +4,7 @@
 // persisted to topic_suggestions and the owner picks which ones become videos —
 // nothing here starts a paid pipeline on its own.
 import * as DB from '../../db/index.js';
-import { chatJson, llmEnabled } from '../../providers/llm.js';
+import { chatJson, llmEnabled, LANG_NAME } from '../../providers/llm.js';
 import { fetchTrends } from '../../providers/trends.js';
 
 const fold = DB.foldTopic;
@@ -29,12 +29,15 @@ export async function suggestTopics({ channelId = null, niche = '', count = 8, a
     return persist(trends.filter((t) => !past.has(fold(t.title))).slice(0, count)
       .map((t) => ({ topic: t.title, angle: '', source: t.source })), 'trends-only');
   }
+  // P34: propose in the CHANNEL's language, not hard-coded Vietnamese
+  const chLang = channel?.config?.language && channel.config.language !== 'auto' ? channel.config.language : 'vi';
+  const langName = LANG_NAME[chLang] || 'Vietnamese';
   const parsed = await chatJson([
     { role: 'system', content: 'You are a YouTube content strategist. Reply with pure JSON.' },
     { role: 'user', content: `Channel: ${channel?.name || 'Vietnamese channel'}.${memory.bible ? `\nChannel context: ${memory.bible.slice(0, 500)}` : ''}${niche ? `\nNiche: ${niche}` : ''}
 Today's trend signals:\n${trends.slice(0, 20).map((t) => `- ${t.title}`).join('\n') || '(unavailable — propose from the niche yourself)'}
 Topics ALREADY covered (never repeat any): ${[...past].slice(0, 25).join('; ') || '(none yet)'}
-Propose ${count} VIDEO TOPICS in Vietnamese, in the channel's voice (topic, angle, why and titles all in Vietnamese). For EACH topic, score it objectively:
+Propose ${count} VIDEO TOPICS in ${langName}, in the channel's voice (topic, angle, why and titles all in ${langName}). For EACH topic, score it objectively:
 - viral: 1-10 (how strongly it rides today's trends / spread potential)
 - evergreen: 1-10 (long-term rewatch value)
 - difficulty: 1-10 (production difficulty for an automated motion-graphics video: rare data / complex visuals → higher)
