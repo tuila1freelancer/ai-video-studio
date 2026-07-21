@@ -101,9 +101,14 @@ const LEAD = 0.12;     // element lands slightly before the word is fully spoken
  * keywords: scenes.keywords (optional; merged with recomputed content keywords)
  * duration: scene duration in seconds
  */
-export function extractBeats(srtJson, keywords, duration, { max = 5, min = 2 } = {}) {
+export function extractBeats(srtJson, keywords, duration, { max = null, min = 2 } = {}) {
   const words = flatWords(srtJson);
   const dur = Math.max(1.5, +duration || 6);
+  // P35: the visual event budget scales UP with the scene's real length — a 20s scene
+  // deserves more anchors than a 6s one (MIN_GAP still prevents overcrowding). The floor
+  // is the historic default (5), so typical short scenes keep their exact old behavior;
+  // an explicit max always wins (tests, callers).
+  if (max == null) max = Math.min(10, Math.max(5, Math.round(dur / 2.5)));
   if (!words.length) {
     // no timing at all → single centered phrase beat so the scene still breathes
     return [{ t0: Math.min(0.6, dur * 0.15), t1: Math.min(dur - 0.3, dur * 0.75), text: '', kind: 'phrase' }];

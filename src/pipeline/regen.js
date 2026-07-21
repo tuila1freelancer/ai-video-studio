@@ -12,7 +12,10 @@ import { normalizeVoice } from '../media/ffmpeg.js';
 import { detectLang } from '../util/lang.js';
 import { generateSceneDirection } from './direction.js';
 import { generateSceneSpec } from '../hyperframe/codegen.js';
+import { densityForScene } from '../hyperframe/prompt.js';
 import { resolveGuide } from '../styleguide/index.js';
+import { heroMediaUri } from '../util/asset-uri.js';
+import { hash32 } from '../util/util.js';
 import { planScene, resolveBrandKit, animSize, previewSceneFrame } from '../animation/index.js';
 import { buildSceneBackground } from './visuals.js';
 import { aiSettingsFor, ttsOverrideFor } from '../core/config.js';
@@ -49,31 +52,50 @@ export async function regenOne(sceneId, what) {
   } else if (what === 'html') {
     const vm = config.visualMode || 'animation';
     if (vm === 'hyperframe') {
-      // fresh AI direction for this scene (falls back to the heuristic planner on failure)
       const total = DB.getScenes(project.id).length;
       const channel = DB.channelOf(project.id);
       const guide = resolveGuide(config);
       const { w, h } = animSize(project.aspect_ratio, 1) /* LOGICAL canvas — render upscales via zoom */;
-      let plan;
+      const baseAi = aiSettingsFor(channel);
+      const baseLlm = baseAi?.llm ? { ...baseAi.llm } : null;
+      if (baseLlm) delete baseLlm.modelFallback; // NO-FALLBACK contract — same as the batch lane
+      const hfAi = baseLlm
+        ? { ...baseAi, llm: config.hyperframe?.model ? { ...baseLlm, model: config.hyperframe.model } : baseLlm }
+        : baseAi;
+      // fresh art direction for this scene too (regenerate = user wants a new take)
       try {
-        const baseAi = aiSettingsFor(channel);
-        const hfAi = config.hyperframe?.model && baseAi?.llm
-          ? { ...baseAi, llm: { ...baseAi.llm, model: config.hyperframe.model } } : baseAi;
-        // fresh art direction for this scene too (regenerate = user wants a new take)
-        try {
-          const d = await generateSceneDirection(sc, { title: project.title, total, guide, ai: hfAi, language: config.language });
-          if (d) { DB.updateScene(sc.id, { visual_prompt: d.visual }); sc.visual_prompt = d.visual; }
-        } catch { /* keep the old brief */ }
-        const hookVisual = sc.idx > 0 ? (DB.getScenes(project.id)[0]?.visual_prompt || '') : '';
-        const { props } = await generateSceneSpec({
-          scene: sc, guide, w, h, idx: sc.idx, total, ai: hfAi,
-          density: config.hyperframe?.density, creativeDirection: config.hyperframe?.direction,
-          hookVisual,
-        });
-        plan = { template: 'hyperframe', props };
-      } catch {
-        plan = planScene(sc, { idx: sc.idx, total, title: project.title, brand: resolveBrandKit(config) });
+        const d = await generateSceneDirection(sc, { title: project.title, total, guide, ai: hfAi, language: config.language });
+        if (d) { DB.updateScene(sc.id, { visual_prompt: d.visual }); sc.visual_prompt = d.visual; }
+      } catch { /* keep the old brief */ }
+      const hookVisual = sc.idx > 0 ? (DB.getScenes(project.id)[0]?.visual_prompt || '') : '';
+      // P35 regen parity: the single-scene lane passes the SAME flags as the batch lane
+      // (captions/consistent/overlay/imageFull/diversity salt/per-scene density), persists
+      // the quality tier, and FAILS LOUDLY — the silent heuristic fallback contradicted the
+      // no-fallback contract and shipped false-'premium' scenes with no qtier.
+      const assetByName = new Map((Array.isArray(config.assets) ? config.assets : [])
+        .filter((a) => a?.name && a?.path).map((a) => [String(a.name).toLowerCase(), a]));
+      let media = null;
+      if (config.hyperframe?.imageFull !== false && assetByName.size && Array.isArray(sc.assets) && sc.assets.length) {
+        const out = [];
+        for (const name of sc.assets) {
+          const a = assetByName.get(String(name || '').toLowerCase());
+          const uri = a ? heroMediaUri(a.path) : null;
+          if (uri) out.push({ name: a.name, uri });
+        }
+        media = out.length ? out : null;
       }
+      const { props, tier } = await generateSceneSpec({
+        scene: sc, guide, w, h, idx: sc.idx, total, ai: hfAi,
+        density: densityForScene(sc, config.hyperframe?.density),
+        creativeDirection: config.hyperframe?.direction,
+        captionsOn: config.enableSubtitles !== false,
+        consistent: config.hyperframe?.consistent === true,
+        imageFullAssets: media,
+        overlay: config.overlay?.enabled === true,
+        diversitySalt: hash32(String(project.id)),
+        hookVisual,
+      });
+      const plan = { template: 'hyperframe', props: { ...props, qtier: tier || 'premium' } };
       DB.updateScene(sc.id, { template: plan.template, props: plan.props, status: 'html', video_path: null });
       const fresh = DB.getScene(sc.id);
       const out = join(dir, 'render', `scene_${String(sc.idx).padStart(3, '0')}_preview.jpg`);
