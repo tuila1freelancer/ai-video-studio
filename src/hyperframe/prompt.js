@@ -81,6 +81,20 @@ const DENSITY_NOTE = {
   rich: 'DENSITY: rich — a full, layered composition with living craft detail (textures, ticks, depth pieces), yet reveals stay one-at-a-time and motion stays calm — a dense, hand-crafted frame, never cluttered or busy.',
 };
 
+/**
+ * P35 — role-aware per-scene density. The art-director pass writes [ROLE] into the brief;
+ * high-stakes roles (hook/proof/payoff) render RICH, the cta breather renders MINIMAL, the
+ * rest keep the project's own knob as the baseline. One project-wide prose note used to be
+ * the only density lever — a hook and a titlecard got the same instruction.
+ */
+export function densityForScene(scene, baseDensity) {
+  const m = /\[ROLE\]\s*([a-z-]+)/i.exec(String(scene?.visual_prompt || ''));
+  const role = m ? m[1].toLowerCase() : '';
+  if (role === 'hook' || role === 'proof' || role === 'payoff') return 'rich';
+  if (role === 'cta') return 'minimal';
+  return baseDensity || 'balanced';
+}
+
 // v2 guide blocks — semantic colors, concept→visual recipes, HUD vocabulary and per-video
 // scene rules travel with every prompt so all scenes speak one visual language.
 function guideV2Block(guide) {

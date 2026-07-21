@@ -8,6 +8,7 @@
 // Failure never blocks the pipeline: a batch that can't be generated keeps the scenes'
 // existing visual_prompt (codegen still works, just with a weaker brief).
 import { chatJson, llmEnabled } from '../providers/llm.js';
+import { extractBeats } from '../hyperframe/beats.js';
 
 // A structured direction always carries a [MAIN FOCUS] section — used as the "already
 // directed" marker so resume runs and user-edited briefs are never overwritten.
@@ -51,7 +52,14 @@ export function guideBrief(guide) {
 
 function batchPrompt({ batch, title, total, guide, hookSummary, language }) {
   const conceptMap = (guide?.conceptMap || []).map((c) => `• ${c}`).join('\n');
-  const list = batch.map((sc) => `${sc.idx}. "${String(sc.voice_text || '').trim().slice(0, 360)}"`).join('\n');
+  // P35: the art director sees each scene's SPOKEN ANCHORS (beat labels + times from the
+  // real/estimated word timings) — briefs used to be timing-blind, so [CHOREOGRAPHY] verbs
+  // could not be anchored to actual spoken moments.
+  const list = batch.map((sc) => {
+    const anchors = extractBeats(sc.srt_json, sc.keywords, sc.duration || 6)
+      .filter((b) => b.text).map((b) => `${(b.t0 || 0).toFixed(1)}s "${b.text}"`).join(' · ');
+    return `${sc.idx}. "${String(sc.voice_text || '').trim().slice(0, 360)}"${anchors ? `\n   (spoken anchors: ${anchors})` : ''}`;
+  }).join('\n');
   const sys = 'You are an art director for premium Apple-keynote-style motion-graphics videos. Reply with pure JSON, no commentary.';
   const usr = `Video "${title}" (${total} scenes, narration in ${language || 'Vietnamese'}). The LOCKED style for the whole video:
 ${guideBrief(guide)}
@@ -73,6 +81,7 @@ ROLE → LAYOUT menu (a soft guide — the content's truth wins):
 hook → kinetic-type-beats | ticker-takeover | stat-hero · problem → overwhelm-surround | compare-ab | quote-punch · insight → hero-center | radial-hub | split-lr · step → list-steps | timeline | pan-stations · proof → stat-hero | grid-cards | compare-ab · payoff → hero-center | stat-hero (echo the hook motif) · cta → titlecard-reveal | quote-punch | kinetic-type-beats
 
 RULES:
+- Anchor the [CHOREOGRAPHY] verbs to the scene's spoken anchors (shown per scene) — one verb per anchor moment, so the design lands ON the words as they are spoken.
 - At most 2-3 main moving elements per scene, EXACTLY 1 focal element. An overcomplicated scene = broken code.
 - NOT a titled slide: do NOT frame every scene as "kicker + big headline pinned to the top + object below". Vary where any title sits (or drop it and let [MAIN FOCUS] carry the scene), and NEVER call for a scene number / page counter / corner status — those read as a slide deck. Consecutive scenes must not share the same title-banner-on-top look.
 - BALANCED, HARMONIOUS, FILLING THE FRAME: compose so the visual weight is EVEN — if one side carries a card or hero, give the other side a real counterweight (a related panel, a stat, a diagram, a label cluster) so neither half sits empty and the layout feels deliberately balanced, never lopsided. Distribute elements across left / center / right and the vertical range, each with a comfortable gap from all four edges (nothing hugging or bleeding off an edge). Prefer splits, off-centre heroes with a counterweight, or items spread across the width — creative and true to the narration, but always harmonious and correct.

@@ -48,6 +48,17 @@ export const HF_PRESETS = [
       'Glitch/RGB-split CHỈ dùng cho cảnh lỗi/cảnh báo',
       'Không nền sáng — mọi cảnh trên nền deep-navy của guide',
     ],
+    // P35: named text treatments + ambient notes — these prompt blocks were wired
+    // (guideV2Block) but no preset ever populated them, so the levers never fired.
+    effects: [
+      'Chrome-Impact — chrome gradient fill (white→silver, background-clip:text) + soft drop shadow; for the hero keyword/number',
+      'Neon-Pulse — layered accent text-shadow glow (tight + wide) on near-white fill; for the climax emphasis',
+      'Stroke-Echo — 1px accent-stroke transparent-fill copy scaling in behind the hero word as an echo',
+    ],
+    ambient: [
+      'One slow light-beam sweep crosses the stage every ~6s (FX.beamSweep)',
+      'Mid-layer glow orbs drift on FX.parallax; an oversized ghost glyph/number sits behind the hero at opacity .05',
+    ],
   },
   {
     id: 'neon-tech', name: 'Neon Tech',

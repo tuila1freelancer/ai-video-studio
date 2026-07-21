@@ -165,7 +165,7 @@ export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, on
     let renderDefects = [];
     if (!errors.length && renderCheck) {
       try {
-        const rv = await renderValidate({ spec: { ...clean, guide }, guide, w, h, duration, beats, narration: scene.voice_text || '', captionsOn, overlay });
+        const rv = await renderValidate({ spec: { ...clean, guide }, guide, w, h, duration, beats, narration: scene.voice_text || '', captionsOn, overlay, density });
         if (!rv.skipped) rvRan = true; // Chrome-less runs return skipped:true → tier stays 'unverified'
         if (!rv.ok) renderDefects = rv.defects;
         // Auto-contrast repair: unreadable text is a deterministic colour mistake — force the
@@ -178,7 +178,7 @@ export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, on
             .map((c) => `${c.sel}{color:${ink}!important;-webkit-text-fill-color:${ink}!important;text-shadow:0 2px 12px rgba(0,0,0,.9)!important;opacity:1!important}`)
             .join('\n');
           const candidateCss = `${clean.css || ''}\n/* auto-contrast repair */\n${fixCss}`;
-          const rv2 = await renderValidate({ spec: { ...clean, css: candidateCss, guide }, guide, w, h, duration, beats, narration: scene.voice_text || '', captionsOn });
+          const rv2 = await renderValidate({ spec: { ...clean, css: candidateCss, guide }, guide, w, h, duration, beats, narration: scene.voice_text || '', captionsOn, density });
           if (!rv2.defects.some((d) => /unreadable/.test(d))) {
             clean.css = candidateCss;
             renderDefects = rv2.defects;

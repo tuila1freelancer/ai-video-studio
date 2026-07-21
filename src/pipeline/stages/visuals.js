@@ -10,6 +10,7 @@ import { generateDirections, hasDirection } from '../direction.js';
 import { imageGenEnabled } from '../../providers/imagegen.js';
 import { planScenes, resolveBrandKit, animSize } from '../../animation/index.js';
 import { generateSceneSpec } from '../../hyperframe/codegen.js';
+import { densityForScene } from '../../hyperframe/prompt.js';
 import { heroMediaUri } from '../../util/asset-uri.js';
 import { hash32 } from '../../util/util.js';
 import { resolveGuide } from '../../styleguide/index.js';
@@ -121,7 +122,10 @@ export async function runVisuals(ctx) {
       try {
         const { props, beats, tier } = await generateSceneSpec({
           scene: sc, guide, w: hfSize.w, h: hfSize.h, idx: sc.idx, total: totalHf, ai: hfAi,
-          density: config.hyperframe?.density, creativeDirection: config.hyperframe?.direction, captionsOn: config.enableSubtitles !== false,
+          // P35: density follows the scene's ROLE (hook/proof/payoff → rich, cta → minimal);
+          // the project knob is the baseline for everything else
+          density: densityForScene(sc, config.hyperframe?.density),
+          creativeDirection: config.hyperframe?.direction, captionsOn: config.enableSubtitles !== false,
           hookVisual: sc.idx > 0 ? hookVisual : '',
           consistent: hfConsistent, imageFullAssets: mediaFor(sc), overlay: config.overlay?.enabled === true,
           diversitySalt: hash32(String(projectId)), // P31: signature rotation differs per video

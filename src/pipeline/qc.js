@@ -82,6 +82,14 @@ export async function qcFinalVideo(path, { expectDur = 0, tolerancePct = 5, scen
     const t = num(m[1]);
     issues.push({ type: 'black', detail: `màn hình đen ${num(m[3])?.toFixed(1)}s tại ${t?.toFixed(1)}s`, t, sceneIdx: sceneAt(t, sceneSpans) });
   }
+  // P35 — WHITE/blank frames (the reference app's white-scene bug class: raw LLM reasoning
+  // saved as HTML renders a blank white page). negate turns near-white into near-black, so
+  // the same battle-tested detector finds them; dark themes can never false-positive here.
+  const wErr = await detectPass(path, { vf: 'negate,blackdetect=d=1.5:pic_th=0.99:pix_th=0.06' });
+  for (const m of wErr.matchAll(/black_start:([\d.]+)\s+black_end:([\d.]+)\s+black_duration:([\d.]+)/g)) {
+    const t = num(m[1]);
+    issues.push({ type: 'white', detail: `màn hình trắng/trống ${num(m[3])?.toFixed(1)}s tại ${t?.toFixed(1)}s`, t, sceneIdx: sceneAt(t, sceneSpans) });
+  }
 
   // dead air — voice missing / muted scene audio
   if (hasAudio) {
