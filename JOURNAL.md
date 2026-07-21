@@ -48,3 +48,8 @@ from the studio's own database — every number is real production data.
 - Scenes with rendered clips (active projects): 10 · Jobs: 2 done / 0 error / 0 cancelled
 - AI usage: 42 calls · 421k tokens in / 75.2k out · 1.0k TTS chars · est. $0.36
 - Published: — · Calendar-driven runs: —
+## 2026-07-21
+- Videos: 1 created · 0 completed
+- Scenes with rendered clips (active projects): 0 · Jobs: 0 done / 0 error / 1 cancelled
+- AI usage: 835 calls · 13931k tokens in / 2616k out · 0 TTS chars · est. $12.20
+- Published: — · Calendar-driven runs: —
