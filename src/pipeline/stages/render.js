@@ -57,7 +57,7 @@ export async function runRender(ctx) {
     try { await renderSceneOnce(sc); return; }
     catch (e) {
       if (e.stopped) throw e;
-      logger.warn(`scene ${sc.idx} render failed: ${e.message} — self-heal`, { projectId });
+      logger.warn(`Cảnh ${sc.idx + 1}: render lỗi (${e.message}) — đang tự chữa`, { projectId, kind: 'retry', stage: 'b6', sceneIdx: sc.idx });
       hub.toProject(projectId, { type: 'retry', scope: 'scene', step: 'b6', idx: sc.idx, attempt: 1, msg: e.message });
       // P10 template-swap heal applies to ANIMATION-mode scenes only. A hyperframe scene is
       // the primary model's HTML — swapping it for a heuristic template is a quality
@@ -118,7 +118,7 @@ export async function runRender(ctx) {
       : { ok: false, reason: 'file thiếu' };
     if (!check.ok) {
       op(projectId, `🩹 Cảnh ${sc.idx + 1}: ${check.reason} — render lại…`);
-      logger.warn(`scene ${sc.idx} failed verification (${check.reason}) — re-rendering`, { projectId });
+      logger.warn(`Cảnh ${sc.idx + 1}: clip không đạt kiểm tra (${check.reason}) — render lại`, { projectId, kind: 'retry', stage: 'b6', sceneIdx: sc.idx });
       await renderHealed(sc);
     }
   }

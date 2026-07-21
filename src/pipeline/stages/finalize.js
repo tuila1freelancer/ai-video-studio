@@ -35,7 +35,7 @@ export async function finalize(projectId, { dir, size, config, _qcAttempt = 0 })
   if (missing.length && (config.visualMode || 'animation') !== 'image') {
     // Never silently drop scenes from the final cut — repair them here.
     op(projectId, `🩹 ${missing.length} cảnh thiếu clip — render bù trước khi ghép…`);
-    logger.warn(`finalize: ${missing.length} scenes missing clips — repairing`, { projectId });
+    logger.warn(`Ghép video: ${missing.length} cảnh thiếu clip — đang render bù`, { projectId, stage: 'b7' });
     const pp = progressPlan(all, config);
     for (const sc of missing) {
       const r = await renderAnimationScene(sc, project, config, {
@@ -44,7 +44,7 @@ export async function finalize(projectId, { dir, size, config, _qcAttempt = 0 })
       DB.updateScene(sc.id, { video_path: r.path, duration: r.duration, status: 'rendered', error: null });
     }
   } else if (missing.length) {
-    logger.warn(`finalize: ${missing.length} scenes missing clips (image mode) — concatenating the rest`, { projectId });
+    logger.warn(`Ghép video (chế độ ảnh): ${missing.length} cảnh thiếu clip — ghép phần còn lại`, { projectId, stage: 'b7' });
   }
   const scenes = DB.getScenes(projectId).filter((s) => s.video_path && existsSync(s.video_path)).sort((a, b) => a.idx - b.idx);
   const clips = scenes.map((s) => s.video_path);

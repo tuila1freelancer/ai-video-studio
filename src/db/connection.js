@@ -228,6 +228,21 @@ CREATE TABLE IF NOT EXISTS calendar_recurrences (
   active INTEGER DEFAULT 1,
   created_at INTEGER
 );
+CREATE TABLE IF NOT EXISTS journal_events (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  project_id TEXT,                      -- NULL only for system-lane rows (no project yet)
+  job_id     TEXT,                      -- jobs.id string; NULL for out-of-run events
+  ts         INTEGER NOT NULL,
+  level      TEXT NOT NULL DEFAULT 'info',  -- info|warn|error|success
+  stage      TEXT,                      -- b2|b34|b5|b6|b7|sys…
+  scene_idx  INTEGER,                   -- NULL when not scene-scoped
+  kind       TEXT NOT NULL,             -- op|step|retry|log|status|done|error|usage|publish|enqueue|sys
+  msg        TEXT NOT NULL,             -- Vietnamese, user-facing
+  data       TEXT,                      -- JSON extras (attempt, durMs, hint…)
+  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_journal_proj ON journal_events(project_id, id);
+CREATE INDEX IF NOT EXISTS idx_journal_job ON journal_events(job_id);
 `);
 
 // Versioned migrations run AFTER every CREATE TABLE block (so migrations may reference any

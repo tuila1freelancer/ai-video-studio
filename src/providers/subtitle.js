@@ -74,16 +74,16 @@ export async function buildSubtitles(audioPath, text, duration, { language, onLo
           }
           const aligned = alignWords(text, r.words, duration);
           if (aligned) return { words: aligned, cues: groupWordsIntoCues(aligned) };
-          logger.warn('forced alignment matched <50% — falling back to estimated timing (script words win)');
+          logger.warn('Phụ đề: khớp cưỡng bức <50% — dùng nhịp ước tính (giữ nguyên chữ kịch bản)');
           break;
         }
-        logger.warn(`whisper returned no words (attempt ${attempt + 1}/2)`);
+        logger.warn(`Phụ đề: whisper không trả về từ nào (lần ${attempt + 1}/2)`);
       } catch (e) {
-        logger.warn(`whisper failed (${e.message}) — attempt ${attempt + 1}/2`);
+        logger.warn(`Phụ đề: whisper lỗi (${e.message}) — lần ${attempt + 1}/2`);
       }
       if (attempt === 0) await new Promise((r) => setTimeout(r, 1500));
     }
-    if (engine === 'whisper') logger.warn('whisper exhausted; estimating timing');
+    if (engine === 'whisper') logger.warn('Phụ đề: whisper thất bại hết lượt — chuyển sang nhịp ước tính');
   }
   return estimateWordTiming(text, duration);
 }

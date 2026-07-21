@@ -403,7 +403,7 @@ async function askOnce({ messages, expect, plan, mode, source, language, llm, on
     },
   });
   const v = validateScenesJson(parsed, { mode, plan, source, language, expect });
-  onLog(`master-script: got ${v.spec.scenes.length}/${expect} scenes, ${v.defects.length} defect(s)${v.defects.length ? ` [${[...new Set(v.defects.map((d) => d.code))].join(',')}]` : ''}`);
+  onLog(`Kịch bản: nhận ${v.spec.scenes.length}/${expect} cảnh, ${v.defects.length} lỗi${v.defects.length ? ` [${[...new Set(v.defects.map((d) => d.code))].join(',')}]` : ''}`);
   return v;
 }
 
@@ -419,7 +419,7 @@ async function generateChunk({ mode, input, plan, expect, sttBase, batchNote, la
       if (!best || v.defects.length < best.defects.length) best = v;
       if (v.ok) break;
     } catch (e) {
-      onLog(`master-script: attempt ${round + 1} failed (${String(e.message).slice(0, 100)})`);
+      onLog(`Kịch bản: lần thử ${round + 1} thất bại (${String(e.message).slice(0, 100)})`);
       if (round === 1 && !best) throw e;
     }
   }
@@ -479,7 +479,7 @@ async function generateSpan({ common, from, to, targetCount, label, tail, closes
   // batch/sub-spans take their word-balanced share of the sentence partition.
   const input = slice ? (from === 1 && to === targetCount ? topicText : slice(from, to)) : topicText;
   if (slice && !input) {
-    common.onLog(`master-script: scenes ${from}–${to} carry no source words (a long sentence fell to a neighbour span) — skipped`);
+    common.onLog(`Kịch bản: cảnh ${from}–${to} không có từ nguồn (câu dài rơi sang span kề) — bỏ qua`);
     return { spec: { title: '', thumbnail: null, scenes: [] }, defects: [] };
   }
   const batchNote = batchNoteFor({ label, from, to, targetCount, tail, closes });
@@ -492,7 +492,7 @@ async function generateSpan({ common, from, to, targetCount, label, tail, closes
     if (expect < MIN_SPLIT * 2) throw e;
     why = String(e.message).slice(0, 80);
   }
-  common.onLog(`master-script: scenes ${from}–${to} (${why}) — splitting into two smaller calls`);
+  common.onLog(`Kịch bản: cảnh ${from}–${to} (${why}) — chia thành 2 lần gọi nhỏ hơn`);
   const mid = from + Math.ceil(expect / 2) - 1;
   const a = await generateSpan({ common, from, to: mid, targetCount, label, tail, closes: false, slice, topicText });
   const b = await generateSpan({
@@ -522,7 +522,7 @@ export async function generateMasterScenes({ input, source = null, config = {}, 
     const v = validateScenesJson(pasted, { mode: 'json', language });
     const spec = v.ok ? v.spec : repairScenesSpec(v.spec, v.defects);
     if (!spec.scenes.length) throw new Error('Scenes JSON has no usable narration scenes');
-    for (const d of v.defects) onLog(`scenes-json import: ${d.code}${d.stt != null ? ` @${Array.isArray(d.stt) ? d.stt.join(',') : d.stt}` : ''} — ${d.detail}`);
+    for (const d of v.defects) onLog(`Nhập scenes-json: ${d.code}${d.stt != null ? ` @${Array.isArray(d.stt) ? d.stt.join(',') : d.stt}` : ''} — ${d.detail}`);
     return toPipelineShape(spec, { mode: 'json', defects: v.defects });
   }
 
@@ -567,7 +567,7 @@ export async function generateMasterScenes({ input, source = null, config = {}, 
 
   // 4) Long video → adaptive batches of 25 with rolling context; thumbnail comes from batch 1.
   const nBatches = Math.ceil(targetCount / BATCH_SIZE);
-  onLog(`master-script: long video (${targetCount} scenes) → ${nBatches} batches × ~${BATCH_SIZE}`);
+  onLog(`Kịch bản: video dài (${targetCount} cảnh) → ${nBatches} đợt × ~${BATCH_SIZE} cảnh`);
   const all = []; let thumbnail = null; let title = ''; const warnings = [];
   for (let b = 0; b < nBatches; b++) {
     const from = b * BATCH_SIZE + 1;

@@ -2,7 +2,9 @@ import { $, $$, el, esc, badgeText, statusIcon } from '../ui/dom.js';
 import { toast } from '../ui/toast.js';
 import { api, fileUrl, withLock, WS } from '../api.js';
 import { state } from '../state.js';
-import { PIPE, PHASE_W, PHASE_ORDER, prog, resetProgress, setProgress, recomputeProgress, setStep, showOp, hideOp, appendLog } from './progress.js';
+import { PIPE, PHASE_W, PHASE_ORDER, prog, resetProgress, setProgress, recomputeProgress, setStep, showOp, hideOp } from './progress.js';
+import { loadJournal, clearJournal, onJournalEvent } from '../features/journal.js';
+import { refreshTasks } from '../features/tasks.js';
 import { renderScenes, refreshScenes, onSceneUpdate, flushSceneUpdates, selectedIds, updateSelCount, regenScene, renderScenes2 } from './scenes.js';
 import { icon } from '../ui/icons.js';
 import { renderGallery } from './home.js';
@@ -81,7 +83,6 @@ export function initStudio() {
   $('#btnExport')?.addEventListener('click', () => withLock($('#btnExport'), exportCurrent));
   $('#btnPublish')?.addEventListener('click', () => withLock($('#btnPublish'), publishCurrent));
   $('#btnMeta').addEventListener('click', genMeta);
-  $('#logToggle').addEventListener('click', () => { const b = $('#logBody'); const open = b.style.display !== 'none'; b.style.display = open ? 'none' : 'block'; $('#logCaret').textContent = open ? '▸' : '▾'; });
   $('#btnFetch').addEventListener('click', fetchLink);
   $('#btnImgSearch').addEventListener('click', imageSearch);
   $('#assetInput').addEventListener('change', uploadAssets);
@@ -221,6 +222,8 @@ export async function openProject(id) {
   state.current = project; state.scenes = scenes || [];
   try { localStorage.lastProjectId = id; } catch { /* private mode */ }
   ws.subscribe(id);
+  clearJournal();          // never bleed the previous project's lines
+  loadJournal(id);         // full persisted history (REST) — fire-and-forget
   applyConfig(project.config || {});
   $('#welcome').classList.add('hidden');
   $('#projView').classList.remove('hidden');
@@ -307,6 +310,8 @@ async function genMeta() {
 // ---------------- WS ----------------
 function onWsMessage(m) {
   if (m.type === '_status') { state.wsOpen = m.open; $('#wsDot').textContent = m.open ? '● realtime' : '● offline'; $('#wsDot').classList.toggle('on', m.open); return; }
+  // cross-project broadcasts (before the current-project filter)
+  if (m.type === 'job') { refreshTasks(); return; }
   if (!state.current || (m.projectId && m.projectId !== state.current.id)) return;
   if (m.type === 'replay') {
     // buffered feed replayed on (re)subscribe: a page reload mid-run catches up instantly.
@@ -328,7 +333,7 @@ function onWsMessage(m) {
       }
       break;
     case 'op': showOp(m.text); break;
-    case 'log': appendLog(m); break;
+    case 'journal': onJournalEvent(m); break;
     case 'status': flushSceneUpdates(); updateStatusBadge(m.status); break;
     case 'scene': onSceneUpdate(m); break;
     case 'retry': onRetryEvent(m); break;

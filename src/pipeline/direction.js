@@ -128,9 +128,9 @@ export async function generateDirections(scenes, { title = '', total = 0, guide 
         const clean = cleanDirection(d);
         if (clean) { out.set(idx, clean); got++; }
       }
-      onLog(`direction: batch ${Math.floor(i / BATCH) + 1} — ${got}/${batch.length} scenes directed`);
+      onLog(`Chỉ đạo hình ảnh: đợt ${Math.floor(i / BATCH) + 1} — ${got}/${batch.length} cảnh có brief`);
     } catch (e) {
-      onLog(`direction: batch ${Math.floor(i / BATCH) + 1} failed (${String(e.message).slice(0, 80)}) — keeping old visual prompts`);
+      onLog(`Chỉ đạo hình ảnh: đợt ${Math.floor(i / BATCH) + 1} lỗi (${String(e.message).slice(0, 80)}) — giữ mô tả cũ`);
     }
   }
   return out;

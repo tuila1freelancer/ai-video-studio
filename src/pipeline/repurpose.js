@@ -69,9 +69,9 @@ export async function repurposeProject(sourceId, { aspectRatio } = {}) {
           DB.updateScene(sc.id, { template: null, props: null, status: 'script' });
           dropped++;
         }
-      } catch (e) { logger.warn(`repurpose validate scene ${sc.idx}: ${e.message}`, { projectId: project.id }); }
+      } catch (e) { logger.warn(`Đổi tỉ lệ: cảnh ${sc.idx + 1} validate lỗi: ${e.message}`, { projectId: project.id, sceneIdx: sc.idx }); }
     }
   }
-  logger.info(`repurposed ${sourceId} → ${project.id} (${aspectRatio}): ${cloned.length} scenes, ${revalidated} specs validated, ${dropped} dropped for reflow`, { projectId: project.id });
+  logger.info(`📱 Đổi tỉ lệ ${sourceId} → ${project.id} (${aspectRatio}): ${cloned.length} cảnh, ${revalidated} spec giữ nguyên, ${dropped} cảnh dàn lại`, { projectId: project.id });
   return { project: DB.getProject(project.id), revalidated, dropped };
 }

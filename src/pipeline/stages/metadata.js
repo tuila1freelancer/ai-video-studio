@@ -33,5 +33,5 @@ export async function runMetadata(ctx) {
     // merge, don't overwrite — B2 may have stored the master script's thumbnail {title,prompt}
     const prev = DB.getProject(projectId).metadata || {};
     DB.updateProject(projectId, { metadata: { ...prev, ...md } });
-  } catch (e) { logger.warn(`metadata: ${e.message}`, { projectId }); }
+  } catch (e) { logger.warn(`Tạo metadata lỗi: ${e.message}`, { projectId }); }
 }

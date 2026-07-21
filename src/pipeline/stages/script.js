@@ -27,7 +27,7 @@ export async function runScript(ctx) {
     op(projectId, 'Đang tạo kịch bản…');
     let fetched = null;
     if (project.input_type === 'url') {
-      try { fetched = await fetchLink(project.topic.trim().split(/\s+/)[0]); } catch (e) { logger.warn(`fetch-link: ${e.message}`, { projectId }); }
+      try { fetched = await fetchLink(project.topic.trim().split(/\s+/)[0]); } catch (e) { logger.warn(`Lấy nội dung link lỗi: ${e.message}`, { projectId }); }
     }
     // Show Bible: channel persona + anti-repeat ledger, injected additively into the prompt
     const memory = channel ? DB.getChannelMemory(channel.id) : null;
@@ -64,8 +64,8 @@ export async function runScript(ctx) {
     // The DB stays the source of truth — the export route rebuilds from rows on demand.
     try {
       writeFileSync(join(dir, 'scenes.json'), `${JSON.stringify(scenesJsonFromRows(DB.getProject(projectId), scenes), null, 2)}\n`);
-    } catch (e) { logger.warn(`scenes.json artifact: ${e.message}`, { projectId }); }
-    logger.info(`Script: ${scenes.length} scenes${useMaster ? ` (master engine, mode ${script.mode || 'n/a'})` : ''}`, { projectId });
+    } catch (e) { logger.warn(`Không lưu được scenes.json: ${e.message}`, { projectId }); }
+    logger.info(`📜 Kịch bản: ${scenes.length} cảnh${useMaster ? ` (engine master, chế độ ${script.mode || 'n/a'})` : ''}`, { projectId, stage: 'b2' });
     step(projectId, 'b2', 'done', `${scenes.length} cảnh`);
   } else {
     step(projectId, 'b2', 'done', `${scenes.length} cảnh`);

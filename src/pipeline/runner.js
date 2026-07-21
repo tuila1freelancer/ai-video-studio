@@ -10,6 +10,7 @@ import { classifyError } from '../core/errors.js';
 import { buildContext } from './context.js';
 import { requestStop, clearStop, isStopped } from './stop.js';
 import { op } from './progress.js';
+import { jlog } from './journal.js';
 import { seedEstimatedTiming } from './estimate.js';
 import { runScript } from './stages/script.js';
 import { runEditorial } from './stages/editorial.js';
@@ -33,6 +34,7 @@ export async function runPipeline(projectId, { resume = false, _auto = 0 } = {})
 
   DB.updateProject(projectId, { status: 'running', error: null });
   hub.toProject(projectId, { type: 'status', status: 'running' });
+  jlog(projectId, { kind: 'status', msg: resume ? '▶ Tiếp tục pipeline' : '🚀 Bắt đầu pipeline' });
 
   try {
     await runScript(ctx);                                   // B2
@@ -57,7 +59,7 @@ export async function runPipeline(projectId, { resume = false, _auto = 0 } = {})
       DB.updateProject(projectId, { status: 'scenes' });
       hub.toProject(projectId, { type: 'status', status: 'scenes' });
       op(projectId, `🎬 Cảnh đã dựng xong ${DB.getScenes(projectId).length} cảnh — duyệt/chỉnh sửa rồi bấm "Lồng tiếng & Render" để tiếp tục`);
-      logger.info('scene gate: holding for owner approval', { projectId });
+      logger.info('⏸ Giữ ở cổng duyệt cảnh — chờ bạn duyệt storyboard rồi mới lồng tiếng', { projectId, kind: 'status' });
       return;
     }
 
@@ -75,7 +77,7 @@ export async function runPipeline(projectId, { resume = false, _auto = 0 } = {})
         DB.updateProject(projectId, { status: 'review' });
         hub.toProject(projectId, { type: 'status', status: 'review' });
         op(projectId, `🧐 Chờ duyệt ${pending.length}/${ids.length} cảnh — mở "▶ Xem nháp" để duyệt, rồi bấm Tiếp tục`);
-        logger.info(`review gate: ${pending.length} scene(s) pending`, { projectId });
+        logger.info(`🧐 Giữ ở cổng duyệt: còn ${pending.length} cảnh chờ bạn duyệt`, { projectId, kind: 'status' });
         return;
       }
     }
@@ -91,13 +93,13 @@ export async function runPipeline(projectId, { resume = false, _auto = 0 } = {})
     // Show-Bible write-back (best-effort, like metadata — never blocks status:done):
     // the finished video's topic joins the channel's anti-repeat ledger.
     try { if (fin.channel_id) DB.appendChannelTopic(fin.channel_id, fin.title || fin.topic); }
-    catch (e) { logger.warn(`show-bible write-back: ${e.message}`, { projectId }); }
-    logger.info('Pipeline done', { projectId });
+    catch (e) { logger.warn(`Ghi sổ Show-Bible lỗi: ${e.message}`, { projectId }); }
+    logger.info('🎉 Video hoàn thành', { projectId, kind: 'done', jlevel: 'success' });
   } catch (e) {
     if (e.stopped) {
       DB.updateProject(projectId, { status: 'paused' });
       hub.toProject(projectId, { type: 'status', status: 'paused' });
-      logger.warn('Pipeline stopped', { projectId });
+      logger.warn('⏹ Đã dừng theo yêu cầu của bạn', { projectId, kind: 'status' });
     } else {
       // Error taxonomy: deterministic config/resource failures surface IMMEDIATELY with an
       // actionable message — an auto-resume cannot fix a bad API key or a missing binary.
@@ -106,7 +108,7 @@ export async function runPipeline(projectId, { resume = false, _auto = 0 } = {})
       // failing part. A misclassification can only ever ADD a resume, never remove one.
       const kind = classifyError(e);
       if (kind.retryable && _auto < 1) {
-        logger.warn(`Pipeline error [${kind.cls}]: ${e.message} — auto-resume in 8s`, { projectId });
+        logger.warn(`🩹 Lỗi [${kind.cls}]: ${e.message} — tự động chạy tiếp sau 8 giây`, { projectId, kind: 'retry' });
         hub.toProject(projectId, { type: 'retry', scope: 'pipeline', attempt: 1, msg: e.message, cls: kind.cls, delayMs: 8000 });
         op(projectId, `🩹 Gặp lỗi "${e.message.slice(0, 100)}" — tự động chạy tiếp sau 8 giây…`);
         await sleep(8000);
@@ -117,7 +119,7 @@ export async function runPipeline(projectId, { resume = false, _auto = 0 } = {})
         DB.updateProject(projectId, { status: 'error', error: e.message });
         hub.toProject(projectId, { type: 'error', msg: e.message, cls: kind.cls, hint: kind.hint });
         if (!kind.retryable) op(projectId, `⛔ ${kind.hint}`);
-        logger.error(`Pipeline error [${kind.cls}]: ${e.message}`, { projectId });
+        logger.error(`⛔ Pipeline lỗi [${kind.cls}]: ${e.message}`, { projectId, kind: 'error', data: { cls: kind.cls, hint: kind.hint } });
       }
     }
   } finally {

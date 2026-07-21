@@ -37,7 +37,7 @@ export async function renderScenePage(opts) {
       await page.setViewport({ width: w, height: h, deviceScaleFactor: 1 });
       await page.setContent(html, { waitUntil: 'load', timeout: 30000 });
       const init = await withTimeout(page.evaluate(() => window.__init()), 20000, '__init');
-      if (init && init.tplErr) logger.warn(`anim template script failed (scene renders CSS-only): ${init.tplErr}`);
+      if (init && init.tplErr) logger.warn(`Cảnh animation: script template lỗi (chỉ render CSS): ${init.tplErr}`);
       if (init && init.fontMiss && init.fontMiss.length) {
         // P30: never a silent substitute — the owner picked these families explicitly
         logger.warn(`⚠ font không nạp được, trình duyệt sẽ thay bằng font khác: ${init.fontMiss.join(', ')} — kiểm tra Thư viện → Font chữ`);
@@ -97,7 +97,7 @@ export async function renderScenePage(opts) {
     try { return await attempt(); }
     catch (e) {
       lastErr = e;
-      logger.warn(`animation render attempt ${i + 1} failed (${e.message}); ${i < 2 ? 'retrying' : 'giving up'}`);
+      logger.warn(`Render animation lần ${i + 1} lỗi (${e.message}) — ${i < 2 ? 'thử lại' : 'bỏ cuộc'}`);
       await new Promise((r) => setTimeout(r, 2000 + i * 3000)); // let the machine breathe
     }
   }

@@ -78,7 +78,7 @@ export async function runVisuals(ctx) {
         DB.updateScene(sc.id, { visual_prompt: d.visual });
         sc.visual_prompt = d.visual;
       }
-      logger.info(`direction pass: ${dirs.size}/${undirected.length} scenes`, { projectId });
+      logger.info(`🎬 Chỉ đạo hình ảnh: ${dirs.size}/${undirected.length} cảnh có brief`, { projectId, stage: 'b5' });
     }
     const hookVisual = scenes[0]?.visual_prompt || '';
     // Image-full lane (reference-app parity): resolve each scene's master-assigned asset
@@ -133,7 +133,7 @@ export async function runVisuals(ctx) {
         hub.toProject(projectId, { type: 'scene', sceneId: sc.id, idx: sc.idx, status: 'html', template: 'hyperframe', beats: beats.length, tier });
       } catch (e) {
         if (e.stopped) throw e;
-        logger.warn(`hyperframe scene ${sc.idx}: codegen failed after all primary-model attempts: ${e.message}`, { projectId });
+        logger.warn(`Cảnh ${sc.idx + 1}: codegen thất bại sau mọi lần thử với model chính: ${e.message}`, { projectId, stage: 'b5', sceneIdx: sc.idx });
         DB.updateScene(sc.id, { status: 'error', error: `codegen: ${String(e.message).slice(0, 300)}` });
         hub.toProject(projectId, { type: 'scene', sceneId: sc.id, idx: sc.idx, status: 'error', error: e.message });
         codegenFailures.push(sc.idx + 1);

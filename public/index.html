@@ -78,11 +78,12 @@
                 <option value="4:5">4:5 — Instagram</option>
               </select>
               <span class="flex-spacer"></span>
+              <button class="btn big" id="heroTasks" title="Mọi tác vụ đang chờ / đang chạy / gần đây trên tất cả dự án">🗂 Tác vụ</button>
               <button class="btn big" id="heroBatch" title="Nhiều chủ đề — tự chạy lần lượt">Hàng loạt</button>
               <button class="btn big" id="heroAutopilot" title="Gợi ý chủ đề theo xu hướng + lịch đăng + tổng quan hệ thống">🛰 Trợ lý</button>
               <button class="btn primary big" id="heroGo">Tạo video tự động</button>
             </div>
-            <div class="hint">Tự động: dựng cảnh GSAP · giọng đọc neural · phụ đề karaoke · nhạc nền · intro/outro · metadata.</div>
+            <div class="hint">Tự động: dựng cảnh GSAP · giọng đọc neural · phụ đề karaoke · nhạc nền · metadata.</div>
           </div>
         </div>
         <div class="home-sec-head">
@@ -177,9 +178,23 @@
               <button class="btn success" id="btnApproveScenes">🎙 Lồng tiếng &amp; Render</button>
             </div>
 
-            <div class="logp">
+            <div class="logp" id="journalPanel">
               <div class="logp-h" id="logToggle"><span>📋 Nhật ký xử lý</span><span id="logCaret">▾</span></div>
+              <div class="jr-bar" id="jrBar">
+                <select class="input sm" id="jrRun" title="Chọn lần chạy để xem nhật ký"></select>
+                <div class="jr-chips">
+                  <button class="jr-chipf on" data-lv="">Tất cả</button>
+                  <button class="jr-chipf" data-lv="warn">⚠ Cảnh báo</button>
+                  <button class="jr-chipf" data-lv="error">⛔ Lỗi</button>
+                </div>
+                <input class="input sm" id="jrSearch" placeholder="Tìm trong nhật ký…" style="max-width:180px">
+                <span class="flex-spacer"></span>
+                <button class="btn sm" id="jrCopy" title="Sao chép nhật ký đang hiển thị">📋</button>
+                <button class="btn sm" id="jrDownload" title="Tải nhật ký .txt">⬇</button>
+                <button class="btn sm" id="jrExpand" title="Mở rộng / thu gọn khung nhật ký">⛶</button>
+              </div>
               <div class="logp-b" id="logBody"></div>
+              <button class="jr-newer hidden" id="jrNewer">⏸ đang giữ vị trí — bấm để theo dõi tiếp</button>
             </div>
 
             <div class="scene-toolbar hidden" id="sceneToolbar">
@@ -642,6 +657,15 @@
     <h2><span id="cfgModalTitle">Cấu hình</span> <button class="x" data-close>×</button></h2>
     <div id="cfgModalBody"></div>
     <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn primary" data-close>Xong</button></div>
+  </div>
+</div>
+
+<div class="modal-bg" id="tasksModal">
+  <div class="modal" style="max-width:780px">
+    <h2><span style="display:flex;align-items:center;gap:8px;flex:1">🗂 Tác vụ <button class="btn sm" id="tasksRefresh" title="Làm mới danh sách">↻</button></span><button class="x" data-close>×</button></h2>
+    <div class="hint" style="margin-bottom:10px">Mọi tác vụ đang chờ · đang chạy · gần đây trên tất cả dự án. Bấm một dòng để mở dự án và nhật ký của nó.</div>
+    <div id="tasksList"></div>
+    <div id="tasksSys" style="margin-top:12px"></div>
   </div>
 </div>
 

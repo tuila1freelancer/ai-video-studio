@@ -195,7 +195,7 @@ export async function generateImage(prompt, { w, h, seed = 1, outPath } = {}) {
       }
       throw new Error('all best-of candidates failed');
     } catch (e) {
-      logger.warn(`image-gen (${p}) gave up: ${e.message}${p !== chain[chain.length - 1] ? ' — failing over' : ''}`);
+      logger.warn(`Tạo ảnh (${p}) bỏ cuộc: ${e.message}${p !== chain[chain.length - 1] ? ' — chuyển provider kế tiếp' : ''}`);
     }
   }
   return null;

@@ -39,7 +39,7 @@ export function buildContext(projectId, { resume = false } = {}) {
   // edge→say chain via the same explicit-override lane a user's per-video pick uses).
   const budget = budgetState(projectId);
   if (budget.capped) {
-    logger.warn(`budget cap reached ($${budget.spent.toFixed(2)}/$${budget.cap}) — free mode for this run`, { projectId });
+    logger.warn(`💸 Chạm trần ngân sách ($${budget.spent.toFixed(2)}/$${budget.cap}) — lần chạy này dùng chế độ miễn phí`, { projectId });
     ai = { ...ai, llm: { ...(ai.llm || {}), enabled: false } };
     config = { ...config, tts: { ...(config.tts || {}), provider: 'edge', voice: 'auto' } };
   }
