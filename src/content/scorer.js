@@ -7,9 +7,16 @@
 //   formulaic-hook — scene ends on a short filler tag-question ("còn bạn?", "muốn thử?")
 //   device-monotony — the video overuses closing questions (>1, or two scenes in a row)
 //   thin        — the scene is only a rhetorical question, teaching nothing concrete
+// P33 additions (CTA discipline + value density):
+//   farewell    — goodbye/thanks-for-watching BEFORE the final scene (the video continues)
+//   cta-excess / cta-cluster — more than the budget of ONE soft CTA + the closing CTA
+//   idea-repeat — a later scene re-teaches an earlier scene's idea (paraphrase, not verbatim)
+//   hook-weak   — scene 1 opens on a greeting/self-intro instead of the cold concrete gap
+//   anchorless  — a short scene with no number and no named example (asserted, not taught)
 import { detectLang } from '../util/lang.js';
 import { wordCount } from '../util/util.js';
 import { LANG_WPS, splitSentences } from '../providers/llm.js';
+import { auditCtas } from './cta-audit.js';
 
 function fold(s) {
   return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase();
@@ -100,6 +107,57 @@ export function scoreScript(scenes, config = {}) {
       }
     }
   }
+
+  // P33 — CTA discipline: budget = ONE soft CTA mid-video + the closing CTA; a farewell
+  // before the final scene is always a defect (batched generation used to write one per batch).
+  const ctaTypeMap = { FAREWELL_MID: 'farewell', CTA_EXCESS: 'cta-excess', CTA_CLUSTER: 'cta-cluster' };
+  for (const d of auditCtas(texts).defects) {
+    for (const i of d.idx) {
+      issues.push({ idx: scenes[i].idx, type: ctaTypeMap[d.code] || 'cta-excess', detail: d.detail });
+    }
+  }
+
+  // P33 — hook-weak: scene 1 must open cold on the gap, never on a greeting/channel intro.
+  if (texts.length) {
+    const h = fold(texts[0]);
+    if (/(xin chao|chao mung|chao cac ban|chao tat ca|hello everyone|welcome (back |to ))/.test(h)) {
+      issues.push({ idx: scenes[0].idx, type: 'hook-weak', detail: 'cảnh mở đầu chào hỏi thay vì vào thẳng vấn đề — hook phải lạnh và cụ thể' });
+    }
+  }
+
+  // P33 — idea-repeat: paraphrased re-teaching (verbatim 5-grams above can't see it).
+  // Content-token Jaccard ≥0.6 between NON-adjacent scenes (adjacent scenes legitimately share
+  // vocabulary while building on each other).
+  const contentTokens = (t) => new Set(fold(t).replace(/[^\p{L}\p{N}\s]/gu, ' ').split(/\s+/).filter((w) => w.length >= 3));
+  const csets = texts.map(contentTokens);
+  const repFlagged = new Set(issues.filter((x) => x.type === 'repetition').map((x) => x.idx));
+  for (let i = 0; i < scenes.length; i++) {
+    for (let j = i + 2; j < scenes.length; j++) {
+      const a = csets[i], b = csets[j];
+      if (a.size < 6 || b.size < 6 || repFlagged.has(scenes[j].idx)) continue;
+      let inter = 0;
+      for (const t of a) if (b.has(t)) inter++;
+      if (inter / (a.size + b.size - inter) >= 0.6) {
+        issues.push({ idx: scenes[j].idx, type: 'idea-repeat', detail: `diễn đạt lại ý của cảnh ${scenes[i].idx + 1} mà không thêm khía cạnh mới` });
+        repFlagged.add(scenes[j].idx);
+      }
+    }
+  }
+
+  // P33 — anchorless: a short scene with no number and no proper-noun-ish anchor teaches
+  // nothing checkable. Mid-sentence capitalized word ≈ a named example/tool/place.
+  scenes.forEach((s, i) => {
+    const t = texts[i].trim();
+    const wc = wordCount(t);
+    if (!t || wc < 4 || wc >= target * 0.6) return;
+    const hasDigit = /\d/.test(t);
+    const hasProper = /(?<=[^.!?…:]\s)[A-ZÀ-Ỹ][\p{L}]+/u.test(t);
+    // complements under-budget (a short scene that ALSO lacks anchors gets both tags — the
+    // rewrite then expands it WITH a concrete example, not just more words)
+    if (!hasDigit && !hasProper && !issues.some((x) => x.idx === s.idx && x.type === 'thin')) {
+      issues.push({ idx: s.idx, type: 'anchorless', detail: 'cảnh ngắn, không có con số hay ví dụ/tên cụ thể — khẳng định suông, chưa dạy được gì' });
+    }
+  });
 
   return { issues, flaggedIdx: [...new Set(issues.map((x) => x.idx))] };
 }
