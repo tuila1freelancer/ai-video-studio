@@ -607,12 +607,6 @@ export function mountRoutes(app, { version }) {
     res.json({ ok: true, cancelled: n > 0 });
   });
 
-  // ---- animation mode ----
-  r.get('/animation/templates', async (req, res) => {
-    const { listTemplates } = await import('../animation/index.js');
-    res.json({ templates: listTemplates() });
-  });
-
   // ---- HyperFrame: style presets + AI-designed style guide ----
   r.get('/hyperframe/presets', async (req, res) => {
     const { HF_PRESETS } = await import('../styleguide/index.js');
@@ -921,33 +915,6 @@ export function mountRoutes(app, { version }) {
     res.json({ ok: true });
   });
 
-  // Template gallery: a LIVE self-playing demo page per template (same harness the renderer
-  // uses). Superset demo props feed every template; the page auto-loops via rAF over __seek.
-  r.get('/templates/:id/preview-html', async (req, res) => {
-    try {
-      const { buildSceneHtml } = await import('../animation/index.js');
-      const ar = ['9:16', '16:9', '1:1', '4:5'].includes(req.query.ar) ? req.query.ar : '9:16';
-      const demoProps = {
-        heading: 'Tăng trưởng kênh', sub: 'Mỗi ngày một video tốt hơn', label: 'DEMO', hud: 'DEMO',
-        text: 'Nội dung minh hoạ cho template', keyword: 'BỨT PHÁ', keywords: ['TỐC ĐỘ', 'CHẤT LƯỢNG'],
-        value: 87, number: 87, unit: '%',
-        items: ['Ý tưởng', 'Kịch bản', 'Render'], steps: ['Chuẩn bị', 'Sản xuất', 'Xuất bản'],
-        left: { title: 'Trước', items: ['Chậm', 'Thủ công'] }, right: { title: 'Sau', items: ['Nhanh', 'Tự động'] },
-        messages: [{ from: 'user', text: 'Video mới đâu?' }, { from: 'bot', text: 'Đang render! 🎬' }],
-        criteria: [{ name: 'Tốc độ', score: 9 }, { name: 'Chất lượng', score: 8 }],
-        bars: [{ label: 'Trước', value: 40 }, { label: 'Sau', value: 90 }],
-        lines: ['$ avs render', '▸ scene 1/3…', '✓ done in 27s'], title: 'Chương mới',
-        nodes: ['Video', 'Ý tưởng', 'Âm thanh', 'Hình ảnh'],
-      };
-      const scene = { idx: 2, voice_text: 'Nội dung minh hoạ', srt_json: [], template: req.params.id, props: demoProps, duration: 6 };
-      let html = buildSceneHtml(scene, { aspect_ratio: ar, title: 'Template demo' },
-        { visualMode: 'animation', theme: 'neon-tech', enableSubtitles: false }, { durationOverride: 6 });
-      html = html.replace('</body>', `<script>addEventListener('load',async()=>{try{await __init();
-        const t0=performance.now();(function loop(){__seek(((performance.now()-t0)/1000)%6);requestAnimationFrame(loop)})()}catch(e){}})<\/script></body>`);
-      res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      res.send(html);
-    } catch (e) { res.status(500).send(e.message); }
-  });
 
   // Brand fonts: every family the owner can pick (vendored Vietnamese-safe set + uploads)
   r.get('/fonts/families', async (req, res) => {

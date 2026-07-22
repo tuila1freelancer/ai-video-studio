@@ -2,10 +2,9 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { buildScenePage } from './harness.js';
-import { buildTemplate, makeCtx, listTemplates } from './templates.js';
-import { getTheme } from './themes.js';
+import { buildTemplate, makeCtx } from './templates.js';
 import { themeFromGuide, resolveGuide, normalizeGuide } from '../styleguide/index.js';
-import { planScene, planScenes } from './planner.js';
+import { headline } from './planner.js';
 import { beatWarpMap } from './timewarp.js';
 import { renderScenePage, renderPreviewFrame } from './renderer.js';
 import { resolveBrandKit, planBrandPlacement, buildBrandLayer, imgDataUri } from './branding.js';
@@ -23,7 +22,14 @@ export function sceneSeed(project, idx) {
   return project?.id ? ((hash32(String(project.id)) ^ base) >>> 0) : base;
 }
 
-export { listTemplates, planScenes, planScene, resolveBrandKit };
+export { resolveBrandKit };
+
+// A scene with no stored plan resolves to the kinetic-statement fallback (the animation
+// planner is gone with the animation visual mode): buildTemplate always renders it, so a
+// legacy row whose stored template no longer exists still produces a complete frame.
+function fallbackPlan(scene) {
+  return { template: 'kinetic-statement', props: { pre: '', heading: headline(scene.voice_text || '', 40), heading2: '', sub: undefined } };
+}
 
 function resolveWatermark(config) {
   if (config?.logo?.path && existsSync(config.logo.path)) {
@@ -58,7 +64,7 @@ export function buildSceneHtml(scene, project, config, extras = {}) {
   const brand = resolveBrandKit(config);
   let plan = scene.template && scene.props
     ? { template: scene.template, props: scene.props }
-    : planScene(scene, { idx: scene.idx, total: extras.total || 9999, title: project.title, brand });
+    : fallbackPlan(scene);
   if (config.overlay?.enabled && plan.props && !plan.props.overlay) {
     plan = { ...plan, props: { ...plan.props, overlay: true } };
   }
@@ -66,11 +72,12 @@ export function buildSceneHtml(scene, project, config, extras = {}) {
   // progress bar) follows the guide's palette instead of the classic theme. In a hyperframe
   // project the guide also drives FALLBACK-template scenes and the outro, so a scene that
   // dropped to the heuristic planner can never break the video's visual identity.
+  // Single visual mode: every scene follows the video's style guide. A hyperframe scene
+  // carries its own guide in props; the kinetic-statement fallback + chapter-break resolve
+  // the project guide, so a fallback scene can never break the video's visual identity.
   let theme = plan.template === 'hyperframe' && plan.props?.guide
     ? themeFromGuide(normalizeGuide(plan.props.guide))
-    : (config.visualMode === 'hyperframe'
-      ? themeFromGuide(resolveGuide(config))
-      : getTheme(config.theme || 'neon-tech'));
+    : themeFromGuide(resolveGuide(config));
   ({ plan, theme } = applyBrandFont(plan, theme, config));
   // captions resolve BEFORE the template builds: word timings feed ctx.accentTimes so
   // template motion lands on the narration's beats (still deterministic — srt_json is data).
@@ -145,7 +152,7 @@ export function templateTimeScale(plannedDur, actualDur) {
 // Brand-font override (config.fonts.display, layered per-channel/per-video through the
 // normal config chain): the owner's family leads the stack; the vendored Vietnamese-safe
 // families remain the fallback. Hyperframe scenes get it through their guide (drives
-// .hf-kw/.hf-kw2/.hf-stat-v); animation scenes through theme.font.
+// .hf-kw/.hf-kw2/.hf-stat-v); the kinetic-statement / chapter-break fallbacks through theme.font.
 export function brandFontStack(config) {
   const fam = String(config?.fonts?.display || '').replace(/['"<>]/g, '').trim();
   return fam ? `'${fam}', 'Be Vietnam Pro', sans-serif` : null;
@@ -155,8 +162,11 @@ function applyBrandFont(plan, theme, config) {
   if (!stack) return { plan, theme };
   if (plan.props?.guide) {
     plan = { ...plan, props: { ...plan.props, guide: { ...plan.props.guide, fonts: { ...(plan.props.guide.fonts || {}), display: stack } } } };
+  } else {
+    // fallback templates (kinetic-statement / chapter-break) carry no guide — put the brand
+    // display font on the theme instead, so they still match the channel's typography.
+    theme = { ...theme, font: stack };
   }
-  if ((config.visualMode || 'animation') === 'animation') theme = { ...theme, font: stack };
   return { plan, theme };
 }
 
@@ -178,15 +188,12 @@ function applyCustomOverride(tpl, props) {
 export function sceneTemplateSource(scene, project, config) {
   const { w, h } = animSize(project.aspect_ratio, 1); // editor source lives in the logical canvas
   const duration = scene.duration || config.sceneDuration || 6;
-  const brand = resolveBrandKit(config);
   let plan = scene.template && scene.props
     ? { template: scene.template, props: scene.props }
-    : planScene(scene, { idx: scene.idx, total: 9999, title: project.title, brand });
+    : fallbackPlan(scene);
   let theme = plan.template === 'hyperframe' && plan.props?.guide
     ? themeFromGuide(normalizeGuide(plan.props.guide))
-    : (config.visualMode === 'hyperframe'
-      ? themeFromGuide(resolveGuide(config))
-      : getTheme(config.theme || 'neon-tech'));
+    : themeFromGuide(resolveGuide(config));
   ({ plan, theme } = applyBrandFont(plan, theme, config));
   const ctx = makeCtx({ w, h, theme, seed: sceneSeed(project, scene.idx), duration, idx: scene.idx, captions: scene.srt_json || [] });
   const tpl = buildTemplate(plan.template, plan.props, ctx);
