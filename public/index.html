@@ -240,15 +240,7 @@
           <div class="cfg-group open" id="grpFormat">
             <button class="cfg-head" type="button"><span class="cfg-ic">🎞</span><span class="cfg-meta"><span class="cfg-title">Định dạng & chất lượng</span><span class="cfg-chip" data-chip="format"></span></span><span class="cfg-arr">▾</span></button>
             <div class="cfg-body">
-              <div class="field">
-                <label class="label">Chế độ hình ảnh</label>
-                <select class="input" id="cfgVisualMode">
-                  <option value="hyperframe" selected>✨ HyperFrame (AI đạo diễn theo lời thoại — mặc định)</option>
-                  <option value="animation">🎬 Animation (motion graphics)</option>
-                  <option value="image">🖼️ Ảnh AI + Ken Burns</option>
-                </select>
-              </div>
-              <div class="field" id="hfOpts" style="display:none">
+              <div class="field" id="hfOpts">
                 <label class="label">Phong cách video</label>
                 <button class="hf-style-btn" id="btnHfStyle" type="button">
                   <span class="hfsb-sw" id="hfStyleSw"></span>
@@ -274,14 +266,8 @@
                   <div class="hint">Cảnh render trên nền key #050510 → colorkey trong suốt → ghép lên video này (slice liên tục theo timeline).</div>
                 </div>
               </div>
-              <div class="field" id="animOpts">
-                <label class="label">Theme animation</label>
-                <select class="input" id="cfgTheme">
-                  <option value="neon-tech">Neon Tech (mặc định)</option>
-                  <option value="gradient-soft">Gradient Soft</option>
-                  <option value="minimal-light">Minimal Light</option>
-                </select>
-                <div class="grid2" style="margin-top:8px">
+              <div class="field">
+                <div class="grid2">
                   <div><label class="label">FPS</label>
                     <select class="input hidden" id="cfgFps"><option value="30" selected>30</option><option value="60">60</option></select>
                     <div class="seg block" data-target="cfgFps"><button type="button" data-v="30">30</button><button type="button" data-v="60">60</button></div></div>
@@ -395,11 +381,6 @@
           <div class="cfg-group" id="grpAdvanced">
             <button class="cfg-head" type="button"><span class="cfg-ic">⚙</span><span class="cfg-meta"><span class="cfg-title">Nâng cao</span><span class="cfg-chip" data-chip="advanced"></span></span><span class="cfg-arr">▾</span></button>
             <div class="cfg-body">
-              <div class="field">
-                <label class="label">Phong cách cảnh</label>
-                <select class="input" id="cfgStyle"></select>
-              </div>
-              <label class="switch-row"><span class="switch"><input type="checkbox" id="cfgRich" checked><span class="sl"></span></span> 🖼️ Ảnh AI điện ảnh</label>
               <label class="switch-row" title="Mọi cảnh nối nhau bằng dissolve mượt ngắn; thêm 1-2 hero transition theo vai trò kể chuyện (zoom vào cảnh chốt, fade đen vào CTA/outro, fade tại ngăn chương). Tắt để dùng cắt cứng."><span class="switch"><input type="checkbox" id="cfgTrans" checked><span class="sl"></span></span> 🔀 Chuyển cảnh điện ảnh (mượt, theo nhịp kể)</label>
               <label class="switch-row"><span class="switch"><input type="checkbox" id="cfgMeta" checked><span class="sl"></span></span> 📊 Tạo Metadata</label>
               <label class="switch-row"><span class="switch"><input type="checkbox" id="cfgAutoConcat" checked><span class="sl"></span></span> Tự động ghép (B7)</label>
@@ -770,7 +751,6 @@
           <div class="hint" style="margin:6px 0">AI sẽ dựng lại visual theo brief mới; bản cũ thành take để so sánh/rollback.</div>
           <div class="row" style="gap:8px">
             <button class="btn primary" id="ssVisualSave">✨ Lưu + AI dựng lại visual</button>
-            <button class="btn" id="ssTplGallery">🖼 Thư viện template…</button>
           </div>
         </div>
         <div id="ssTabHtml" style="display:none">
@@ -810,14 +790,6 @@
         </div>
       </div>
     </div>
-  </div>
-</div>
-
-<div class="modal-bg" id="tplGalleryModal">
-  <div class="modal" style="max-width:1040px">
-    <h2>🖼 Thư viện template cảnh <button class="x" data-close>×</button></h2>
-    <div class="hint" style="margin-bottom:10px">Preview đang CHẠY THẬT đúng trang mà renderer sẽ vẽ — chọn là áp ngay cho cảnh đang mở.</div>
-    <div class="tg-grid" id="tgGrid"></div>
   </div>
 </div>
 

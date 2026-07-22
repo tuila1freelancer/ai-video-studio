@@ -45,17 +45,6 @@ function wireGrid() {
     if (e.target.classList.contains('chk')) {
       card.classList.toggle('sel', e.target.checked);
       updateSelCount();
-    } else if (e.target.classList.contains('tpl-sel')) {
-      const sel = e.target;
-      await api.put('/scenes/' + s.id, { template: sel.value });
-      toast('Đang tạo preview…');
-      const r = await api.post(`/scenes/${s.id}/preview-frame`, {});
-      if (r.image) {
-        s.template = sel.value;
-        s.image_path = decodeURIComponent(r.image.split('path=')[1] || '');
-        card.dataset.img = ''; // force poster refresh
-        patchScene(card, s);
-      }
     }
   });
   // hover-play: src is assigned on demand and released on leave — idle videos hold no decoder.
@@ -94,25 +83,16 @@ function sceneCard(s) {
   c.dataset.img = imgUrl;
   const poster = imgUrl ? `<img src="${imgUrl}" loading="lazy" decoding="async">` : `<div class="ph">${icon('film', 24)}</div>`;
   const vid = s.video_path ? `<video data-src="${fileUrl(s.video_path)}" muted loop playsinline preload="none"></video>` : '';
-  const mode = state.current?.config?.visualMode || 'animation';
-  const isAnim = mode === 'animation';
-  const isHf = mode === 'hyperframe';
-  const animLike = mode !== 'image'; // animation + hyperframe: GSAP page → live preview works
-  const tplSelect = isAnim && state.templates.length
-    ? `<select class="input tpl-sel" title="Đổi template">${state.templates.map((t) =>
-        `<option value="${t.id}"${t.id === s.template ? ' selected' : ''}>${esc(t.name)}</option>`).join('')}</select>`
-    : '';
   const nBeats = s.hfBeats ?? (Array.isArray(s.props?.beats) ? s.props.beats.length : null);
-  const hfBadge = isHf && s.template === 'hyperframe' && nBeats
+  const hfBadge = s.template === 'hyperframe' && nBeats
     ? ` <span class="hf-badge" title="visual bám theo ${nBeats} beat của lời thoại">✨${nBeats}</span>` : '';
   c.innerHTML = `<div class="sv"><input type="checkbox" class="chk">${poster}${vid}${s.duration ? (() => { const voiced = s.audio_path || ['tts', 'rendered'].includes(s.status); return `<span class="dur"${voiced ? '' : ' title="thời lượng ước lượng — sẽ chốt khi lồng tiếng"'}>${voiced ? '' : '~'}${s.duration.toFixed(1)}s</span>`; })() : ''}</div>
-    <div class="si"><div class="n"><span>Cảnh ${s.idx + 1}${hfBadge}</span><span>${statusIcon(s.status)}</span></div><div class="vt">${esc(s.voice_text || '')}</div>${tplSelect}</div>
+    <div class="si"><div class="n"><span>Cảnh ${s.idx + 1}${hfBadge}</span><span>${statusIcon(s.status)}</span></div><div class="vt">${esc(s.voice_text || '')}</div></div>
     <div class="sa">
-      ${animLike ? `<button class="btn sm" data-act="studio" title="Scene Studio: xem trước + sửa lời thoại/visual/HTML">🎬</button>` : ''}
-      ${animLike ? `<button class="btn sm" data-act="live" title="Xem trước animation + tiếng">${icon('play', 13)}</button>` : ''}
-      ${isAnim ? `<button class="btn sm" data-act="edit" title="Sửa chữ trên cảnh">${icon('edit', 13)}</button>` : ''}
+      <button class="btn sm" data-act="studio" title="Scene Studio: xem trước + sửa lời thoại/visual/HTML">🎬</button>
+      <button class="btn sm" data-act="live" title="Xem trước animation + tiếng">${icon('play', 13)}</button>
       <button class="btn sm" data-act="voice" title="Tạo lại giọng">${icon('mic', 13)}</button>
-      <button class="btn sm" data-act="html" title="${isHf ? 'AI dựng lại visual cảnh này' : 'Tạo lại cảnh'}">${icon('wand', 13)}</button>
+      <button class="btn sm" data-act="html" title="AI dựng lại visual cảnh này">${icon('wand', 13)}</button>
       <button class="btn sm warn" data-act="render" title="Render cảnh">${icon('film', 13)}</button>
     </div>`;
   return c;
@@ -154,8 +134,6 @@ export function patchScene(card, s) {
     v.dataset.src = vidUrl;
     if (v.getAttribute('src')) v.src = vidUrl; // currently hover-playing → swap live
   }
-  const sel = card.querySelector('.tpl-sel');
-  if (sel && s.template && sel.value !== s.template) sel.value = s.template;
   // HyperFrame beat badge (appears once B5 assigns the AI spec)
   const nBeats = s.hfBeats ?? (Array.isArray(s.props?.beats) ? s.props.beats.length : null);
   if (nBeats && s.template === 'hyperframe') {

@@ -66,7 +66,7 @@ const SHEET_LABELS = {
 export function configSheet({ row, mode, due = null }) {
   const titles = mode === 'edit' ? [] : (Array.isArray(row.titles) ? row.titles.filter(Boolean) : []);
   const presets = state.presets || [];
-  const canStudio = !!document.getElementById('cfgVisualMode');
+  const canStudio = !!document.getElementById('cfgHfDensity');
   const chDefault = channelAssistant()?.defaultConfig || null;
   return openDialog(`
     <div class="dlg-title">${SHEET_LABELS[mode][0]}</div>
@@ -99,10 +99,6 @@ export function configSheet({ row, mode, due = null }) {
         <label>Thời lượng <select class="input" data-a="vd">
           <option value="">(giữ nguyên)</option><option value="30">30 giây</option><option value="60">1 phút</option>
           <option value="90">1,5 phút</option><option value="180">3 phút</option><option value="300">5 phút</option>
-        </select></label>
-        <label>Hình ảnh <select class="input" data-a="vm">
-          <option value="">(giữ nguyên)</option><option value="hyperframe">HyperFrame ✨</option>
-          <option value="animation">Animation</option><option value="image">Ảnh AI</option>
         </select></label>
         <label>Phụ đề <select class="input" data-a="sub">
           <option value="">(giữ nguyên)</option><option value="on">Bật</option><option value="off">Tắt</option>
@@ -168,7 +164,6 @@ export function configSheet({ row, mode, due = null }) {
         const v = (a) => dlg.querySelector(`[data-a=${a}]`)?.value || '';
         if (v('ar')) config.aspectRatio = v('ar');
         if (v('vd')) { config.videoDuration = +v('vd'); config.durationMode = 'target'; } // an explicit duration pick must beat an inherited 'auto' — and ONLY then
-        if (v('vm')) config.visualMode = v('vm');
         if (v('sub')) config.enableSubtitles = v('sub') === 'on';
         // the checkbox shows its state — what you see is what the run does (P34)
         config.sceneGate = !!dlg.querySelector('[data-a=gate]')?.checked;

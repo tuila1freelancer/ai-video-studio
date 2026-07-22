@@ -65,6 +65,34 @@ const MIGRATIONS = [
       if (!scols.includes('assets')) db.exec('ALTER TABLE scenes ADD COLUMN assets TEXT');
     },
   },
+  {
+    id: 5,
+    name: 'single-visual-mode',
+    // P36: the animation + image visual modes were removed — HyperFrame is the only mode. Any
+    // stored config that still names 'animation' or 'image' is coerced to 'hyperframe' so the
+    // UI labels/chips and any resume read a truthful mode. An ABSENT visualMode already
+    // resolves to 'hyperframe' via the runtime default, so it is left untouched. No scene
+    // artifacts are changed: a rendered clip keeps playing; an unrendered legacy scene
+    // re-enters HyperFrame codegen on its next run, and a scene whose stored template no
+    // longer exists still renders via the kinetic-statement fallback.
+    up(db) {
+      const hasTable = db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?");
+      for (const table of ['projects', 'channels', 'channel_presets', 'calendar_slots', 'calendar_recurrences']) {
+        if (!hasTable.get(table)) continue;
+        const rows = db.prepare(`SELECT id, config FROM ${table}`).all();
+        const upd = db.prepare(`UPDATE ${table} SET config = ? WHERE id = ?`);
+        for (const row of rows) {
+          if (!row.config) continue;
+          let cfg;
+          try { cfg = JSON.parse(row.config); } catch { continue; }
+          if (cfg && typeof cfg === 'object' && (cfg.visualMode === 'animation' || cfg.visualMode === 'image')) {
+            cfg.visualMode = 'hyperframe';
+            upd.run(JSON.stringify(cfg), row.id);
+          }
+        }
+      }
+    },
+  },
 ];
 
 function backupBefore(db) {
