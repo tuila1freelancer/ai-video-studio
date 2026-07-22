@@ -1,18 +1,14 @@
 // Render entry used by POST /render (mode: all | scenes | concat) — re-renders scene clips
 // (optionally a subset) then, unless mode='scenes', re-finalizes the whole video.
-import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import * as DB from '../db/index.js';
 import { hub } from '../ws/hub.js';
-import { logger } from '../util/log.js';
 import { ratioToSize } from '../util/util.js';
 import { renderAnimationScene } from '../animation/index.js';
-import { renderScene } from './render.js';
-import { buildSceneBackground } from './visuals.js';
 import { clearStop, checkStop } from './stop.js';
 import { step, op, progressPlan } from './progress.js';
 import { jlog } from './journal.js';
-import { mapPool, visualOpts, subtitleStyleFrom } from './helpers.js';
+import { mapPool } from './helpers.js';
 import { finalize } from './stages/finalize.js';
 
 export async function renderOnly(projectId, { mode = 'all', sceneIds = [] }) {
@@ -26,7 +22,6 @@ export async function renderOnly(projectId, { mode = 'all', sceneIds = [] }) {
   hub.toProject(projectId, { type: 'status', status: 'running' });
   jlog(projectId, { kind: 'status', msg: `🎬 Bắt đầu render lại (${mode === 'scenes' ? `${sceneIds.length} cảnh đã chọn` : mode === 'concat' ? 'ghép lại' : 'toàn bộ'})` });
   try {
-    const visualMode = config.visualMode || 'animation';
     const allScenes = DB.getScenes(projectId);
     let scenes = allScenes;
     if (mode === 'scenes' && sceneIds.length) scenes = scenes.filter((s) => sceneIds.includes(s.id));
@@ -49,29 +44,15 @@ export async function renderOnly(projectId, { mode = 'all', sceneIds = [] }) {
       }
     }
     step(projectId, 'b6', 'running', 'Render');
-    const subtitleStyle = subtitleStyleFrom(config);
-    const animLike = visualMode !== 'image';
-    const rC = animLike
-      ? parseInt(config.renderConcurrency || 3, 10)
-      : (config.parallelRender ? parseInt(config.renderConcurrency || 2, 10) : 1);
+    const rC = parseInt(config.renderConcurrency || 3, 10);
     const pp = progressPlan(allScenes, config);
     await mapPool(scenes, rC, async (sc) => {
       checkStop(projectId);
       op(projectId, `🎬 Render cảnh ${sc.idx + 1}`);
-      let path, duration, preview = null;
-      if (animLike) {
-        const r = await renderAnimationScene(sc, project, config, {
-          dir: join(dir, 'render'), progressStart: pp.offsets[sc.idx] || 0, progressTotal: pp.total, total: allScenes.length,
-        });
-        path = r.path; duration = r.duration; preview = r.preview;
-      } else {
-        if (!sc.image_path || !existsSync(sc.image_path)) {
-          sc.image_path = await buildSceneBackground(sc, project, size, visualOpts(config, dir));
-          DB.updateScene(sc.id, { image_path: sc.image_path });
-        }
-        const r = await renderScene(sc, project, { dir: join(dir, 'render'), size, subtitleStyle, renderMode: config.renderMode });
-        path = r.path; duration = r.duration;
-      }
+      const r = await renderAnimationScene(sc, project, config, {
+        dir: join(dir, 'render'), progressStart: pp.offsets[sc.idx] || 0, progressTotal: pp.total, total: allScenes.length,
+      });
+      const { path, duration, preview } = r;
       DB.updateScene(sc.id, { video_path: path, duration, status: 'rendered', ...(preview ? { image_path: preview } : {}) });
       hub.toProject(projectId, { type: 'scene', sceneId: sc.id, idx: sc.idx, status: 'rendered', video: `/api/file?path=${encodeURIComponent(path)}`, ...(preview ? { image: `/api/file?path=${encodeURIComponent(preview)}` } : {}) });
     }, { pool: 'render' }); // same process-wide bound as pipeline renders

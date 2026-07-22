@@ -9,42 +9,27 @@ import { hub } from '../../ws/hub.js';
 import { logger } from '../../util/log.js';
 import { renderAnimationScene } from '../../animation/index.js';
 import { headline } from '../../animation/planner.js';
-import { renderScene } from '../render.js';
 import { qcSceneClip } from '../qc.js';
 import { checkStop } from '../stop.js';
 import { step, op, progressPlan } from '../progress.js';
-import { mapPool, subtitleStyleFrom } from '../helpers.js';
+import { mapPool } from '../helpers.js';
 import { renderFingerprint, fpCurrent, fpStamp } from '../fingerprint.js';
 
 /** @param {import('../context.js').PipelineContext} ctx */
 export async function runRender(ctx) {
-  const { projectId, project, config, size, dir, resume } = ctx;
-  const visualMode = config.visualMode || 'animation';
-  const animLike = visualMode !== 'image'; // animation + hyperframe share the GSAP renderer
-  step(projectId, 'b6', 'running', animLike ? 'Render animation từng frame' : 'Render cảnh');
+  const { projectId, project, config, dir, resume } = ctx;
+  step(projectId, 'b6', 'running', 'Render animation từng frame');
   DB.updateProject(projectId, { current_step: 'b6' });
   const scenes = DB.getScenes(projectId);
-  const subtitleStyle = subtitleStyleFrom(config);
-  const rC = animLike
-    ? parseInt(config.renderConcurrency || 3, 10)
-    : (config.parallelRender ? parseInt(config.renderConcurrency || 2, 10) : 1);
+  const rC = parseInt(config.renderConcurrency || 3, 10);
   const pp = progressPlan(scenes, config);
 
   const renderSceneOnce = async (sc) => {
-    let path, duration, preview = null;
-    if (animLike) {
-      const r = await renderAnimationScene(sc, project, config, {
-        dir: join(dir, 'render'), progressStart: pp.offsets[sc.idx] || 0, progressTotal: pp.total, total: scenes.length,
-        onProgress: (f) => { if (f >= 0.999 || Math.round(f * 4) !== Math.round((f - 0.01) * 4)) op(projectId, `🎬 Cảnh ${sc.idx + 1}/${scenes.length} · ${(f * 100).toFixed(0)}%`); },
-      });
-      path = r.path; duration = r.duration; preview = r.preview;
-    } else {
-      const r = await renderScene(sc, project, {
-        dir: join(dir, 'render'), size, subtitleStyle, renderMode: config.renderMode,
-        onLog: (s) => logger.debug(s, { projectId }),
-      });
-      path = r.path; duration = r.duration;
-    }
+    const r = await renderAnimationScene(sc, project, config, {
+      dir: join(dir, 'render'), progressStart: pp.offsets[sc.idx] || 0, progressTotal: pp.total, total: scenes.length,
+      onProgress: (f) => { if (f >= 0.999 || Math.round(f * 4) !== Math.round((f - 0.01) * 4)) op(projectId, `🎬 Cảnh ${sc.idx + 1}/${scenes.length} · ${(f * 100).toFixed(0)}%`); },
+    });
+    const { path, duration, preview } = r;
     DB.updateScene(sc.id, { video_path: path, duration, status: 'rendered', error: null, ...(preview ? { image_path: preview } : {}),
       fp: fpStamp(sc, 'render', renderFingerprint(sc, ctx)) });
     hub.toProject(projectId, { type: 'scene', sceneId: sc.id, idx: sc.idx, status: 'rendered',
@@ -59,11 +44,12 @@ export async function runRender(ctx) {
       if (e.stopped) throw e;
       logger.warn(`Cảnh ${sc.idx + 1}: render lỗi (${e.message}) — đang tự chữa`, { projectId, kind: 'retry', stage: 'b6', sceneIdx: sc.idx });
       hub.toProject(projectId, { type: 'retry', scope: 'scene', step: 'b6', idx: sc.idx, attempt: 1, msg: e.message });
-      // P10 template-swap heal applies to ANIMATION-mode scenes only. A hyperframe scene is
-      // the primary model's HTML — swapping it for a heuristic template is a quality
-      // fallback the NO-FALLBACK contract (P25) forbids: it retries as-is (here + the
-      // deferred sequential pass); if it still cannot render, the run fails loudly.
-      if (animLike && sc.template !== 'kinetic-statement' && sc.template !== 'hyperframe') {
+      // P10 template-swap heal applies to NON-hyperframe fallback scenes only (a legacy
+      // template row or a chapter-break). A hyperframe scene is the primary model's HTML —
+      // swapping it for a heuristic template is a quality fallback the NO-FALLBACK contract
+      // (P25) forbids: it retries as-is (here + the deferred sequential pass); if it still
+      // cannot render, the run fails loudly.
+      if (sc.template !== 'kinetic-statement' && sc.template !== 'hyperframe') {
         op(projectId, `🩹 Cảnh ${sc.idx + 1}: đổi template dự phòng rồi thử lại…`);
         DB.updateScene(sc.id, { template: 'kinetic-statement', props: {
           pre: '', heading: headline(sc.voice_text || '', 40), heading2: '', sub: undefined,

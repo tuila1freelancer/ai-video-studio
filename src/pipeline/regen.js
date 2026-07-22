@@ -4,7 +4,7 @@
 import { join } from 'node:path';
 import * as DB from '../db/index.js';
 import { hub } from '../ws/hub.js';
-import { ratioToSize, newId } from '../util/util.js';
+import { newId } from '../util/util.js';
 import { synthesizeVoice } from '../providers/tts.js';
 import { buildSubtitles } from '../providers/subtitle.js';
 import { normalizeForTts, moodOf } from '../providers/tts-normalize.js';
@@ -17,17 +17,14 @@ import { resolveGuide } from '../styleguide/index.js';
 import { heroMediaUri } from '../util/asset-uri.js';
 import { hash32 } from '../util/util.js';
 import { planScene, resolveBrandKit, animSize, previewSceneFrame } from '../animation/index.js';
-import { buildSceneBackground } from './visuals.js';
 import { aiSettingsFor, ttsOverrideFor } from '../core/config.js';
 import { ttsFingerprint, fpStamp } from './fingerprint.js';
-import { visualOpts } from './helpers.js';
 
 export async function regenOne(sceneId, what) {
   const sc = DB.getScene(sceneId);
   if (!sc) throw new Error('scene not found');
   const project = DB.getProject(sc.project_id);
   const config = project.config || {};
-  const size = ratioToSize(project.aspect_ratio);
   const dir = DB.projectDirFor(project.id);
   // history: snapshot the current artifact BEFORE this regen replaces it
   try { DB.snapshotTake(sc, what === 'voice' ? 'voice' : 'visual'); } catch { /* history is best-effort */ }
@@ -114,11 +111,6 @@ export async function regenOne(sceneId, what) {
       DB.updateScene(sc.id, { image_path: out });
       DB.snapshotTake(DB.getScene(sc.id), 'visual', { active: true });
       hub.toProject(project.id, { type: 'scene', sceneId: sc.id, idx: sc.idx, status: 'html', template: plan.template, image: `/api/file?path=${encodeURIComponent(out)}` });
-    } else {
-      const bg = await buildSceneBackground(sc, project, size, visualOpts(config, dir));
-      DB.updateScene(sc.id, { image_path: bg, status: 'html', video_path: null });
-      DB.snapshotTake(DB.getScene(sc.id), 'visual', { active: true });
-      hub.toProject(project.id, { type: 'scene', sceneId: sc.id, idx: sc.idx, status: 'html', image: `/api/file?path=${encodeURIComponent(bg)}` });
     }
   }
 }

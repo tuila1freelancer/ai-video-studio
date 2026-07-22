@@ -1,116 +1,12 @@
 // Scene rendering (B6) + final concat/mix (B7) with ffmpeg.
-import { writeFileSync, existsSync, readdirSync, rmSync, mkdirSync, copyFileSync, statSync } from 'node:fs';
+import { writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { ffmpeg, ffmpegAss, probeDuration, makeSilence, probeImageSize } from '../media/ffmpeg.js';
+import { ffmpeg, ffmpegAss, probeDuration, probeImageSize } from '../media/ffmpeg.js';
 import { logoRect } from '../media/logo-overlay.js';
 import { perimeterExpr, WM_SPEEDS } from '../media/watermark.js';
-import { buildKaraokeAss } from './srt.js';
-import { rechunkCues } from '../subtitles/chunk.js';
-import { buildSceneBackground } from './visuals.js';
 import { ratioToSize, newId } from '../util/util.js';
-import { VENDOR_DIR, DIRS } from '../config/paths.js';
-
-// Vendored TTFs so libass can burn the preset font families (Montserrat, Oswald, …).
-const FONTS_DIR = join(VENDOR_DIR, 'fonts', 'ttf');
-
-// libass takes a SINGLE fontsdir — when the owner has uploaded brand fonts, mirror the
-// vendored TTFs + uploads into one merged dir (refreshed by mtime) so burned subtitles can
-// use uploaded families too. No uploads → the plain vendored dir, exactly as before.
-let mergedStamp = '';
-function assFontsDir() {
-  let uploads = [];
-  try { uploads = readdirSync(DIRS.font).filter((f) => /\.(ttf|otf)$/i.test(f)); } catch { /* none */ }
-  if (!uploads.length) return FONTS_DIR;
-  const merged = join(DIRS.tmp, 'fontsdir');
-  const stamp = uploads.map((f) => { try { return f + statSync(join(DIRS.font, f)).mtimeMs; } catch { return f; } }).join('|');
-  if (stamp !== mergedStamp || !existsSync(merged)) {
-    mkdirSync(merged, { recursive: true });
-    const want = new Set();
-    for (const src of [FONTS_DIR, DIRS.font]) {
-      let files = [];
-      try { files = readdirSync(src).filter((f) => /\.(ttf|otf)$/i.test(f)); } catch { continue; }
-      for (const f of files) {
-        want.add(f);
-        try { copyFileSync(join(src, f), join(merged, f)); } catch { /* skip unreadable */ }
-      }
-    }
-    for (const f of readdirSync(merged)) { if (!want.has(f)) { try { rmSync(join(merged, f)); } catch { /* stale */ } } }
-    mergedStamp = stamp;
-  }
-  return merged;
-}
 
 const FPS = 30;
-
-// Escape a filesystem path for use inside an ffmpeg filtergraph (subtitles= option).
-function escFilter(p) { return p.replace(/\\/g, '\\\\').replace(/:/g, '\\:').replace(/'/g, "\\'"); }
-
-// Varied Ken-Burns: slow push-in toward a focal point that changes per scene (no per-frame jitter).
-function motionFor(idx) {
-  const P = [
-    { z: 'min(1.0+0.0012*on,1.16)', x: 'iw/2-(iw/zoom/2)', y: 'ih/2-(ih/zoom/2)' },
-    { z: 'min(1.0+0.0010*on,1.15)', x: 'iw/2-(iw/zoom/2)', y: 'ih*0.30-(ih/zoom/2)' },
-    { z: 'min(1.0+0.0011*on,1.16)', x: 'iw*0.68-(iw/zoom/2)', y: 'ih/2-(ih/zoom/2)' },
-    { z: 'min(1.0+0.0010*on,1.15)', x: 'iw/2-(iw/zoom/2)', y: 'ih*0.70-(ih/zoom/2)' },
-    { z: 'min(1.0+0.0011*on,1.16)', x: 'iw*0.32-(iw/zoom/2)', y: 'ih/2-(ih/zoom/2)' },
-  ];
-  return P[(idx || 0) % P.length];
-}
-
-// Render a single scene → mp4. Returns { path, duration }.
-export async function renderScene(scene, project, { dir, size, subtitleStyle, renderMode, onLog }) {
-  const d = Math.max(1.5, scene.duration || (await probeDuration(scene.audio_path)) || project.config?.sceneDuration || 6);
-  const frames = Math.round(d * FPS);
-
-  // 1) background image (poster or provided)
-  let bg = scene.image_path && existsSync(scene.image_path) ? scene.image_path : null;
-  if (!bg) bg = await buildSceneBackground(scene, project, size, { dir, mode: renderMode === 'gradient' ? 'gradient' : 'html' });
-
-  // 2) audio
-  let audio = scene.audio_path && existsSync(scene.audio_path) ? scene.audio_path : null;
-  if (!audio) { audio = join(dir, `silence_${scene.idx}.m4a`); await makeSilence(audio, d); }
-
-  // 3) subtitle ASS (karaoke or plain), per-scene timing. P29: display cues may be
-  // re-chunked (sentence / N words) — rebuilt from the same word timestamps, so the burn
-  // stays glued to the voice exactly like the animation captions.
-  let assPath = null;
-  if (subtitleStyle && subtitleStyle.enabled !== false && scene.srt_json && scene.srt_json.length) {
-    assPath = join(dir, `sub_${scene.idx}_${newId('')}.ass`);
-    const cues = rechunkCues(scene.srt_json, {
-      chunk: subtitleStyle.chunk, wordsPerCue: subtitleStyle.wordsPerCue, text: scene.voice_text,
-    });
-    writeFileSync(assPath, buildKaraokeAss(cues, subtitleStyle, size));
-  }
-
-  const out = join(dir, `scene_${String(scene.idx).padStart(3, '0')}.mp4`);
-  const ow = size.w, oh = size.h;
-  const m = motionFor(scene.idx);
-  // Ken-Burns: cover-scale 1.35×, varied push-in, then optional subtitle burn.
-  let vf = `scale=${Math.round(ow * 1.35)}:${Math.round(oh * 1.35)}:force_original_aspect_ratio=increase,`
-    + `crop=${Math.round(ow * 1.35)}:${Math.round(oh * 1.35)},`
-    + `zoompan=z='${m.z}':x='${m.x}':y='${m.y}':d=${frames}:s=${ow}x${oh}:fps=${FPS},`
-    + `format=yuv420p`;
-  if (assPath) {
-    vf += `,subtitles=filename='${escFilter(assPath)}'`;
-    const fdir = assFontsDir();
-    if (existsSync(fdir)) vf += `:fontsdir='${escFilter(fdir)}'`;
-  }
-
-  // subtitles= needs libass — only use the (slower) libass build when actually burning subs
-  const runner = assPath ? ffmpegAss : ffmpeg;
-  await runner([
-    '-loop', '1', '-i', bg,
-    '-i', audio,
-    '-filter_complex', `[0:v]${vf}[v]`,
-    '-map', '[v]', '-map', '1:a',
-    '-t', String(d),
-    '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-pix_fmt', 'yuv420p', '-r', String(FPS),
-    '-c:a', 'aac', '-b:a', '160k', '-ar', '44100', '-ac', '2',
-    '-movflags', '+faststart', out,
-  ], { onLog });
-
-  return { path: out, duration: d };
-}
 
 // ---- Transition planning (motion doctrine: every boundary FLOWS — a short smooth dissolve
 // is the default hand-off, while 1-2 prominent HERO transitions still punch above it so they
