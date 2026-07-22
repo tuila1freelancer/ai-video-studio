@@ -319,10 +319,7 @@ export async function generateScript({ topic, inputType, fetched, config, ai, me
   // video's duration follows the content. The LLM only decorates (title/visuals/keywords).
   // Too little text to be a real script → fall through to target mode.
   if (config.durationMode === 'auto' && sourceText.trim().split(/\s+/).filter(Boolean).length >= 80) {
-    return verbatimScript(sourceText, {
-      title, wordsPerScene, language, llm,
-      hf: config.visualMode === 'hyperframe',
-    });
+    return verbatimScript(sourceText, { title, wordsPerScene, language, llm });
   }
 
   // assistant-accepted topics carry the angle the owner approved — the script must honor it
@@ -334,14 +331,11 @@ export async function generateScript({ topic, inputType, fetched, config, ai, me
       if (videoDuration >= 180) {
         return await twoStageScript({ sourceText, title, sceneCount, wordsPerScene, videoDuration, language, llm, memory, angleLine });
       }
-      const hf = (config.visualMode === 'hyperframe');
       // soft scene-count range: the CONTENT decides the count, the prompt only nudges toward
       // the duration target. The hard >=70% floor (P4) still lives on the validate below.
       const minS = Math.max(1, Math.round(sceneCount * 0.75));
       const maxS = Math.max(minS + 1, Math.round(sceneCount * 1.25));
-      const sys = hf
-        ? 'You are a scriptwriter and motion designer for premium motion-graphics videos. Reply with pure JSON.'
-        : 'You are a short-form video scriptwriter. Reply with pure JSON.';
+      const sys = 'You are a scriptwriter and motion designer for premium motion-graphics videos. Reply with pure JSON.';
       const hfVisualRules = `
 Requirements for "visualPrompt" — a BRIEF for one premium animated INFOGRAPHIC scene (think motion designer, NOT a static website). Follow this exact frame, concise, 3-5 sentences:
 [MAIN OBJECT] one meaning-bearing hero graphic filling ~60% of the frame (e.g. an answer card with mock bullets; a node chain Assumption→Evidence→Conclusion lighting up in turn; sticky notes clustering into a workflow; a scanner line sweeping a card; a big stat with a rising line/bar) — built from SVG/divs + line-art icons.
@@ -350,7 +344,7 @@ Requirements for "visualPrompt" — a BRIEF for one premium animated INFOGRAPHIC
 VARIETY: NEVER repeat the same MAIN OBJECT type in 2 consecutive scenes (rotate: card / node-chain / big stat / list / split-compare / scanner…).
 CONTINUITY: the scenes share ONE evolving visual language (a consistent accent logic + a carried motif) so cuts feel smooth — vary the composition every scene, keep the language continuous.
 FORBIDDEN: "display text", static layouts, vague descriptions, invented copy, mixing English text into a non-English video.`;
-      const usr = `Write a video script from the content below. First PLAN the whole talk, then write it, then break it into scenes. Output JSON shaped {"title":"...","throughline":"ONE sentence: the single argument this whole video makes (an argument, not a topic)","spine":["step 1 = the exact situation/gap to open on","step 2 that DEPENDS ON step 1","…","final step = the payoff that resolves the opening gap"],"scenes":[{"voice":"the spoken narration line","visualPrompt":"${hf ? 'cinematic motion-graphics description in English' : 'visual description in English'}","keywords":["..."]}]}.
+      const usr = `Write a video script from the content below. First PLAN the whole talk, then write it, then break it into scenes. Output JSON shaped {"title":"...","throughline":"ONE sentence: the single argument this whole video makes (an argument, not a topic)","spine":["step 1 = the exact situation/gap to open on","step 2 that DEPENDS ON step 1","…","final step = the payoff that resolves the opening gap"],"scenes":[{"voice":"the spoken narration line","visualPrompt":"cinematic motion-graphics description in English","keywords":["..."]}]}.
 PLAN THEN WRITE (fill the JSON in THIS order — the plan is written BEFORE the scenes on purpose):
 1) "throughline": decide the ONE sentence this whole video argues.
 2) "spine": the ordered logical steps that prove it — open on the exact situation/gap, each step BUILDS ON and advances the one before it, end on the step that resolves the opening gap. Enough steps to fill ${videoDuration}s, no filler steps.
@@ -366,8 +360,7 @@ FLOW:
 - Middle scenes: each takes the SAME argument one dependent step further with its own concrete example; momentum comes from the idea deepening, never from asking questions.
 - Final scene: resolve the exact gap opened in Scene 1 as the single clearest takeaway, plus one natural line to subscribe.
 Natural conversational tone${language === 'vi' ? ', using the fixed Vietnamese forms of address "mình" (speaker) – "các bạn" (audience)' : ''}; ALL narration written in ${LANG_NAME[language] || language}.
-"keywords": 2-4 words/phrases present VERBATIM in THIS scene's "voice" — pick the strongest ones (numbers, power nouns); the graphics will emphasize these words AT THE EXACT MOMENT they are spoken, so a wrong pick desyncs visuals from audio.${hf ? hfVisualRules : `
-"visualPrompt" must illustrate THIS scene's specific idea (nothing generic), and never repeat the same layout style in 2 consecutive scenes.`}${bibleBlock(memory)}${angleLine}
+"keywords": 2-4 words/phrases present VERBATIM in THIS scene's "voice" — pick the strongest ones (numbers, power nouns); the graphics will emphasize these words AT THE EXACT MOMENT they are spoken, so a wrong pick desyncs visuals from audio.${hfVisualRules}${bibleBlock(memory)}${angleLine}
 Content:\n${sourceText.slice(0, 6000)}`;
       // enforce the scene count (≥70% of target) — lazy models love returning 2 scenes for a
       // 60s brief, which silently halves the video. chatJson re-asks once on validate failure.
@@ -393,7 +386,7 @@ Content:\n${sourceText.slice(0, 6000)}`;
 // Auto-duration verbatim mode: sentence-pack the owner's script into scenes WITHOUT touching
 // a single word, then (LLM on) one bounded decoration pass for title/visualPrompt/keywords.
 // Decoration failure degrades to the offline heuristics — the owner's text always survives.
-async function verbatimScript(sourceText, { title, wordsPerScene, language, llm, hf }) {
+async function verbatimScript(sourceText, { title, wordsPerScene, language, llm }) {
   // NOT splitSentences: its length>1 filter drops one-char fragments — verbatim mode must
   // preserve the paste exactly, so keep every non-empty piece.
   const sentences = String(sourceText || '').replace(/\s+/g, ' ')
@@ -420,10 +413,8 @@ async function verbatimScript(sourceText, { title, wordsPerScene, language, llm,
       const MAX_DECOR = 40; // idx-addressed merge below makes partial coverage safe
       const listing = scenes.slice(0, MAX_DECOR).map((s, i) => `${i + 1}. ${s.voice.slice(0, 220)}`).join('\n');
       const deco = await chatJson([
-        { role: 'system', content: hf
-          ? 'You are a motion designer for premium motion-graphics videos. Reply with pure JSON.'
-          : 'You are a video art director. Reply with pure JSON.' },
-        { role: 'user', content: `The script below is the channel owner's VERBATIM text — you must NOT rewrite a single word of the narration. Produce only the decoration. Output JSON {"title":"click-worthy title ≤60 chars in ${LANG_NAME[language] || language}","scenes":[{"idx":scene number (1-based),"visualPrompt":"${hf ? 'motion-graphics brief in English following the [MAIN OBJECT]/[ON-SCREEN TEXT]/[MOTION]/[MOOD] frame' : 'visual description in English'}","keywords":["that scene's 2-4 strongest VERBATIM words"]}]} — every element MUST carry the exact "idx" of the scene it describes. Never repeat the same layout style in 2 consecutive scenes. On-screen text in the SAME LANGUAGE as the narration (${LANG_NAME[language] || language}).
+        { role: 'system', content: 'You are a motion designer for premium motion-graphics videos. Reply with pure JSON.' },
+        { role: 'user', content: `The script below is the channel owner's VERBATIM text — you must NOT rewrite a single word of the narration. Produce only the decoration. Output JSON {"title":"click-worthy title ≤60 chars in ${LANG_NAME[language] || language}","scenes":[{"idx":scene number (1-based),"visualPrompt":"motion-graphics brief in English following the [MAIN OBJECT]/[ON-SCREEN TEXT]/[MOTION]/[MOOD] frame","keywords":["that scene's 2-4 strongest VERBATIM words"]}]} — every element MUST carry the exact "idx" of the scene it describes. Never repeat the same layout style in 2 consecutive scenes. On-screen text in the SAME LANGUAGE as the narration (${LANG_NAME[language] || language}).
 Script:\n${listing.slice(0, 6500)}` },
       ], { maxTokens: scenes.length * 90 + 500, attempts: 2,
         validate: (p) => Array.isArray(p.scenes) && p.scenes.length >= Math.ceil(scenes.length * 0.6), llm });

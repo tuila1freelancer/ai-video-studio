@@ -7,7 +7,6 @@ import { api, withLock } from '../api.js';
 import { toast } from '../ui/toast.js';
 import { state } from '../state.js';
 import { esc } from '../ui/dom.js';
-import { openTemplateGallery } from './template-gallery.js';
 
 let cur = null;          // scene currently open in the studio
 let htmlLoaded = false;  // template-source fetched for this open
@@ -19,24 +18,6 @@ export function initSceneStudio() {
   });
   $('#ssVoiceSave')?.addEventListener('click', () => withLock($('#ssVoiceSave'), saveVoice));
   $('#ssVisualSave')?.addEventListener('click', () => withLock($('#ssVisualSave'), saveVisual));
-  $('#ssTplGallery')?.addEventListener('click', () => {
-    if (!cur) return;
-    openTemplateGallery({
-      current: cur.template || null,
-      apply: async (tplId) => {
-        try {
-          await api.put(`/scenes/${cur.id}`, { template: tplId });
-          await api.post(`/scenes/${cur.id}/preview-frame`, {});
-          await syncScene();
-          htmlLoaded = false;
-          reloadPreview();
-          document.querySelector('#tplGalleryModal [data-close]')?.click();
-          note(`✓ Đã áp template "${tplId}" — render lại cảnh để nhận clip mới.`);
-          toast('🖼 Đã áp template.', 'success');
-        } catch (e) { toast('✗ ' + e.message, 'error'); }
-      },
-    });
-  });
   $('#ssHtmlApply')?.addEventListener('click', () => withLock($('#ssHtmlApply'), applyHtml));
   $('#ssHtmlReset')?.addEventListener('click', () => withLock($('#ssHtmlReset'), resetHtml));
   $('#ssReload')?.addEventListener('click', reloadPreview);

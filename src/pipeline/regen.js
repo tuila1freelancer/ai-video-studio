@@ -16,7 +16,7 @@ import { densityForScene } from '../hyperframe/prompt.js';
 import { resolveGuide } from '../styleguide/index.js';
 import { heroMediaUri } from '../util/asset-uri.js';
 import { hash32 } from '../util/util.js';
-import { planScene, resolveBrandKit, animSize, previewSceneFrame } from '../animation/index.js';
+import { animSize, previewSceneFrame } from '../animation/index.js';
 import { aiSettingsFor, ttsOverrideFor } from '../core/config.js';
 import { ttsFingerprint, fpStamp } from './fingerprint.js';
 
@@ -93,17 +93,6 @@ export async function regenOne(sceneId, what) {
         hookVisual,
       });
       const plan = { template: 'hyperframe', props: { ...props, qtier: tier || 'premium' } };
-      DB.updateScene(sc.id, { template: plan.template, props: plan.props, status: 'html', video_path: null });
-      const fresh = DB.getScene(sc.id);
-      const out = join(dir, 'render', `scene_${String(sc.idx).padStart(3, '0')}_preview.jpg`);
-      await previewSceneFrame(fresh, project, config, { outPath: out });
-      DB.updateScene(sc.id, { image_path: out });
-      DB.snapshotTake(DB.getScene(sc.id), 'visual', { active: true });
-      hub.toProject(project.id, { type: 'scene', sceneId: sc.id, idx: sc.idx, status: 'html', template: plan.template, image: `/api/file?path=${encodeURIComponent(out)}` });
-    } else if (vm === 'animation') {
-      // re-plan template + refresh preview frame
-      const total = DB.getScenes(project.id).length;
-      const plan = planScene(sc, { idx: sc.idx, total, title: project.title, brand: resolveBrandKit(config) });
       DB.updateScene(sc.id, { template: plan.template, props: plan.props, status: 'html', video_path: null });
       const fresh = DB.getScene(sc.id);
       const out = join(dir, 'render', `scene_${String(sc.idx).padStart(3, '0')}_preview.jpg`);
