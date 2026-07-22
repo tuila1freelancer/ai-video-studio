@@ -1,29 +1,25 @@
 // B5 — VISUALS. Assign each scene its graphics: animation templates, HyperFrame LLM codegen
 // (with an art-director direction pass first), or AI images. Bad/failed HyperFrame specs fall
 // back to the heuristic planner so the pipeline always completes.
-import { existsSync } from 'node:fs';
 import * as DB from '../../db/index.js';
 import { hub } from '../../ws/hub.js';
 import { logger } from '../../util/log.js';
 import { llmEnabled } from '../../providers/llm.js';
 import { generateDirections, hasDirection } from '../direction.js';
-import { imageGenEnabled } from '../../providers/imagegen.js';
 import { planScenes, resolveBrandKit, animSize } from '../../animation/index.js';
 import { generateSceneSpec } from '../../hyperframe/codegen.js';
 import { densityForScene } from '../../hyperframe/prompt.js';
 import { heroMediaUri } from '../../util/asset-uri.js';
 import { hash32 } from '../../util/util.js';
 import { resolveGuide } from '../../styleguide/index.js';
-import { buildSceneBackground } from '../visuals.js';
 import { withRetry } from '../../util/retry.js';
 import { checkStop, notStopped } from '../stop.js';
 import { step, op, retryHook } from '../progress.js';
-import { mapPool, visualOpts } from '../helpers.js';
-import { imageFingerprint, fpCurrent, fpStamp } from '../fingerprint.js';
+import { mapPool } from '../helpers.js';
 
 /** @param {import('../context.js').PipelineContext} ctx */
 export async function runVisuals(ctx) {
-  const { projectId, project, config, size, dir, ai, resume } = ctx;
+  const { projectId, project, config, ai } = ctx;
   const visualMode = config.visualMode || 'animation';
   const scenes = DB.getScenes(projectId);
   if (visualMode === 'animation') {
@@ -146,26 +142,6 @@ export async function runVisuals(ctx) {
     if (codegenFailures.length) {
       throw new Error(`HyperFrame codegen thất bại ở ${codegenFailures.length} cảnh (${codegenFailures.slice(0, 8).join(', ')}${codegenFailures.length > 8 ? '…' : ''}) sau 10 lần thử với model chính — không dùng fallback. Kiểm tra model/AI settings rồi resume để thử lại đúng các cảnh lỗi.`);
     }
-  } else {
-    step(projectId, 'b5', 'running', 'Tạo ảnh AI + dựng cảnh');
-    DB.updateProject(projectId, { current_step: 'b5' });
-    // Sequential image generation — concurrent requests get throttled by the free image API.
-    const b5c = imageGenEnabled() && config.richAnimation !== false ? 1 : 4;
-    await mapPool(scenes, b5c, async (sc) => {
-      checkStop(projectId);
-      if (resume && sc.image_path && existsSync(sc.image_path)) {
-        // content-hash resume: keep the background only while the visual brief is unchanged
-        if (fpCurrent(sc, 'img', imageFingerprint(sc, { config, ai, size }))) return;
-        op(projectId, `♻️ Cảnh ${sc.idx + 1}: mô tả hình ảnh đã thay đổi — dựng lại nền`);
-        DB.updateScene(sc.id, { video_path: null }); // the clip bakes the old background in
-      }
-      op(projectId, `🎨 Dựng cảnh ${sc.idx + 1}/${scenes.length}`);
-      // ai + guide: LLM-polished English prompt locked to the video's palette/motif
-      const bg = await buildSceneBackground(sc, project, size, { ...visualOpts(config, dir), ai, guide: resolveGuide(config) });
-      DB.updateScene(sc.id, { image_path: bg, status: 'html',
-        fp: fpStamp(sc, 'img', imageFingerprint(sc, { config, ai, size })) });
-      hub.toProject(projectId, { type: 'scene', sceneId: sc.id, idx: sc.idx, status: 'html', image: `/api/file?path=${encodeURIComponent(bg)}` });
-    });
   }
   step(projectId, 'b5', 'done');
   checkStop(projectId);

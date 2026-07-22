@@ -45,28 +45,15 @@ const RENDER_CFG_KEYS = /^(sub|brandKit|hyperframe|styleId|richAnimation|renderM
 export function renderFingerprint(scene, { config, project }) {
   const cfg = {};
   for (const [k, v] of Object.entries(config || {})) if (RENDER_CFG_KEYS.test(k)) cfg[k] = v;
-  // image_path is an INPUT only in image mode (the Ken-Burns background); in animation/
-  // hyperframe it is a preview OUTPUT of the render — including it there would make every
-  // resume read the clip as stale.
-  const imageMode = (config?.visualMode || 'animation') === 'image';
   return digest({
     tpl: scene.template || null,
     props: scene.props || null,
-    img: imageMode && scene.image_path ? String(scene.image_path).split('/').pop() : null,
+    // scene.image_path is a preview OUTPUT of the GSAP render (never a render INPUT), so it is
+    // deliberately excluded — including it would make every resume read the clip as stale.
+    // (It WAS an input for the removed image visual mode's Ken-Burns background.)
+    img: null,
     ar: project?.aspect_ratio || null,
     cfg,
-  });
-}
-
-/** Inputs that shape an image-mode scene background (image_path). */
-export function imageFingerprint(scene, { config, ai, size }) {
-  return digest({
-    vp: String(scene.visual_prompt || '').trim(),
-    style: config.styleId || null,
-    consistent: !!config.consistentScenes,
-    rich: config.richAnimation !== false,
-    prov: { p: ai?.imageGen?.provider || null, m: ai?.imageGen?.model || null },
-    w: size?.w, h: size?.h,
   });
 }
 

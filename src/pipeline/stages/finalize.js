@@ -32,7 +32,7 @@ export async function finalize(projectId, { dir, size, config, _qcAttempt = 0 })
   const renderDir = join(dir, 'render');
   const all = DB.getScenes(projectId).sort((a, b) => a.idx - b.idx);
   const missing = all.filter((s) => !(s.video_path && existsSync(s.video_path)));
-  if (missing.length && (config.visualMode || 'animation') !== 'image') {
+  if (missing.length) {
     // Never silently drop scenes from the final cut — repair them here.
     op(projectId, `🩹 ${missing.length} cảnh thiếu clip — render bù trước khi ghép…`);
     logger.warn(`Ghép video: ${missing.length} cảnh thiếu clip — đang render bù`, { projectId, stage: 'b7' });
@@ -43,8 +43,6 @@ export async function finalize(projectId, { dir, size, config, _qcAttempt = 0 })
       });
       DB.updateScene(sc.id, { video_path: r.path, duration: r.duration, status: 'rendered', error: null });
     }
-  } else if (missing.length) {
-    logger.warn(`Ghép video (chế độ ảnh): ${missing.length} cảnh thiếu clip — ghép phần còn lại`, { projectId, stage: 'b7' });
   }
   const scenes = DB.getScenes(projectId).filter((s) => s.video_path && existsSync(s.video_path)).sort((a, b) => a.idx - b.idx);
   const clips = scenes.map((s) => s.video_path);
@@ -107,7 +105,7 @@ export async function finalize(projectId, { dir, size, config, _qcAttempt = 0 })
   // valid plan (offline, empty library, bad reply) → sdPlan stays null and the
   // deterministic legacy audio below ships unchanged.
   let sdPlan = null;
-  if (config.soundDesign !== false && visualMode !== 'image' && expectDur > 0) {
+  if (config.soundDesign !== false && expectDur > 0) {
     try {
       const ai = DB.aiSettings();
       sdPlan = await planSoundDesign({
@@ -134,7 +132,7 @@ export async function finalize(projectId, { dir, size, config, _qcAttempt = 0 })
   // auto whooshes on chapter transitions (autoSfx gate; skipped when the LLM plan owns
   // emphasis). Any failure just skips SFX.
   let sfxPath = null;
-  if (visualMode !== 'image' && expectDur > 0) {
+  if (expectDur > 0) {
     let t = 0; const events = [];
     scenes.forEach((s, k) => {
       // event times land on the FINAL timeline: material time minus the xfade overlap
@@ -209,7 +207,7 @@ export async function finalize(projectId, { dir, size, config, _qcAttempt = 0 })
     if (!qc.ok) {
       const badIdx = [...new Set(qc.issues.map((i) => i.sceneIdx).filter((n) => n != null))];
       logger.warn(`QC: ${qc.issues.length} vấn đề (${qc.issues.map((i) => i.type).join(', ')}) — cảnh liên quan: ${badIdx.join(', ') || 'không xác định'}`, { projectId });
-      if (badIdx.length && _qcAttempt < 1 && visualMode !== 'image') {
+      if (badIdx.length && _qcAttempt < 1) {
         op(projectId, `🩹 QC phát hiện lỗi ở ${badIdx.length} cảnh — render lại và ghép lại…`);
         const pp2 = progressPlan(all, config);
         for (const idx of badIdx) {

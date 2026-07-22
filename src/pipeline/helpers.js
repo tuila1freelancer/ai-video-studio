@@ -1,9 +1,8 @@
-// Shared pipeline helpers with no stage-specific logic: bounded concurrency, output-dir
-// resolution, per-project visual/subtitle option assembly.
+// Shared pipeline helpers with no stage-specific logic: bounded concurrency + output-dir
+// resolution.
 import { existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import * as DB from '../db/index.js';
-import { assStyleFrom } from '../subtitles/presets.js';
 import { acquire } from './governor.js';
 
 /**
@@ -40,21 +39,3 @@ export function resolveOutputDir(projectId, config, dir) {
   } catch { return join(dir, 'output'); }
 }
 
-function styleNameOf(id) {
-  const s = DB.listStyles('scene').find((x) => x.id === id);
-  return s ? s.name : 'Cinematic';
-}
-
-/** Image-mode visual options (background builder dir + style + consistency flag). */
-export function visualOpts(config, dir) {
-  return {
-    dir: join(dir, 'html'),
-    mode: config.richAnimation === false ? 'graphic' : undefined,
-    styleName: styleNameOf(config.styleId),
-    consistent: !!config.consistentScenes,
-  };
-}
-
-// ASS style resolves through the shared subtitle-preset catalog (same source as the
-// animation captions) — identical output to the old inline object when no preset.
-export function subtitleStyleFrom(config) { return assStyleFrom(config); }
