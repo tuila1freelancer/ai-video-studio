@@ -31,7 +31,7 @@ WHAT MAKES A SCENE GOOD (the five masters — HOW you achieve them is your call)
 
 THE REFERENCE STANDARD — the quality bar every scene must hit, with YOUR OWN unique composition each time:
 
-■ STAGE — LIT, LAYERED, ATMOSPHERIC. Build real depth IN YOUR SCENE (beyond the themed backdrop the harness already renders): a mid layer with 1–2 soft glow orbs in scene-appropriate accent (a blurred radial div, blur ≥60px, opacity ≤ .3), a faint structural texture (grid lines, ticks, an oversized ghost glyph/number at opacity .04–.08), and the near hero. Give the mid layer a slow parallax drift (FX.parallax) — the camera never sleeps. One light-beam or streak sweep every ~5–7s (FX.beamSweep on the stage's .hf-beam) keeps quiet stretches alive. A flat single-plane frame reads cheap.
+■ STAGE — LIT, LAYERED, ATMOSPHERIC. Build real depth IN YOUR SCENE (beyond the themed backdrop the harness already renders): a mid layer with 1–2 soft glow orbs in scene-appropriate accent (a blurred radial div, blur ≥60px, opacity ≤ .3), a faint structural texture (grid lines, ticks, an oversized ghost glyph/number at opacity .04–.08), and the near hero. Author these as THREE planes inside <div class="hf-cam"> — .hf-far (accent texture), .hf-mid (the parallax orbs / ghost glyph), .hf-near (the hero + labels) — sitting on top of the harness backdrop (particles/vignette/grain). Give the mid layer a slow parallax drift (FX.parallax) — the camera never sleeps. One light-beam or streak sweep every ~5–7s (FX.beamSweep on the stage's .hf-beam) keeps quiet stretches alive. A flat single-plane frame reads cheap.
 
 ■ HERO — A DENSE, CRAFTED INSTRUMENT, BUILT AS ONE UNIT. Build the hero from MANY SMALL PARTS — reach for 8–20 crafted sub-parts, data-textured, never a lone shape or a bare floating word. THE WHOLE INSTRUMENT LIVES IN ONE SLOT: the slot holds the construction's wrapper div, and the parts (rows, ticks, labels, needle, readouts) are its CHILDREN — never scatter one instrument's parts across separate sibling slots (that reads as floating confetti, not a crafted device). Other slots hold the headline, the counterweight, satellites. Archetypes to spark ideas (invent your own too): a glass HUD card holding a stat + status line + mini readout + corner ticks; a rack of glowing rows that light up in narration order; a code/answer card whose faux lines fill in; a drawn chart with axis ticks + scale numbers + a ghost number behind; a node graph whose links draw on; a compass/gauge/radar instrument with needle + ring + labels. Rich STANDING composition, calm MOTION: only ONE thing moves at a time. SURFACES MUST READ: every panel/card carries a VISIBLE 1px light border (rgba(255,255,255,.14) or an accent at .3+) and a soft inner top highlight — a fill darker than the stage with no border disappears into the background.
 
@@ -153,8 +153,53 @@ export function viewportBlock(w, h, captionsOn) {
   ].join('\n');
 }
 
+// P37 (reference-parity): the reference app hands the model EXACT GSAP values (its
+// {{ANIMATION_SPEC}} + {{TIMELINE_SKELETON}} blocks), not just doctrine — that concreteness is
+// most of why its scenes land cleaner. We emit the same, but in OUR linted `tl.*`/`FX.*`
+// vocabulary (never raw `gsap.*`, which lint.js rejects), derived from the scene's cinematic
+// direction + motion signature + the real beat table.
+const CAMERA_MOVE = {
+  push_in: "{ scale: 1.06, profile: 'front' }",
+  aggressive_zoom: "{ scale: 1.10, profile: 'front' }",
+  dramatic_pan: '{ x: -24, y: 8 }',
+  slow_pan: "{ x: -16, profile: 'front' }",
+  subtle_zoom: "{ scale: 1.04, profile: 'front' }",
+};
+function easeFor(energy) {
+  return energy === 'high' ? 'expo.out' : energy === 'dramatic' ? 'power3.out' : energy === 'low' ? 'sine.inOut' : 'power2.out';
+}
+export function animationSpecBlock(direction, sig, beats, duration) {
+  const cam = CAMERA_MOVE[direction.camera] || CAMERA_MOVE.subtle_zoom;
+  const ease = easeFor(direction.energy);
+  const enterIn = direction.energy === 'high' ? 'carrier' : 'rise';
+  const pulseDur = 1.6;
+  const beamAt = Math.min(+duration * 0.4, 2.6).toFixed(2);
+  return `ANIMATION SPEC — use THESE exact values when you author the GSAP (all in the tl.*/FX.* vocabulary; NEVER call gsap.* directly):
+▶ CAMERA (once, at 0): FX.camPush(tl, ${cam}) — the simulated camera completes its move in the FIRST half, then holds (no back-half drift).
+▶ MOTION per element (feel: ${sig.name} — ${sig.ease}):
+  • ENTRY on the beat: FX.beat(tl, '<sel>', <t0>, <t1>, { 'in': '${enterIn}', out: 'settle' }) — arrival 0.35–0.5s, ease ${ease}; rotate the 'in' across the entrance library (never the same twice in a row).
+  • IDLE between beats: FX.parallax(tl, '.hf-mid > *', { amp: 13 }) for the depth layer + FX.jitter(tl, '<settled-el>', { amp: 2 }) so a held element still breathes (never static > 0.5s).
+  • PULSE for emphasis: FX.pulseGlow(tl, '<hero>', { at: <t>, dur: ${pulseDur}, repeat: Math.max(1, Math.ceil(DUR / ${pulseDur}) - 1) }) — finite repeats only.
+  • EXIT: FX.beat's out — 'settle' keeps a dimmed element in the accumulating build; 'whip'/'flip'/'blur' clears a flash beat before the next enters.
+▶ FX: FX.beamSweep(tl, '.hf-beam', { at: ${beamAt} }) once every ~5–7s to keep quiet stretches alive; FX.impact(tl, '<climax-el>', { at: <≈DUR-0.5> }) on the final beat. The grain / scanlines / vignette / progress bar are HARNESS-OWNED — do NOT author them.`;
+}
+export function timelineSkeletonBlock(beats, direction, duration) {
+  const dur = +(+duration).toFixed(2);
+  const bs = Array.isArray(beats) ? beats : [];
+  const lines = ['// t=0.00s — the frame is NEARLY EMPTY: ambient + at most a kicker; content enters PER BEAT below.'];
+  bs.forEach((b, i) => {
+    const out = i === bs.length - 1 ? 'none' : 'settle';
+    lines.push(`// t=${(+b.t0).toFixed(2)}s → ${(+b.t1).toFixed(2)}s | "${b.text}" — FX.beat(tl, '<sel>', ${(+b.t0).toFixed(2)}, ${(+b.t1).toFixed(2)}, { 'in': '…', out: '${out}' });`);
+  });
+  const climaxT = Math.max(0, dur - 0.5).toFixed(2);
+  lines.push(`// t≈${climaxT}s — CLIMAX: the final element lands biggest (scale +15–25% over the earlier type)${direction.isClimax ? ', echo the hook motif,' : ''} FX.impact on it, then HOLD to DUR=${dur}s with a soft afterglow — the scene must END full, not fade to nothing.`);
+  return `TIMELINE SKELETON — fill in THIS timeline (one entrance per beat, at the beat's real time; pick each element's 'in' from the entrance library):
+${lines.join('\n')}`;
+}
+
 export function buildCodegenPrompt({ scene, beats, direction, guide, w, h, duration, idx, total, density, creativeDirection, hookVisual = '', captionsOn = true, modeBlocks = [], diversitySalt = 0 }) {
   const vertical = h > w;
+  const sig = motionSignature(direction, idx, diversitySalt);
   const densityNote = DENSITY_NOTE[density] || DENSITY_NOTE.rich; // rich is the house default — sparse scenes read cheap
   const subNote = captionsOn
     ? 'SUBTITLES: ON — reserve the bottom ~22% of the frame for the karaoke subtitle band; keep foreground content above it.'
@@ -182,7 +227,11 @@ VISUAL CONCEPT (an art-director's brief — let it INSPIRE your design: match it
 CINEMATIC DIRECTION:
 ${directionBlock(direction)}
 
-${signatureBlock(motionSignature(direction, idx, diversitySalt))}
+${signatureBlock(sig)}
+
+${animationSpecBlock(direction, sig, beats, duration)}
+
+${timelineSkeletonBlock(beats, direction, duration)}
 
 BEAT TIMELINE (from the real voice word-timestamps — the visual for each beat must appear at t0 and be gone by t1):
 ${beatsBlock(beats, duration)}

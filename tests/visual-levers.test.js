@@ -53,7 +53,7 @@ test('P35 preset effects/ambient reach the codegen prompt (the wired-but-empty b
 
 test('P35 source pins: density-scaled gates + dialogue-match + contrast honesty in validate', () => {
   const v = src('../src/hyperframe/validate.js');
-  assert.match(v, /density === 'rich' \? 8 : 6/, 'hero-parts floor scales with density');
+  assert.match(v, /density === 'rich' && maxHeroParts < 4/, 'P37: hero-density is a rich-only soft nudge (relaxed from the P35 8/6 floor)');
   assert.match(v, /sparseUnion/, 'sparse thresholds scale with density');
   assert.match(v, /never appear on screen/, 'positive dialogue-match gate exists');
   assert.match(v, /ratio<3\.5/, 'PROBE collects up to the headline floor');

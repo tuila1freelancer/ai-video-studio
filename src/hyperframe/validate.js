@@ -210,9 +210,8 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
   // P35: the gates scale with the scene's density tier — 'rich' scenes must actually BE
   // rich (heroParts ≥8, wider coverage), 'minimal' scenes may legitimately breathe.
   const sparseHero = density === 'rich' ? 0.35 : density === 'minimal' ? 0.22 : 0.30;
-  const sparseUnion = density === 'rich' ? 0.55 : density === 'minimal' ? 0.30 : 0.44;
-  const heroFloor = density === 'rich' ? 8 : 6;
-  if (!chromeAvailable()) return { ok: true, skipped: true, defects: [] };
+  const sparseUnion = density === 'rich' ? 0.50 : density === 'minimal' ? 0.30 : 0.44;
+  if (!chromeAvailable()) return { ok: true, skipped: true, defects: [], softDefects: [] };
   const dur = Math.max(1.5, duration);
   const g = normalizeGuide(guide || spec.guide);
   const theme = themeFromGuide(g);
@@ -226,13 +225,18 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
   const browser = await getBrowser();
   const page = await browser.newPage();
   const defects = [];
+  // P37: caliber "nudge" findings (sparse / hero-density / dialogue-match / beat-adherence)
+  // live here — codegen only re-asks on them in the FIRST few attempts, so they push toward
+  // the reference look without homogenizing a good bespoke scene that already cleared every
+  // HARD readability gate. `ok` reflects only the HARD `defects`.
+  const softDefects = [];
   try {
     await page.setViewport({ width: w, height: h, deviceScaleFactor: 1 });
     await page.setContent(html, { waitUntil: 'load', timeout: 20000 });
     const init = await page.evaluate(() => window.__init());
     if (init.tplErr) {
       defects.push(`your script threw at runtime: "${init.tplErr}". Only use documented FX.* helpers and tl.* methods; do not reference undefined variables or functions.`);
-      return { ok: false, defects };
+      return { ok: false, defects, softDefects };
     }
     const tlDur = await page.evaluate(() => (window.__tl ? window.__tl.totalDuration() : 0));
 
@@ -350,7 +354,7 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
     // is fine (the model chooses the arrangement); this just catches the lone-small-keyword miss,
     // so the threshold is deliberately loose and does NOT force a single dominant hero.
     if (!overlay && anyVisible && heroFrac > 0 && heroFrac < sparseHero && unionFrac < sparseUnion) {
-      defects.push(`the scene reads sparse${density === 'rich' ? ' for a RICH-density scene' : ''} — the widest element spans ${Math.round(heroFrac * 100)}% and everything together covers only ${Math.round(unionFrac * 100)}% of the frame width, leaving most of it empty. Fill the frame more — spread the composition across the width or enlarge the main element (the arrangement is yours; just don't leave it near-empty).`);
+      softDefects.push(`the scene reads sparse${density === 'rich' ? ' for a RICH-density scene' : ''} — the widest element spans ${Math.round(heroFrac * 100)}% and everything together covers only ${Math.round(unionFrac * 100)}% of the frame width, leaving most of it empty. Fill the frame more — spread the composition across the width or enlarge the main element (the arrangement is yours; just don't leave it near-empty).`);
     }
     // overlay contract: the footage must stay visible — solid paint may not blanket the
     // center window (transient entrances are tolerated by the 0.45-alpha/held threshold).
@@ -365,8 +369,10 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
     // reference-caliber gates (re-ask drivers, cosmetic class — a scene still short after all
     // attempts ships as 'imperfect' LOUDLY rather than killing the run):
     // hero density — the standing composition must be a crafted instrument, not scattered bits
-    if (caliber && !overlay && anyVisible && maxHeroParts < heroFloor && density !== 'minimal') {
-      defects.push(`the hero construction carries only ${maxHeroParts} crafted sub-parts${density === 'rich' ? ' (this is a RICH-density scene)' : ''} — build the main instrument from 8-20 parts (rows / ticks / labels / readouts / needle) INSIDE ONE container or slot, so the frame reads as a crafted device, never scattered fragments.`);
+    // P37: only NUDGE a RICH scene that is genuinely bare (<4 parts) — a balanced scene, or a
+    // rich one with a handful of parts, gets the latitude the reference app allows.
+    if (caliber && !overlay && anyVisible && density === 'rich' && maxHeroParts < 4) {
+      softDefects.push(`the hero construction carries only ${maxHeroParts} crafted sub-parts (this is a RICH-density scene) — build the main instrument from more parts (rows / ticks / labels / readouts / needle) INSIDE ONE container or slot, so the frame reads as a crafted device, never scattered fragments.`);
     }
     // primary type treatment — the biggest word must look expensive
     if (caliber && anyVisible && primaryInfo && primaryInfo.fs >= 0.05 * Math.min(w, h) && !primaryInfo.grad && !primaryInfo.stroke && !primaryInfo.sh) {
@@ -390,7 +396,7 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
       if (!responded) missed.push(p.t0);
     }
     if (beatPairs.length >= 2 && missed.length >= 2 && missed.length >= Math.ceil(beatPairs.length / 2)) {
-      defects.push(`the beats at ${missed.slice(0, 3).map((t) => t.toFixed(1) + 's').join(', ')} produce no visual response — nothing enters or takes emphasis when those words are spoken. Schedule an entrance or emphasis EXACTLY at each beat's t0 (FX.beat / FX.accents) so the graphics land on the spoken words.`);
+      softDefects.push(`the beats at ${missed.slice(0, 3).map((t) => t.toFixed(1) + 's').join(', ')} produce no visual response — nothing enters or takes emphasis when those words are spoken. Schedule an entrance or emphasis EXACTLY at each beat's t0 (FX.beat / FX.accents) so the graphics land on the spoken words.`);
     }
     // P35 dialogue-match (cosmetic re-ask): the beat labels ARE the narration's anchor
     // words — a majority of them must actually APPEAR on screen at/after their moment.
@@ -400,13 +406,13 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
       const beatTokens = (b) => foldTxt(b.text || '').split(/[^\p{L}\p{N}%]+/u)
         .filter((k) => k.length >= 3 || /^\d+%?$/.test(k));
       const labeled = (beats || []).filter((b) => beatTokens(b).length);
-      if (labeled.length >= 3) {
+      if (labeled.length >= 4) {
         const missing = labeled.filter((b) => {
           const toks = beatTokens(b);
           return !seenTexts.some((s2) => s2.t >= (b.t0 || 0) - 0.1 && toks.some((k) => s2.f.includes(k)));
         });
-        if (missing.length / labeled.length > 0.4) {
-          defects.push(`the spoken anchor words ${missing.slice(0, 3).map((b) => `"${b.text}"`).join(', ')} never appear on screen — anchor each beat with its own keyword/number/label (a matching icon needs a short label too) so the graphics SPEAK the narration instead of just decorating it.`);
+        if (missing.length / labeled.length > 0.6) {
+          softDefects.push(`the spoken anchor words ${missing.slice(0, 3).map((b) => `"${b.text}"`).join(', ')} never appear on screen — anchor each beat with its own keyword/number/label (a matching icon needs a short label too) so the graphics SPEAK the narration instead of just decorating it.`);
         }
       }
     }
@@ -434,7 +440,7 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
       const sel = o.id ? `#${o.id}` : (o.cls ? `.${o.cls}` : '');
       if (sel && !contrastFix.some((c) => c.sel === sel)) contrastFix.push({ sel, txt: o.txt, ratio: o.ratio });
     }
-    return { ok: defects.length === 0, defects, tlDur: Number.isFinite(tlDur) ? +tlDur.toFixed(2) : null, contrastFix };
+    return { ok: defects.length === 0, defects, softDefects, tlDur: Number.isFinite(tlDur) ? +tlDur.toFixed(2) : null, contrastFix };
   } catch (e) {
     return { ok: true, skipped: true, defects: [], error: String(e.message || e) }; // never block codegen on a harness hiccup
   } finally { await page.close().catch(() => {}); }
