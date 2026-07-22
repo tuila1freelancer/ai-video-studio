@@ -98,9 +98,9 @@ test('acceptSuggestion: reviewed config + assistantBrief + title variant reach t
 
 test('scheduleSuggestion → cancel slot: config rides the slot, cancellation restores the idea', () => {
   const [r] = DB.recordSuggestionBatch({ topics: [{ topic: 'Chủ đề hẹn lịch thử', angle: 'Góc B' }] });
-  const { slot } = scheduleSuggestion(r.id, { dueAt: Date.now() + 3600e3, config: { visualMode: 'animation' } });
+  const { slot } = scheduleSuggestion(r.id, { dueAt: Date.now() + 3600e3, config: { visualMode: 'hyperframe' } });
   assert.equal(slot.status, 'queued');
-  assert.equal(slot.config.visualMode, 'animation');
+  assert.equal(slot.config.visualMode, 'hyperframe');
   assert.equal(slot.config.assistantBrief.suggestionId, r.id);
   assert.equal(DB.getSuggestion(r.id).status, 'scheduled');
   assert.equal(DB.getSuggestion(r.id).slot_id, slot.id);

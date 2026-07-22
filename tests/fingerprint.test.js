@@ -5,9 +5,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ttsFingerprint, renderFingerprint, fpCurrent } from '../src/pipeline/fingerprint.js';
 
-const scene = { voice_text: 'Xin chào các bạn', template: 'hero-title', props: { a: 1, b: 2 }, fp: null };
+const scene = { voice_text: 'Xin chào các bạn', template: 'kinetic-statement', props: { a: 1, b: 2 }, fp: null };
 const ctx = {
-  config: { language: 'vi', visualMode: 'animation' },
+  config: { language: 'vi', visualMode: 'hyperframe' },
   channel: null,
   ai: { tts: { provider: 'edge', edgeVoice: 'auto' }, subtitle: { engine: 'estimate' } },
   project: { aspect_ratio: '9:16' },
@@ -26,7 +26,7 @@ test('a voice edit moves the tts fingerprint; an api-key rotation does not', () 
   assert.equal(base, ttsFingerprint(scene, { ...ctx, ai: { ...ctx.ai, tts: { ...ctx.ai.tts, apiKey: 'ROTATED' } } }));
 });
 
-test('render fingerprint ignores preview images in animation mode but tracks props edits', () => {
+test('render fingerprint ignores preview images but tracks props edits', () => {
   const base = renderFingerprint(scene, ctx);
   assert.equal(base, renderFingerprint({ ...scene, image_path: '/x/scene_001_preview.jpg' }, ctx));
   assert.notEqual(base, renderFingerprint({ ...scene, props: { a: 1, b: 3 } }, ctx));
