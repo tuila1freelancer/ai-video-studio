@@ -36,7 +36,7 @@ const { project } = await api('/api/projects', { method: 'POST', body: JSON.stri
   topic: TOPIC,
   config: { aspectRatio: process.env.AVS_AR || '9:16', videoDuration: VIDEO_DURATION, sceneDuration: 6, enableSubtitles: true,
     subtitleColor: '#F7B500', subtitleFontSize: 80, richAnimation: true, autoConcat: true, renderMode: 'screenshot',
-    visualMode: process.env.AVS_MODE || 'animation', theme: process.env.AVS_THEME || 'neon-tech',
+    visualMode: 'hyperframe',
     fps: parseInt(process.env.AVS_FPS || '30', 10), watermarkText: 'ai video studio',
     parallelTTS: true, ttsConcurrency: 4, renderConcurrency: parseInt(process.env.AVS_RC || '3', 10),
     ...extraCfg },

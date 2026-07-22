@@ -47,7 +47,7 @@ export function syncSegs() {
 
 export function gatherConfig() {
   return {
-    visualMode: $('#cfgVisualMode').value,
+    visualMode: 'hyperframe', // single visual mode (P36)
     hyperframe: {
       styleId: state.hfStyleId || 'tuila1-hud-cyber',
       ...(state.hfGuide ? { guide: state.hfGuide } : {}),
@@ -61,7 +61,6 @@ export function gatherConfig() {
       ? { enabled: true, source: $('#cfgOverlaySrc')?.value.trim() || null }
       : { enabled: false },
     soundDesign: $('#cfgSoundDesign') ? $('#cfgSoundDesign').checked : true,
-    theme: $('#cfgTheme').value,
     fps: +$('#cfgFps').value,
     resolutionScale: +$('#cfgRes').value,
     watermarkText: $('#cfgWatermark').value.trim(),
@@ -80,7 +79,6 @@ export function gatherConfig() {
     subtitlePosition: { preset: $('#cfgSubPos').value, marginV: 0.12 },
     bgmPath: $('#cfgBgm').value || null,
     useDefaultBgm: !!$('#cfgBgm').value,
-    styleId: $('#cfgStyle').value,
     ...($('#cfgBrandFont')?.value ? { fonts: { display: $('#cfgBrandFont').value } } : {}),
     autoConcat: $('#cfgAutoConcat').checked,
     requireReview: $('#cfgReview')?.checked || false,
@@ -88,7 +86,6 @@ export function gatherConfig() {
     // ALWAYS explicit: an omitted key would let a channel/preset 'auto' silently win the
     // config merge while the panel shows target mode.
     durationMode: $('#cfgDurMode')?.value === 'auto' ? 'auto' : 'target',
-    richAnimation: $('#cfgRich').checked,
     transitions: $('#cfgTrans').checked,
     autoBgm: $('#cfgBgmAuto').checked,
     generateMetadata: $('#cfgMeta').checked,
@@ -100,18 +97,15 @@ export function gatherConfig() {
   };
 }
 export function applyConfig(cfg = {}) {
-  $('#cfgVisualMode').value = cfg.visualMode || 'hyperframe';
   state.hfStyleId = cfg.hyperframe?.styleId || 'tuila1-hud-cyber';
   state.hfGuide = cfg.hyperframe?.guide || null;
   if ($('#cfgHfDensity')) $('#cfgHfDensity').value = cfg.hyperframe?.density || 'balanced';
   if ($('#cfgHfDirection')) $('#cfgHfDirection').value = cfg.hyperframe?.direction || '';
   if ($('#cfgHfModel')) $('#cfgHfModel').value = cfg.hyperframe?.model || '';
   renderHfStyleButton();
-  if (cfg.theme) $('#cfgTheme').value = cfg.theme;
   if (cfg.fps) $('#cfgFps').value = cfg.fps;
   if (cfg.resolutionScale) $('#cfgRes').value = cfg.resolutionScale;
   $('#cfgWatermark').value = cfg.watermarkText || '';
-  syncVisualModeOpts();
   if (cfg.aspectRatio) $('#cfgAr').value = cfg.aspectRatio;
   if (cfg.videoDuration) $('#cfgVd').value = cfg.videoDuration;
   if (cfg.sceneDuration) $('#cfgSd').value = cfg.sceneDuration;
@@ -136,7 +130,6 @@ export function applyConfig(cfg = {}) {
   if ('requireReview' in cfg && $('#cfgReview')) $('#cfgReview').checked = cfg.requireReview === true;
   if ('sceneGate' in cfg && $('#cfgSceneGate')) $('#cfgSceneGate').checked = cfg.sceneGate === true;
   if ($('#cfgDurMode')) $('#cfgDurMode').value = cfg.durationMode === 'auto' ? 'auto' : 'target';
-  if ('richAnimation' in cfg) $('#cfgRich').checked = cfg.richAnimation !== false;
   if ('transitions' in cfg) $('#cfgTrans').checked = !!cfg.transitions;
   if ('autoBgm' in cfg) $('#cfgBgmAuto').checked = cfg.autoBgm !== false;
   if ('generateMetadata' in cfg) $('#cfgMeta').checked = cfg.generateMetadata !== false;
@@ -151,14 +144,7 @@ export function applyConfig(cfg = {}) {
   updateEstimate(); updateSubPreview(); syncSegs(); updateCfgChips();
 }
 
-function syncVisualModeOpts() {
-  const mode = $('#cfgVisualMode').value;
-  $('#animOpts').style.display = mode === 'animation' ? 'block' : 'none';
-  const hf = $('#hfOpts'); if (hf) hf.style.display = mode === 'hyperframe' ? 'block' : 'none';
-  updateEstimate();
-}
 function wireConfig() {
-  $('#cfgVisualMode').addEventListener('change', syncVisualModeOpts);
   $('#cfgOverlay')?.addEventListener('change', () => { const oo = $('#overlayOpts'); if (oo) oo.style.display = $('#cfgOverlay').checked ? 'block' : 'none'; });
   wireHfStyle();
   $('#cfgVd').addEventListener('input', updateEstimate);
@@ -178,13 +164,11 @@ export function updateEstimate() {
   $('#cfgVdL').textContent = auto ? 'tự động' : (vd >= 60 ? `${Math.round(vd / 60 * 10) / 10} phút` : `${vd} giây`);
   $('#cfgSdL').textContent = `${sd} giây`;
   if (auto) {
-    const hfAuto = $('#cfgVisualMode').value === 'hyperframe'
-      ? ' ⚠ HyperFrame gọi AI theo TỪNG cảnh — kịch bản dài sẽ tốn chi phí tương ứng.' : '';
-    $('#cfgEst').textContent = `🪄 Giữ NGUYÊN VĂN kịch bản bạn dán vào — thời lượng video = tổng lời thoại (cần ≥80 từ, nếu ngắn hơn sẽ chạy theo mục tiêu).${hfAuto}`;
+    $('#cfgEst').textContent = '🪄 Giữ NGUYÊN VĂN kịch bản bạn dán vào — thời lượng video = tổng lời thoại (cần ≥80 từ, nếu ngắn hơn sẽ chạy theo mục tiêu). ⚠ HyperFrame gọi AI theo TỪNG cảnh — kịch bản dài sẽ tốn chi phí tương ứng.';
     return;
   }
   const scenes = Math.max(1, Math.round(vd / sd));
-  const hfWarn = $('#cfgVisualMode').value === 'hyperframe' && scenes > 40
+  const hfWarn = scenes > 40
     ? ` — ⚠ HyperFrame gọi AI cho từng cảnh (${scenes} lần): video dài sẽ tốn thời gian + chi phí` : '';
   // (sd − 0.65s nghỉ) × 4.4 wps × 0.95 — đúng công thức wordsForSlot của máy viết kịch bản (vi)
   const wpsScene = Math.max(8, Math.round((sd - 0.65) * 4.4 * 0.95));
@@ -294,15 +278,7 @@ function wireHfStyle() {
   renderHfStyleButton();
 }
 
-// ---------------- styles / templates / bgm ----------------
-export async function loadStyles() {
-  const { styles } = await api.get('/styles?kind=scene');
-  state.styles = styles;
-  $('#cfgStyle').innerHTML = styles.map((s) => `<option value="${s.id}">${esc(s.name)}</option>`).join('');
-}
-export async function loadTemplates() {
-  try { const { templates } = await api.get('/animation/templates'); state.templates = templates || []; } catch { state.templates = []; }
-}
+// ---------------- bgm ----------------
 export async function loadBgmOptions() {
   const { items } = await api.get('/library/bgm');
   $('#cfgBgm').innerHTML = '<option value="">— Không —</option>' + items.map((i) => `<option value="${esc(i.path)}">${esc(i.name)}</option>`).join('');
@@ -381,10 +357,8 @@ function wireConfigGroups() {
 export function updateCfgChips() {
   const set = (k, v) => { const n = document.querySelector(`.cfg-chip[data-chip="${k}"]`); if (n) n.textContent = v; };
   const selText = (id) => { const s = $(id); return s?.selectedOptions?.[0]?.textContent.trim() || ''; };
-  const vm = $('#cfgVisualMode').value;
-  const mode = vm === 'animation' ? 'Animation' : vm === 'hyperframe' ? 'HyperFrame ✨' : 'Ảnh AI';
-  const theme = vm === 'animation' ? ` · ${selText('#cfgTheme').replace(' (mặc định)', '')}`
-    : vm === 'hyperframe' ? ` · ${hfCurrentStyle().name || 'Chrome Kinetic'}` : '';
+  const mode = 'HyperFrame ✨';
+  const theme = ` · ${hfCurrentStyle().name || 'Chrome Kinetic'}`;
   const res = $('#cfgRes').value === '2' ? '4K' : '1080p';
   const durTxt = $('#cfgDurMode')?.value === 'auto' ? '🪄 tự động' : fmtDur(+$('#cfgVd').value);
   set('format', `${mode}${theme} — ${$('#cfgAr').value} · ${$('#cfgFps').value}fps · ${res} · ${durTxt} · cảnh ${$('#cfgSd').value}s`);
@@ -405,10 +379,10 @@ export function updateCfgChips() {
   set('audio', `Giọng: ${voice} · ${$('#cfgBgm').value ? `BGM: ${selText('#cfgBgm')}` : ($('#cfgBgmAuto').checked ? 'BGM tự động' : 'không BGM')}`);
   const flags = [
     $('#cfgSceneGate')?.checked && 'Duyệt cảnh trước 🎬', $('#cfgReview')?.checked && 'Duyệt trước ghép',
-    $('#cfgTrans').checked && 'Xfade', $('#cfgRich').checked && 'Ảnh AI',
+    $('#cfgTrans').checked && 'Xfade',
     $('#cfgMeta').checked && 'Metadata', $('#cfgPTts').checked && `TTS ×${$('#cfgTtsC').value}`, $('#cfgPRender').checked && `Render ×${$('#cfgRenderC').value}`,
   ].filter(Boolean).join(' · ');
-  set('advanced', `${selText('#cfgStyle') || 'Style mặc định'}${flags ? ' — ' + flags : ''}`);
+  set('advanced', flags || 'Mặc định');
 }
 
 // ================= channel presets bar =================

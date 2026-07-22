@@ -38,7 +38,7 @@ export async function repurposeProject(sourceId, { aspectRatio } = {}) {
     voice: s.voice_text, visualPrompt: s.visual_prompt, keywords: s.keywords,
     template: s.template, props: s.props,
   })));
-  const visualMode = config.visualMode || 'animation';
+  const visualMode = config.visualMode || 'hyperframe';
   for (let i = 0; i < cloned.length; i++) {
     const s = srcScenes[i];
     DB.updateScene(cloned[i].id, {

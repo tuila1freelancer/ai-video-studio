@@ -7,7 +7,7 @@ import { initHome } from './views/home.js';
 import { initStudio, initWs, loadProjects, openProject } from './views/studio.js';
 import { initScenes, renderScenes } from './views/scenes.js';
 import { buildPipeSteps } from './views/progress.js';
-import { initConfig, buildSubColors, updateEstimate, loadStyles, loadBgmOptions, loadChannelPresets, loadSubtitlePresets, loadFontFamilies } from './views/config.js';
+import { initConfig, buildSubColors, updateEstimate, loadBgmOptions, loadChannelPresets, loadSubtitlePresets, loadFontFamilies } from './views/config.js';
 import { initLibrary } from './views/library.js';
 import { initBrandGen } from './views/brandgen.js';
 import { initEditVideo } from './views/editvideo.js';
@@ -56,7 +56,7 @@ async function init() {
     renderDeps(health.deps);
   } catch {}
   // Startup fast-path: paint the shell with critical data first…
-  await Promise.all([loadChannels(), loadProjects(), loadStyles()]);
+  await Promise.all([loadChannels(), loadProjects()]);
   await loadChannelPresets();
   refreshBrandSummary();
   updateEstimate();

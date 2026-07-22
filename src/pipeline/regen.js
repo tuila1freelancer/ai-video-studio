@@ -47,7 +47,7 @@ export async function regenOne(sceneId, what) {
     DB.snapshotTake(DB.getScene(sc.id), 'voice', { active: true });
     hub.toProject(project.id, { type: 'scene', sceneId: sc.id, idx: sc.idx, status: 'tts', duration });
   } else if (what === 'html') {
-    const vm = config.visualMode || 'animation';
+    const vm = config.visualMode || 'hyperframe';
     if (vm === 'hyperframe') {
       const total = DB.getScenes(project.id).length;
       const channel = DB.channelOf(project.id);

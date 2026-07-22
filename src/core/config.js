@@ -26,11 +26,10 @@ export function mergeConfigLayers(...layers) {
 }
 function isPlainObject(v) { return v != null && typeof v === 'object' && !Array.isArray(v); }
 
-// Base defaults for NEW projects (the app's showcase mode): HyperFrame with the channel's
-// signature style. Sits UNDER every other layer, so channel/preset/request always win;
-// existing projects keep their stored config snapshot (this only runs at creation).
-// Consumption-site fallbacks stay 'animation' so legacy rows without a visualMode are
-// untouched on resume.
+// Base defaults for NEW projects: HyperFrame — the single visual mode (P36). Sits UNDER every
+// other layer, so channel/preset/request always win; existing projects keep their stored config
+// snapshot (this only runs at creation). Consumption-site fallbacks read `|| 'hyperframe'`, and
+// migration 5 coerces any legacy 'animation'/'image' value, so a stray stored mode can never route.
 const NEW_PROJECT_DEFAULTS = {
   visualMode: 'hyperframe',
   hyperframe: { styleId: 'tuila1-hud-cyber', density: 'balanced' },

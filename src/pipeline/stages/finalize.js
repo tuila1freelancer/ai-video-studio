@@ -47,7 +47,7 @@ export async function finalize(projectId, { dir, size, config, _qcAttempt = 0 })
   const scenes = DB.getScenes(projectId).filter((s) => s.video_path && existsSync(s.video_path)).sort((a, b) => a.idx - b.idx);
   const clips = scenes.map((s) => s.video_path);
   const firstImg = scenes.find((s) => s.image_path && existsSync(s.image_path))?.image_path;
-  const visualMode = config.visualMode || 'animation';
+  const visualMode = config.visualMode || 'hyperframe';
 
   // No synthetic intro/outro cards (P31, owner order 2026-07-18 — reference-app parity):
   // the video is the SCRIPT's scenes and nothing else. The master script already ends on a
