@@ -70,11 +70,11 @@ test('review-hardened invariants: warp is hyperframe-only, gate needs unvoiced w
   // 1. a NON-hyperframe template never inherits a stale plannedDur warp (template-switch case)
   const { buildSceneHtml } = await import('../src/animation/index.js');
   const scene = {
-    idx: 0, voice_text: 'Một câu nói hay', duration: 12, template: 'spotlight-quote',
-    props: { quote: 'x', plannedDur: 8 }, srt_json: [],
+    idx: 0, voice_text: 'Một câu nói hay', duration: 12, template: 'kinetic-statement',
+    props: { heading: 'x', plannedDur: 8 }, srt_json: [],
   };
-  const html = buildSceneHtml(scene, { aspect_ratio: '9:16', title: 't' }, { visualMode: 'animation' }, {});
-  assert.match(html, /"tplScale":1/, 'regular templates rebuild at real duration — no warp');
+  const html = buildSceneHtml(scene, { aspect_ratio: '9:16', title: 't' }, { visualMode: 'hyperframe' }, {});
+  assert.match(html, /"tplScale":1/, 'a non-hyperframe fallback template rebuilds at real duration — no warp');
   // 2. the gate only holds while there is unspent TTS to protect (repurposed projects skip it)
   const runner = readFileSync(new URL('../src/pipeline/runner.js', import.meta.url), 'utf8');
   assert.match(runner, /scenes_approved_at\s*\n?\s*&& DB\.getScenes\(projectId\)\.some\(\(s\) => !s\.audio_path\)/);

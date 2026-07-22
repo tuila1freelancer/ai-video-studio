@@ -40,8 +40,8 @@ test('P31 motionSignature: salt rotates the modulo picks, roles stay role-driven
 });
 
 test('P31 page seed: two projects render the same scene with different seeds; no id stays legacy', () => {
-  const scene = { idx: 0, voice_text: 'x', duration: 6, template: 'hero-title', props: { heading: 'X' }, srt_json: [] };
-  const cfg = { visualMode: 'animation' };
+  const scene = { idx: 0, voice_text: 'x', duration: 6, template: 'kinetic-statement', props: { heading: 'X' }, srt_json: [] };
+  const cfg = { visualMode: 'hyperframe' };
   const htmlA = buildSceneHtml(scene, { id: 'proj_a', aspect_ratio: '16:9', title: 't' }, cfg, {});
   const htmlB = buildSceneHtml(scene, { id: 'proj_b', aspect_ratio: '16:9', title: 't' }, cfg, {});
   const seedOf = (h) => h.match(/"seed":(\d+)/)[1];

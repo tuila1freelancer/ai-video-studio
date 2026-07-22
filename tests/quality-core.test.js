@@ -131,16 +131,16 @@ test('auto-duration verbatim mode: pasted script survives word-for-word, offline
 
 test('logical canvas + lossless zoom: LLM px space is resolution-independent', async () => {
   const { buildSceneHtml } = await import('../src/animation/index.js');
-  const scene = { idx: 0, voice_text: 'x', duration: 6, template: 'hero-title', props: { heading: 'X' }, srt_json: [] };
+  const scene = { idx: 0, voice_text: 'x', duration: 6, template: 'kinetic-statement', props: { heading: 'X' }, srt_json: [] };
   const project = { aspect_ratio: '16:9', title: 't' };
   // 4K render path: logical 1920x1080 body + zoom 2 + a 2x-backed bg canvas
-  const html4k = buildSceneHtml(scene, project, { visualMode: 'animation', resolutionScale: 2 }, { zoom: 2 });
+  const html4k = buildSceneHtml(scene, project, { visualMode: 'hyperframe', resolutionScale: 2 }, { zoom: 2 });
   assert.match(html4k, /width:1920px;height:1080px/, 'body stays in the logical canvas');
   assert.match(html4k, /body\{zoom:2\}/, 'zoom upscales losslessly');
   assert.match(html4k, /"zoom":2/, 'zoom rides into S for the crisp canvas backing store');
   assert.match(html4k, /width="3840" height="2160"/, 'bg canvas backing store is 2x');
   // 1080p path unchanged: no zoom rule, logical == physical
-  const html1080 = buildSceneHtml(scene, project, { visualMode: 'animation' }, {});
+  const html1080 = buildSceneHtml(scene, project, { visualMode: 'hyperframe' }, {});
   assert.ok(!/body\{zoom/.test(html1080), 'scale 1 emits no zoom rule');
   assert.match(html1080, /width="1920" height="1080"/);
   // codegen/validate stay logical regardless of resolutionScale

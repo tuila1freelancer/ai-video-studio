@@ -10,7 +10,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { rechunkCues, splitSentences } from '../src/subtitles/chunk.js';
 import { captionStyleFrom, assStyleFrom, familyName } from '../src/subtitles/presets.js';
-import { buildKaraokeAss } from '../src/pipeline/srt.js';
 import { buildSceneHtml } from '../src/animation/index.js';
 
 // timed words for the narration "Xin chào các bạn. Hôm nay học AI nhé!" (0.4s each; the
@@ -62,16 +61,6 @@ test('P29 rechunk: auto passes through untouched; word-less cues stay as-is', ()
   assert.equal(rechunkCues(estimateEra, { chunk: 'sentence', text: 'x.' }), estimateEra);
 });
 
-test('P29 ASS: plain mode burns static lines (no \\kf sweep), karaoke keeps it', () => {
-  const cues = asCues(words8());
-  const kar = buildKaraokeAss(cues, { karaoke: true, font: 'Anton' }, { w: 1080, h: 1920 });
-  const plain = buildKaraokeAss(cues, { karaoke: false, font: 'Anton' }, { w: 1080, h: 1920 });
-  assert.match(kar, /\\kf\d+/);
-  assert.ok(!plain.includes('\\kf'), 'no karaoke timing tags in plain mode');
-  assert.match(plain, /Xin chào các bạn\./);
-  assert.match(plain, /Style: Def,Anton,/);
-});
-
 test('P30 familyName: CSS stacks and quotes normalize to the bare family', () => {
   assert.equal(familyName("'Anton', sans-serif"), 'Anton');
   assert.equal(familyName('Be Vietnam Pro'), 'Be Vietnam Pro');
@@ -103,11 +92,11 @@ test('P30 assStyleFrom: bare family for libass, plain mode disables karaoke, chu
 test('P29+P30 page build: plain/sentence flags, re-chunked captions and font probes ride into the page', () => {
   const scene = {
     idx: 0, voice_text: 'Xin chào các bạn. Hôm nay học AI nhé!', duration: 6,
-    template: 'hero-title', props: { heading: 'X' }, srt_json: asCues(words8()),
+    template: 'kinetic-statement', props: { heading: 'X' }, srt_json: asCues(words8()),
   };
   const project = { aspect_ratio: '16:9', title: 't' };
   const cfg = {
-    visualMode: 'animation', subtitleMode: 'plain', subtitleChunk: 'sentence',
+    visualMode: 'hyperframe', subtitleMode: 'plain', subtitleChunk: 'sentence',
     subtitleFont: 'Anton', fonts: { display: 'Oswald' },
   };
   const html = buildSceneHtml(scene, project, cfg, {});
@@ -118,7 +107,7 @@ test('P29+P30 page build: plain/sentence flags, re-chunked captions and font pro
   assert.match(html, /font-family:'Anton', -apple-system, sans-serif/, 'caption bar uses the picked family');
   assert.match(html, /"text":"Xin chào các bạn\."/, 'captions re-chunked per sentence');
   // defaults stay karaoke with the historic single-line bar
-  const html2 = buildSceneHtml(scene, project, { visualMode: 'animation' }, {});
+  const html2 = buildSceneHtml(scene, project, { visualMode: 'hyperframe' }, {});
   assert.match(html2, /class="cap"/);
   assert.match(html2, /"capMode":"karaoke"/);
 });

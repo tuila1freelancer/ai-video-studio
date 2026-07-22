@@ -51,8 +51,13 @@ test('userfonts: uploaded rows become @font-face CSS + families list (vendored +
 
 test('scene page carries the uploaded font and the display override reaches hf-kw CSS', async () => {
   const { buildSceneHtml } = await import('../src/animation/index.js');
-  const scene = { idx: 0, voice_text: 'Xin chào', srt_json: [], template: null, props: null, duration: 4 };
+  // The brand display font is injected into the hyperframe scene's style guide (applyBrandFont),
+  // so it reaches the .hf-kw hero typography — the guide is what carries fonts into HyperFrame.
+  const scene = {
+    idx: 0, voice_text: 'Xin chào', srt_json: [], duration: 4,
+    template: 'hyperframe', props: { css: '', html: '', script: '', guide: {}, beats: [] },
+  };
   const project = { aspect_ratio: '9:16', title: 'Font test' };
-  const html = buildSceneHtml(scene, project, { visualMode: 'animation', fonts: { display: 'TestBrandFont' } }, {});
-  assert.match(html, /font-family:'TestBrandFont', 'Be Vietnam Pro', sans-serif/, 'animation theme font overridden');
+  const html = buildSceneHtml(scene, project, { visualMode: 'hyperframe', fonts: { display: 'TestBrandFont' } }, {});
+  assert.match(html, /\.hf-kw\{font-family:'TestBrandFont', 'Be Vietnam Pro', sans-serif/, 'brand display font reaches hf-kw CSS');
 });
