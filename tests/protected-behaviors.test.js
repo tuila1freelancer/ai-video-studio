@@ -1,4 +1,4 @@
-// One NAMED regression test per protected behavior (P1–P19, docs/architecture.md §7).
+// One NAMED regression test per protected behavior (P1–P19 + P36, docs/architecture.md §7).
 // A refactor may RELOCATE a behavior — update the anchor here — but a silently deleted
 // guard/constant turns exactly one of these red. Functional where cheap, source-anchored
 // where a functional test would need live providers.
@@ -205,4 +205,26 @@ test('P19: codegen prompt embeds the scene narration + visual brief VERBATIM (fu
   assert.match(s, /\(scene\.visual_prompt \|\| ''\)\.trim\(\)/, 'visual embed anchor survives');
   assert.ok(!/voice_text[^\n]*\.slice\(/.test(s), 'voice_text must never be sliced in the codegen prompt');
   assert.ok(!/visual_prompt[^\n]*\.slice\(/.test(s), 'visual_prompt must never be sliced in the codegen prompt');
+});
+
+test('P36: single visual mode — kinetic-statement fallback survives, animation templates gone, legacy mode coerced', () => {
+  // buildTemplate MUST keep the universal kinetic-statement fallback so a legacy scene whose
+  // stored template id no longer exists still renders instead of crashing.
+  const reg = src('src/animation/templates/index.js');
+  assert.match(reg, /TEMPLATES\[templateId\]\s*\|\|\s*TEMPLATES\['kinetic-statement'\]/, 'kinetic-statement fallback must survive');
+  assert.match(reg, /import kineticStatement from '\.\/kinetic-statement\.js'/, 'kinetic-statement kept');
+  assert.match(reg, /import chapterBreak from '\.\/chapter-break\.js'/, 'chapter-break kept');
+  // the 20-template animation library is gone (registry no longer imports any of them)
+  for (const gone of ['hero-title', 'bar-race', 'spotlight-quote', 'orbit-3d', 'counter-stat']) {
+    assert.ok(!reg.includes(`./${gone}.js`), `deleted animation template must not be imported: ${gone}`);
+  }
+  // headline() (the P10 swap + fallback-plan text source) survives the planner trim
+  assert.match(src('src/animation/planner.js'), /export function headline/, 'headline survives the planner trim');
+  // migration id 5 coerces any stored 'animation'/'image' visualMode to 'hyperframe'
+  const mig = src('src/db/migrate.js');
+  assert.match(mig, /id:\s*5/, 'migration id 5 exists');
+  assert.match(mig, /cfg\.visualMode === 'animation' \|\| cfg\.visualMode === 'image'/, 'legacy modes are coerced');
+  assert.match(mig, /cfg\.visualMode = 'hyperframe'/, 'coerced to hyperframe');
+  // no dispatch site keeps an image-mode branch
+  assert.ok(!/=== 'image'/.test(src('src/pipeline/stages/finalize.js')), 'no image-mode guard left in finalize');
 });
