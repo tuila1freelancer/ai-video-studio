@@ -1,6 +1,6 @@
 // Scene spec codegen: prompt → parse (delimiter-fenced, JSON fallback) → lint → assembled-script
-// syntax check → render-validation → props. Retries feed validation errors back to the model; the
-// caller falls back to the classic heuristic planner if this still fails — the pipeline never dies.
+// syntax check → render-validation → props. Retries feed validation errors back to the model;
+// after maxAttempts (default 10) the loop THROWS — no fallback model, no heuristic template (P25).
 //
 // Output format is DELIMITER-FENCED, not JSON: weak models constantly break JSON when a string
 // field holds code full of quotes/newlines. Fences let the model write CSS/HTML/JS verbatim (zero
@@ -162,12 +162,13 @@ export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, on
     // render check, so validation sees the actual inlined hero media.
     if (!errors.length && media.length) applyAssetMedia(clean, media);
     // dynamic: actually render and check runtime + geometry invariants (only if static passed).
-    let renderDefects = [];
+    let renderDefects = [], softDefects = [];
     if (!errors.length && renderCheck) {
       try {
         const rv = await renderValidate({ spec: { ...clean, guide }, guide, w, h, duration, beats, narration: scene.voice_text || '', captionsOn, overlay, density });
         if (!rv.skipped) rvRan = true; // Chrome-less runs return skipped:true → tier stays 'unverified'
         if (!rv.ok) renderDefects = rv.defects;
+        softDefects = rv.softDefects || [];
         // Auto-contrast repair: unreadable text is a deterministic colour mistake — force the
         // named element(s) to the guide ink + drop-shadow and re-validate ONCE, rather than
         // dropping an otherwise-good bespoke scene to the plain fallback template (the #1 cause
@@ -182,6 +183,7 @@ export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, on
           if (!rv2.defects.some((d) => /unreadable/.test(d))) {
             clean.css = candidateCss;
             renderDefects = rv2.defects;
+            softDefects = rv2.softDefects || [];
             contrastRepaired = true; // shipped after a deterministic repair → tier 'repaired'
             if (!rv2.skipped) rvRan = true;
             onLog(`cảnh ${idx + 1}: auto-contrast repair (${rv.contrastFix.length} phần tử) — ${rv2.ok ? 'đạt' : 'còn ' + rv2.defects.length + ' vấn đề khác'}`);
@@ -195,7 +197,10 @@ export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, on
     } else if (!errors.length) {
       lastGood = clean;
     }
-    const allIssues = [...errors, ...renderDefects];
+    // P37: HARD defects re-ask every attempt; the caliber "nudge" softDefects only in the first
+    // 3, so a scene that already cleared every readability gate is not endlessly homogenized
+    // toward one dense look — it ships on its own terms once the essentials are right.
+    const allIssues = [...errors, ...renderDefects, ...(attempt <= 3 ? softDefects : [])];
     if (!allIssues.length) {
       if (warnings.length) onLog(`cảnh ${idx + 1}: cảnh báo lint — ${warnings.join('; ')}`);
       // plannedDur: the duration this spec's absolute animation times were authored for.
