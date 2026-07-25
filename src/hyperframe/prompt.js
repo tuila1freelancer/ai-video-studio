@@ -24,7 +24,7 @@ OUTPUT FORMAT — reply with EXACTLY these three fenced blocks and NOTHING else 
 
 WHAT MAKES A SCENE GOOD (the five masters — HOW you achieve them is your call):
 1. RELEVANT to the narration. Show what THIS scene is actually about — a metaphor, diagram, comparison, device, data instrument, kinetic words — built from divs + inline SVG so it VISUALLY ARGUES the idea. On-screen text is drawn FROM THE MEANING of the voice line: a short headline and/or a few short labels, ALL complete words in the narration's language (a Vietnamese video shows complete Vietnamese words — or none at all when the graphic already speaks). Never dump the full sentence (it is already the subtitle), never invent slogans/CTAs/brand names, never put English or code on screen in a Vietnamese video.
-2. BALANCED & HARMONIOUS. Compose across the WHOLE frame — distribute visual weight so no half sits empty; a hero on one side needs a real counterweight on the other. Comfortable margin from ALL FOUR edges; nothing clips or bleeds off. Do NOT clump everything on the centre axis (a wide frame invites splits, off-centre heroes + counterweight; a calm centred frame is right only for minimal quote/title scenes).
+2. BALANCED & HARMONIOUS — FILL THE FRAME, NEVER CLUMP CENTER. Place every element in a container with EXPLICIT bounds (top/left/width/height, or flex/grid) — never vague values that overflow. Treat the safe area as a 3×3 grid (left/center/right × top/middle/bottom) and DISTRIBUTE weight across it: a hero on one side needs a real counterweight (panel/stat/diagram/label cluster) on the other, so no half sits empty. Comfortable margin from ALL FOUR edges — nothing clips, bleeds off, or touches the edge. Do NOT stack everything on the center axis: a wide frame wants splits / off-center hero + counterweight / elements spread across the width; only a minimal quote or title card stays centered. The per-ratio LAYOUT rules and hard VIEWPORT thresholds in the user message OVERRIDE any conflicting composition idea.
 3. BEAUTIFUL, SMOOTH MOTION. Elements ease in gently (power2/power3/expo.out, ~0.35–0.9s), ONE main thing arriving at a time, each landing ON its spoken beat; between beats the frame stays alive with slow drift, never freezing and never emptying. Calm beats churn: a settled, still-but-breathing frame is the reference look. Use ≥3 distinct eases across the scene; keep bounce/overshoot for at most one playful accent. Make it look EXPENSIVE: give the hero one premium treatment (chrome / neon / glow) and use premium surfaces (glass, soft shadow, a 1px accent hairline) — never flat, undecorated boxes.
 4. READABLE, CLEAN TYPE. Every readable text is near-white or a bright accent on the dark stage (≥4.5:1) — never dim grey, never accent-on-accent. Text fits inside the frame and NEVER clips. Headlines ≤4 words, wrapped on phrase boundaries (never orphan a word). Keep the caption band clear when subtitles are ON (the user message says which).
 5. CREATIVE & UNIQUE. No two scenes — and no two renders of the same brief — may look alike. Vary the core idea, hero type, placement, motion, type treatment, colour emphasis. A stamped-out arrangement is THE failure.
@@ -134,23 +134,75 @@ export function scriptTextRule(voiceText) {
   return '';
 }
 
-// Hard viewport numbers (reference-app parity: their ASPECT_RATIO_RULES ship exact px per
-// ratio). Computed from the actual canvas so any aspect — 16:9, 9:16, 1:1, 4:5 — gets
-// correct bounds. The caption band matches the validate.js geometry gate (bottom 20%).
+// P38 (reference-parity layout): the reference app does NOT balance layout with prose — it
+// injects EXACT px thresholds per ratio and MANDATES using them directly in code, plus per-ratio
+// distribution rules. That concreteness is what keeps its frames balanced and non-center-clumped.
+// We emit the same, computed from the real canvas so any aspect gets correct bounds. The caption
+// band matches the validate.js geometry gate (bottom ~20%).
+export function ratioClass(w, h) {
+  const r = w / h;
+  if (r >= 1.12) return '16:9'; // any landscape → wide-frame rules
+  if (r >= 0.9) return '1:1';
+  if (r >= 0.72) return '4:5';
+  return '9:16';
+}
 export function viewportBlock(w, h, captionsOn) {
   const vertical = h > w;
-  const sideM = Math.round(w * 0.06);
-  const topM = Math.round(h * 0.055);
-  const contentMaxY = captionsOn ? Math.round(h * 0.78) : Math.round(h * 0.94);
+  const sideP = Math.round(w * 0.06);
+  const topP = Math.round(h * 0.055);
+  const bottomP = captionsOn ? Math.round(h * 0.22) : Math.round(h * 0.06);
+  const contentMaxY = h - bottomP;
   const textMaxW = Math.round(w * (vertical ? 0.88 : 0.80));
   const heroMaxW = Math.round(w * (vertical ? 0.86 : 0.60));
-  const heroMaxH = Math.round(h * (vertical ? 0.46 : 0.62));
+  const subjectMaxH = Math.round(h * (vertical ? 0.46 : 0.62));
+  const textBlockMaxH = Math.round(h * (vertical ? 0.30 : 0.42));
+  const cardMinW = Math.round(w * (vertical ? 0.34 : 0.22));
+  const cardMaxW = Math.round(w * (vertical ? 0.82 : 0.44));
+  const safeCenterW = w - 2 * sideP;
+  const safeCenterH = contentMaxY - topP;
+  const splitGap = Math.round(w * (vertical ? 0.05 : 0.04));
+  const lowerThirdY = Math.round(h * 0.807);
   return [
-    `VIEWPORT NUMBERS (hard bounds for THIS ${w}x${h} canvas):`,
-    `- Side margins ≥${sideM}px; top margin ≥${topM}px; content vertical range y=${topM}..${contentMaxY}px${captionsOn ? ` (below y=${contentMaxY} is the subtitle band — keep it clear)` : ''}.`,
-    `- Any single text block ≤${textMaxW}px wide. Hero construction ≤${heroMaxW}px wide × ≤${heroMaxH}px tall (leave room for its counterweight).`,
-    `- Author every absolute px against THIS canvas — the page body is EXACTLY ${w}x${h}px and is upscaled LOSSLESSLY to the output resolution; never assume any other resolution.`,
+    `VIEWPORT — hard layout thresholds for THIS ${w}x${h}px canvas (${ratioClass(w, h)}). USE THESE VALUES DIRECTLY in your CSS/JS — do NOT estimate:`,
+    `- SIDE_PADDING=${sideP}px · TOP_PADDING=${topP}px · BOTTOM_PADDING=${bottomP}px — nothing may sit outside x=[${sideP}..${w - sideP}] or y=[${topP}..${contentMaxY}].`,
+    `- SAFE_CENTER=${safeCenterW}x${safeCenterH}px (the whole usable stage) · SPLIT_GAP=${splitGap}px minimum between side-by-side blocks.`,
+    `- TEXT_MAX_W=${textMaxW}px (any single text block) · TEXT_BLOCK_MAX_H=${textBlockMaxH}px (no taller vertical text stack).`,
+    `- HERO_MAX_W=${heroMaxW}px × SUBJECT_MAX_H=${subjectMaxH}px (the hero construction; leave room for its counterweight).`,
+    `- CARD_MIN_W=${cardMinW}px · CARD_MAX_W=${cardMaxW}px (any panel/card).`,
+    captionsOn
+      ? `- LOWER_THIRD_Y=${lowerThirdY}px: everything BELOW this line is the karaoke subtitle band — keep all foreground content above it.`
+      : `- Subtitles are OFF — use the full height down to y=${contentMaxY}px (still keep the ${topP}px / ${bottomP}px margins).`,
+    `- RULES: put every element in a container with explicit top/left/width/height OR flex/grid — never vague values that overflow. Nothing touches the edge of the safe zone. If the visual concept conflicts with these thresholds, THE THRESHOLDS WIN.`,
+    `- The page body is EXACTLY ${w}x${h}px and is upscaled LOSSLESSLY to output; never assume any other resolution.`,
   ].join('\n');
+}
+
+// Per-ratio distribution rules (reference-app parity: its RULES_FOR_<ratio> blocks). A weak
+// model's default gravity is center-stack; these push the composition to fill the frame's real
+// shape — a wide frame spreads horizontally, a tall frame stacks in reading order.
+export function ratioRulesBlock(w, h) {
+  const cls = ratioClass(w, h);
+  if (cls === '16:9') {
+    return `LAYOUT FOR 16:9 (wide, cinematic):
+- Focal point sits slightly LEFT or RIGHT of center — use the width for split layouts, timelines, dashboards, before/after.
+- Secondary elements SPREAD HORIZONTALLY across the width — never cluster them all on the center axis (that wastes a wide frame and is the #1 amateur tell).
+- Two clear columns or a 60/40 split are encouraged; each block keeps ≥SPLIT_GAP breathing room.
+- Keep the hero ≤HERO_MAX_W so it never stretches into one long hard-to-read line; give the emptier side a real counterweight (panel / stat / diagram / label cluster).`;
+  }
+  if (cls === '9:16') {
+    return `LAYOUT FOR 9:16 (tall, mobile-first):
+- Work the CENTER COLUMN; stack elements VERTICALLY in reading order (top → bottom), each in its own row with a clear gap.
+- The hero must not exceed SUBJECT_MAX_H — long vertical stacks crowd the frame; prefer one strong hero plus a compact supporting row.
+- Use the tall height for rhythm (kicker high, hero mid, supporting lower) rather than squeezing everything into the middle third.`;
+  }
+  if (cls === '1:1') {
+    return `LAYOUT FOR 1:1 (square):
+- Prioritize SYMMETRY and balance around the center; a centered hero with balanced satellites reads best.
+- Corners carry equal weight — if one corner holds an accent, balance it diagonally.`;
+  }
+  return `LAYOUT FOR 4:5 (portrait):
+- Focal point slightly ABOVE center; keep comfortable top/bottom padding.
+- Distribute weight across the width but stay a touch top-heavy so the hero leads.`;
 }
 
 // P37 (reference-parity): the reference app hands the model EXACT GSAP values (its
@@ -198,7 +250,6 @@ ${lines.join('\n')}`;
 }
 
 export function buildCodegenPrompt({ scene, beats, direction, guide, w, h, duration, idx, total, density, creativeDirection, hookVisual = '', captionsOn = true, modeBlocks = [], diversitySalt = 0 }) {
-  const vertical = h > w;
   const sig = motionSignature(direction, idx, diversitySalt);
   const densityNote = DENSITY_NOTE[density] || DENSITY_NOTE.rich; // rich is the house default — sparse scenes read cheap
   const subNote = captionsOn
@@ -216,8 +267,9 @@ export function buildCodegenPrompt({ scene, beats, direction, guide, w, h, durat
 - Motion personality: ${guide.motionPersonality}${guideV2Block(guide)}
 ${densityNote}${dirNote}${rhymeNote}${modeNote}
 
-SCENE ${idx + 1}/${total} — CANVAS ${w}x${h} CSS px (${vertical ? 'vertical 9:16-class' : 'horizontal'}), DUR = ${(+duration).toFixed(3)}s
-${viewportBlock(w, h, captionsOn)}${scriptTextRule(scene.voice_text)}
+SCENE ${idx + 1}/${total} — CANVAS ${w}x${h} CSS px (${ratioClass(w, h)}), DUR = ${(+duration).toFixed(3)}s
+${viewportBlock(w, h, captionsOn)}
+${ratioRulesBlock(w, h)}${scriptTextRule(scene.voice_text)}
 ${subNote}
 NARRATION (voice${captionsOn ? ', shown as karaoke subtitles at the bottom' : ' — subtitles are OFF, not shown on screen'} — do NOT repeat it verbatim on screen):
 "${(scene.voice_text || '').trim()}"
