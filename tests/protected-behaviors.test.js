@@ -40,11 +40,11 @@ test('P5: LANG_WPS keeps the measured Vietnamese reading speed (vi 4.4)', () => 
   assert.match(src('src/providers/llm.js'), /LANG_WPS\s*=\s*\{\s*vi:\s*4\.4/);
 });
 
-test('P6: QC constants — blackdetect pix_th=0.04, probeStreams trailing-comma strip, tailAllowance', () => {
+test('P38 QC integrity: probeStreams trailing-comma strip; no per-frame pixel/silence scan', () => {
   const s = src('src/pipeline/qc.js');
-  assert.match(s, /pix_th=0\.04/, 'dark-theme backgrounds must not count as black');
   assert.match(s, /replace\(\/,\+\$\/,\s*''\)/, 'ffprobe csv trailing comma must be stripped');
-  assert.match(s, /tailAllowance/, 'outro tail allowance must survive');
+  assert.ok(!/blackdetect|silencedetect|negate/.test(s), 'P38: the per-frame pixel/silence scans are removed');
+  assert.ok(!/summarizeVisualTiers|qtier/.test(s), 'P38: visual quality tiers are removed');
 });
 
 test('P7: TTS voice lock — explicit override beats langVoices, 3 tries on the primary voice', () => {
@@ -73,7 +73,6 @@ test('P10: macro self-heal — exactly one auto-resume (_auto<1) and the kinetic
   assert.match(s, /_auto\s*<\s*1/);
   assert.match(s, /_auto:\s*_auto\s*\+\s*1/);
   assert.match(src('src/pipeline/stages/render.js'), /kinetic-statement/);
-  assert.match(src('src/pipeline/stages/finalize.js'), /_qcAttempt\s*<\s*1/, 'QC repair cycle stays bounded');
 });
 
 test('P11: beat timing constants MIN_GAP=1.2 HOLD_MAX=2.6 LEAD=0.12', () => {

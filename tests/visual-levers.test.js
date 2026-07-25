@@ -51,21 +51,22 @@ test('P35 preset effects/ambient reach the codegen prompt (the wired-but-empty b
   assert.match(usr.content, /AMBIENT NOTES/);
 });
 
-test('P35 source pins: density-scaled gates + dialogue-match + contrast honesty in validate', () => {
+test('P38 source pins: the render gate is not-broken + balanced only (caliber/soft/contrast gone)', () => {
   const v = src('../src/hyperframe/validate.js');
-  assert.match(v, /density === 'rich' && maxHeroParts < 4/, 'P37: hero-density is a rich-only soft nudge (relaxed from the P35 8/6 floor)');
-  assert.match(v, /sparseUnion/, 'sparse thresholds scale with density');
-  assert.match(v, /never appear on screen/, 'positive dialogue-match gate exists');
-  assert.match(v, /ratio<3\.5/, 'PROBE collects up to the headline floor');
-  assert.match(v, /headlineFs/, 'headline-class text gated at 3.5:1');
+  assert.match(v, /stacked on the center axis/, 'P38 distribution (center-clump) check exists');
+  assert.match(v, /hadCluster && maxSpread < 0\.22/, 'the distribution check measures horizontal spread');
+  assert.ok(!/softDefects/.test(v), 'the soft caliber gates are removed');
+  assert.ok(!/contrastFix/.test(v), 'the auto-contrast repair target is removed from validate');
+  assert.ok(!/the spoken anchor words|hero construction carries only|produce no visual response|the scene reads sparse/.test(v), 'the caliber nudges are gone');
   const c = src('../src/hyperframe/codegen.js');
-  assert.ok((c.match(/renderValidate\(\{[\s\S]{0,400}?density\b/g) || []).length >= 2, 'both validate calls carry density');
+  assert.ok(!/captionsOn, overlay, density/.test(c), 'renderValidate no longer receives density');
+  assert.ok(!/softDefects|contrastRepaired|const tier =/.test(c), 'codegen drops the contrast-repair + tier logic');
 });
 
 test('P35 source pins: regen parity + no-fallback; director sees spoken anchors', () => {
   const r = src('../src/pipeline/regen.js');
   assert.match(r, /diversitySalt: hash32\(String\(project\.id\)\)/, 'regen salts like the batch lane');
-  assert.match(r, /qtier: tier \|\| 'premium'/, 'regen persists the quality tier');
+  assert.ok(!/qtier:/.test(r), 'P38: regen no longer persists a quality tier');
   assert.match(r, /captionsOn: config\.enableSubtitles !== false/, 'caption reserve parity');
   assert.match(r, /delete baseLlm\.modelFallback/, 'no-fallback model contract in regen');
   assert.ok(!/catch \{\s*\n?\s*plan = planScene/.test(r), 'the silent heuristic fallback for hyperframe regen is gone');
@@ -75,7 +76,7 @@ test('P35 source pins: regen parity + no-fallback; director sees spoken anchors'
 });
 
 const haveFfmpeg = !!PATHS.ffmpeg && !!PATHS.ffprobe;
-test('P35 white-frame QC: a blank white stretch is caught, dark themes are not', { skip: !haveFfmpeg }, async () => {
+test('P38 QC trim: qcFinalVideo no longer pixel-scans — a white clip passes integrity', { skip: !haveFfmpeg }, async () => {
   const { ffmpeg } = await import('../src/media/ffmpeg.js');
   const { qcFinalVideo } = await import('../src/pipeline/qc.js');
   const dir = mkdtempSync(join(tmpdir(), 'avs-white-'));
@@ -85,8 +86,9 @@ test('P35 white-frame QC: a blank white stretch is caught, dark themes are not',
       '-t', '3', '-c:v', 'libx264', '-c:a', 'aac', '-pix_fmt', 'yuv420p', out]);
     return out;
   };
+  // P38 dropped the black/white pixel scan; codegen-time renderValidate + the harness-owned dark
+  // backdrop prevent blank scenes at the source, so the final gate is stream/duration integrity only.
   const white = await qcFinalVideo(await mk('white.mp4', 'white'), { expectDur: 3 });
-  assert.ok(white.issues.some((i) => i.type === 'white'), 'white/blank frames detected');
-  const dark = await qcFinalVideo(await mk('dark.mp4', '0x0A0E1A'), { expectDur: 3 });
-  assert.ok(!dark.issues.some((i) => i.type === 'white' || i.type === 'black'), 'the dark house theme passes');
+  assert.equal(white.ok, true, 'the white-frame pixel scan is removed; integrity (streams + duration) passes');
+  assert.ok(!white.issues.some((i) => i.type === 'white' || i.type === 'black'), 'no pixel-based issue types remain');
 });

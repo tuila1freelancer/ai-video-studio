@@ -6,7 +6,7 @@
 import { buildTemplate, makeCtx } from '../animation/templates.js';
 import { buildScenePage } from '../animation/harness.js';
 import { themeFromGuide, normalizeGuide } from '../styleguide/index.js';
-import { fold, labelIsFragment } from './beats.js';
+import { fold } from './beats.js';
 import { detectLang } from '../util/lang.js';
 import { getBrowser, chromeAvailable } from '../media/puppeteer.js';
 
@@ -206,12 +206,12 @@ const PROBE = `(() => {
  * @returns {ok, defects:[string], tlDur, skipped?} — defects are phrased as instructions the
  *   LLM can act on when re-prompted.
  */
-export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration = 6, beats = [], narration = '', captionsOn = true, overlay = false, caliber = true, density = 'balanced' }) {
-  // P35: the gates scale with the scene's density tier — 'rich' scenes must actually BE
-  // rich (heroParts ≥8, wider coverage), 'minimal' scenes may legitimately breathe.
-  const sparseHero = density === 'rich' ? 0.35 : density === 'minimal' ? 0.22 : 0.30;
-  const sparseUnion = density === 'rich' ? 0.50 : density === 'minimal' ? 0.30 : 0.44;
-  if (!chromeAvailable()) return { ok: true, skipped: true, defects: [], softDefects: [] };
+export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration = 6, beats = [], narration = '', captionsOn = true, overlay = false }) {
+  // P38: this gate now checks ONLY "the HTML is not broken" + "the layout is balanced" — the two
+  // things the owner asked to keep. The reference-caliber nudges (sparse / hero-density / beat-
+  // adherence / dialogue-match), the flat-type check, the low-contrast gate + auto-repair, and the
+  // mid-scene/ending liveness checks are all removed (the reference app ships none of them).
+  if (!chromeAvailable()) return { ok: true, skipped: true, defects: [] };
   const dur = Math.max(1.5, duration);
   const g = normalizeGuide(guide || spec.guide);
   const theme = themeFromGuide(g);
@@ -225,18 +225,13 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
   const browser = await getBrowser();
   const page = await browser.newPage();
   const defects = [];
-  // P37: caliber "nudge" findings (sparse / hero-density / dialogue-match / beat-adherence)
-  // live here — codegen only re-asks on them in the FIRST few attempts, so they push toward
-  // the reference look without homogenizing a good bespoke scene that already cleared every
-  // HARD readability gate. `ok` reflects only the HARD `defects`.
-  const softDefects = [];
   try {
     await page.setViewport({ width: w, height: h, deviceScaleFactor: 1 });
     await page.setContent(html, { waitUntil: 'load', timeout: 20000 });
     const init = await page.evaluate(() => window.__init());
     if (init.tplErr) {
       defects.push(`your script threw at runtime: "${init.tplErr}". Only use documented FX.* helpers and tl.* methods; do not reference undefined variables or functions.`);
-      return { ok: false, defects, softDefects };
+      return { ok: false, defects };
     }
     const tlDur = await page.evaluate(() => (window.__tl ? window.__tl.totalDuration() : 0));
 
@@ -248,69 +243,27 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
       times.add(+Math.min(dur - 0.05, b.t0 + 0.25).toFixed(2));
       times.add(+Math.min(dur - 0.05, (b.t0 + b.t1) / 2).toFixed(2));
     }
-    // gap centers between consecutive beats (and after the last beat): the exact places a
-    // scene goes dead when every beat FLASH-exits and the next one is late
-    const sb = [...beats].sort((a, c) => (a.t0 || 0) - (c.t0 || 0));
-    const gapTimes = new Set([+(dur * 0.5).toFixed(2)]);
-    for (let i = 0; i < sb.length; i++) {
-      const nextStart = i + 1 < sb.length ? sb[i + 1].t0 : dur;
-      const gapMid = ((sb[i].t1 || 0) + nextStart) / 2;
-      if (gapMid > sb[i].t1 && gapMid < nextStart) {
-        const gt = +Math.min(dur - 0.05, gapMid).toFixed(2);
-        times.add(gt); gapTimes.add(gt);
-      }
-    }
-    // beat adherence sampling: a snapshot just BEFORE each beat's t0 and one after its
-    // entrance window — compared post-loop to verify the beat produced a visual response.
-    // Folded into the one ascending seek pass (backward scrubs are less trustworthy).
-    const checkable = sb.filter((b) => (b.t0 || 0) >= 0.35 && b.t0 <= dur - 0.5).slice(0, 6);
-    const beatPairs = [];
-    for (const b of checkable) {
-      const tp = +Math.max(0.05, b.t0 - 0.05).toFixed(2);
-      const tq = +Math.min(dur - 0.05, b.t0 + 0.45).toFixed(2);
-      if (tq > tp) { beatPairs.push({ tp, tq, t0: b.t0 }); times.add(tp); times.add(tq); }
-    }
     const T = [...times].filter((t) => t >= 0 && t <= dur).sort((a, c) => a - c);
     const narrWords = narrationWordSet(narration);
     const narrLang = detectLang(narration || '');
-    let anyVisible = false, endStrong = false, heroFrac = 0, unionFrac = 0, deadAt = null, maxTextH = 0;
+    let anyVisible = false, unionFrac = 0, maxSpread = 0, hadCluster = false, maxCenterCover = 0;
     // Every geometry accumulator carries an occurrence count `n` — persistence tiering
-    // (heldAcrossSamples) later drops one-sample transients instead of re-asking on them.
-    const off = new Map(), sub = new Map(), bad = new Map(), ovl = new Map(), lowc = new Map(), clip = new Map(), occ = new Map(), frag = new Map(), junk = new Map();
-    const snaps = new Map();
-    const pairTimes = new Set(beatPairs.flatMap((p) => [p.tp, p.tq]));
+    // (heldAcrossSamples) later drops one-sample transients (entrance/exit states of slow eases).
+    const off = new Map(), sub = new Map(), bad = new Map(), ovl = new Map(), clip = new Map(), occ = new Map(), junk = new Map();
     const bump = (map, k, data) => {
       const cur = map.get(k);
       if (cur) cur.n++;
       else map.set(k, { ...data, n: 1 });
     };
-    let maxCenterCover = 0, maxHeroParts = 0, primaryInfo = null;
-    // P35 dialogue-match: every on-screen text is collected with its sample time so the
-    // beat anchors can be verified POSITIVELY (not just "no wrong language").
-    const seenTexts = [];
-    const foldTxt = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd');
     for (const t of T) {
-      const { W, H, els, overlaps = [], lowContrast = [], occluded = [], decorArea = 0, centerCover = 0, heroParts = 0, primary = null } = await page.evaluate((tt, probe) => { window.__seek(tt); return eval(probe); }, t, PROBE);
+      const { W, H, els, overlaps = [], occluded = [], centerCover = 0 } = await page.evaluate((tt, probe) => { window.__seek(tt); return eval(probe); }, t, PROBE);
       maxCenterCover = Math.max(maxCenterCover, centerCover);
-      maxHeroParts = Math.max(maxHeroParts, heroParts);
-      if (primary && (!primaryInfo || primary.fs > primaryInfo.fs)) primaryInfo = primary;
-      if (pairTimes.has(t)) snaps.set(t, els);
       for (const p of overlaps) bump(ovl, `${p.a}|${p.b}`, { t, ...p });
-      for (const p of lowContrast) bump(lowc, p.txt, { t, ...p });
       for (const p of occluded) bump(occ, p.txt, { t, ...p });
       const vis = els.filter((e) => e.o > 0.15);
       if (vis.length) anyVisible = true;
-      for (const e of vis) if (e.txt) seenTexts.push({ t, f: foldTxt(e.txt) });
-      // mid-scene deadness: judged ONLY between beats (gap centers) — sampling an entrance
-      // moment would contradict the slow-pacing contract (0.5–0.9s eases). After the first
-      // entrance window, SOMETHING substantial must be on screen: a meaning element OR the
-      // living mid-layer decor prompt v5 mandates (rings/ghost glyphs are real presence).
-      if (deadAt == null && !overlay && gapTimes.has(t) && t > 1.4 && t < dur - 0.3
-        && decorArea < 0.03
-        && !els.some((e) => e.o >= 0.25 && e.w * e.h >= 0.015 * W * H)) deadAt = t;
-      for (const e of vis) heroFrac = Math.max(heroFrac, e.w / W);
-      // combined horizontal coverage (merged x-intervals): a split composition (object one
-      // side, text column the other) fills the frame without any single dominant element
+      // combined horizontal coverage (merged x-intervals): a split composition (object one side,
+      // text column the other) fills the frame without any single dominant element.
       const iv = vis.filter((e) => e.o > 0.35).map((e) => [Math.max(0, e.x), Math.min(W, e.x + e.w)])
         .filter(([a, b]) => b > a).sort((a, b) => a[0] - b[0]);
       let cov = 0, curA = -1, curB = -1;
@@ -320,127 +273,51 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
       }
       cov += Math.max(0, curB - curA);
       unionFrac = Math.max(unionFrac, cov / W);
-      // a scene must not fade to (near) nothing at the end — the last frame should still carry a hero
-      for (const e of els) if (e.o > 0.35 && e.h > maxTextH) maxTextH = e.h;
-      // climax doctrine: the ending must carry a PROMINENT element — a text at ≥70% of the
-      // scene's own biggest type, or a large graphic. A shrunken afterthought is a weak
-      // ending the codegen loop should fix, not ship.
-      if (t >= endT - 0.001 && els.some((e) => e.o > 0.35
-        && (e.w > 0.06 * W && (maxTextH === 0 || e.h >= 0.7 * maxTextH || e.w * e.h >= 0.03 * W * H)))) endStrong = true;
+      // P38 center-clump input: when ≥3 readable texts coexist, how wide do their centers spread?
+      const readable = vis.filter((e) => e.txt && e.o > 0.4 && e.w > 8);
+      if (readable.length >= 3) {
+        hadCluster = true;
+        const xs = readable.map((e) => e.cx);
+        const spread = (Math.max(...xs) - Math.min(...xs)) / W;
+        if (spread > maxSpread) maxSpread = spread;
+      }
       for (const e of vis) {
         if (e.clip) bump(clip, e.txt, { t, ...e });
         const overflow = Math.max(-e.x, e.x + e.w - W, -e.y, e.y + e.h - H);
         if (overflow > 0.10 * Math.max(W, H)) bump(off, e.txt || e.cls, { t, ...e, overflow: Math.round(overflow) });
         if (e.y + e.h > 0.80 * H) bump(sub, e.txt || e.cls, { t, ...e }); // element BOTTOM edge intrudes on the caption band
-        // meaning-bearing text: the component classes PLUS any clearly-readable custom text
-        // (≥18px tall at ≥.5 opacity) — an English HUD phrase in a bespoke class is exactly
-        // as wrong as one in .hf-label. Stat units stay excluded ("%", "x", "M").
+        // meaning-bearing text: component classes PLUS any clearly-readable custom text
+        // (≥18px tall at ≥.5 opacity) — used by the wrong-language + junk content checks.
         const meaning = /hf-(kw|label|sub|title|head|lead)/.test(e.cls || '') || (e.h >= 18 && e.o > 0.5);
         if (narrWords && meaning && textLanguageLeak(e.txt, narrWords, narrLang)) bad.set(e.txt, e);
-        // completeness gate: a meaning label that begins/ends on a function word is a mid-phrase
-        // fragment ("và điều quan trọng") — a clean-content-phrase re-ask, not a colour fix.
-        if (meaning && e.txt && labelIsFragment(e.txt)) bump(frag, e.txt, { t, ...e });
         if (e.o > 0.25 && e.txt && !e.txt.includes('{{') && JUNK_RE.test(e.txt) && !/[À-ỿ]/.test(e.txt)) bump(junk, e.txt.slice(0, 30), { t, ...e });
       }
     }
+    // "HTML not broken": the scene must actually paint something (a blank render = extraction/JS fail).
     if (!anyVisible) defects.push('no element is ever visible — the scene renders empty. Make each beat element visible during its window.');
-    else if (deadAt != null) defects.push(`the frame goes empty at ${deadAt.toFixed(1)}s mid-scene — nothing substantial is on screen between beats. Keep the composition alive: give earlier BUILD elements out:'settle' (they stay dimmed) or hold the previous element until the next one enters; the screen must never drop back to bare decor mid-scene.`);
-    // A timeline running past DUR is harmless by itself (__seek samples only 0..DUR; idle
-    // loops may legitimately outlive the window) — it becomes actionable only when the
-    // ending is ALSO weak, i.e. the climax genuinely landed outside the rendered window.
-    else if (!endStrong) defects.push(`the scene ends nearly empty (nothing prominent is on screen at ${endT.toFixed(1)}s)${Number.isFinite(tlDur) && tlDur > dur + 1.5 ? ` while the animation runs to ${tlDur.toFixed(1)}s — the climax lands past DUR=${dur.toFixed(1)}s; pull it back so it ENDS at ≈${(dur - 0.05).toFixed(1)}s` : ' — keep the final keyword (or a climax element) clearly visible through the last second so the ending lands'}.`);
-    // sparse composition (cosmetic): only reject a NEAR-EMPTY frame — a tiny element lost in a
-    // sea of black. A balanced or distributed layout that fills a reasonable share of the width
-    // is fine (the model chooses the arrangement); this just catches the lone-small-keyword miss,
-    // so the threshold is deliberately loose and does NOT force a single dominant hero.
-    if (!overlay && anyVisible && heroFrac > 0 && heroFrac < sparseHero && unionFrac < sparseUnion) {
-      softDefects.push(`the scene reads sparse${density === 'rich' ? ' for a RICH-density scene' : ''} — the widest element spans ${Math.round(heroFrac * 100)}% and everything together covers only ${Math.round(unionFrac * 100)}% of the frame width, leaving most of it empty. Fill the frame more — spread the composition across the width or enlarge the main element (the arrangement is yours; just don't leave it near-empty).`);
-    }
-    // overlay contract: the footage must stay visible — solid paint may not blanket the
-    // center window (transient entrances are tolerated by the 0.45-alpha/held threshold).
+    // overlay contract: the footage must stay visible — solid paint may not blanket the center.
     if (overlay && maxCenterCover > 0.4) {
       defects.push(`overlay mode: solid elements cover ${Math.round(maxCenterCover * 100)}% of the center of the frame — the owner's footage must stay visible. Keep the center ~40-50% clear; move panels/keywords to the edges, lower-third or side columns, and never use filled backgrounds larger than a chip.`);
     }
-    // telemetry junk net (any size, any class): snake_case/dev tokens with no Vietnamese
-    // diacritic — including ones a SCRIPT writes at runtime (normalizeSpec can only strip
-    // the static HTML). Persistence-tiered like every geometry finding.
+    // P38 distribution: a horizontal frame whose readable elements all bunch on the center axis is
+    // the "chưa cân đối" the owner flagged — re-ask to spread across left / center / right.
+    if (!overlay && w >= h * 1.1 && hadCluster && maxSpread < 0.22 && unionFrac < 0.5) {
+      defects.push(`the composition is stacked on the center axis (readable elements span only ${Math.round(maxSpread * 100)}% of the width) — distribute them across left / center / right per the ratio rules: a wide frame wants a split or an off-center hero with a real counterweight, not everything in the middle.`);
+    }
+    // telemetry junk net: snake_case/dev tokens with no Vietnamese diacritic. Persistence-tiered.
     const junkH = [...junk.values()].filter(heldAcrossSamples);
     if (junkH.length) { const o = junkH[0]; defects.push(`the on-screen text "${o.txt}" is leftover dev/telemetry decor (snake_case/code token) — remove it; on-screen words must be real ${narrLang === 'vi' ? 'Vietnamese' : narrLang} copy, numbers or icons.`); }
-    // reference-caliber gates (re-ask drivers, cosmetic class — a scene still short after all
-    // attempts ships as 'imperfect' LOUDLY rather than killing the run):
-    // hero density — the standing composition must be a crafted instrument, not scattered bits
-    // P37: only NUDGE a RICH scene that is genuinely bare (<4 parts) — a balanced scene, or a
-    // rich one with a handful of parts, gets the latitude the reference app allows.
-    if (caliber && !overlay && anyVisible && density === 'rich' && maxHeroParts < 4) {
-      softDefects.push(`the hero construction carries only ${maxHeroParts} crafted sub-parts (this is a RICH-density scene) — build the main instrument from more parts (rows / ticks / labels / readouts / needle) INSIDE ONE container or slot, so the frame reads as a crafted device, never scattered fragments.`);
-    }
-    // primary type treatment — the biggest word must look expensive
-    if (caliber && anyVisible && primaryInfo && primaryInfo.fs >= 0.05 * Math.min(w, h) && !primaryInfo.grad && !primaryInfo.stroke && !primaryInfo.sh) {
-      defects.push(`the primary text "${primaryInfo.txt}" is flat/untreated — give the hero word a chrome gradient (background-clip:text), a layered neon text-shadow, or a stroke+fill, plus a soft drop-shadow.`);
-    }
-    // beat adherence: compare the snapshot before each beat with one after its entrance
-    // window — some element must ENTER (newly visible) or take EMPHASIS (opacity/size jump).
-    const missed = [];
-    for (const p of beatPairs) {
-      const pre = snaps.get(p.tp), post = snaps.get(p.tq);
-      if (!pre || !post) continue;
-      const key = (e) => `${e.cls}|${e.txt}`;
-      const preMap = new Map(pre.map((e) => [key(e), e]));
-      let responded = false;
-      for (const e of post) {
-        const p0 = preMap.get(key(e));
-        if (!p0) { if (e.o > 0.3) { responded = true; break; } continue; }
-        if (e.o - p0.o >= 0.3) { responded = true; break; }
-        if (p0.w > 0 && Math.abs(e.w - p0.w) / p0.w >= 0.12) { responded = true; break; }
-      }
-      if (!responded) missed.push(p.t0);
-    }
-    if (beatPairs.length >= 2 && missed.length >= 2 && missed.length >= Math.ceil(beatPairs.length / 2)) {
-      softDefects.push(`the beats at ${missed.slice(0, 3).map((t) => t.toFixed(1) + 's').join(', ')} produce no visual response — nothing enters or takes emphasis when those words are spoken. Schedule an entrance or emphasis EXACTLY at each beat's t0 (FX.beat / FX.accents) so the graphics land on the spoken words.`);
-    }
-    // P35 dialogue-match (cosmetic re-ask): the beat labels ARE the narration's anchor
-    // words — a majority of them must actually APPEAR on screen at/after their moment.
-    // Beats may legitimately anchor on icons/hero parts, so the gate fires only when
-    // MOST checkable labels are missing (>40%), across ≥3 labeled beats.
-    if (caliber && anyVisible) {
-      const beatTokens = (b) => foldTxt(b.text || '').split(/[^\p{L}\p{N}%]+/u)
-        .filter((k) => k.length >= 3 || /^\d+%?$/.test(k));
-      const labeled = (beats || []).filter((b) => beatTokens(b).length);
-      if (labeled.length >= 4) {
-        const missing = labeled.filter((b) => {
-          const toks = beatTokens(b);
-          return !seenTexts.some((s2) => s2.t >= (b.t0 || 0) - 0.1 && toks.some((k) => s2.f.includes(k)));
-        });
-        if (missing.length / labeled.length > 0.6) {
-          softDefects.push(`the spoken anchor words ${missing.slice(0, 3).map((b) => `"${b.text}"`).join(', ')} never appear on screen — anchor each beat with its own keyword/number/label (a matching icon needs a short label too) so the graphics SPEAK the narration instead of just decorating it.`);
-        }
-      }
-    }
-    // geometry findings pass persistence tiering: one-sample transients are entrance/exit
-    // states of slow eases, not defects — only findings HELD across ≥2 samples re-ask.
+    // geometry findings pass persistence tiering: one-sample transients are entrance/exit states
+    // of slow eases, not defects — only findings HELD across ≥2 samples re-ask.
     const held = (m) => [...m.values()].filter(heldAcrossSamples);
-    // P35 contrast honesty: the prompt promises ≥4.5:1 — settled HEADLINE-class text
-    // (≥5% of the short side) is now gated at 3.5:1; smaller/decor text keeps the 2.2 floor.
-    const headlineFs = 0.05 * Math.min(w, h);
-    const offH = held(off), subH = held(sub), ovlH = held(ovl), clipH = held(clip), occH = held(occ), fragH = held(frag);
-    const lowcH = held(lowc).filter((o) => o.ratio < 2.2 || (o.fs || 0) >= headlineFs);
+    const offH = held(off), subH = held(sub), ovlH = held(ovl), clipH = held(clip), occH = held(occ);
     if (offH.length) { const o = offH[0]; defects.push(`element "${o.txt || o.cls}" runs ${o.overflow}px off-screen at ${o.t.toFixed(1)}s — keep all content inside the frame with a 6% margin; shrink font-size or reposition.`); }
     if (captionsOn && subH.length) { const o = subH[0]; defects.push(`element "${o.txt || o.cls}" reaches the bottom of the frame at ${o.t.toFixed(1)}s — the bottom 22% is reserved for subtitles, move it up.`); }
     if (bad.size) { const o = [...bad.values()][0]; defects.push(`the on-screen text "${o.txt}" is in the wrong language — the narration is ${narrLang === 'vi' ? 'Vietnamese' : narrLang}, and every keyword must be in the narration's language. Semantic (non-verbatim) keywords are fine; translating or mixing languages is not.`); }
     if (ovlH.length) { const o = ovlH[0]; defects.push(`the texts "${o.a}" and "${o.b}" overlap each other at ${o.t.toFixed(1)}s (${Math.round(o.frac * 100)}% of the smaller box) — text must NEVER sit on top of other text; separate them spatially or stagger their timing so only one occupies that area at a time.`); }
-    if (lowcH.length) { const o = lowcH[0]; defects.push(`the text "${o.txt}" is unreadable at ${o.t.toFixed(1)}s — contrast ratio ${o.ratio}:1 against its background${(o.fs || 0) >= headlineFs ? ' (headline-class text needs ≥3.5:1)' : ''}. Use the guide's ink color (or a bright accent) so readable text reaches at least 4.5:1.`); }
     if (clipH.length) { const o = clipH[0]; defects.push(`the text "${o.txt}" is clipped at ${o.t.toFixed(1)}s — its box is smaller than its content, cutting words off. Remove fixed widths/heights and overflow:hidden from text elements; shorten the label or let the element size itself.`); }
     if (occH.length) { const o = occH[0]; defects.push(`the text "${o.txt}" is covered by an opaque element ("${o.by}") at ${o.t.toFixed(1)}s — nothing may paint on top of readable text; move the decor behind it (DOM order/z-index) or offset it.`); }
-    if (fragH.length) { const o = fragH[0]; defects.push(`the on-screen label "${o.txt}" is a sentence fragment — it begins or ends on a function word, so it reads as a mid-phrase slice. Use a COMPLETE 2–4 word phrase (a noun phrase or headline), never a fragment cut from the middle of a sentence.`); }
-    // Deterministic contrast repair target: unreadable text on a dark stage is a colour mistake
-    // the codegen loop can auto-fix (force ink) instead of dropping the whole bespoke scene to
-    // the plain fallback. Emit a targetable selector (#id preferred, else .class) per element.
-    const contrastFix = [];
-    for (const o of lowcH) {
-      const sel = o.id ? `#${o.id}` : (o.cls ? `.${o.cls}` : '');
-      if (sel && !contrastFix.some((c) => c.sel === sel)) contrastFix.push({ sel, txt: o.txt, ratio: o.ratio });
-    }
-    return { ok: defects.length === 0, defects, softDefects, tlDur: Number.isFinite(tlDur) ? +tlDur.toFixed(2) : null, contrastFix };
+    return { ok: defects.length === 0, defects, tlDur: Number.isFinite(tlDur) ? +tlDur.toFixed(2) : null };
   } catch (e) {
     return { ok: true, skipped: true, defects: [], error: String(e.message || e) }; // never block codegen on a harness hiccup
   } finally { await page.close().catch(() => {}); }
