@@ -17,6 +17,7 @@ import { resolveGuide } from '../styleguide/index.js';
 import { heroMediaUri } from '../util/asset-uri.js';
 import { hash32 } from '../util/util.js';
 import { animSize, previewSceneFrame } from '../animation/index.js';
+import { backdropForScene } from '../animation/backdrop.js';
 import { aiSettingsFor, ttsOverrideFor } from '../core/config.js';
 import { ttsFingerprint, fpStamp } from './fingerprint.js';
 
@@ -92,7 +93,10 @@ export async function regenOne(sceneId, what) {
         diversitySalt: hash32(String(project.id)),
         hookVisual,
       });
-      const plan = { template: 'hyperframe', props: { ...props } };
+      // P38: per-scene backdrop rotation (parity with the batch lane) — palette stays locked.
+      const backdrop = config.hyperframe?.backgroundVariety !== false
+        ? backdropForScene(sc, sc.idx, hash32(String(project.id))) : null;
+      const plan = { template: 'hyperframe', props: { ...props, ...(backdrop ? { backdrop } : {}) } };
       DB.updateScene(sc.id, { template: plan.template, props: plan.props, status: 'html', video_path: null });
       const fresh = DB.getScene(sc.id);
       const out = join(dir, 'render', `scene_${String(sc.idx).padStart(3, '0')}_preview.jpg`);

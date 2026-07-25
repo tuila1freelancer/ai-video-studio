@@ -10,6 +10,7 @@ import { generateDirections, hasDirection } from '../direction.js';
 import { animSize } from '../../animation/index.js';
 import { generateSceneSpec } from '../../hyperframe/codegen.js';
 import { densityForScene } from '../../hyperframe/prompt.js';
+import { backdropForScene } from '../../animation/backdrop.js';
 import { heroMediaUri } from '../../util/asset-uri.js';
 import { hash32 } from '../../util/util.js';
 import { resolveGuide } from '../../styleguide/index.js';
@@ -108,9 +109,12 @@ export async function runVisuals(ctx) {
         diversitySalt: hash32(String(projectId)), // P31: signature rotation differs per video
         onLog: (m) => logger.warn(m, { projectId }),
       });
+      // P38: per-scene backdrop rotation — palette/fonts stay LOCKED to the guide, only the
+      // background STYLE varies scene to scene (unless backgroundVariety is off → guide.motif).
+      const backdrop = config.hyperframe?.backgroundVariety !== false
+        ? backdropForScene(sc, sc.idx, hash32(String(projectId))) : null;
       // clear any stale clip: on resume a scene that just got FRESH visuals must re-render.
-      // P38: quality tiers are gone — the render gate is now pass/fail (not-broken + balanced).
-      DB.updateScene(sc.id, { template: 'hyperframe', props: { ...props }, status: 'html', video_path: null });
+      DB.updateScene(sc.id, { template: 'hyperframe', props: { ...props, ...(backdrop ? { backdrop } : {}) }, status: 'html', video_path: null });
       hub.toProject(projectId, { type: 'scene', sceneId: sc.id, idx: sc.idx, status: 'html', template: 'hyperframe', beats: beats.length });
     } catch (e) {
       if (e.stopped) throw e;

@@ -59,7 +59,7 @@ test('P7: TTS voice lock — explicit override beats langVoices, 3 tries on the 
 
 test('P8: fresh hyperframe visuals null video_path (resume re-renders); chapter-break with props is skipped', () => {
   const s = src('src/pipeline/stages/visuals.js');
-  assert.match(s, /template:\s*'hyperframe',\s*props:\s*\{[^}]*\},\s*status:\s*'html',\s*video_path:\s*null/, 'fresh hyperframe still nulls video_path (props now also carries the quality tier)');
+  assert.match(s, /template: 'hyperframe', props: \{ \.\.\.props[^;]*status: 'html', video_path: null/, 'fresh hyperframe still nulls video_path (P38: props may also carry the per-scene backdrop)');
   assert.match(s, /chapter-break'\s*&&\s*sc\.props\)\s*return/);
 });
 

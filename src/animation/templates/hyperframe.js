@@ -24,12 +24,13 @@ function m32(a) {
 // tiny tileable SVG noise (fixed seed → static, deterministic)
 const GRAIN_URI = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' seed='7' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E")`;
 
-function motifLayer(guide, ctx) {
+function motifLayer(guide, ctx, name) {
   const { u, w, h, seed } = ctx;
   const [a0, a1, a2] = guide.palette.accents;
   const rnd = m32(9001 + (seed | 0));
   const pct = (v) => (v * 100).toFixed(2) + '%';
-  if (guide.motif === 'mesh') {
+  const style = name || guide.motif; // P38: the per-scene backdrop can override the guide motif
+  if (style === 'mesh') {
     const blobs = [a0, a1, a2].map((c, i) => {
       const x = pct(0.12 + rnd() * 0.76), y = pct(0.1 + rnd() * 0.7);
       const s = u(46 + i * 8);
@@ -37,7 +38,7 @@ function motifLayer(guide, ctx) {
     }).join('');
     return { css: `.hf-blob{position:absolute;border-radius:50%;filter:blur(${u(9)}px);transform:translate(-50%,-50%)}`, html: blobs };
   }
-  if (guide.motif === 'bokeh') {
+  if (style === 'bokeh') {
     let dots = '';
     for (let i = 0; i < 9; i++) {
       const c = [a0, a1, a2][i % 3];
@@ -45,12 +46,54 @@ function motifLayer(guide, ctx) {
     }
     return { css: `.hf-bok{position:absolute;border-radius:50%;filter:blur(${u(2.2)}px);transform:translate(-50%,-50%)}`, html: dots };
   }
-  if (guide.motif === 'grid') {
+  if (style === 'grid') {
     const cell = Math.round(w / 18);
     return {
       css: `.hf-gridbg{position:absolute;inset:0;opacity:.12;background-image:linear-gradient(${a0}33 1px,transparent 1px),linear-gradient(90deg,${a0}33 1px,transparent 1px);background-size:${cell}px ${cell}px;mask-image:radial-gradient(120% 95% at 50% 50%,#000 32%,transparent 80%);-webkit-mask-image:radial-gradient(120% 95% at 50% 50%,#000 32%,transparent 80%)}
 .hf-horiz{position:absolute;left:0;right:0;bottom:0;height:${Math.round(h * 0.4)}px;background:radial-gradient(70% 100% at 50% 100%,${a1}26 0%,transparent 70%)}`,
       html: '<div class="hf-gridbg"></div><div class="hf-horiz"></div>',
+    };
+  }
+  // ── P38 backdrop styles (all seeded/deterministic, sit behind the scene in .hf-far) ──
+  if (style === 'spotlight') {
+    const x = pct(0.26 + rnd() * 0.48), y = pct(0.18 + rnd() * 0.34);
+    return {
+      css: `.hf-spot{position:absolute;inset:0;background:radial-gradient(58% 54% at ${x} ${y},${a0}22 0%,${a1}12 34%,transparent 70%)}`,
+      html: '<div class="hf-spot"></div>',
+    };
+  }
+  if (style === 'aurora') {
+    return {
+      css: `.hf-aur{position:absolute;inset:-12%;background:radial-gradient(38% 30% at 22% 30%,${a0}24,transparent 60%),radial-gradient(44% 34% at 78% 42%,${a1}1c,transparent 62%),radial-gradient(50% 40% at 50% 82%,${a2}18,transparent 66%);filter:blur(${u(6)}px);animation:hfAur 20s ease-in-out infinite alternate}
+@keyframes hfAur{from{transform:translate(-2%,-1%) scale(1)}to{transform:translate(2%,1%) scale(1.06)}}`,
+      html: '<div class="hf-aur"></div>',
+    };
+  }
+  if (style === 'rays') {
+    return {
+      css: `.hf-rays{position:absolute;inset:0;background:repeating-conic-gradient(from 0deg at 50% 6%,${a0}12 0deg,transparent 3deg 9deg);opacity:.6;mask-image:radial-gradient(95% 92% at 50% 16%,#000 18%,transparent 76%);-webkit-mask-image:radial-gradient(95% 92% at 50% 16%,#000 18%,transparent 76%)}`,
+      html: '<div class="hf-rays"></div>',
+    };
+  }
+  if (style === 'dotmatrix') {
+    const gap = Math.max(14, Math.round(w / 46));
+    const dot = Math.max(1, Math.round(u(0.18)));
+    return {
+      css: `.hf-dm{position:absolute;inset:0;background-image:radial-gradient(${a1}55 ${dot}px,transparent ${dot + 1}px);background-size:${gap}px ${gap}px;opacity:.5;mask-image:radial-gradient(112% 92% at 50% 46%,#000 30%,transparent 80%);-webkit-mask-image:radial-gradient(112% 92% at 50% 46%,#000 30%,transparent 80%)}`,
+      html: '<div class="hf-dm"></div>',
+    };
+  }
+  if (style === 'blueprint') {
+    const cell = Math.round(w / 26), fine = Math.max(6, Math.round(cell / 4));
+    return {
+      css: `.hf-bp{position:absolute;inset:0;background-image:linear-gradient(${a0}22 1px,transparent 1px),linear-gradient(90deg,${a0}22 1px,transparent 1px),linear-gradient(${a0}10 1px,transparent 1px),linear-gradient(90deg,${a0}10 1px,transparent 1px);background-size:${cell}px ${cell}px,${cell}px ${cell}px,${fine}px ${fine}px,${fine}px ${fine}px;opacity:.55;mask-image:radial-gradient(122% 100% at 50% 50%,#000 40%,transparent 86%);-webkit-mask-image:radial-gradient(122% 100% at 50% 50%,#000 40%,transparent 86%)}`,
+      html: '<div class="hf-bp"></div>',
+    };
+  }
+  if (style === 'gradient-wash') {
+    return {
+      css: `.hf-gw{position:absolute;inset:0;background:linear-gradient(122deg,${a0}20 0%,transparent 42%,${a1}18 100%)}`,
+      html: '<div class="hf-gw"></div>',
     };
   }
   // particles / grain → the page canvas + grain overlay carry the texture; add one soft halo
@@ -173,7 +216,10 @@ const hyperframe = {
     // dressing that would paint the key color away (motif, deco rings, vignette, grain)
     // is omitted; the beam stays (a light streak over footage is reference doctrine).
     const overlay = !!p.overlay;
-    const motif = overlay ? { css: '', html: '' } : motifLayer(guide, ctx);
+    // P38: per-scene backdrop rotation — p.backdrop (set by visuals/regen when backgroundVariety
+    // is on) overrides the guide's fixed motif, so the video varies its background scene to scene
+    // while palette/fonts stay LOCKED for one identity. Falls back to guide.motif for old scenes.
+    const motif = overlay ? { css: '', html: '' } : motifLayer(guide, ctx, p.backdrop || guide.motif);
     const deco = overlay ? { css: '', html: '' } : decoLayer(guide, ctx);
     const body = expandIcons(p.html || '');
     const css = baseCss(guide, ctx) + '\n' + motif.css + '\n' + deco.css + '\n' + (p.css || '');
