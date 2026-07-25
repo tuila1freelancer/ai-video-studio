@@ -97,7 +97,7 @@ export async function runVisuals(ctx) {
     if (sc.template === 'chapter-break' && sc.props) return;
     op(projectId, `🎨 AI dựng cảnh ${sc.idx + 1}/${totalHf}`);
     try {
-      const { props, beats, tier } = await generateSceneSpec({
+      const { props, beats } = await generateSceneSpec({
         scene: sc, guide, w: hfSize.w, h: hfSize.h, idx: sc.idx, total: totalHf, ai: hfAi,
         // P35: density follows the scene's ROLE (hook/proof/payoff → rich, cta → minimal);
         // the project knob is the baseline for everything else
@@ -109,9 +109,9 @@ export async function runVisuals(ctx) {
         onLog: (m) => logger.warn(m, { projectId }),
       });
       // clear any stale clip: on resume a scene that just got FRESH visuals must re-render.
-      // qtier persists the render-validation verdict so finalize can surface degraded scenes.
-      DB.updateScene(sc.id, { template: 'hyperframe', props: { ...props, qtier: tier || 'premium' }, status: 'html', video_path: null });
-      hub.toProject(projectId, { type: 'scene', sceneId: sc.id, idx: sc.idx, status: 'html', template: 'hyperframe', beats: beats.length, tier });
+      // P38: quality tiers are gone — the render gate is now pass/fail (not-broken + balanced).
+      DB.updateScene(sc.id, { template: 'hyperframe', props: { ...props }, status: 'html', video_path: null });
+      hub.toProject(projectId, { type: 'scene', sceneId: sc.id, idx: sc.idx, status: 'html', template: 'hyperframe', beats: beats.length });
     } catch (e) {
       if (e.stopped) throw e;
       logger.warn(`Cảnh ${sc.idx + 1}: codegen thất bại sau mọi lần thử với model chính: ${e.message}`, { projectId, stage: 'b5', sceneIdx: sc.idx });

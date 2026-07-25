@@ -121,7 +121,6 @@ export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, on
 
   let lastErrors = null, lastGood = null;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    let rvRan = false, contrastRepaired = false; // per-attempt verification state (→ quality tier)
     let raw;
     try {
       // temperature ladder: precise while fixing (0.45), one notch warmer late in the run
@@ -162,55 +161,29 @@ export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, on
     // render check, so validation sees the actual inlined hero media.
     if (!errors.length && media.length) applyAssetMedia(clean, media);
     // dynamic: actually render and check runtime + geometry invariants (only if static passed).
-    let renderDefects = [], softDefects = [];
+    let renderDefects = [];
     if (!errors.length && renderCheck) {
       try {
-        const rv = await renderValidate({ spec: { ...clean, guide }, guide, w, h, duration, beats, narration: scene.voice_text || '', captionsOn, overlay, density });
-        if (!rv.skipped) rvRan = true; // Chrome-less runs return skipped:true → tier stays 'unverified'
+        const rv = await renderValidate({ spec: { ...clean, guide }, guide, w, h, duration, beats, narration: scene.voice_text || '', captionsOn, overlay });
         if (!rv.ok) renderDefects = rv.defects;
-        softDefects = rv.softDefects || [];
-        // Auto-contrast repair: unreadable text is a deterministic colour mistake — force the
-        // named element(s) to the guide ink + drop-shadow and re-validate ONCE, rather than
-        // dropping an otherwise-good bespoke scene to the plain fallback template (the #1 cause
-        // of a lone "plain" scene in an otherwise premium video on weaker models).
-        if (!rv.ok && rv.contrastFix?.length && renderDefects.some((d) => /unreadable/.test(d))) {
-          const ink = guide.palette.ink;
-          const fixCss = rv.contrastFix
-            .map((c) => `${c.sel}{color:${ink}!important;-webkit-text-fill-color:${ink}!important;text-shadow:0 2px 12px rgba(0,0,0,.9)!important;opacity:1!important}`)
-            .join('\n');
-          const candidateCss = `${clean.css || ''}\n/* auto-contrast repair */\n${fixCss}`;
-          const rv2 = await renderValidate({ spec: { ...clean, css: candidateCss, guide }, guide, w, h, duration, beats, narration: scene.voice_text || '', captionsOn, density });
-          if (!rv2.defects.some((d) => /unreadable/.test(d))) {
-            clean.css = candidateCss;
-            renderDefects = rv2.defects;
-            softDefects = rv2.softDefects || [];
-            contrastRepaired = true; // shipped after a deterministic repair → tier 'repaired'
-            if (!rv2.skipped) rvRan = true;
-            onLog(`cảnh ${idx + 1}: auto-contrast repair (${rv.contrastFix.length} phần tử) — ${rv2.ok ? 'đạt' : 'còn ' + rv2.defects.length + ' vấn đề khác'}`);
-          }
-        }
       } catch (e) { onLog(`cảnh ${idx + 1}: renderValidate lỗi (${String(e.message).slice(0, 60)}) — bỏ qua`); }
-      // Keep as the graceful fallback ONLY if defects are cosmetic (timing) — never ship a scene
-      // with a HARD defect (off-screen / caption collision / invented text / empty / runtime error);
-      // those fall back to the heuristic template instead.
+      // Keep as the graceful fallback ONLY if defects are cosmetic — never ship a scene with a
+      // HARD defect (off-screen / caption collision / invented text / empty / runtime error /
+      // center-clump); those fall back to the heuristic template instead.
       if (!errors.length && !HARD_DEFECT.test(renderDefects.join(' | '))) lastGood = clean;
     } else if (!errors.length) {
       lastGood = clean;
     }
-    // P37: HARD defects re-ask every attempt; the caliber "nudge" softDefects only in the first
-    // 3, so a scene that already cleared every readability gate is not endlessly homogenized
-    // toward one dense look — it ships on its own terms once the essentials are right.
-    const allIssues = [...errors, ...renderDefects, ...(attempt <= 3 ? softDefects : [])];
+    // P38: the render gate now emits only HARD "not-broken + balanced" defects — re-ask on all of
+    // them every attempt until clean or the attempt budget runs out (no-fallback contract).
+    const allIssues = [...errors, ...renderDefects];
     if (!allIssues.length) {
       if (warnings.length) onLog(`cảnh ${idx + 1}: cảnh báo lint — ${warnings.join('; ')}`);
       // plannedDur: the duration this spec's absolute animation times were authored for.
       // Scenes-first order generates specs against an ESTIMATED timeline; at render the
       // harness time-warps the template timeline by plannedDur/realDur (S.tplScale) so the
       // choreography fills the real voice duration instead of cutting or freezing.
-      // quality tier persisted per scene (G2): 'premium' = rendered clean; 'repaired' = shipped
-      // after the deterministic contrast fix; 'unverified' = no headless verdict (Chrome-less).
-      const tier = !renderCheck ? 'unverified' : (contrastRepaired ? 'repaired' : (rvRan ? 'premium' : 'unverified'));
-      return { props: { ...clean, guide, beats, plannedDur: duration, canvasW: w, canvasH: h, ...(overlay ? { overlay: true } : {}) }, beats, direction, warnings, tier };
+      return { props: { ...clean, guide, beats, plannedDur: duration, canvasW: w, canvasH: h, ...(overlay ? { overlay: true } : {}) }, beats, direction, warnings };
     }
     lastErrors = allIssues;
     onLog(`cảnh ${idx + 1}: spec chưa đạt (lần ${attempt}/${maxAttempts}) — ${allIssues.join(' | ').slice(0, 240)}`);
@@ -228,7 +201,7 @@ export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, on
   // hard runtime error, ship it (a slightly-imperfect real scene beats a generic template).
   if (lastGood) {
     onLog(`cảnh ${idx + 1}: dùng spec tốt nhất đạt được (còn cảnh báo hình học sau ${maxAttempts} lần)`);
-    return { props: { ...lastGood, guide, beats, plannedDur: duration, canvasW: w, canvasH: h, ...(overlay ? { overlay: true } : {}) }, beats, direction, warnings: ['render-imperfect'], tier: 'imperfect' };
+    return { props: { ...lastGood, guide, beats, plannedDur: duration, canvasW: w, canvasH: h, ...(overlay ? { overlay: true } : {}) }, beats, direction, warnings: ['render-imperfect'] };
   }
   throw new Error(`codegen thất bại sau ${maxAttempts} lần: ${lastErrors?.join(' | ').slice(0, 200)}`);
 }

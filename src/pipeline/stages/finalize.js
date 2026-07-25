@@ -10,7 +10,7 @@ import { renderAnimationScene } from '../../animation/index.js';
 import { resolveGuide } from '../../styleguide/index.js';
 import { buildThumbnail, buildThumbnailVariants } from '../visuals.js';
 import { concatScenes, planTransitions, transitionLoss } from '../render.js';
-import { qcFinalVideo, summarizeVisualTiers } from '../qc.js';
+import { qcFinalVideo } from '../qc.js';
 import { masterAudio } from '../../media/master.js';
 import { makeAmbientBed, probeDuration, makeWhoosh, makeSfxBed, hasDrawtext } from '../../media/ffmpeg.js';
 import { resolveFinalOverlay } from '../../media/logo-overlay.js';
@@ -22,9 +22,9 @@ import { resolveOutputDir } from '../helpers.js';
 
 /**
  * @param {string} projectId
- * @param {{dir:string, size:{w:number,h:number}, config:object, _qcAttempt?:number}} opts
+ * @param {{dir:string, size:{w:number,h:number}, config:object}} opts
  */
-export async function finalize(projectId, { dir, size, config, _qcAttempt = 0 }) {
+export async function finalize(projectId, { dir, size, config }) {
   step(projectId, 'b7', 'running', 'Ghép & mix');
   DB.updateProject(projectId, { current_step: 'b7' });
   const project = DB.getProject(projectId);
@@ -179,61 +179,25 @@ export async function finalize(projectId, { dir, size, config, _qcAttempt = 0 })
     if (mastered.corrected) op(projectId, `🎚️ Đã master: ${mastered.lufs?.toFixed(1)} LUFS · true-peak ${mastered.truePeak?.toFixed(1)} dB`);
   } catch (e) { logger.warn(`master: ${e.message} — giữ bản mix gốc`, { projectId }); }
 
-  // ---- B8: content quality gate — decode the finished video and hunt visible defects
-  // (black frames, dead air, missing audio). Scene-attributable defects get ONE repair
-  // cycle: re-render exactly those scenes, then concat + QC again. The report always
-  // lands in qc_report.json so a run is never silently "done" with known defects.
+  // ---- B8: final integrity gate — a cheap stream/duration check on the joined video.
+  // P38: the heavy per-frame QC (black/white-frame + dead-air scanning, scene-attributable
+  // re-render, and visual quality-tier surfacing) is REMOVED — the owner dropped the "cảnh lỗi"
+  // QC as redundant, and the reference app ships none of it. A broken JOIN still surfaces here.
   if (config.qcGate !== false) {
-    op(projectId, '🔬 QC video thành phẩm (black-frame / khoảng câm / thời lượng)…');
-    // scene spans on the FINAL timeline: material times shifted by the exact xfade overlaps
-    // the transition plan consumed before each scene (contiguous by construction)
-    let mat = 0;
-    const sceneSpans = scenes.map((s, k) => {
-      const a = Math.max(0, mat - lossBeforeScene(k));
-      mat += s.duration || 0;
-      return { idx: s.idx, t0: a, t1: Math.max(a, mat - lossBeforeScene(k + 1)) };
-    });
+    op(projectId, '🔬 Kiểm tra video thành phẩm (stream + thời lượng)…');
     // expected FINAL duration = scene material − xfade overlaps (no synthetic cards, P31)
     const xfadeLoss = transPlan && clips.length <= 24 ? transitionLoss(transPlan) : 0;
-    const qc = await qcFinalVideo(res.path, { expectDur: expectDur - xfadeLoss, sceneSpans, tolerancePct: 8, tailAllowance: 0 });
-    // Visual quality (G2/G3/G8): fold the per-scene render-validation verdicts B5 persisted
-    // into the report, so a "done" run is never silently green over a degraded/unverified scene.
-    const vis = summarizeVisualTiers(all);
+    const qc = await qcFinalVideo(res.path, { expectDur: expectDur - xfadeLoss, tolerancePct: 8 });
     writeFileSync(join(dir, 'qc_report.json'), JSON.stringify({
-      ...qc, visualQc: vis.visualQc, visualDegraded: vis.degraded, visualUnverified: vis.unverified.map((u) => u.idx),
+      ...qc,
       loudness: { lufs: mastered.lufs, truePeak: mastered.truePeak, corrected: mastered.corrected },
-      at: new Date().toISOString(), attempt: _qcAttempt,
+      at: new Date().toISOString(),
     }, null, 2));
     if (!qc.ok) {
-      const badIdx = [...new Set(qc.issues.map((i) => i.sceneIdx).filter((n) => n != null))];
-      logger.warn(`QC: ${qc.issues.length} vấn đề (${qc.issues.map((i) => i.type).join(', ')}) — cảnh liên quan: ${badIdx.join(', ') || 'không xác định'}`, { projectId });
-      if (badIdx.length && _qcAttempt < 1) {
-        op(projectId, `🩹 QC phát hiện lỗi ở ${badIdx.length} cảnh — render lại và ghép lại…`);
-        const pp2 = progressPlan(all, config);
-        for (const idx of badIdx) {
-          const sc = all.find((s) => s.idx === idx);
-          if (!sc) continue;
-          const r2 = await renderAnimationScene(DB.getScene(sc.id), project, config, {
-            dir: renderDir, progressStart: pp2.offsets[sc.idx] || 0, progressTotal: pp2.total, total: all.length,
-          });
-          DB.updateScene(sc.id, { video_path: r2.path, duration: r2.duration, status: 'rendered', error: null });
-        }
-        return finalize(projectId, { dir, size, config, _qcAttempt: 1 });
-      }
-      op(projectId, `⚠️ QC còn ${qc.issues.length} cảnh báo (xem qc_report.json) — video vẫn được xuất`);
+      logger.warn(`QC: ${qc.issues.length} vấn đề (${qc.issues.map((i) => i.type).join(', ')})`, { projectId });
+      op(projectId, `⚠️ Video có ${qc.issues.length} cảnh báo tính toàn vẹn (xem qc_report.json) — vẫn được xuất`);
     } else {
-      op(projectId, '✅ QC đạt: không black-frame, không khoảng câm, thời lượng khớp');
-    }
-    // Never a SILENT green: name any scene below the bespoke bar or left unverified so the
-    // owner knows exactly where to look instead of scrubbing the whole video.
-    if (vis.degraded.length) {
-      op(projectId, `⚠️ ${vis.degraded.length} cảnh chưa đạt chuẩn bespoke (${vis.degraded.map((d) => `#${d.idx + 1}:${d.tier}`).join(', ')}) — xem qc_report.json`);
-    }
-    if (vis.unverified.length) {
-      op(projectId, `🔎 ${vis.unverified.length} cảnh CHƯA kiểm tra được hình (không có Chrome) — chưa xác minh: ${vis.unverified.map((u) => `#${u.idx + 1}`).join(', ')}`);
-    }
-    if (visualMode === 'hyperframe' && !vis.degraded.length && !vis.unverified.length && vis.tiers.length) {
-      op(projectId, '✨ Mọi cảnh HyperFrame đạt chuẩn bespoke (đã kiểm tra hình)');
+      op(projectId, '✅ Video hợp lệ: đủ stream, thời lượng khớp');
     }
   }
 

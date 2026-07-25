@@ -66,9 +66,9 @@ export async function regenOne(sceneId, what) {
       } catch { /* keep the old brief */ }
       const hookVisual = sc.idx > 0 ? (DB.getScenes(project.id)[0]?.visual_prompt || '') : '';
       // P35 regen parity: the single-scene lane passes the SAME flags as the batch lane
-      // (captions/consistent/overlay/imageFull/diversity salt/per-scene density), persists
-      // the quality tier, and FAILS LOUDLY — the silent heuristic fallback contradicted the
-      // no-fallback contract and shipped false-'premium' scenes with no qtier.
+      // (captions/consistent/overlay/imageFull/diversity salt/per-scene density) and FAILS
+      // LOUDLY — the silent heuristic fallback contradicted the no-fallback contract. P38: the
+      // quality tier is gone; the render gate is pass/fail (not-broken + balanced).
       const assetByName = new Map((Array.isArray(config.assets) ? config.assets : [])
         .filter((a) => a?.name && a?.path).map((a) => [String(a.name).toLowerCase(), a]));
       let media = null;
@@ -81,7 +81,7 @@ export async function regenOne(sceneId, what) {
         }
         media = out.length ? out : null;
       }
-      const { props, tier } = await generateSceneSpec({
+      const { props } = await generateSceneSpec({
         scene: sc, guide, w, h, idx: sc.idx, total, ai: hfAi,
         density: densityForScene(sc, config.hyperframe?.density),
         creativeDirection: config.hyperframe?.direction,
@@ -92,7 +92,7 @@ export async function regenOne(sceneId, what) {
         diversitySalt: hash32(String(project.id)),
         hookVisual,
       });
-      const plan = { template: 'hyperframe', props: { ...props, qtier: tier || 'premium' } };
+      const plan = { template: 'hyperframe', props: { ...props } };
       DB.updateScene(sc.id, { template: plan.template, props: plan.props, status: 'html', video_path: null });
       const fresh = DB.getScene(sc.id);
       const out = join(dir, 'render', `scene_${String(sc.idx).padStart(3, '0')}_preview.jpg`);

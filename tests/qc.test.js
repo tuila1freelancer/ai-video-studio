@@ -1,5 +1,6 @@
-// Functional QC tests — build tiny clips with ffmpeg and assert the gate's verdicts.
-// Skipped cleanly when ffmpeg is not resolvable (hermetic CI installs it via apt).
+// Functional QC tests — build tiny clips with ffmpeg and assert the integrity gate's verdicts.
+// P38: the visual QC (loudness / black / white / silence scanning + quality tiers) is removed;
+// what remains is cheap stream/duration integrity. Skipped when ffmpeg is not resolvable.
 import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -20,26 +21,29 @@ async function makeClip(name, { silent }) {
   return out;
 }
 
-test('qcSceneClip flags a narrated scene whose audio is silent (dead-air, pre-mix voice bus)', { skip: !haveFfmpeg }, async () => {
-  const { qcSceneClip } = await import('../src/pipeline/qc.js');
-  const clip = await makeClip('silent.mp4', { silent: true });
-  const r = await qcSceneClip(clip, { expectDur: 3, expectVoice: true });
-  assert.equal(r.ok, false);
-  assert.match(r.reason, /cảnh câm/);
-});
-
-test('qcSceneClip passes an intentionally silent clip when no voice is expected', { skip: !haveFfmpeg }, async () => {
-  const { qcSceneClip } = await import('../src/pipeline/qc.js');
-  const clip = await makeClip('silent2.mp4', { silent: true });
-  assert.equal((await qcSceneClip(clip, { expectDur: 3, expectVoice: false })).ok, true);
-});
-
-test('qcSceneClip passes a voiced clip and enforces the A/V duration window', { skip: !haveFfmpeg }, async () => {
+test('qcSceneClip passes a clip that carries both streams at the right duration', { skip: !haveFfmpeg }, async () => {
   const { qcSceneClip } = await import('../src/pipeline/qc.js');
   const clip = await makeClip('voiced.mp4', { silent: false });
-  assert.equal((await qcSceneClip(clip, { expectDur: 3, expectVoice: true })).ok, true);
-  const drift = await qcSceneClip(clip, { expectDur: 9, expectVoice: true });
+  assert.equal((await qcSceneClip(clip, { expectDur: 3 })).ok, true);
+  // P38: a silent-but-present audio stream is NOT a defect anymore (loudness scan removed)
+  const silent = await makeClip('silent.mp4', { silent: true });
+  assert.equal((await qcSceneClip(silent, { expectDur: 3 })).ok, true);
+});
+
+test('qcSceneClip enforces the A/V duration window', { skip: !haveFfmpeg }, async () => {
+  const { qcSceneClip } = await import('../src/pipeline/qc.js');
+  const clip = await makeClip('voiced2.mp4', { silent: false });
+  const drift = await qcSceneClip(clip, { expectDur: 9 });
   assert.equal(drift.ok, false, 'a clip 6s short of its voice must fail');
+});
+
+test('qcFinalVideo integrity: a well-formed clip passes; a duration mismatch is flagged', { skip: !haveFfmpeg }, async () => {
+  const { qcFinalVideo } = await import('../src/pipeline/qc.js');
+  const clip = await makeClip('final.mp4', { silent: false });
+  assert.equal((await qcFinalVideo(clip, { expectDur: 3 })).ok, true);
+  const bad = await qcFinalVideo(clip, { expectDur: 30 });
+  assert.equal(bad.ok, false);
+  assert.ok(bad.issues.some((i) => i.type === 'duration'), 'a 10x duration mismatch is flagged');
 });
 
 test('normalizeVoice lands near -16 LUFS via the measured linear pass and keeps the pad', { skip: !haveFfmpeg }, async () => {
@@ -50,37 +54,4 @@ test('normalizeVoice lands near -16 LUFS via the measured linear pass and keeps 
   assert.ok(r.duration > 2.4, 'pad must extend the duration');
   const after = await measureLoudness(join(dir, 'norm.m4a'));
   assert.ok(after && Math.abs(parseFloat(after.input_i) + 16) < 3, `should sit near -16 LUFS, got ${after?.input_i}`);
-});
-
-// ---- summarizeVisualTiers: the publish-readiness surfacing gate (no ffmpeg needed) ----
-test('summarizeVisualTiers: an all-premium hyperframe video is verified + not degraded', async () => {
-  const { summarizeVisualTiers } = await import('../src/pipeline/qc.js');
-  const scenes = [
-    { idx: 0, template: 'hyperframe', props: { qtier: 'premium' } },
-    { idx: 1, template: 'hyperframe', props: { qtier: 'repaired' } },
-  ];
-  const v = summarizeVisualTiers(scenes);
-  assert.equal(v.ok, true);
-  assert.equal(v.visualQc, 'verified');
-  assert.equal(v.degraded.length, 0);
-});
-
-test('summarizeVisualTiers: a fallback/imperfect scene is surfaced as degraded', async () => {
-  const { summarizeVisualTiers } = await import('../src/pipeline/qc.js');
-  const scenes = [
-    { idx: 0, template: 'hyperframe', props: { qtier: 'premium' } },
-    { idx: 1, template: 'kinetic-statement', props: { qtier: 'fallback' } },
-    { idx: 2, template: 'hyperframe', props: { qtier: 'imperfect' } },
-  ];
-  const v = summarizeVisualTiers(scenes);
-  assert.equal(v.ok, false);
-  assert.deepEqual(v.degraded.map((d) => d.idx).sort(), [1, 2]);
-});
-
-test('summarizeVisualTiers: an unverified (Chrome-less) scene marks visualQc skipped, never a false green', async () => {
-  const { summarizeVisualTiers } = await import('../src/pipeline/qc.js');
-  const v = summarizeVisualTiers([{ idx: 0, template: 'hyperframe', props: { qtier: 'unverified' } }]);
-  assert.equal(v.visualQc, 'skipped');
-  assert.equal(v.ok, false, 'an unverified run is not fully OK');
-  assert.equal(v.unverified.length, 1);
 });

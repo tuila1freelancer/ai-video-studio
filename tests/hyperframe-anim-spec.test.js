@@ -56,25 +56,23 @@ test('P37 the emitted spec calls are LINT-CLEAN (the prompt never suggests a ban
   assert.deepEqual(errors, [], `emitted spec calls must lint clean, got: ${errors.join(' | ')}`);
 });
 
-test('P37 soft-gate split: the caliber gates nudge via softDefects; codegen re-asks them only in the first 3 attempts', () => {
+test('P38 render gate: HARD not-broken + balanced defects only (soft caliber lane removed)', () => {
   const v = src('../src/hyperframe/validate.js');
-  assert.match(v, /const softDefects = \[\]/, 'validate has a softDefects lane');
-  assert.match(v, /return \{ ok: defects\.length === 0, defects, softDefects/, 'ok reflects only HARD defects; softDefects are returned separately');
+  assert.ok(!/softDefects/.test(v), 'the softDefects lane is removed');
+  assert.match(v, /return \{ ok: defects\.length === 0, defects, tlDur/, 'the gate returns a single defects list');
   // each push statement is a single source line, so the line carrying the finding IS its push.
   const lineWith = (needle) => {
     const i = v.indexOf(needle); if (i < 0) return '';
     const a = v.lastIndexOf('\n', i) + 1; const b = v.indexOf('\n', i);
     return v.slice(a, b < 0 ? undefined : b);
   };
-  // the four caliber findings push to softDefects, never to the HARD `defects`
-  for (const nudge of ['reads sparse', 'crafted sub-parts', 'produce no visual response', 'the spoken anchor words']) {
-    assert.match(lineWith(nudge), /softDefects\.push\(/, `"${nudge}" must be a soft nudge (softDefects.push), not a HARD defect`);
-  }
-  // the HARD readability gates STAY in `defects` (a source-anchored sample)
-  for (const hard of ['px off-screen', 'reserved for subtitles', 'is unreadable at', 'overlap each other']) {
+  // the HARD readability + balance gates push to `defects`
+  for (const hard of ['px off-screen', 'reserved for subtitles', 'stacked on the center axis', 'overlap each other']) {
     const l = lineWith(hard);
-    assert.ok(l && /defects\.push\(/.test(l) && !/softDefects\.push\(/.test(l), `"${hard}" must stay a HARD defect`);
+    assert.ok(l && /defects\.push\(/.test(l), `"${hard}" must be a HARD defect`);
   }
-  const c = src('../src/hyperframe/codegen.js');
-  assert.match(c, /attempt <= 3 \? softDefects : \[\]/, 'codegen re-asks softDefects only in the first 3 attempts');
+  // the caliber / contrast nudges are removed entirely (the reference app ships none of them)
+  for (const gone of ['reads sparse', 'crafted sub-parts', 'produce no visual response', 'the spoken anchor words', 'is unreadable at']) {
+    assert.ok(!v.includes(gone), `"${gone}" caliber/contrast nudge is removed`);
+  }
 });
