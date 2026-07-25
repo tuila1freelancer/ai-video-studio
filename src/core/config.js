@@ -32,7 +32,9 @@ function isPlainObject(v) { return v != null && typeof v === 'object' && !Array.
 // migration 5 coerces any legacy 'animation'/'image' value, so a stray stored mode can never route.
 const NEW_PROJECT_DEFAULTS = {
   visualMode: 'hyperframe',
-  hyperframe: { styleId: 'tuila1-hud-cyber', density: 'balanced' },
+  // P38 backgroundVariety: rotate the backdrop STYLE per scene (spotlight/aurora/grid/…) while the
+  // palette + fonts stay LOCKED to the guide; set false to keep one motif across the whole video.
+  hyperframe: { styleId: 'tuila1-hud-cyber', density: 'balanced', backgroundVariety: true },
   // Cinematic scene transitions ON by default: every boundary flows through a short smooth
   // dissolve (planTransitions), with 1-2 role-driven hero transitions punching above it. Sits
   // under every layer, so an explicit request/preset/channel value still wins.

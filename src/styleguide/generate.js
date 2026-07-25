@@ -25,7 +25,7 @@ Return JSON with exactly this schema:
   "name": "short style name in the same language as the user's request (≤24 chars)",
   "palette": { "bg": "#RRGGBB dark or light background", "bg2": "#RRGGBB secondary background near bg", "ink": "#RRGGBB primary text with strong contrast on bg", "muted": "#RRGGBB secondary text", "accents": ["#RRGGBB primary", "#RRGGBB support", "#RRGGBB highlight"] },
   "displayFont": "oswald" | "montserrat" | "be vietnam pro",
-  "motif": "mesh" | "bokeh" | "grid" | "particles" | "grain",
+  "motif": "mesh" | "bokeh" | "grid" | "spotlight" | "aurora" | "rays" | "dotmatrix" | "blueprint" | "gradient-wash" | "particles" | "grain",
   "textTreatment": "chrome" | "neon" | "solid" | "outline",
   "motionPersonality": "kinetic" | "energetic" | "smooth" | "calm" | "punchy" | "slow-burn",
   "semantics": { "good": "#RRGGBB", "bad": "#RRGGBB", "warn": "#RRGGBB" },

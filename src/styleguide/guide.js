@@ -15,7 +15,7 @@ export const HF_DEFAULT_GUIDE = {
     body: `'Be Vietnam Pro', -apple-system, sans-serif`,
     mono: `'JetBrains Mono', ui-monospace, monospace`,
   },
-  motif: 'mesh',            // mesh | bokeh | grid | particles | grain
+  motif: 'mesh',            // mesh|bokeh|grid|particles|grain|spotlight|aurora|rays|dotmatrix|blueprint|gradient-wash (P38)
   textTreatment: 'chrome',  // chrome | neon | solid | outline
   motionPersonality: 'kinetic',
   iconStyle: 'line',
@@ -108,7 +108,7 @@ export function normalizeGuide(g) {
       accents,
     },
     fonts: { display: fonts.display || d.fonts.display, body: fonts.body || d.fonts.body, mono: fonts.mono || d.fonts.mono },
-    motif: ['mesh', 'bokeh', 'grid', 'particles', 'grain'].includes(g.motif) ? g.motif : d.motif,
+    motif: ['mesh', 'bokeh', 'grid', 'particles', 'grain', 'spotlight', 'aurora', 'rays', 'dotmatrix', 'blueprint', 'gradient-wash'].includes(g.motif) ? g.motif : d.motif,
     textTreatment: ['chrome', 'neon', 'solid', 'outline'].includes(g.textTreatment) ? g.textTreatment : d.textTreatment,
     motionPersonality: g.motionPersonality || d.motionPersonality,
     iconStyle: g.iconStyle || d.iconStyle,
