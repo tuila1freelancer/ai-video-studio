@@ -54,18 +54,18 @@ export async function editSceneByPrompt(sceneId, editPrompt, { _chat = chat } = 
   const rv = await renderValidate({
     spec: { ...spec, guide }, guide, w, h,
     duration: isHf ? (sc.props?.plannedDur || duration) : duration,
-    beats, narration: sc.voice_text || '', captionsOn: config.enableSubtitles !== false, caliber: false,
+    beats, narration: sc.voice_text || '', captionsOn: config.enableSubtitles !== false,
   });
   if (!rv.ok && !rv.skipped) return { ok: false, error: 'edit rejected by render validation', defects: rv.defects };
 
   try { DB.snapshotTake(sc, 'visual'); } catch { /* history is best-effort */ }
   if (isHf) {
-    const props = { ...sc.props, css: spec.css, html: spec.html, script: spec.script, qtier: rv.skipped ? 'unverified' : 'premium' };
+    const props = { ...sc.props, css: spec.css, html: spec.html, script: spec.script };
     DB.updateScene(sc.id, { props, status: 'html', video_path: null, fp: { ...(sc.fp || {}), render: null } });
   } else {
     const props = { ...(sc.props || {}), __custom: { html: spec.html, css: spec.css, script: spec.script } };
     DB.updateScene(sc.id, { props, status: 'html', video_path: null, fp: { ...(sc.fp || {}), render: null } });
   }
   try { DB.snapshotTake(DB.getScene(sc.id), 'visual', { active: true }); } catch { /* best-effort */ }
-  return { ok: true, tier: rv.skipped ? 'unverified' : 'premium' };
+  return { ok: true };
 }
