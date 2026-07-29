@@ -7,15 +7,19 @@ import { readFileSync } from 'node:fs';
 import { viewportBlock, ratioRulesBlock, ratioClass } from '../src/hyperframe/prompt.js';
 import { BACKDROP_STYLES, ALL_MOTIFS, backdropForScene } from '../src/animation/backdrop.js';
 
-test('P38 viewportBlock emits the full hard-threshold set and mandates using it', () => {
-  const v = viewportBlock(1920, 1080, true);
-  for (const k of ['SIDE_PADDING', 'TOP_PADDING', 'BOTTOM_PADDING', 'SAFE_CENTER', 'SPLIT_GAP',
-    'TEXT_MAX_W', 'TEXT_BLOCK_MAX_H', 'HERO_MAX_W', 'SUBJECT_MAX_H', 'CARD_MIN_W', 'CARD_MAX_W', 'LOWER_THIRD_Y']) {
-    assert.ok(v.includes(k), `${k} threshold present`);
+test('P39 viewportBlock emits the reference INTEGER threshold table for the ratio', () => {
+  const v = viewportBlock(1920, 1080, true); // 16:9 → the reference app's exact integers
+  for (const [k, val] of [['SIDE_PADDING', 90], ['TOP_PADDING', 70], ['BOTTOM_PADDING', 90],
+    ['TEXT_MAX_W', 980], ['HERO_MAX_W', 920], ['CARD_MIN_W', 520], ['CARD_MAX_W', 760],
+    ['SUBJECT_MAX_H', 450], ['TEXT_BLOCK_MAX_H', 300], ['SAFE_CENTER_W', 1320], ['SAFE_CENTER_H', 620], ['SPLIT_GAP', 80]]) {
+    assert.ok(v.includes(`${k}=${val}px`), `${k}=${val}px (reference 16:9 table)`);
   }
-  assert.match(v, /THE THRESHOLDS WIN/, 'ratio thresholds override a conflicting concept');
-  assert.match(v, /USE THESE VALUES DIRECTLY/, 'model must use the values directly, not estimate');
   assert.ok(v.includes(`LOWER_THIRD_Y=${Math.round(1080 * 0.807)}px`), 'lower-third at ~80.7% H');
+  assert.match(v, /THE THRESHOLDS WIN/, 'ratio thresholds override a conflicting concept');
+  assert.match(v, /USE THESE EXACT VALUES DIRECTLY/, 'model must use the values directly, not estimate');
+  // 9:16 pulls a DIFFERENT integer table (SIDE 70 / BOTTOM 130 / SUBJECT_MAX_H 990)
+  const v9 = viewportBlock(1080, 1920, true);
+  assert.ok(v9.includes('SIDE_PADDING=70px') && v9.includes('BOTTOM_PADDING=130px') && v9.includes('SUBJECT_MAX_H=990px'), '9:16 uses its own table');
   // captions off → no subtitle band, full height usable
   assert.match(viewportBlock(1920, 1080, false), /Subtitles are OFF/);
 });

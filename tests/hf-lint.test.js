@@ -14,30 +14,44 @@ test('lint: the canned SAMPLE_SPEC passes clean', () => {
   assert.deepEqual(errors, []);
 });
 
-test('lint: repeat:-1 is an error with a floor-formula fix hint', () => {
-  const { errors } = ok("tl.to('#a',{x:10,duration:1,repeat:-1},0)");
-  assert.ok(errors.some((e) => /repeat:-1/.test(e) && /floor/.test(e)), errors.join('|'));
+// P39 (raw-GSAP reference port): the reference app's validation is advisory, so these
+// quality/geometry nits are WARNINGS now, not errors — they no longer burn a codegen attempt.
+test('lint: repeat:-1 is an advisory warning with a finite-count fix hint (P39)', () => {
+  const r = ok("tl.to('#a',{x:10,duration:1,repeat:-1},0)");
+  assert.deepEqual(r.errors, []);
+  assert.ok(r.warnings.some((e) => /repeat:-1/.test(e) && /finite/.test(e)), r.warnings.join('|'));
 });
 
-test('lint: ANIMATING display/visibility is an error, tl.set of display is legal', () => {
+test('lint: animating display/visibility is an advisory warning; tl.set is clean (P39)', () => {
   const bad = ok("tl.to('#a',{display:'none',duration:.5},1)");
-  assert.ok(bad.errors.some((e) => /display\/visibility/.test(e)));
+  assert.deepEqual(bad.errors, []);
+  assert.ok(bad.warnings.some((e) => /display\/visibility/.test(e)));
   const good = ok("tl.set('#a',{display:'none'},3.2); tl.to('#a',{x:5,duration:.5},1)");
   assert.deepEqual(good.errors, []);
 });
 
-test('lint: width/height/top/left tweens are errors, transforms are fine', () => {
+test('lint: width/height/top/left tweens are advisory warnings; transforms are clean (P39)', () => {
   const bad = ok("tl.to('.fill',{width:'100%',duration:.8,ease:'power3.inOut'},5)");
-  assert.ok(bad.errors.some((e) => /width\/height\/top\/left/.test(e)));
+  assert.deepEqual(bad.errors, []);
+  assert.ok(bad.warnings.some((e) => /width\/height\/top\/left/.test(e)));
   const good = ok("tl.set('.fill',{width:'0%'},0); tl.to('.fill',{scaleX:1,duration:.8},5)");
   assert.deepEqual(good.errors, []);
 });
 
-test('lint: getBoundingClientRect in an onUpdate callback is an error, at setup it is allowed', () => {
+test('lint: getBoundingClientRect in an onUpdate callback is an advisory warning; at setup it is clean (P39)', () => {
   const bad = ok("tl.to('#a',{x:10,duration:1,onUpdate:function(){ const r=document.querySelector('#a').getBoundingClientRect(); }},0)");
-  assert.ok(bad.errors.some((e) => /getBoundingClientRect/.test(e)));
+  assert.deepEqual(bad.errors, []);
+  assert.ok(bad.warnings.some((e) => /getBoundingClientRect/.test(e)));
   const good = ok("const r=document.querySelector('#a').getBoundingClientRect(); tl.to('#a',{x:r.width,duration:1},0)");
   assert.deepEqual(good.errors, []);
+});
+
+test('lint (P39): raw GSAP is the contract — gsap.set / gsap.timeline allowed, standalone gsap.to banned', () => {
+  // full GSAP API for instant states + nested timelines added to tl → clean
+  assert.deepEqual(ok("gsap.set('#a',{opacity:0}); var sub=gsap.timeline(); sub.to('#a',{opacity:1,duration:.5}); tl.add(sub,0)").errors, []);
+  // a bare gsap.to() lands on the paused global timeline → frozen → still an error
+  const bad = ok("gsap.to('#a',{x:10,duration:1})");
+  assert.ok(bad.errors.some((e) => /standalone gsap tween|bare gsap\.to/.test(e)), bad.errors.join('|'));
 });
 
 test('lint: duplicate html ids are an error', () => {

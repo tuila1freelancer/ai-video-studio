@@ -26,6 +26,16 @@ export function mergeConfigLayers(...layers) {
 }
 function isPlainObject(v) { return v != null && typeof v === 'object' && !Array.isArray(v); }
 
+// P39 (raw-GSAP reference port): HyperFrame visual quality is dominated by the codegen model,
+// not the prompt alone (memory: hyperframe-codegen-model). The reference app defaults to strong
+// models (opus/gemini-pro); our AI-settings default (gpt-4o-mini / ag/gemini-3-flash-agent) is
+// weak. Default codegen to the owner's stable strong proxy model — `ag/gemini-pro-agent` (the
+// only strong model that isn't 429-quota-bound; memory: parity-harness-p0). This is a per-project
+// override read by visuals.js (config.hyperframe.model → hfAi.llm.model); existing projects keep
+// their stored snapshot, and any provider/channel value still wins. Point it at the codegen model
+// your configured LLM provider actually serves.
+const STRONG_CODEGEN_MODEL = 'ag/gemini-pro-agent';
+
 // Base defaults for NEW projects: HyperFrame — the single visual mode (P36). Sits UNDER every
 // other layer, so channel/preset/request always win; existing projects keep their stored config
 // snapshot (this only runs at creation). Consumption-site fallbacks read `|| 'hyperframe'`, and
@@ -34,7 +44,7 @@ const NEW_PROJECT_DEFAULTS = {
   visualMode: 'hyperframe',
   // P38 backgroundVariety: rotate the backdrop STYLE per scene (spotlight/aurora/grid/…) while the
   // palette + fonts stay LOCKED to the guide; set false to keep one motif across the whole video.
-  hyperframe: { styleId: 'tuila1-hud-cyber', density: 'balanced', backgroundVariety: true },
+  hyperframe: { styleId: 'tuila1-hud-cyber', density: 'balanced', backgroundVariety: true, model: STRONG_CODEGEN_MODEL },
   // Cinematic scene transitions ON by default: every boundary flows through a short smooth
   // dissolve (planTransitions), with 1-2 role-driven hero transitions punching above it. Sits
   // under every layer, so an explicit request/preset/channel value still wins.

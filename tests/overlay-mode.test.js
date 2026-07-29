@@ -33,7 +33,7 @@ test('P24 overlay: the page renders on the solid key color with no stage dressin
 test('P24 overlay: default page is unchanged when overlay is off', () => {
   const html = buildScenePage(base);
   assert.ok(html.includes('bgCanvas') && html.includes('progtrack') && html.includes('wmt'));
-  assert.match(html, /radial-gradient\(130% 110%/);
+  assert.match(html, /radial-gradient\(ellipse at 50% 30%/); // P39: cinematic stage gradient (reference-parity)
 });
 
 test('P24 overlay: hyperframe template drops motif/deco/vig/grain and beat pulses under props.overlay', () => {

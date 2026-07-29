@@ -1,8 +1,12 @@
 // Static safety/determinism lint for LLM-generated scene specs { css, html, script }.
-// Errors → the codegen retries with the message embedded; the renderer never sees bad code.
-// The rules protect two contracts:
-//   1) determinism — no wall-clock, no self-scheduling, no network; all motion lives on the
-//      paused root timeline `tl` (scrubbed by __seek), so direct gsap.* calls are banned too.
+// P39 (raw-GSAP reference port): the model now authors like the reference app — a raw GSAP
+// timeline. The FULL gsap API is allowed (gsap.set for instant states, gsap.timeline for nested
+// sub-sequences, gsap.utils, eases); ERRORS are reserved for what genuinely breaks the render,
+// and layout/quality nits are advisory WARNINGS (the reference app's validation is advisory too).
+// The rules that stay hard protect two contracts:
+//   1) determinism — no wall-clock, no self-scheduling, no network; all TIMED motion lives on the
+//      paused root timeline `tl` (scrubbed by __seek), so a STANDALONE gsap.to/from (which runs on
+//      the paused global timeline and freezes) is still rejected — use tl.to / FX.*.
 //   2) harness integrity — generated markup/JS must not touch the caption/progress/canvas UI.
 
 const SCRIPT_BANNED = [
@@ -15,11 +19,11 @@ const SCRIPT_BANNED = [
   [/\bDate\s*\.\s*now\b|new\s+Date\b|performance\s*\.\s*now\b/, 'wall-clock time — breaks determinism, use tl time'],
   [/document\s*\.\s*write\b|location\s*\.|window\s*\.\s*open\b|localStorage\b|sessionStorage\b/, 'banned DOM/side-effect API'],
   [/window\s*\.\s*__|__seek\b|__init\b|__tl\b|__scene\b|__drawBg\b/, 'touches the harness internal runtime'],
-  [/\bgsap\s*\.\s*(to|from|fromTo|set|timeline|delayedCall|ticker|globalTimeline|context|matchMedia|effects|getProperty|utils\s*\.\s*random)\b/, 'direct gsap.* call — every tween must go through tl.* or FX.* (globalTimeline is paused, so gsap.to would freeze)'],
-  [/\brepeat\s*:\s*-1\b/, 'repeat:-1 (infinite loop) — use a finite count: repeat: Math.max(0, Math.floor(DUR/period) - 1) so the timeline ends exactly at DUR'],
-  // scripted telemetry decor: writing ALLCAPS_SNAKE strings at runtime bypasses the HTML
-  // normalizer — the render gate would catch it later, but failing fast here saves attempts
-  [/['"`][A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+['"`]/, 'script writes telemetry-style ALLCAPS_SNAKE text (e.g. "IDEA_DETECTED") — never put dev/status tokens on screen; use real copy in the narration language, numbers or icons'],
+  // Raw GSAP timeline authoring is the contract, so gsap.set / gsap.timeline / gsap.utils / eases
+  // are FINE. What stays banned: a STANDALONE gsap tween (gsap.to/from/fromTo lands on the paused
+  // global timeline → never seeked → frozen — put it on tl), the real-time/env APIs, and the
+  // nondeterministic gsap.utils.random (rng() is the seeded PRNG).
+  [/\bgsap\s*\.\s*(?:to|from|fromTo|delayedCall|ticker|globalTimeline|context|matchMedia|effects)\b|\bgsap\s*\.\s*utils\s*\.\s*random\b/, 'standalone gsap tween / real-time gsap API — put timed motion on the paused master timeline `tl` (tl.to / tl.from / tl.fromTo / tl.set) or FX.*; gsap.set / gsap.timeline / gsap.utils(.other) / eases are allowed, but a bare gsap.to() runs on the paused global timeline and freezes'],
 ];
 // Non-interpolable / layout motion in ANIMATED tweens only — tl.set() stays legal (an instant
 // set is seek-safe; e.g. hiding a finished group with set({display:'none'}) at a beat time).
@@ -62,18 +66,16 @@ export function lintSpec(spec, { overlay = false } = {}) {
   }
   if (!html.trim()) errors.push('html is empty');
   if (!script.trim()) warnings.push('script is empty — the scene will only have the default ambient motion');
-  else if (!/\b(tl|FX)\s*[.(]/.test(script)) errors.push('script adds no tween to tl/FX');
+  else if (!/\b(tl|FX)\s*[.(]/.test(script)) warnings.push('script adds no tween to tl/FX — the scene will be static (no seeked motion)');
   if (css.length > CAP || html.length > CAP || script.length > CAP) errors.push(`spec too long (>${CAP} chars/field)`);
-  if (/Math\s*\.\s*random\b/.test(script)) errors.push('Math.random is banned — use rng() (the seeded PRNG) to keep determinism');
-  if (DISPLAY_TWEEN.test(script)) {
-    errors.push('script ANIMATES display/visibility (not interpolable) — fade with opacity, or flip instantly with tl.set(...) at the beat time');
-  }
-  if (LAYOUT_TWEEN.test(script)) {
-    errors.push('script animates width/height/top/left — animate transforms instead (scaleX with transform-origin for fills, x/y for movement); layout tweens reflow and can re-wrap text mid-tween');
-  }
-  if (GBCR_IN_CALLBACK.test(script)) {
-    errors.push('getBoundingClientRect inside an onUpdate/onStart callback — measure ONCE at setup and reuse the constant');
-  }
+  // P39: these are advisory now (the reference app does not gate on them). Math.random is
+  // deterministic here (the harness reseeds it per scene); display/layout tweens and
+  // gBCR-in-callback are quality nits, not render breakers under deterministic frame-seek.
+  if (/Math\s*\.\s*random\b/.test(script)) warnings.push('Math.random — the harness reseeds it deterministically per scene, but rng() is clearer for seeded randomness');
+  if (/\brepeat\s*:\s*-1\b/.test(script)) warnings.push('repeat:-1 (infinite) — the timeline never ends; use a finite count repeat: Math.max(0, Math.ceil(DUR/period)-1) so end-of-scene positioning stays correct');
+  if (DISPLAY_TWEEN.test(script)) warnings.push('script animates display/visibility (not interpolable) — fade with opacity, or flip instantly with tl.set(...) at the beat time');
+  if (LAYOUT_TWEEN.test(script)) warnings.push('script animates width/height/top/left — prefer transforms (scaleX for fills, x/y for movement); layout tweens reflow and can re-wrap text mid-tween');
+  if (GBCR_IN_CALLBACK.test(script)) warnings.push('getBoundingClientRect inside an onUpdate/onStart callback — measure ONCE at setup and reuse the constant');
   // duplicate ids render blank downstream (elements are targeted by id) and break tween selectors
   const ids = [...html.matchAll(/\bid\s*=\s*["']([^"']+)["']/g)].map((m) => m[1]);
   const dupes = [...new Set(ids.filter((id, i) => ids.indexOf(id) !== i))];

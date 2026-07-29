@@ -25,7 +25,7 @@ OUTPUT FORMAT — reply with EXACTLY these three fenced blocks and NOTHING else 
 WHAT MAKES A SCENE GOOD (the five masters — HOW you achieve them is your call):
 1. RELEVANT to the narration. Show what THIS scene is actually about — a metaphor, diagram, comparison, device, data instrument, kinetic words — built from divs + inline SVG so it VISUALLY ARGUES the idea. On-screen text is drawn FROM THE MEANING of the voice line: a short headline and/or a few short labels, ALL complete words in the narration's language (a Vietnamese video shows complete Vietnamese words — or none at all when the graphic already speaks). Never dump the full sentence (it is already the subtitle), never invent slogans/CTAs/brand names, never put English or code on screen in a Vietnamese video.
 2. BALANCED & HARMONIOUS — FILL THE FRAME, NEVER CLUMP CENTER. Place every element in a container with EXPLICIT bounds (top/left/width/height, or flex/grid) — never vague values that overflow. Treat the safe area as a 3×3 grid (left/center/right × top/middle/bottom) and DISTRIBUTE weight across it: a hero on one side needs a real counterweight (panel/stat/diagram/label cluster) on the other, so no half sits empty. Comfortable margin from ALL FOUR edges — nothing clips, bleeds off, or touches the edge. Do NOT stack everything on the center axis: a wide frame wants splits / off-center hero + counterweight / elements spread across the width; only a minimal quote or title card stays centered. The per-ratio LAYOUT rules and hard VIEWPORT thresholds in the user message OVERRIDE any conflicting composition idea.
-3. BEAUTIFUL, SMOOTH MOTION. Elements ease in gently (power2/power3/expo.out, ~0.35–0.9s), ONE main thing arriving at a time, each landing ON its spoken beat; between beats the frame stays alive with slow drift, never freezing and never emptying. Calm beats churn: a settled, still-but-breathing frame is the reference look. Use ≥3 distinct eases across the scene; keep bounce/overshoot for at most one playful accent. Make it look EXPENSIVE: give the hero one premium treatment (chrome / neon / glow) and use premium surfaces (glass, soft shadow, a 1px accent hairline) — never flat, undecorated boxes.
+3. BEAUTIFUL, SMOOTH MOTION — RICH & ALIVE. Elements ease in gently (power2/power3/expo.out, ~0.35–0.9s), ONE main thing arriving at a time, each landing ON its spoken beat; between beats the frame stays alive with slow drift, never freezing and never emptying. Aim for ≥5 elements animating at any given moment (hero parts + depth orbs + ticks/particles + ambient drift) so it reads as MOTION GRAPHICS, not a slide; run ≥2 parallax depth layers. Calm beats churn: a settled, still-but-breathing frame is the reference look. Use ≥3 distinct eases across the scene; keep bounce/overshoot for at most one playful accent. Make it look EXPENSIVE: give the hero one premium treatment (chrome / neon / glow) and use premium surfaces (glass, soft shadow, a 1px accent hairline) — never flat, undecorated boxes.
 4. READABLE, CLEAN TYPE. Every readable text is near-white or a bright accent on the dark stage (≥4.5:1) — never dim grey, never accent-on-accent. Text fits inside the frame and NEVER clips. Headlines ≤4 words, wrapped on phrase boundaries (never orphan a word). Keep the caption band clear when subtitles are ON (the user message says which).
 5. CREATIVE & UNIQUE. No two scenes — and no two renders of the same brief — may look alike. Vary the core idea, hero type, placement, motion, type treatment, colour emphasis. A stamped-out arrangement is THE failure.
 
@@ -56,8 +56,8 @@ char-cascade (FX.splitIn) · elastic pop (FX.pop) · directional slide+blur (FX.
 THE STAGE (already rendered — do NOT rebuild it): your html sits inside <div class="hf-cam"> on a themed stage that already carries an animated particle canvas, background motif, vignette, film grain, a light-beam (.hf-beam), karaoke subtitles, a progress bar, and a living backdrop (dual spinning rings, drifting specks, a soft ring pulse on every beat). Never touch or restyle the harness layers (.cap/#capText/.progtrack/#progFill/#bgCanvas/.wm/.vig) — build only the scene's own layers.
 
 TECHNICAL RULES (creative freedom, but break these and the frame renders WRONG):
-- Your script is the body of function(gsap, tl, S, rng), run AFTER fonts load. "tl" is a PAUSED timeline scrubbed frame-by-frame; DUR (scene seconds) is predefined; the FX helpers below are available. NEVER call gsap.* directly (the timeline is paused → a gsap.to() would freeze); use tl.to / tl.fromTo / tl.set and FX.*.
-- DETERMINISM is sacred: identical input must render identical frames. No wall-clock, no network, no self-scheduling, no Math.random; rng() is a seeded PRNG for any randomness. (Your VARIETY comes from designing differently each time you are asked — not from runtime randomness.)
+- Your script is the body of function(gsap, tl, S, rng), run AFTER fonts load. "tl" is the PAUSED master timeline scrubbed frame-by-frame; DUR (scene seconds) is predefined; the FULL GSAP API and the FX helpers below are available. Author a RAW GSAP TIMELINE: add every timed tween to tl (tl.to / tl.from / tl.fromTo / tl.set); use gsap.set() for instant initial states, gsap.timeline() for nested sub-sequences (add them to tl with tl.add), plus gsap.utils and any ease. The ONE thing that breaks: a STANDALONE gsap.to()/gsap.from() lands on the paused GLOBAL timeline and freezes — always put motion on tl (or an FX.* helper).
+- DETERMINISM is sacred: identical input must render identical frames. No wall-clock (Date.now/performance.now), no network, no self-scheduling (setTimeout/setInterval/requestAnimationFrame). Randomness is fine — the harness reseeds it per scene — though rng() (a seeded PRNG) is clearest. (Your VARIETY comes from designing differently each time you are asked — not from runtime randomness.)
 - MOTION IS TRANSFORMS ONLY: animate transform (x/y/scale/rotation/skew), opacity, filter, clip-path, CSS variables — NEVER width/height/top/left/margin (they reflow and re-wrap text mid-tween; a bar fill is scaleX with transform-origin). No infinite CSS animation, no repeat:-1 (finite only: repeat: Math.max(0, Math.floor(DUR/period)-1)); every tween ends within 0..DUR, the last one ≈DUR.
 - POSITION every element with a slot wrapper <div class="hf-slot" style="left:_%;top:_%">…</div> — the slot owns the centring transform, so ANIMATE ONLY THE INNER element, never the slot. A slot stacks its children vertically with a gap; for a full-centre element use <div class="hf-center">…</div>. Two readable texts must never overlap (separate in space, or stagger in time).
 - DOM budget 30–160 elements; hero 8–20 crafted parts; no images, no external fonts, no <script>/<iframe>; inline SVG you draw is welcome (palette strokes, animate with FX.drawIn).
@@ -71,7 +71,7 @@ FX TOOLKIT (times are ABSOLUTE seconds on tl; use whichever serve your design):
 - FX.beat(tl, sel, t0, t1, {in,out}) — enter at t0; out:'settle'(stay dimmed, for elements that accumulate)|'fade'|'whip'|'flip'|'blur'(leave)|'none'(stay full — the hero); in:'rise'|'pop'|'carrier'|'glitch'|'flip'.
 - FX.camPush(tl,{scale,x,y,profile:'front'}) camera move · FX.parallax(tl,sel,{amp}) depth drift · FX.beamSweep / FX.chromeSweep / FX.pulseGlow / FX.drawIn('svg path',{at}) flourishes · FX.impact(tl,sel,{at,color}) a single money-beat accent · FX.zoomThrough(outSel,inSel,{at,inverse}) velocity-matched cut between blocks · FX.jitter / FX.iconSpin aliveness for a settled hold · FX.targetZoom / FX.dofBlur focus one off-centre element · FX.counterRoll(sel,end,{at,grow}) count a number · FX.typeOn / FX.splitIn / FX.pop / FX.rise / FX.slide / FX.staggerGrid / FX.streakIn / FX.whipOut / FX.glitchIn / FX.carrierIn / FX.flipSwap entrances & exits.
 - FX.accents(n) → n emphasis times from the REAL word timings; FX.schedule(tl,sel,{in,out,keep}) spreads matched elements across them (keep:true for lists that accumulate).
-- DRIVE MOTION THROUGH THESE FX.* HELPERS wherever you can — they are battle-tested and safe. For custom tweens use tl.to / tl.fromTo / tl.set. Do NOT invent undefined FX/tl methods and NEVER call gsap.* directly. Every element you create must be animated by one of these, or it just sits there.
+- The FX.* helpers are OPTIONAL conveniences (pre-tuned entrances/holds/exits) — reach for them, or write raw tl.* GSAP directly (tl.to / tl.from / tl.fromTo / tl.set, gsap.set, nested gsap.timeline added to tl), whichever best expresses your design. Do NOT invent undefined FX/tl methods, and remember a bare gsap.to() freezes (put motion on tl). Every element you create must be animated by tl/FX, or it just sits there.
 
 Design THIS scene now — freely, uniquely, true to the narration. Reply with ONLY the fenced blocks.`;
 
@@ -146,33 +146,36 @@ export function ratioClass(w, h) {
   if (r >= 0.72) return '4:5';
   return '9:16';
 }
+// P39 (raw-GSAP reference port): the reference app injects HARDCODED INTEGER threshold TABLES per
+// aspect ratio — not formulas — and mandates using them verbatim. That concreteness is most of why
+// its frames land balanced. We ship the SAME integer tables (at the reference resolutions the values
+// are byte-identical; a non-standard canvas scales them proportionally so any size stays correct).
+const REF_THRESHOLDS = {
+  '16:9': { rw: 1920, rh: 1080, side: 90, top: 70, bottom: 90, textW: 980, heroW: 920, cardMin: 520, cardMax: 760, subjectH: 450, textBlockH: 300, safeCW: 1320, safeCH: 620, gap: 80 },
+  '9:16': { rw: 1080, rh: 1920, side: 70, top: 90, bottom: 130, textW: 830, heroW: 810, cardMin: 620, cardMax: 780, subjectH: 990, textBlockH: 360, safeCW: 760, safeCH: 980, gap: 36 },
+  '1:1': { rw: 1080, rh: 1080, side: 70, top: 70, bottom: 90, textW: 760, heroW: 730, cardMin: 520, cardMax: 700, subjectH: 700, textBlockH: 280, safeCW: 740, safeCH: 740, gap: 32 },
+  '4:5': { rw: 1080, rh: 1350, side: 65, top: 60, bottom: 105, textW: 790, heroW: 760, cardMin: 600, cardMax: 820, subjectH: 760, textBlockH: 300, safeCW: 780, safeCH: 760, gap: 34 },
+};
 export function viewportBlock(w, h, captionsOn) {
-  const vertical = h > w;
-  const sideP = Math.round(w * 0.06);
-  const topP = Math.round(h * 0.055);
-  const bottomP = captionsOn ? Math.round(h * 0.22) : Math.round(h * 0.06);
+  const cls = ratioClass(w, h);
+  const T = REF_THRESHOLDS[cls] || REF_THRESHOLDS['16:9'];
+  const sx = w / T.rw, sy = h / T.rh; // 1.0 at the reference resolution; scales any other canvas
+  const X = (v) => Math.round(v * sx), Y = (v) => Math.round(v * sy);
+  const sideP = X(T.side), topP = Y(T.top), bottomP = Y(T.bottom);
   const contentMaxY = h - bottomP;
-  const textMaxW = Math.round(w * (vertical ? 0.88 : 0.80));
-  const heroMaxW = Math.round(w * (vertical ? 0.86 : 0.60));
-  const subjectMaxH = Math.round(h * (vertical ? 0.46 : 0.62));
-  const textBlockMaxH = Math.round(h * (vertical ? 0.30 : 0.42));
-  const cardMinW = Math.round(w * (vertical ? 0.34 : 0.22));
-  const cardMaxW = Math.round(w * (vertical ? 0.82 : 0.44));
-  const safeCenterW = w - 2 * sideP;
-  const safeCenterH = contentMaxY - topP;
-  const splitGap = Math.round(w * (vertical ? 0.05 : 0.04));
-  const lowerThirdY = Math.round(h * 0.807);
+  const lowerThirdY = Math.round(h * 0.807); // matches the validate.js caption-band geometry gate
+  const inset = Math.max(6, Math.round(Math.min(sx, sy) * 10)); // reference #content inset:10px
   return [
-    `VIEWPORT — hard layout thresholds for THIS ${w}x${h}px canvas (${ratioClass(w, h)}). USE THESE VALUES DIRECTLY in your CSS/JS — do NOT estimate:`,
+    `VIEWPORT — hard layout thresholds for THIS ${w}x${h}px canvas (${cls}). USE THESE EXACT VALUES DIRECTLY in your CSS/JS — do NOT estimate:`,
     `- SIDE_PADDING=${sideP}px · TOP_PADDING=${topP}px · BOTTOM_PADDING=${bottomP}px — nothing may sit outside x=[${sideP}..${w - sideP}] or y=[${topP}..${contentMaxY}].`,
-    `- SAFE_CENTER=${safeCenterW}x${safeCenterH}px (the whole usable stage) · SPLIT_GAP=${splitGap}px minimum between side-by-side blocks.`,
-    `- TEXT_MAX_W=${textMaxW}px (any single text block) · TEXT_BLOCK_MAX_H=${textBlockMaxH}px (no taller vertical text stack).`,
-    `- HERO_MAX_W=${heroMaxW}px × SUBJECT_MAX_H=${subjectMaxH}px (the hero construction; leave room for its counterweight).`,
-    `- CARD_MIN_W=${cardMinW}px · CARD_MAX_W=${cardMaxW}px (any panel/card).`,
+    `- SAFE_CENTER_W=${X(T.safeCW)}px · SAFE_CENTER_H=${Y(T.safeCH)}px (the primary usable stage) · SPLIT_GAP=${X(T.gap)}px minimum between side-by-side blocks.`,
+    `- TEXT_MAX_W=${X(T.textW)}px (any single text block) · TEXT_BLOCK_MAX_H=${Y(T.textBlockH)}px (no taller vertical text stack).`,
+    `- HERO_MAX_W=${X(T.heroW)}px × SUBJECT_MAX_H=${Y(T.subjectH)}px (the hero construction; leave room for its counterweight).`,
+    `- CARD_MIN_W=${X(T.cardMin)}px · CARD_MAX_W=${X(T.cardMax)}px (any panel/card).`,
     captionsOn
       ? `- LOWER_THIRD_Y=${lowerThirdY}px: everything BELOW this line is the karaoke subtitle band — keep all foreground content above it.`
       : `- Subtitles are OFF — use the full height down to y=${contentMaxY}px (still keep the ${topP}px / ${bottomP}px margins).`,
-    `- RULES: put every element in a container with explicit top/left/width/height OR flex/grid — never vague values that overflow. Nothing touches the edge of the safe zone. If the visual concept conflicts with these thresholds, THE THRESHOLDS WIN.`,
+    `- CONTENT is inset ${inset}px from every edge. Put every element in a container with explicit top/left/width/height OR flex/grid — never vague values that overflow. Nothing touches the edge of the safe zone. If the visual concept conflicts with these thresholds, THE THRESHOLDS WIN.`,
     `- The page body is EXACTLY ${w}x${h}px and is upscaled LOSSLESSLY to output; never assume any other resolution.`,
   ].join('\n');
 }
@@ -205,11 +208,11 @@ export function ratioRulesBlock(w, h) {
 - Distribute weight across the width but stay a touch top-heavy so the hero leads.`;
 }
 
-// P37 (reference-parity): the reference app hands the model EXACT GSAP values (its
+// P37/P39 (reference-parity): the reference app hands the model EXACT GSAP values (its
 // {{ANIMATION_SPEC}} + {{TIMELINE_SKELETON}} blocks), not just doctrine — that concreteness is
-// most of why its scenes land cleaner. We emit the same, but in OUR linted `tl.*`/`FX.*`
-// vocabulary (never raw `gsap.*`, which lint.js rejects), derived from the scene's cinematic
-// direction + motion signature + the real beat table.
+// most of why its scenes land cleaner. We emit the same, in the `tl.*`/`FX.*` vocabulary (raw
+// GSAP timeline authoring — standalone `gsap.to` still freezes, so motion goes on tl), derived
+// from the scene's cinematic direction + motion signature + the real beat table.
 const CAMERA_MOVE = {
   push_in: "{ scale: 1.06, profile: 'front' }",
   aggressive_zoom: "{ scale: 1.10, profile: 'front' }",
@@ -226,7 +229,7 @@ export function animationSpecBlock(direction, sig, beats, duration) {
   const enterIn = direction.energy === 'high' ? 'carrier' : 'rise';
   const pulseDur = 1.6;
   const beamAt = Math.min(+duration * 0.4, 2.6).toFixed(2);
-  return `ANIMATION SPEC — use THESE exact values when you author the GSAP (all in the tl.*/FX.* vocabulary; NEVER call gsap.* directly):
+  return `ANIMATION SPEC — use THESE exact values when you author the GSAP (put motion on tl / FX.*; a bare gsap.to() freezes):
 ▶ CAMERA (once, at 0): FX.camPush(tl, ${cam}) — the simulated camera completes its move in the FIRST half, then holds (no back-half drift).
 ▶ MOTION per element (feel: ${sig.name} — ${sig.ease}):
   • ENTRY on the beat: FX.beat(tl, '<sel>', <t0>, <t1>, { 'in': '${enterIn}', out: 'settle' }) — arrival 0.35–0.5s, ease ${ease}; rotate the 'in' across the entrance library (never the same twice in a row).

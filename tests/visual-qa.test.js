@@ -25,20 +25,16 @@ test('contrastRatio: WCAG anchors (white/black 21:1, same color 1:1) and the 2.2
   assert.ok(contrastRatio([60, 60, 70], [7, 7, 13]) < 2.2, 'dim gray on near-black trips the gate');
 });
 
-test('overlap + unreadable defects are HARD (trigger codegen re-ask, not just lastGood)', () => {
+test('P39 codegen re-asks ONLY on the structural floor; geometry is advisory (no HARD_DEFECT lane)', () => {
   const s = readFileSync(join(ROOT, 'src/hyperframe/codegen.js'), 'utf8');
-  const re = s.match(/HARD_DEFECT = (\/.*\/i)/)?.[1];
-  assert.ok(re, 'HARD_DEFECT regex present');
-  const rx = new RegExp(re.slice(1, -2), 'i');
-  assert.ok(rx.test('the texts "A" and "B" overlap each other at 1.0s'), 'overlap phrase is hard');
-  assert.ok(rx.test('the text "X" is unreadable at 2.0s'), 'contrast phrase is hard');
-  assert.ok(rx.test('the frame goes empty at 4.4s mid-scene'), 'mid-scene deadness phrase is hard');
-  assert.ok(rx.test('the text "VIẾT RÕ KẾT" is clipped at 2.1s'), 'clipped-text phrase is hard');
-  assert.ok(rx.test('the text "X" is covered by an opaque element ("hf-card") at 3.0s'), 'occlusion phrase is hard');
-  assert.ok(rx.test('element runs 40px off-screen'), 'existing phrases intact (P-guard parity)');
-  // beat misses stay SOFT: a beat-blind hyperframe scene still beats a heuristic-template
-  // fallback for AV sync, so lastGood must remain shippable while re-asks improve it
-  assert.ok(!rx.test('the beats at 2.1s, 4.3s produce no visual response'), 'beat-miss phrase is soft');
+  // P39 (reference-parity): the hard/soft defect classifier and the lastGood graceful-fallback
+  // lane are gone. A scene ships as soon as it passes lint + syntax + the structural render floor
+  // (script didn't throw, scene isn't blank); every geometry finding is an advisory warning.
+  assert.ok(!/HARD_DEFECT/.test(s), 'the HARD_DEFECT classifier is removed');
+  assert.ok(!/lastGood/.test(s), 'the lastGood graceful-fallback lane is removed (no-fallback loud fail)');
+  assert.match(s, /renderDefects = rv\.defects/, 'render defects come from the validate structural floor');
+  assert.match(s, /renderWarnings = rv\.warnings/, 'geometry warnings are captured separately (logged, not re-asked)');
+  assert.match(s, /const allIssues = \[\.\.\.errors, \.\.\.renderDefects\]/, 're-ask set = lint/syntax errors + structural defects only');
 });
 
 test('persistence tiering: one-sample transients are dropped, held findings survive', async () => {
