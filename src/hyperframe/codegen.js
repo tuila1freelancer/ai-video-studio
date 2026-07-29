@@ -33,9 +33,6 @@ export function parseSpec(raw) {
   return null;
 }
 
-// A render defect is "hard" (wrong content/layout — never ship) vs "soft" (cosmetic timing).
-const HARD_DEFECT = /off-screen|bottom of the frame|wrong language|renders empty|goes empty|threw at runtime|overlap each other|unreadable|is clipped|is covered|sentence fragment/i;
-
 // Deterministic pre-lint normalizer: fix the mechanical mistakes a weak model repeats so they do
 // NOT burn a scarce codegen attempt — infinite CSS animation hard-errors the lint; off-guide fonts
 // and <br> ship a cheap look silently. Pure string transforms, meaning unchanged, mutates in place.
@@ -119,14 +116,16 @@ export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, on
   if (media.length) modeBlocks.push(imageFullBlock(media.map((a) => a.name)));
   const messages = buildCodegenPrompt({ scene, beats, direction, guide, w, h, duration, idx, total, density, creativeDirection, hookVisual, captionsOn, modeBlocks, diversitySalt });
 
-  let lastErrors = null, lastGood = null;
+  let lastErrors = null;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     let raw;
     try {
       // temperature ladder: precise while fixing (0.45), one notch warmer late in the run
       // (≥6) so a stuck design can escape its local minimum instead of repeating itself.
       const temperature = attempt === 1 ? 0.7 : attempt >= 6 ? 0.65 : 0.45;
-      raw = await chat(messages, { maxTokens: 6500, temperature, llm: ai?.llm || null });
+      // P39: full-page raw-GSAP specs are bigger than the old FX-constrained ones — give the
+      // model room (the reference app sends 100k; providers stop early when done).
+      raw = await chat(messages, { maxTokens: 24000, temperature, llm: ai?.llm || null });
     } catch (e) {
       lastErrors = [`LLM error: ${String(e.message).slice(0, 80)}`];
       onLog(`cảnh ${idx + 1}: LLM lỗi (lần ${attempt}/${maxAttempts}) — thử lại`);
@@ -160,30 +159,28 @@ export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, on
     // image-full media lands AFTER lint (placeholders are lint-invisible) and BEFORE the
     // render check, so validation sees the actual inlined hero media.
     if (!errors.length && media.length) applyAssetMedia(clean, media);
-    // dynamic: actually render and check runtime + geometry invariants (only if static passed).
-    let renderDefects = [];
+    // dynamic: actually render. P39 (reference-parity): the render gate now returns only the HARD
+    // STRUCTURAL FLOOR as defects (the script threw / the scene renders blank) — those still
+    // re-ask (they are genuinely broken scenes). Every GEOMETRY finding (off-screen / overlap /
+    // caption-band / center-clump / wrong-language / junk) is ADVISORY: logged, never a re-ask —
+    // matching the reference app, whose validation is advisory. No layout defect burns an attempt.
+    let renderDefects = [], renderWarnings = [];
     if (!errors.length && renderCheck) {
       try {
         const rv = await renderValidate({ spec: { ...clean, guide }, guide, w, h, duration, beats, narration: scene.voice_text || '', captionsOn, overlay });
-        if (!rv.ok) renderDefects = rv.defects;
+        renderDefects = rv.defects || [];
+        renderWarnings = rv.warnings || [];
       } catch (e) { onLog(`cảnh ${idx + 1}: renderValidate lỗi (${String(e.message).slice(0, 60)}) — bỏ qua`); }
-      // Keep as the graceful fallback ONLY if defects are cosmetic — never ship a scene with a
-      // HARD defect (off-screen / caption collision / invented text / empty / runtime error /
-      // center-clump); those fall back to the heuristic template instead.
-      if (!errors.length && !HARD_DEFECT.test(renderDefects.join(' | '))) lastGood = clean;
-    } else if (!errors.length) {
-      lastGood = clean;
     }
-    // P38: the render gate now emits only HARD "not-broken + balanced" defects — re-ask on all of
-    // them every attempt until clean or the attempt budget runs out (no-fallback contract).
     const allIssues = [...errors, ...renderDefects];
     if (!allIssues.length) {
-      if (warnings.length) onLog(`cảnh ${idx + 1}: cảnh báo lint — ${warnings.join('; ')}`);
+      const advisories = [...warnings, ...renderWarnings];
+      if (advisories.length) onLog(`cảnh ${idx + 1}: cảnh báo (không chặn) — ${advisories.join('; ').slice(0, 240)}`);
       // plannedDur: the duration this spec's absolute animation times were authored for.
       // Scenes-first order generates specs against an ESTIMATED timeline; at render the
       // harness time-warps the template timeline by plannedDur/realDur (S.tplScale) so the
       // choreography fills the real voice duration instead of cutting or freezing.
-      return { props: { ...clean, guide, beats, plannedDur: duration, canvasW: w, canvasH: h, ...(overlay ? { overlay: true } : {}) }, beats, direction, warnings };
+      return { props: { ...clean, guide, beats, plannedDur: duration, canvasW: w, canvasH: h, ...(overlay ? { overlay: true } : {}) }, beats, direction, warnings: advisories };
     }
     lastErrors = allIssues;
     onLog(`cảnh ${idx + 1}: spec chưa đạt (lần ${attempt}/${maxAttempts}) — ${allIssues.join(' | ').slice(0, 240)}`);
@@ -197,11 +194,8 @@ export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, on
       content: `Your scene has problems that must be fixed:\n- ${allIssues.join('\n- ')}\nReturn the corrected scene in the same @@@CSS@@@/@@@HTML@@@/@@@SCRIPT@@@/@@@END@@@ fenced format — keep what worked, fix only the listed issues.`,
     });
   }
-  // Last resort before the heuristic fallback: if some earlier attempt at least rendered without a
-  // hard runtime error, ship it (a slightly-imperfect real scene beats a generic template).
-  if (lastGood) {
-    onLog(`cảnh ${idx + 1}: dùng spec tốt nhất đạt được (còn cảnh báo hình học sau ${maxAttempts} lần)`);
-    return { props: { ...lastGood, guide, beats, plannedDur: duration, canvasW: w, canvasH: h, ...(overlay ? { overlay: true } : {}) }, beats, direction, warnings: ['render-imperfect'] };
-  }
+  // P39: geometry is advisory, so the only way to exhaust every attempt is a scene that stays
+  // STRUCTURALLY broken (unparseable / syntax error / threw at runtime / renders blank) each time.
+  // That is a genuine failure — fail LOUDLY per the no-fallback contract (P25), no template swap.
   throw new Error(`codegen thất bại sau ${maxAttempts} lần: ${lastErrors?.join(' | ').slice(0, 200)}`);
 }

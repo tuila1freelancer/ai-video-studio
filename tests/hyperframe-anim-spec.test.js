@@ -17,7 +17,7 @@ const src = (f) => readFileSync(new URL(f, import.meta.url), 'utf8');
 const cues = [{ start: 0, end: 8, text: 'x', words: Array.from({ length: 24 }, (_, i) => ({
   start: (i * 8) / 24, end: ((i + 1) * 8) / 24, word: i % 6 === 0 ? String(10 + i) : `chu${i}` })) }];
 
-test('P37 animationSpecBlock: concrete FX.* values, never raw gsap.*', () => {
+test('P37/P39 animationSpecBlock: concrete FX.*(tl,…) values; motion stays on tl', () => {
   const dir = cinematicDirection({ voice_text: 'Bùng nổ tăng vọt kỷ lục', duration: 8 }, 0, 10); // hook → high energy
   const sig = motionSignature(dir, 0, 0);
   const spec = animationSpecBlock(dir, sig, extractBeats(cues, [], 8), 8);
@@ -26,7 +26,9 @@ test('P37 animationSpecBlock: concrete FX.* values, never raw gsap.*', () => {
   assert.match(spec, /FX\.pulseGlow\(tl,/, 'pulse uses FX.pulseGlow');
   assert.match(spec, /FX\.beamSweep\(tl,/, 'beam cadence present');
   assert.match(spec, /FX\.impact\(tl,/, 'climax uses FX.impact');
-  assert.ok(!/gsap\.\w+\(/.test(spec), 'the spec never suggests a raw gsap.<method>() call (the prohibition text may still say "gsap.*")');
+  // P39: raw GSAP is allowed now, but every SUGGESTED call still targets tl / FX.* — the only
+  // gsap.* mention is the caution that a bare gsap.to() freezes; none is suggested as vocabulary.
+  assert.ok(!/gsap\.\w+\(\s*tl\b/.test(spec), 'never suggests a gsap.method(tl, …) call — motion goes through FX.*/tl.*');
   assert.match(spec, /HARNESS-OWNED/, 'grain/vignette/scanlines are marked harness-owned');
 });
 
@@ -56,20 +58,25 @@ test('P37 the emitted spec calls are LINT-CLEAN (the prompt never suggests a ban
   assert.deepEqual(errors, [], `emitted spec calls must lint clean, got: ${errors.join(' | ')}`);
 });
 
-test('P38 render gate: HARD not-broken + balanced defects only (soft caliber lane removed)', () => {
+test('P39 render gate: structural floor is HARD (defects), geometry is advisory (warnings)', () => {
   const v = src('../src/hyperframe/validate.js');
   assert.ok(!/softDefects/.test(v), 'the softDefects lane is removed');
-  assert.match(v, /return \{ ok: defects\.length === 0, defects, tlDur/, 'the gate returns a single defects list');
+  assert.match(v, /return \{ ok: defects\.length === 0, defects, warnings, tlDur/, 'the gate returns defects (hard floor) + warnings (advisory)');
   // each push statement is a single source line, so the line carrying the finding IS its push.
   const lineWith = (needle) => {
     const i = v.indexOf(needle); if (i < 0) return '';
     const a = v.lastIndexOf('\n', i) + 1; const b = v.indexOf('\n', i);
     return v.slice(a, b < 0 ? undefined : b);
   };
-  // the HARD readability + balance gates push to `defects`
-  for (const hard of ['px off-screen', 'reserved for subtitles', 'stacked on the center axis', 'overlap each other']) {
+  // the STRUCTURAL FLOOR (renders blank / script threw) is the ONLY thing that pushes to `defects`
+  for (const hard of ['no element is ever visible', 'your script threw at runtime']) {
     const l = lineWith(hard);
-    assert.ok(l && /defects\.push\(/.test(l), `"${hard}" must be a HARD defect`);
+    assert.ok(l && /defects\.push\(/.test(l), `"${hard}" must be a HARD structural defect`);
+  }
+  // every GEOMETRY finding is ADVISORY now → warnings.push (reference-parity: validation advisory)
+  for (const soft of ['px off-screen', 'reserved for subtitles', 'stacked on the center axis', 'overlap each other', 'is clipped', 'wrong language']) {
+    const l = lineWith(soft);
+    assert.ok(l && /warnings\.push\(/.test(l), `"${soft}" must be an advisory warning`);
   }
   // the caliber / contrast nudges are removed entirely (the reference app ships none of them)
   for (const gone of ['reads sparse', 'crafted sub-parts', 'produce no visual response', 'the spoken anchor words', 'is unreadable at']) {

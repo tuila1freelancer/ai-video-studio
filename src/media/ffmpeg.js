@@ -182,7 +182,7 @@ export async function compositeColorkey(scenePath, footagePath, outPath, {
     `[1:v]colorkey=${key}:${similarity}:${blend}[fg];` +
     `[bg][fg]overlay=0:0:shortest=1[v]`,
     '-map', '[v]', '-map', '1:a?', '-t', dur.toFixed(3),
-    '-c:v', 'libx264', '-preset', 'medium', '-crf', '19', '-pix_fmt', 'yuv420p',
+    '-c:v', 'libx264', '-preset', 'medium', '-crf', '18', '-pix_fmt', 'yuv420p',
     '-c:a', 'aac', '-b:a', '192k', outPath,
   ]);
   return outPath;

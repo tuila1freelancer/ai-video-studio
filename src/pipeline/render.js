@@ -176,7 +176,8 @@ export async function concatScenes(sceneVideos, project, { dir, size, bgmPath, s
   // The measured two-pass master (finalize → masterAudio) sets -16 LUFS on the finished file.
   fc.push(`${abase}alimiter=limit=0.891:level=false,afade=t=in:st=0:d=0.4,afade=t=out:st=${fadeOut.toFixed(2)}:d=0.6[aout]`);
   args.push('-filter_complex', fc.join(';'), '-map', '[vout]', '-map', '[aout]', '-t', total.toFixed(2),
-    '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-pix_fmt', 'yuv420p', '-r', String(FPS),
+    // P39: final master encode matches the reference app (crf 18, preset medium, High@4.0).
+    '-c:v', 'libx264', '-preset', 'medium', '-crf', '18', '-profile:v', 'high', '-level', '4.0', '-pix_fmt', 'yuv420p', '-r', String(FPS),
     '-c:a', 'aac', '-b:a', '160k', '-ar', '44100', '-ac', '2', '-movflags', '+faststart', finalOut);
   await (useAssBinary ? ffmpegAss : ffmpeg)(args, { onLog });
 

@@ -211,7 +211,7 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
   // things the owner asked to keep. The reference-caliber nudges (sparse / hero-density / beat-
   // adherence / dialogue-match), the flat-type check, the low-contrast gate + auto-repair, and the
   // mid-scene/ending liveness checks are all removed (the reference app ships none of them).
-  if (!chromeAvailable()) return { ok: true, skipped: true, defects: [] };
+  if (!chromeAvailable()) return { ok: true, skipped: true, defects: [], warnings: [] };
   const dur = Math.max(1.5, duration);
   const g = normalizeGuide(guide || spec.guide);
   const theme = themeFromGuide(g);
@@ -224,14 +224,19 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
   });
   const browser = await getBrowser();
   const page = await browser.newPage();
-  const defects = [];
+  // P39 (reference-parity, advisory validation): `defects` is the HARD structural floor only —
+  // the script threw, or the scene renders blank. These block + re-ask (they are the real
+  // "broken scene" cases the reference app's own structure implicitly rejects). Every geometry
+  // finding (off-screen / overlap / caption-band / distribution / …) is now an advisory WARNING:
+  // surfaced and logged, never a re-ask — mirroring the reference app, whose validation is advisory.
+  const defects = [], warnings = [];
   try {
     await page.setViewport({ width: w, height: h, deviceScaleFactor: 1 });
     await page.setContent(html, { waitUntil: 'load', timeout: 20000 });
     const init = await page.evaluate(() => window.__init());
     if (init.tplErr) {
-      defects.push(`your script threw at runtime: "${init.tplErr}". Only use documented FX.* helpers and tl.* methods; do not reference undefined variables or functions.`);
-      return { ok: false, defects };
+      defects.push(`your script threw at runtime: "${init.tplErr}". Use gsap/tl (tl.to/tl.from/tl.fromTo/tl.set, gsap.set, gsap.timeline) or the FX.* helpers; do not reference undefined variables or functions.`);
+      return { ok: false, defects, warnings };
     }
     const tlDur = await page.evaluate(() => (window.__tl ? window.__tl.totalDuration() : 0));
 
@@ -293,32 +298,33 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
         if (e.o > 0.25 && e.txt && !e.txt.includes('{{') && JUNK_RE.test(e.txt) && !/[À-ỿ]/.test(e.txt)) bump(junk, e.txt.slice(0, 30), { t, ...e });
       }
     }
-    // "HTML not broken": the scene must actually paint something (a blank render = extraction/JS fail).
+    // HARD FLOOR — "HTML not broken": the scene must actually paint something (a blank render =
+    // extraction/JS fail). This is the one structural defect that still blocks + re-asks.
     if (!anyVisible) defects.push('no element is ever visible — the scene renders empty. Make each beat element visible during its window.');
-    // overlay contract: the footage must stay visible — solid paint may not blanket the center.
+    // ---- everything below is ADVISORY (warnings): logged, never a re-ask (reference-parity) ----
+    // overlay contract: the footage should stay visible — solid paint may not blanket the center.
     if (overlay && maxCenterCover > 0.4) {
-      defects.push(`overlay mode: solid elements cover ${Math.round(maxCenterCover * 100)}% of the center of the frame — the owner's footage must stay visible. Keep the center ~40-50% clear; move panels/keywords to the edges, lower-third or side columns, and never use filled backgrounds larger than a chip.`);
+      warnings.push(`overlay mode: solid elements cover ${Math.round(maxCenterCover * 100)}% of the center of the frame — the owner's footage must stay visible. Keep the center ~40-50% clear; move panels/keywords to the edges, lower-third or side columns, and never use filled backgrounds larger than a chip.`);
     }
-    // P38 distribution: a horizontal frame whose readable elements all bunch on the center axis is
-    // the "chưa cân đối" the owner flagged — re-ask to spread across left / center / right.
+    // distribution: a horizontal frame whose readable elements all bunch on the center axis.
     if (!overlay && w >= h * 1.1 && hadCluster && maxSpread < 0.22 && unionFrac < 0.5) {
-      defects.push(`the composition is stacked on the center axis (readable elements span only ${Math.round(maxSpread * 100)}% of the width) — distribute them across left / center / right per the ratio rules: a wide frame wants a split or an off-center hero with a real counterweight, not everything in the middle.`);
+      warnings.push(`the composition is stacked on the center axis (readable elements span only ${Math.round(maxSpread * 100)}% of the width) — distribute them across left / center / right per the ratio rules: a wide frame wants a split or an off-center hero with a real counterweight, not everything in the middle.`);
     }
     // telemetry junk net: snake_case/dev tokens with no Vietnamese diacritic. Persistence-tiered.
     const junkH = [...junk.values()].filter(heldAcrossSamples);
-    if (junkH.length) { const o = junkH[0]; defects.push(`the on-screen text "${o.txt}" is leftover dev/telemetry decor (snake_case/code token) — remove it; on-screen words must be real ${narrLang === 'vi' ? 'Vietnamese' : narrLang} copy, numbers or icons.`); }
+    if (junkH.length) { const o = junkH[0]; warnings.push(`the on-screen text "${o.txt}" is leftover dev/telemetry decor (snake_case/code token) — remove it; on-screen words must be real ${narrLang === 'vi' ? 'Vietnamese' : narrLang} copy, numbers or icons.`); }
     // geometry findings pass persistence tiering: one-sample transients are entrance/exit states
-    // of slow eases, not defects — only findings HELD across ≥2 samples re-ask.
+    // of slow eases, not defects — only findings HELD across ≥2 samples surface.
     const held = (m) => [...m.values()].filter(heldAcrossSamples);
     const offH = held(off), subH = held(sub), ovlH = held(ovl), clipH = held(clip), occH = held(occ);
-    if (offH.length) { const o = offH[0]; defects.push(`element "${o.txt || o.cls}" runs ${o.overflow}px off-screen at ${o.t.toFixed(1)}s — keep all content inside the frame with a 6% margin; shrink font-size or reposition.`); }
-    if (captionsOn && subH.length) { const o = subH[0]; defects.push(`element "${o.txt || o.cls}" reaches the bottom of the frame at ${o.t.toFixed(1)}s — the bottom 22% is reserved for subtitles, move it up.`); }
-    if (bad.size) { const o = [...bad.values()][0]; defects.push(`the on-screen text "${o.txt}" is in the wrong language — the narration is ${narrLang === 'vi' ? 'Vietnamese' : narrLang}, and every keyword must be in the narration's language. Semantic (non-verbatim) keywords are fine; translating or mixing languages is not.`); }
-    if (ovlH.length) { const o = ovlH[0]; defects.push(`the texts "${o.a}" and "${o.b}" overlap each other at ${o.t.toFixed(1)}s (${Math.round(o.frac * 100)}% of the smaller box) — text must NEVER sit on top of other text; separate them spatially or stagger their timing so only one occupies that area at a time.`); }
-    if (clipH.length) { const o = clipH[0]; defects.push(`the text "${o.txt}" is clipped at ${o.t.toFixed(1)}s — its box is smaller than its content, cutting words off. Remove fixed widths/heights and overflow:hidden from text elements; shorten the label or let the element size itself.`); }
-    if (occH.length) { const o = occH[0]; defects.push(`the text "${o.txt}" is covered by an opaque element ("${o.by}") at ${o.t.toFixed(1)}s — nothing may paint on top of readable text; move the decor behind it (DOM order/z-index) or offset it.`); }
-    return { ok: defects.length === 0, defects, tlDur: Number.isFinite(tlDur) ? +tlDur.toFixed(2) : null };
+    if (offH.length) { const o = offH[0]; warnings.push(`element "${o.txt || o.cls}" runs ${o.overflow}px off-screen at ${o.t.toFixed(1)}s — keep all content inside the frame with a 6% margin; shrink font-size or reposition.`); }
+    if (captionsOn && subH.length) { const o = subH[0]; warnings.push(`element "${o.txt || o.cls}" reaches the bottom of the frame at ${o.t.toFixed(1)}s — the bottom 22% is reserved for subtitles, move it up.`); }
+    if (bad.size) { const o = [...bad.values()][0]; warnings.push(`the on-screen text "${o.txt}" is in the wrong language — the narration is ${narrLang === 'vi' ? 'Vietnamese' : narrLang}, and every keyword must be in the narration's language. Semantic (non-verbatim) keywords are fine; translating or mixing languages is not.`); }
+    if (ovlH.length) { const o = ovlH[0]; warnings.push(`the texts "${o.a}" and "${o.b}" overlap each other at ${o.t.toFixed(1)}s (${Math.round(o.frac * 100)}% of the smaller box) — text must NEVER sit on top of other text; separate them spatially or stagger their timing so only one occupies that area at a time.`); }
+    if (clipH.length) { const o = clipH[0]; warnings.push(`the text "${o.txt}" is clipped at ${o.t.toFixed(1)}s — its box is smaller than its content, cutting words off. Remove fixed widths/heights and overflow:hidden from text elements; shorten the label or let the element size itself.`); }
+    if (occH.length) { const o = occH[0]; warnings.push(`the text "${o.txt}" is covered by an opaque element ("${o.by}") at ${o.t.toFixed(1)}s — nothing may paint on top of readable text; move the decor behind it (DOM order/z-index) or offset it.`); }
+    return { ok: defects.length === 0, defects, warnings, tlDur: Number.isFinite(tlDur) ? +tlDur.toFixed(2) : null };
   } catch (e) {
-    return { ok: true, skipped: true, defects: [], error: String(e.message || e) }; // never block codegen on a harness hiccup
+    return { ok: true, skipped: true, defects: [], warnings: [], error: String(e.message || e) }; // never block codegen on a harness hiccup
   } finally { await page.close().catch(() => {}); }
 }
