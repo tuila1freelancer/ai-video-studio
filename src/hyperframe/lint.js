@@ -18,7 +18,10 @@ const SCRIPT_BANNED = [
   [/\beval\s*\(|new\s+Function\b/, 'eval/new Function'],
   [/\bDate\s*\.\s*now\b|new\s+Date\b|performance\s*\.\s*now\b/, 'wall-clock time — breaks determinism, use tl time'],
   [/document\s*\.\s*write\b|location\s*\.|window\s*\.\s*open\b|localStorage\b|sessionStorage\b/, 'banned DOM/side-effect API'],
-  [/window\s*\.\s*__|__seek\b|__init\b|__tl\b|__scene\b|__drawBg\b/, 'touches the harness internal runtime'],
+  // window.__onSeek is the ONE sanctioned harness entry point (P40): a creative-library layer
+  // (THREE/p5/canvas) registers a redraw hook there so it stays a pure function of scene time.
+  // Everything else in the __ namespace is internal runtime and stays off-limits.
+  [/window\s*\.\s*__(?!onSeek\b)|__seek\b|__init\b|__tl\b|__scene\b|__drawBg\b/, 'touches the harness internal runtime (only window.__onSeek is public)'],
   // Raw GSAP timeline authoring is the contract, so gsap.set / gsap.timeline / gsap.utils / eases
   // are FINE. What stays banned: a STANDALONE gsap tween (gsap.to/from/fromTo lands on the paused
   // global timeline → never seeked → frozen — put it on tl), the real-time/env APIs, and the
@@ -85,6 +88,11 @@ export function lintSpec(spec, { overlay = false } = {}) {
   }
   if (/\.\s*from\s*\([^)]{0,200}?[{,]\s*opacity\s*:\s*1\b/s.test(script)) {
     warnings.push('from({opacity:1}) is a no-op — a fade-in starts from opacity:0');
+  }
+  // P40: a creative-library layer that never registers a redraw hook renders its first frame and
+  // then holds it — the renderer scrubs a paused timeline, nothing else ticks the library.
+  if (/\bTHREE\s*\.|\bnew\s+p5\s*\(/.test(script) && !/__onSeek\s*\(/.test(script)) {
+    warnings.push('THREE/p5 layer without window.__onSeek((t) => …) — the renderer scrubs frames, so the layer would freeze on its first frame; redraw it from the seek hook');
   }
   return { errors, warnings };
 }

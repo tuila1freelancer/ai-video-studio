@@ -24,7 +24,14 @@ export async function getBrowser() {
         executablePath: PATHS.chrome,
         headless: true,
         args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu', '--hide-scrollbars',
-          '--force-device-scale-factor=1', '--disable-lcd-text', '--font-render-hinting=none'],
+          '--force-device-scale-factor=1', '--disable-lcd-text', '--font-render-hinting=none',
+          // P40: software WebGL so a three.js scene layer actually renders headless. Verified
+          // byte-identical output on non-WebGL pages (SwiftShader only serves WebGL contexts —
+          // 2D text/SVG rasterization is untouched), so existing renders are unaffected.
+          // Without these a WebGLRenderer throws "Error creating WebGL context" and takes the
+          // whole scene script down with it. The reference app leaves this off (its three.js
+          // cache is dead weight) — this is where we go one better.
+          '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'],
       });
       // warm-up: first page load is slow; do it once so real screenshots paint fully.
       try { const p = await browser.newPage(); await p.setContent('<body style="background:#000"></body>'); await p.close(); } catch { /* ignore */ }

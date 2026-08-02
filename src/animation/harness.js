@@ -13,6 +13,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { VENDOR_DIR } from '../config/paths.js';
 import { gsapBundle } from './gsap.js';
+import { detectLibs, libsBundle } from './libs.js';
 import { userFontsCss } from './userfonts.js';
 
 let fontsCssCache = null;
@@ -29,6 +30,18 @@ const RUNTIME = `
 (() => {
   const S = window.__scene; // { duration, seed, progressStart, progressTotal, captions, theme }
   let anims = [];
+
+  // ---- deterministic seek hooks (P40) ----
+  // A creative-library layer (THREE renderer, p5 sketch, hand-rolled canvas) must never run on
+  // its own rAF clock: the renderer scrubs frames out of order, so wall-clock drawing yields a
+  // different picture every run. A scene registers window.__onSeek(fn) and the hook is called
+  // with (sceneTime, authoredTime) on EVERY seek — the layer stays a pure function of t.
+  // Hooks are defined before __init so the template script can register during build.
+  const seekHooks = [];
+  window.__onSeek = (fn) => { if (typeof fn === 'function') { seekHooks.push(fn); return true; } return false; };
+  window.__runSeekHooks = (t, st) => {
+    for (const fn of seekHooks) { try { fn(t, st); } catch(e) { window.__hookErr = String(e && e.message || e); } }
+  };
 
   // ---- seeded rng ----
   function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
@@ -329,6 +342,9 @@ const RUNTIME = `
     // pure function of tl time, but suppressing events froze it at its initial value.
     if (window.__tl) { try { window.__tl.time(st, false); } catch(e){} }
     window.__drawBg(t); window.__drawCaption(t); window.__drawProgress(t);
+    // Creative-library layers redraw LAST, after the timeline settled this frame's state, and
+    // receive both clocks: real scene time and authored (warped) timeline time.
+    window.__runSeekHooks(t, st);
     return true;
   };
 
@@ -429,6 +445,13 @@ export function buildScenePage(opts) {
     theme: { particles: theme.particles, streak: theme.streak, accents: theme.accents },
     live: !!opts.live,
   };
+  // Creative runtime libraries (P40): only the ones this spec actually reaches for. An explicit
+  // opts.libs wins (regen/preview paths that already resolved them); otherwise they are detected
+  // from the spec text, so a plain text scene keeps the exact page weight it had before P40.
+  const libIds = Array.isArray(opts.libs) ? opts.libs : detectLibs(template);
+  const libSrc = libIds.length ? libsBundle(libIds) : '';
+  const libScript = libSrc ? `<script>${libSrc}<\/script>\n` : '';
+
   const liveBits = opts.live ? `
   ${opts.liveAudioUrl ? `<audio id="liveAud" src="${opts.liveAudioUrl}" preload="auto"></audio>` : ''}
   <div id="liveBtn" style="position:absolute;inset:0;z-index:99;display:grid;place-items:center;cursor:pointer;background:rgba(3,6,15,.35)">
@@ -479,7 +502,7 @@ ${template.css}${opts.brand ? opts.brand.css : ''}
   ${liveBits}
 </div>
 <script>window.__scene=${JSON.stringify(sceneData).replace(/</g, '\\u003c')};<\/script>
-${template.script ? `<script>${gsapBundle()}<\/script>
+${libScript}${template.script ? `<script>${gsapBundle()}<\/script>
 <script>window.__tplScript=function(gsap,tl,S,rng){${String(template.script).replace(/<\/script/gi, '<\\/script')}
 };<\/script>` : ''}
 <script>${RUNTIME}<\/script>
