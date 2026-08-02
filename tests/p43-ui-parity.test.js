@@ -132,3 +132,29 @@ test('P43: publishing shows the exact post text, lets it be edited, and can be s
   // and the server treats the typed text as final
   assert.match(src('../src/api/routes.js'), /String\(req\.body\?\.caption \|\| ''\)\.trim\(\) \|\| md\.captions/);
 });
+
+test('P43: the reframe crop can be biased, and centre stays byte-identical', async () => {
+  const { reframeOffsetX } = await import('../src/media/ffmpeg.js');
+  // a 16:9 source scaled to cover a 1080-wide output has 840px of horizontal slack
+  assert.equal(reframeOffsetX('center', 1920, 1080), 420, 'centre = exactly what bare crop= does');
+  assert.equal(reframeOffsetX('left', 1920, 1080), 0);
+  assert.equal(reframeOffsetX('right', 1920, 1080), 840);
+  // auto puts the DETECTED subject in the middle of the output window, clamped to real slack
+  assert.equal(reframeOffsetX('auto', 1920, 1080, 0.2), 0, 'a subject at the far left cannot pull the crop negative');
+  assert.equal(reframeOffsetX('auto', 1920, 1080, 0.8), 840, 'nor past the right edge');
+  assert.equal(reframeOffsetX('auto', 1920, 1080, 0.5), 420, 'a centred subject lands where centre would');
+  assert.equal(reframeOffsetX('auto', 1920, 1080, null), 420, 'detection failed → centre, never a guess');
+  assert.equal(reframeOffsetX('right', 1080, 1080), 0, 'no slack → no offset');
+
+  const ff = src('../src/media/ffmpeg.js');
+  // 'center' must not even build a different filter string — old renders stay byte-identical
+  assert.match(ff, /let cropExpr = `crop=\$\{w\}:\$\{h\}`;/);
+  assert.match(ff, /if \(position && position !== 'center'\)/);
+  // the scale factor must mirror force_original_aspect_ratio=increase or the offset is wrong
+  assert.match(ff, /const k = Math\.max\(w \/ size\.w, h \/ size\.h\);/);
+  assert.match(ff, /export async function detectSubjectX/);
+  // and the choice reaches ffmpeg from the UI
+  assert.match(src('../src/animation/index.js'), /position: config\.overlay\.position \|\| 'center'/);
+  assert.match(src('../src/pipeline/edit-video.js'), /config\.reframePosition \|\| config\.overlay\?\.position \|\| 'center'/);
+  assert.match(src('../public/js/views/editvideo.js'), /reframePosition: \$\('#evReframe'\)\?\.value/);
+});

@@ -172,19 +172,73 @@ export async function normalizeVoice(inPath, outPath, { padMs = 500 } = {}) {
 // `exact` + `audioFrom:'footage'` switch this into EDIT-VIDEO mode (P40): the graphics belong to
 // one specific moment of the owner's own video, so the slice is taken at exactly `start` (never
 // wrapped) and the ORIGINAL soundtrack is kept instead of a narration track.
+
+/**
+ * Where the subject sits in a frame, as a 0..1 horizontal fraction (P43 — reference
+ * `detectSubjectPosition`). One cheap cropdetect probe over half a second: cropdetect reports the
+ * non-black content box, and its centre is a good enough proxy for "where the person is" for the
+ * purpose of biasing a crop. Returns null when nothing can be read, so the caller keeps centre.
+ */
+export async function detectSubjectX(file, { at = 1 } = {}) {
+  return new Promise((resolvePromise) => {
+    const ps = spawn(PATHS.ffmpeg, ['-v', 'info', '-ss', String(Math.max(0, at)), '-i', file,
+      '-t', '0.5', '-vf', 'cropdetect=24:2:0', '-f', 'null', '-']);
+    let err = '';
+    ps.stderr.on('data', (d) => { err += d.toString(); });
+    ps.on('error', () => resolvePromise(null));
+    ps.on('close', () => {
+      const all = [...err.matchAll(/crop=(\d+):(\d+):(\d+):(\d+)/g)];
+      const m = all[all.length - 1];
+      const dim = /Video:.*?[,\s](\d{2,5})x(\d{2,5})/.exec(err);
+      if (!m || !dim) return resolvePromise(null);
+      const W = +dim[1];
+      const cx = (+m[3] + (+m[1]) / 2) / W;      // content-box centre as a fraction of the width
+      resolvePromise(Number.isFinite(cx) ? Math.min(1, Math.max(0, cx)) : null);
+    });
+  });
+}
+
+/** Horizontal crop offset in px for a reframe position. `subjectX` is 0..1 or null. */
+export function reframeOffsetX(position, scaledW, outW, subjectX = null) {
+  const slack = Math.max(0, scaledW - outW);
+  if (!slack) return 0;
+  if (position === 'left') return 0;
+  if (position === 'right') return Math.round(slack);
+  if (position === 'auto' && subjectX != null) {
+    // put the detected subject in the middle of the output window, clamped to the real slack
+    return Math.round(Math.min(slack, Math.max(0, subjectX * scaledW - outW / 2)));
+  }
+  return Math.round(slack / 2); // centre — what ffmpeg's bare crop= already does
+}
+
 export async function compositeColorkey(scenePath, footagePath, outPath, {
   start = 0, duration, w, h, fps = 30, key = '0x050510', similarity = 0.3, blend = 0.2,
-  exact = false, audioFrom = 'scene',
+  exact = false, audioFrom = 'scene', position = 'center',
 } = {}) {
   const footDur = await probeDuration(footagePath);
   const dur = duration || (await probeDuration(scenePath));
   const off = exact
     ? Math.max(0, Math.min(start, Math.max(0, footDur - 0.05)))
     : (footDur > 1 ? (Math.max(0, start) % Math.max(0.5, footDur - Math.min(dur, footDur * 0.5))) : 0);
+  // REFRAME BIAS (P43): the bare `crop=w:h` ffmpeg default is dead-centre, which cuts a person
+  // standing off to one side straight out of the shot. 'center' keeps the historic expression
+  // byte-for-byte; any other position computes an explicit x.
+  let cropExpr = `crop=${w}:${h}`;
+  if (position && position !== 'center') {
+    const size = await probeImageSize(footagePath);
+    if (size?.w && size?.h) {
+      // mirror `scale=…:force_original_aspect_ratio=increase`: the source is scaled up until BOTH
+      // dimensions cover the output, so the scale factor is the larger of the two ratios.
+      const k = Math.max(w / size.w, h / size.h);
+      const scaledW = Math.round(size.w * k);
+      const subjectX = position === 'auto' ? await detectSubjectX(footagePath, { at: off + 0.5 }) : null;
+      cropExpr = `crop=${w}:${h}:${reframeOffsetX(position, scaledW, w, subjectX)}:0`;
+    }
+  }
   await ffmpeg([
     '-ss', off.toFixed(3), '-i', footagePath, '-i', scenePath,
     '-filter_complex',
-    `[0:v]scale=${w}:${h}:force_original_aspect_ratio=increase,crop=${w}:${h},fps=${fps},tpad=stop_mode=clone:stop_duration=${dur.toFixed(3)},setsar=1[bg];` +
+    `[0:v]scale=${w}:${h}:force_original_aspect_ratio=increase,${cropExpr},fps=${fps},tpad=stop_mode=clone:stop_duration=${dur.toFixed(3)},setsar=1[bg];` +
     `[1:v]colorkey=${key}:${similarity}:${blend}[fg];` +
     `[bg][fg]overlay=0:0:shortest=1[v]`,
     '-map', '[v]',

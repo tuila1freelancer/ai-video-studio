@@ -229,6 +229,8 @@ export async function renderAnimationScene(scene, project, config, { dir, progre
       start: progressStart || 0, duration: res.duration, w, h, fps,
       key: (config.overlay.key || '#050510').replace('#', '0x'),
       exact: edit, audioFrom: edit ? 'footage' : 'scene',
+      // P43: where the subject sits when the footage has to be cropped to the project ratio
+      position: config.overlay.position || 'center',
     });
     return { ...res, path: finalPath, preview: existsSync(previewPath) ? previewPath : null };
   }

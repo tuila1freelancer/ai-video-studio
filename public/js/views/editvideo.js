@@ -34,6 +34,7 @@ export function initEditVideo() {
         config: {
           sceneDuration: +($('#evSceneDur')?.value || 7),
           enableSubtitles: !!$('#evSubs')?.checked,
+          reframePosition: $('#evReframe')?.value || 'center',
         },
       });
       if (r.error) throw new Error(r.error);
