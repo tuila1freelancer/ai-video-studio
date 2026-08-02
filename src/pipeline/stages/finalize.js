@@ -220,18 +220,26 @@ export async function finalize(projectId, { dir, size, config }) {
     const thumbAi = DB.aiSettings();
     const aiOn = config.thumbnailAi !== false && llmEnabled(thumbAi.llm);
     const made = [];
+    let thumbHtml = null;
     for (let v = 0; v < nVar; v++) {
       const outPath = pathFor(v);
-      let p = aiOn ? await generateThumbnailImage({
+      const ai = aiOn ? await generateThumbnailImage({
         title: project.title, hook: thumbTitle, prompt: project.metadata?.thumbnail?.prompt || '',
         guide, size: nVar > 1 ? { w: 1280, h: 720 } : size, outPath,
         language: config.language && config.language !== 'auto' ? config.language : 'vi',
         variant: v, llm: thumbAi.llm, onLog: (m) => logger.info(m, { projectId, stage: 'b7' }),
       }) : null;
-      if (!p) p = await buildThumbnail(thumbTitle, firstImg, nVar > 1 ? { w: 1280, h: 720 } : size, outPath, { guide, variant: v });
+      // Keep the markup of the FIRST design: the owner can edit and re-render it later without
+      // paying for another generation (POST /projects/:id/thumbnail/regen with { html }).
+      if (v === 0 && ai?.fragment) thumbHtml = ai.fragment;
+      const p = ai?.path || await buildThumbnail(thumbTitle, firstImg, nVar > 1 ? { w: 1280, h: 720 } : size, outPath, { guide, variant: v });
       if (p) made.push(p);
     }
     if (made[0]) thumb = made[0];
+    if (thumbHtml) {
+      const md = DB.getProject(projectId).metadata || {};
+      DB.updateProject(projectId, { metadata: { ...md, thumbnail: { ...(md.thumbnail || {}), html: thumbHtml } } });
+    }
     if (made.length > 1) op(projectId, `🖼️ Đã tạo ${made.length} biến thể thumbnail (A/B) trong thư mục xuất`);
   } catch { /* keep basic */ }
 
