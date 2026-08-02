@@ -69,16 +69,21 @@ export function sanitizeThumbFragment(raw) {
 function shell(fragment, { w, h, guide }) {
   const p = guide?.palette || {};
   const f = guide?.fonts || {};
+  const inset = Math.round(Math.min(w, h) * 0.045);
+  // GEOMETRY IS INLINE, NOT IN THE STYLESHEET. The fragment's own <style> is parsed AFTER ours,
+  // so a model that writes `#content { position: relative }` — a reasonable thing to write, and
+  // one really did — would beat a head rule, collapse the box to height:0 (its children are all
+  // absolute) and render a solid black image. An inline style outranks any author rule, so the
+  // model can restyle the canvas (background, font, radius) but never move or collapse it.
+  const box = `position:absolute;top:${inset}px;left:${inset}px;right:${inset}px;bottom:${inset}px;overflow:hidden`;
   return `<!doctype html><html><head><meta charset="utf-8"><style>
 ${fontsCss()}
 ${userFontsCss()}
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{width:${w}px;height:${h}px;overflow:hidden;background:${p.bg || '#0b1220'}}
 body{font-family:${f.display || 'Be Vietnam Pro'},Arial,sans-serif;color:${p.ink || '#fff'};-webkit-font-smoothing:antialiased}
-#stage{position:relative;width:${w}px;height:${h}px;overflow:hidden;background:${p.bg || '#0b1220'}}
-#content{position:absolute;inset:${Math.round(Math.min(w, h) * 0.045)}px;overflow:hidden}
 .txt{display:block;line-height:1.08;overflow:visible;padding-top:.12em;padding-bottom:.06em}
-</style></head><body><div id="stage"><div id="content">${fragment}</div></div></body></html>`;
+</style></head><body><div id="stage" style="position:relative;width:${w}px;height:${h}px;overflow:hidden;background:${p.bg || '#0b1220'}"><div id="content" style="${box}">${fragment}</div></div></body></html>`;
 }
 
 /**

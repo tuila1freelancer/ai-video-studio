@@ -54,3 +54,17 @@ test('P40-D: an edited design re-renders without paying for another generation',
   assert.match(routes, /renderThumbnailFragment\(html/, 'a hand-edited fragment skips the model');
   assert.match(routes, /generateThumbnailImage\(\{/, 'no html → a fresh design');
 });
+
+test('P40-D: the canvas geometry is INLINE, so a model restyling #content cannot collapse it', () => {
+  // Regression: a real design wrote `#content { position: relative }`. The fragment's <style> is
+  // parsed after the head stylesheet, so it won so the box lost its absolute inset, every
+  // absolutely-positioned child stopped contributing height, and the render came out solid black.
+  const s = src('../src/pipeline/thumbnail-codegen.js');
+  assert.match(s, /const box = `position:absolute;top:\$\{inset\}px/, 'geometry is built as an inline style');
+  assert.match(s, /<div id="content" style="\$\{box\}">/, 'and applied inline, where no author rule can beat it');
+  assert.match(s, /<div id="stage" style="position:relative;width:\$\{w\}px/, 'the stage is pinned the same way');
+  // the head stylesheet must NOT carry the geometry any more — that is exactly what got overridden
+  const head = s.slice(s.indexOf('${fontsCss()}'), s.indexOf('</style></head>'));
+  assert.ok(!/#content\s*\{/.test(head), 'no overridable #content rule left in the head');
+  assert.ok(!/#stage\s*\{/.test(head), 'no overridable #stage rule left in the head');
+});
