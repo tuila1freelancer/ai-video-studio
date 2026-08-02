@@ -60,6 +60,28 @@ export function mountRoutes(app, { version }) {
     } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
   });
 
+  // Validate a custom OpenAI-compatible LLM endpoint before saving it (P42 — reference
+  // `/test-custom-provider`). Sends the cheapest possible completion and reports what came back,
+  // so a wrong base URL or a dead key surfaces here instead of mid-render.
+  r.post('/llm/test', async (req, res) => {
+    try {
+      const { chat } = await import('../providers/llm.js');
+      const b = req.body || {};
+      const saved = DB.aiSettings().llm || {};
+      const llm = {
+        enabled: true,
+        baseUrl: String(b.baseUrl || saved.baseUrl || '').trim(),
+        // '••' is the masked round-trip value — it means "keep the saved key"
+        apiKey: (!b.apiKey || String(b.apiKey).includes('••')) ? saved.apiKey : String(b.apiKey),
+        model: String(b.model || saved.model || '').trim(),
+      };
+      if (!llm.baseUrl || !llm.apiKey) return res.status(400).json({ ok: false, message: 'thiếu Base URL hoặc API Key' });
+      const t0 = Date.now();
+      const reply = await chat([{ role: 'user', content: 'Reply with the single word: OK' }], { maxTokens: 8, temperature: 0, llm, timeoutMs: 30000 });
+      res.json({ ok: true, model: llm.model, ms: Date.now() - t0, message: `Kết nối OK — model trả lời "${String(reply).trim().slice(0, 40)}"` });
+    } catch (e) { res.status(200).json({ ok: false, message: e.message.slice(0, 220) }); }
+  });
+
   // ---- local TTS server lifecycle (P40, Supertonic) ----
   // The self-hosted voice needs a process, not a key: report whether it is installed/running and
   // let the owner start or stop it from the same panel that configures the provider.
@@ -76,6 +98,24 @@ export function mountRoutes(app, { version }) {
       const cfg = { ...(DB.aiSettings().tts?.providers?.supertonic || {}), ...(req.body || {}) };
       const ok = await ensureSupertonic(cfg, { restart: req.body?.restart === true });
       res.json({ ok, ...(await ttsServerStatus(cfg)) });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+  // Install the local voice engine from inside the app (P42 — reference `/tts/supertonic/install`).
+  // It runs pip on the owner's own machine, so it is an EXPLICIT button, never automatic, and the
+  // full output comes back so a failure is readable instead of mysterious.
+  r.post('/tts/server/install', async (req, res) => {
+    try {
+      const { execFile } = await import('node:child_process');
+      const py = ['python3', 'python'].find(Boolean) || 'python3';
+      execFile(py, ['-m', 'pip', 'install', '--upgrade', 'supertonic'], { timeout: 600000, maxBuffer: 4 * 1024 * 1024 }, async (err, stdout, stderr) => {
+        const { supertonicLauncher } = await import('../media/tts-server.js');
+        const installed = !!supertonicLauncher();
+        res.json({
+          ok: installed && !err, installed,
+          message: installed ? 'Đã cài Supertonic — bấm ▶ Khởi động' : `Cài thất bại: ${(stderr || err?.message || '').slice(-400)}`,
+          log: String(stdout || '').slice(-2000),
+        });
+      });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
   r.post('/tts/server/stop', async (req, res) => {
@@ -137,6 +177,34 @@ export function mountRoutes(app, { version }) {
     res.json({ preset: { ...DB.createStyle({ name, kind: 'logo', prompt: JSON.stringify(payload) }), ...payload } });
   });
   r.delete('/logo-presets/:id', (req, res) => { DB.deleteStyle(req.params.id); res.json({ ok: true }); });
+  // Apply a preset into the ACTIVE channel's brand kit — a saved preset is worthless if nothing
+  // can put it back (P42). Restores the file AND where it sat.
+  r.post('/logo-presets/:id/apply', (req, res) => {
+    const row = (DB.listStyles('logo') || []).find((x) => x.id === req.params.id);
+    const payload = row && safeJsonParse(row.prompt);
+    if (!payload?.assetPath) return res.status(404).json({ error: 'không tìm thấy preset' });
+    if (!existsSync(payload.assetPath)) return res.status(400).json({ error: 'file logo của preset không còn trên đĩa' });
+    const ch = DB.getChannel(req.body?.channelId || DB.activeChannelId());
+    if (!ch) return res.status(404).json({ error: 'không có kênh đang hoạt động' });
+    const bk = ch.config?.brandKit || {};
+    const cfg = {
+      ...(ch.config || {}),
+      brandKit: {
+        ...bk,
+        logo: { ...(bk.logo || {}), assetPath: payload.assetPath },
+        finalOverlay: { enabled: true, ...payload.placement },
+      },
+    };
+    DB.updateChannel(ch.id, { config: cfg });
+    res.json({ ok: true, channelId: ch.id, ...payload });
+  });
+  r.patch('/styles/:id', (req, res) => {
+    const name = String(req.body?.name || '').trim();
+    if (!name) return res.status(400).json({ error: 'tên không hợp lệ' });
+    const row = DB.renameStyle(req.params.id, name);
+    if (!row) return res.status(404).json({ error: 'không tìm thấy' });
+    res.json({ style: row });
+  });
 
   // ---- channels ----
   // Secrets (per-channel AI keys) are masked on every egress and a '••' round-trip
@@ -684,6 +752,39 @@ export function mountRoutes(app, { version }) {
       res.json(await getPublisher('facebook').connect(req.body || {}));
     } catch (e) { res.status(400).json({ error: e.message }); }
   });
+  // Facebook Page registry + token health (P42). A Page token expires; without this a silent
+  // expiry just looks like "publishing broke".
+  r.get('/publish/pages', async (req, res) => {
+    const { getPublisher } = await import('../publish/index.js');
+    res.json({ pages: getPublisher('facebook').listPages() });
+  });
+  r.post('/publish/pages/:pageId/select', async (req, res) => {
+    try {
+      const { getPublisher } = await import('../publish/index.js');
+      res.json(getPublisher('facebook').selectPage(req.params.pageId));
+    } catch (e) { res.status(400).json({ error: e.message }); }
+  });
+  r.delete('/publish/pages/:pageId', async (req, res) => {
+    try {
+      const { getPublisher } = await import('../publish/index.js');
+      res.json(getPublisher('facebook').removePage(req.params.pageId));
+    } catch (e) { res.status(400).json({ error: e.message }); }
+  });
+  r.post('/publish/pages/:pageId/check', async (req, res) => {
+    try {
+      const { getPublisher } = await import('../publish/index.js');
+      res.json(await getPublisher('facebook').checkToken(req.params.pageId));
+    } catch (e) { res.status(400).json({ error: e.message }); }
+  });
+  r.post('/publish/pages/:pageId/extend', async (req, res) => {
+    try {
+      const { getPublisher } = await import('../publish/index.js');
+      res.json(await getPublisher('facebook').extendToken({ ...(req.body || {}), pageId: req.params.pageId }));
+    } catch (e) { res.status(400).json({ error: e.message }); }
+  });
+  // Which projects already went out — so the grid can badge them instead of the owner guessing.
+  r.get('/publish/published-ids', (req, res) => res.json({ ids: DB.publishedProjectIds() }));
+
   r.post('/publish/facebook/disconnect', async (req, res) => {
     try {
       const { getPublisher } = await import('../publish/index.js');

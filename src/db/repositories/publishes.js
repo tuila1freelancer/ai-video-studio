@@ -18,3 +18,8 @@ export function settlePublish(id, { status, videoId = null, url = null, error = 
 export function listPublishes(projectId) {
   return db.prepare('SELECT * FROM publish_targets WHERE project_id=? ORDER BY at DESC').all(projectId);
 }
+
+/** Project ids that have at least one SUCCESSFUL publish — lets the grid badge them (P42). */
+export function publishedProjectIds() {
+  return db.prepare("SELECT DISTINCT project_id FROM publish_targets WHERE status='done'").all().map((r) => r.project_id);
+}
