@@ -120,13 +120,15 @@ test('P40-E: the lane runs through the ordinary pipeline, so stop/resume/queue a
   assert.match(lane, /if \(!existing\.length\)/, 'a resumed run does not re-transcribe');
 });
 
-test('P40-E: the codegen is told the footage carries its OWN captions and titles', async () => {
+test('P40-E: edit mode annotates the footage, and reserves NO band for its subtitles', async () => {
   const { overlayBlock } = await import('../src/hyperframe/prompt.js');
   const plain = overlayBlock();
   const edit = overlayBlock({ edit: true });
   assert.ok(!/OWNER'S OWN VIDEO/.test(plain), 'plain overlay (B-roll under a narrated scene) is unchanged');
-  assert.match(edit, /KEEP THE BOTTOM ~22% AND THE TOP ~12% CLEAR/, 'do not stack text on burned-in subtitles');
   assert.match(edit, /they never restate the sentence/, 'annotate the footage, do not repeat it');
+  // P41 (owner order): an EVEN frame outranks dodging whatever text the footage burned in —
+  // no band may be reserved here, or the composition gets squeezed into the middle again.
+  for (const b of [plain, edit]) assert.ok(!/KEEP THE BOTTOM/.test(b), 'no reserved band');
   // both keep the shared overlay rules
   for (const b of [plain, edit]) assert.match(b, /KEEP THE CENTER ~40-50% OF THE FRAME CLEAR/);
   assert.match(src('../src/pipeline/stages/visuals.js'), /config\.overlay\.mode === 'edit' \? 'edit' : true/);

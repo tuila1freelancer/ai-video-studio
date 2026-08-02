@@ -27,7 +27,7 @@ WHAT MAKES A SCENE GOOD (the five masters — HOW you achieve them is your call)
 1. RELEVANT to the narration. Show what THIS scene is actually about — a metaphor, diagram, comparison, device, data instrument, kinetic words — built from divs + inline SVG so it VISUALLY ARGUES the idea. On-screen text is drawn FROM THE MEANING of the voice line: a short headline and/or a few short labels, ALL complete words in the narration's language (a Vietnamese video shows complete Vietnamese words — or none at all when the graphic already speaks). Never dump the full sentence (it is already the subtitle), never invent slogans/CTAs/brand names, never put English or code on screen in a Vietnamese video.
 2. BALANCED & HARMONIOUS — FILL THE FRAME, NEVER CLUMP CENTER. Place every element in a container with EXPLICIT bounds (top/left/width/height, or flex/grid) — never vague values that overflow. Treat the safe area as a 3×3 grid (left/center/right × top/middle/bottom) and DISTRIBUTE weight across it: a hero on one side needs a real counterweight (panel/stat/diagram/label cluster) on the other, so no half sits empty. Comfortable margin from ALL FOUR edges — nothing clips, bleeds off, or touches the edge. Do NOT stack everything on the center axis: a wide frame wants splits / off-center hero + counterweight / elements spread across the width; only a minimal quote or title card stays centered. The per-ratio LAYOUT rules and hard VIEWPORT thresholds in the user message OVERRIDE any conflicting composition idea.
 3. BEAUTIFUL, SMOOTH MOTION — RICH & ALIVE. Elements ease in gently (power2/power3/expo.out, ~0.35–0.9s), ONE main thing arriving at a time, each landing ON its spoken beat; between beats the frame stays alive with slow drift, never freezing and never emptying. Aim for ≥5 elements animating at any given moment (hero parts + depth orbs + ticks/particles + ambient drift) so it reads as MOTION GRAPHICS, not a slide; run ≥2 parallax depth layers. Calm beats churn: a settled, still-but-breathing frame is the reference look. Use ≥3 distinct eases across the scene; keep bounce/overshoot for at most one playful accent. Make it look EXPENSIVE: give the hero one premium treatment (chrome / neon / glow) and use premium surfaces (glass, soft shadow, a 1px accent hairline) — never flat, undecorated boxes.
-4. READABLE, CLEAN TYPE. Every readable text is near-white or a bright accent on the dark stage (≥4.5:1) — never dim grey, never accent-on-accent. Text fits inside the frame and NEVER clips. Headlines ≤4 words, wrapped on phrase boundaries (never orphan a word). Keep the caption band clear when subtitles are ON (the user message says which).
+4. READABLE, CLEAN TYPE. Every readable text is near-white or a bright accent on the dark stage (≥4.5:1) — never dim grey, never accent-on-accent. Text fits inside the frame and NEVER clips. Headlines ≤4 words, wrapped on phrase boundaries (never orphan a word). When subtitles are ON, keep the PRIMARY headline out of the caption band — the band still carries structure and short labels; an empty bottom strip is a worse mistake than a busy one.
 5. CREATIVE & UNIQUE. No two scenes — and no two renders of the same brief — may look alike. Vary the core idea, hero type, placement, motion, type treatment, colour emphasis. A stamped-out arrangement is THE failure.
 
 THE REFERENCE STANDARD — the quality bar every scene must hit, with YOUR OWN unique composition each time:
@@ -117,10 +117,11 @@ function guideV2Block(guide) {
 // composites onto REAL FOOTAGE via colorkey, so the design rules flip from "build a stage"
 // to "decorate a living picture without hiding it".
 export function overlayBlock({ edit = false } = {}) {
+  // Owner order 2026-08-02: an EVEN frame outranks avoiding whatever text the footage already
+  // burned in. No band is reserved here — the balance doctrine owns placement.
   const editNote = edit
     ? `
-- THIS FOOTAGE IS THE OWNER'S OWN VIDEO and the narration you are given is what it ALREADY SAYS out loud at this moment. Your graphics ANNOTATE it — a keyword, a number, a label — they never restate the sentence.
-- The footage almost certainly carries its own burned-in subtitles and its own titles: KEEP THE BOTTOM ~22% AND THE TOP ~12% CLEAR and work in the middle bands and side margins, so you never stack text on text.`
+- THIS FOOTAGE IS THE OWNER'S OWN VIDEO and the narration you are given is what it ALREADY SAYS out loud at this moment. Your graphics ANNOTATE it — a keyword, a number, a label — they never restate the sentence.`
     : '';
   return `OVERLAY MODE ACTIVE (this scene composites ON TOP of the owner's real footage — the themed stage is NOT rendered; your background is keyed transparent):${editNote}
 - KEEP THE CENTER ~40-50% OF THE FRAME CLEAR — the viewer must see the footage. Design with edges, corners, top bar, lower-third and side columns; a keyword may CROSS the center only during a brief entrance/exit.
@@ -178,8 +179,11 @@ export function viewportBlock(w, h, captionsOn) {
     `- TEXT_MAX_W=${X(T.textW)}px (any single text block) · TEXT_BLOCK_MAX_H=${Y(T.textBlockH)}px (no taller vertical text stack).`,
     `- HERO_MAX_W=${X(T.heroW)}px × SUBJECT_MAX_H=${Y(T.subjectH)}px (the hero construction; leave room for its counterweight).`,
     `- CARD_MIN_W=${X(T.cardMin)}px · CARD_MAX_W=${X(T.cardMax)}px (any panel/card).`,
+    // Owner order 2026-08-02: evenness outranks subtitle avoidance. The band is no longer a
+    // no-go zone that evicts a third of the frame and pushes every composition upward — only the
+    // BIGGEST readable text stays out of it; structure, panels and ambience may live there.
     captionsOn
-      ? `- LOWER_THIRD_Y=${lowerThirdY}px: everything BELOW this line is the karaoke subtitle band — keep all foreground content above it.`
+      ? `- LOWER_THIRD_Y=${lowerThirdY}px: karaoke subtitles run below this line. Keep the PRIMARY headline and any long label above it, but the band is still yours for structure, panels, charts, ambience and short labels — do NOT leave the bottom of the frame empty.`
       : `- Subtitles are OFF — use the full height down to y=${contentMaxY}px (still keep the ${topP}px / ${bottomP}px margins).`,
     `- CONTENT is inset ${inset}px from every edge. Put every element in a container with explicit top/left/width/height OR flex/grid — never vague values that overflow. Nothing touches the edge of the safe zone. If the visual concept conflicts with these thresholds, THE THRESHOLDS WIN.`,
     `- The page body is EXACTLY ${w}x${h}px and is upscaled LOSSLESSLY to output; never assume any other resolution.`,
@@ -288,7 +292,7 @@ export function buildCodegenPrompt({ scene, beats, direction, guide, w, h, durat
   const sig = motionSignature(direction, idx, diversitySalt);
   const densityNote = DENSITY_NOTE[density] || DENSITY_NOTE.rich; // rich is the house default — sparse scenes read cheap
   const subNote = captionsOn
-    ? 'SUBTITLES: ON — reserve the bottom ~22% of the frame for the karaoke subtitle band; keep foreground content above it.'
+    ? 'SUBTITLES: ON — karaoke subtitles run along the bottom. Keep the PRIMARY headline out of that band; everything else (structure, panels, ambience, short labels) may extend into it. Never leave the bottom third empty just to avoid the subtitles.'
     : 'SUBTITLES: OFF for this video — there is NO subtitle band; use the FULL frame height (still keep a comfortable ~6% margin from every edge).';
   const dirNote = (creativeDirection || '').trim()
     ? `\nCREATIVE DIRECTION (apply to every scene of this video): ${creativeDirection.trim()}` : '';
