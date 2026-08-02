@@ -1,7 +1,7 @@
 import { $, $$, el, esc } from '../ui/dom.js';
 import { icon } from '../ui/icons.js';
 import { toast } from '../ui/toast.js';
-import { promptDialog } from '../ui/dialog.js';
+import { promptDialog, confirmDialog } from '../ui/dialog.js';
 import { api, fileUrl } from '../api.js';
 import { state } from '../state.js';
 import { registerPageHook } from './nav.js';
@@ -26,6 +26,8 @@ export function initLibrary() {
 
 // Brand folders are browsable (P40): the picker sits above the grid and follows the same list
 // the video panel casts from, so what you see here is exactly what the AI can reach for.
+let lastCount = 0; // files shown for the brand currently being browsed — the delete confirmation
+
 function renderBrandBar(brands = []) {
   const bar = $('#libBrandBar');
   if (!bar) return;
@@ -34,8 +36,44 @@ function renderBrandBar(brands = []) {
   const cur = state.libBrand || 'Default';
   bar.innerHTML = `<select class="input" id="libBrandSel" style="max-width:240px">${
     brands.map((b) => `<option value="${esc(b)}"${b === cur ? ' selected' : ''}>${esc(b)}</option>`).join('')
-  }</select> <button class="btn sm" id="libBrandNew">➕ Thư mục mới</button>`;
+  }</select> <button class="btn sm" id="libBrandNew">➕ Thư mục mới</button>
+  <button class="btn sm" id="libBrandRename">✏️ Đổi tên</button>
+  <button class="btn sm danger" id="libBrandDel">🗑 Xoá thư mục</button>`;
   $('#libBrandSel').onchange = (e) => { state.libBrand = e.target.value; loadLibrary(); };
+  // Renaming/deleting a brand folder: the server refuses 'Default' and anything outside the
+  // library, and a delete states its file count and must be echoed back before it happens.
+  $('#libBrandRename').onclick = async () => {
+    const from = state.libBrand || 'Default';
+    if (from === 'Default') return toast('Không đổi tên được thư mục Default.', 'error');
+    const to = await promptDialog({ title: 'Tên mới cho thư mục', value: from });
+    if (!to || to === from) return;
+    const r = await api.patch('/brands/rename', { from, to });
+    if (r?.error) return toast(r.error, 'error');
+    state.libBrand = r.to; loadLibrary(); loadBrandFolders();
+    toast('Đã đổi tên ✓', 'success');
+  };
+  $('#libBrandDel').onclick = async () => {
+    const name = state.libBrand || 'Default';
+    if (name === 'Default') return toast('Không xoá được thư mục Default.', 'error');
+    // The server refuses to delete until it is told, as a number, how many files it is about to
+    // destroy — so state exactly that count in the dialog and only then echo it back. If the
+    // folder changed on disk since this view loaded, the server 409s and nothing is deleted.
+    const n = lastCount;
+    const ok = await confirmDialog({
+      title: `Xoá thư mục "${name}"?`,
+      body: `${n} file trong thư mục này sẽ bị xoá vĩnh viễn khỏi đĩa. Không hoàn tác được.`,
+      okText: 'Xoá vĩnh viễn', danger: true,
+    });
+    if (!ok) return;
+    try {
+      const r = await api.del(`/brands/${encodeURIComponent(name)}?confirm=${n}`);
+      state.libBrand = 'Default'; loadLibrary(); loadBrandFolders();
+      toast(`Đã xoá ${r.deleted} file ✓`, 'success');
+    } catch (e) {
+      toast(e.status === 409 ? 'Thư mục vừa thay đổi — mở lại rồi thử lần nữa.' : e.message, 'error');
+      loadLibrary();
+    }
+  };
   $('#libBrandNew').onclick = async () => {
     const name = await promptDialog({ title: 'Tên thư mục thương hiệu', placeholder: 'vd: The Money Uncle' });
     if (!name) return;
@@ -50,6 +88,7 @@ export async function loadLibrary() {
   const q = state.libKind === 'brand' ? `?brand=${encodeURIComponent(state.libBrand || 'Default')}` : '';
   const { items, brands } = await api.get('/library/' + state.libKind + q);
   renderBrandBar(brands || ['Default']);
+  lastCount = items.length;
   $('#libStat').textContent = `${items.length} file`;
   const grid = $('#libGrid');
   if (!items.length) { grid.innerHTML = '<div class="empty">Chưa có file</div>'; return; }

@@ -194,6 +194,12 @@ export function buildSubColors() {
     s.addEventListener('click', () => { state.subColor = c; buildSubColors(); updateSubPreview(); });
     box.appendChild(s);
   });
+  // P43: the nine swatches are shortcuts, not the whole palette — any colour is allowed.
+  const custom = $('#cfgSubColorCustom');
+  if (custom) {
+    custom.value = /^#[0-9a-f]{6}$/i.test(state.subColor) ? state.subColor : '#F7B500';
+    custom.oninput = () => { state.subColor = custom.value; buildSubColors(); updateSubPreview(); };
+  }
 }
 export function updateSubPreview() {
   const p = $('#subPreview'); if (!p) return;
@@ -319,6 +325,16 @@ export async function loadMetadataStyles() {
   sel.onchange = () => {
     const opt = sel.selectedOptions[0];
     if (opt && opt.dataset.prompt !== undefined) $('#cfgMetaPrompt').value = opt.dataset.prompt;
+  };
+  const del = $('#btnDelMetaStyle');
+  if (del) del.onclick = async () => {
+    const id = sel.value;
+    if (!id) return toast('Chọn một phong cách đã lưu trước.', 'error');
+    const ok = await confirmDialog({ title: 'Xoá phong cách này?', body: sel.selectedOptions[0]?.textContent || '', okText: 'Xoá', danger: true });
+    if (!ok) return;
+    await api.del(`/styles/${id}`);
+    await loadMetadataStyles();
+    toast('Đã xoá ✓', 'success');
   };
   const save = $('#btnSaveMetaStyle');
   if (save) save.onclick = async () => {

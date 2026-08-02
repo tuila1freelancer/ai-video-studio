@@ -41,12 +41,39 @@ export function initSettings() {
     });
     if (r?.error) return toast(r.error, 'error');
     toast(`✅ Đã kết nối Page: ${r.pageName || r.pageId}`, 'success');
-    loadPublishStatus();
+    loadPublishStatus(); loadFbPages();
   });
+  $('#pubFbRefresh')?.addEventListener('click', () => { loadPublishStatus(); loadFbPages(); });
   $('#pubFbDisconnect')?.addEventListener('click', async () => {
     await api.post('/publish/facebook/disconnect', {});
     toast('Đã ngắt kết nối Page.', 'success');
     loadPublishStatus();
+  });
+}
+
+// Every connected Page, which one is active, and whether its token is still good (P43 — the
+// registry existed since P42 but nothing showed it).
+export async function loadFbPages() {
+  const box = $('#pubFbPages');
+  if (!box) return;
+  let pages = [];
+  try { pages = (await api.get('/publish/pages')).pages || []; } catch { return; }
+  if (!pages.length) { box.innerHTML = '<span style="opacity:.6">Chưa kết nối Page nào.</span>'; return; }
+  box.innerHTML = pages.map((p) => `<div>${p.active ? '🟢' : '⚪️'} <strong>${esc(p.name || p.id)}</strong>
+    <button class="btn sm" data-fbsel="${esc(p.id)}">Dùng</button>
+    <button class="btn sm" data-fbchk="${esc(p.id)}">Kiểm tra token</button>
+    <button class="btn sm danger" data-fbdel="${esc(p.id)}">Xoá</button>
+    <span data-fbinfo="${esc(p.id)}"></span></div>`).join('');
+  box.querySelectorAll('[data-fbsel]').forEach((b) => { b.onclick = async () => { await api.post(`/publish/pages/${b.dataset.fbsel}/select`, {}); loadFbPages(); loadPublishStatus(); }; });
+  box.querySelectorAll('[data-fbdel]').forEach((b) => { b.onclick = async () => { await api.del(`/publish/pages/${b.dataset.fbdel}`); loadFbPages(); loadPublishStatus(); }; });
+  box.querySelectorAll('[data-fbchk]').forEach((b) => {
+    b.onclick = async () => {
+      const info = box.querySelector(`[data-fbinfo="${b.dataset.fbchk}"]`);
+      info.textContent = '⏳';
+      const r = await api.post(`/publish/pages/${b.dataset.fbchk}/check`, {});
+      info.textContent = r?.error ? `❌ ${r.error}`
+        : (r.neverExpires ? '✅ token không hết hạn' : (r.valid ? `✅ còn ${r.daysLeft} ngày` : '❌ token đã hỏng'));
+    };
   });
 }
 
@@ -84,6 +111,7 @@ export async function loadSettings() {
   renderProviderFields();
   renderLangVoiceList();
   loadPublishStatus();
+  loadFbPages();
 }
 
 // ---- dynamic per-provider config form (from configSchema) ----
