@@ -58,6 +58,24 @@ export function ttsDurationBounds(text) {
   return { min: Math.min(2, chars / 60), max: Math.max(12, chars / (cjk ? 1.5 : 3.5)) };
 }
 
+// A credential field may hold SEVERAL keys, newline/comma/semicolon separated — the same pool
+// shape the LLM lane already accepts (P40). A paid TTS voice runs out of credit mid-video far
+// more often than it fails outright, so one exhausted key must not cost the video its voice.
+const KEY_FIELDS = ['apiKey', 'token'];
+export function keyPool(cfg = {}) {
+  for (const field of KEY_FIELDS) {
+    const raw = cfg[field];
+    if (typeof raw !== 'string' || !raw.includes('\n') && !/[,;]/.test(raw)) continue;
+    const keys = raw.split(/[\n,;]+/).map((k) => k.trim()).filter(Boolean);
+    if (keys.length > 1) return { field, keys };
+  }
+  return null;
+}
+/** A quota/credit/auth refusal — the next key might work; anything else is not key-related. */
+function keyExhausted(e) {
+  return /\b(401|402|403|429)\b|quota|credit|balance|insufficient|unauthor|rate limit|hết|hạn mức/i.test(String(e?.message || e));
+}
+
 async function synthWith(pid, voice, text, s, outPath, style) {
   const provider = getProvider(pid);
   // _style: optional prosody hint ('energetic'|'calm') — read only by providers with
@@ -70,9 +88,22 @@ async function synthWith(pid, voice, text, s, outPath, style) {
   // Container follows what the provider actually writes: `say` emits m4a, the local Supertonic
   // server returns wav, everything else mp3. A wrong extension would make ffprobe/concat guess.
   const ext = pid === 'say' ? '.m4a' : (pid === 'supertonic' ? '.wav' : '.mp3');
+  const out = outPath.replace(/\.\w+$/, ext);
   // Detected language is passed through for providers whose API takes it explicitly (Supertonic
   // is one multilingual model, so the voice alone does not pick the language).
-  return provider.synthesize(text, v, cfg, outPath.replace(/\.\w+$/, ext), { lang: detectLang(text) });
+  const call = (c) => provider.synthesize(text, v, c, out, { lang: detectLang(text) });
+  const pool = keyPool(cfg);
+  if (!pool) return call(cfg);
+  let lastErr;
+  for (let i = 0; i < pool.keys.length; i++) {
+    try { return await call({ ...cfg, [pool.field]: pool.keys[i] }); }
+    catch (e) {
+      lastErr = e;
+      if (!keyExhausted(e) || i === pool.keys.length - 1) throw e;
+      logger.warn(`${pid}: key ${i + 1}/${pool.keys.length} không dùng được (${e.message.slice(0, 80)}) — đổi key`);
+    }
+  }
+  throw lastErr;
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));

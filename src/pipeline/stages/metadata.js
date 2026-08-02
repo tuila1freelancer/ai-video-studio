@@ -14,10 +14,13 @@ export async function runMetadata(ctx) {
     op(projectId, '📊 Tạo metadata…');
     // config.metadataPrompt (channel/preset/request layered) = owner-defined SEO style
     // prompt prefix — the reference app's "metadata styles" as one config knob.
-    const md = await withRetry(() => generateMetadata(DB.getProject(projectId), config?.metadataPrompt || null, { ai }),
+    // The narration is the only honest source for SEO: from a title alone the model invents tags
+    // and promises the video never delivers (P40 audit finding). Send what the viewer will hear.
+    const scs = DB.getScenes(projectId);
+    const script = scs.map((s) => (s.voice_text || '').trim()).filter(Boolean).join('\n');
+    const md = await withRetry(() => generateMetadata(DB.getProject(projectId), config?.metadataPrompt || null, { ai, script }),
       { tries: 2, label: 'metadata', fatal: notStopped });
     // YouTube chapters from scene offsets (≤ 14 markers, first at 00:00)
-    const scs = DB.getScenes(projectId);
     const every = Math.max(1, Math.ceil(scs.length / 14));
     let acc = 0; const chapters = [];
     for (const sc of scs) {

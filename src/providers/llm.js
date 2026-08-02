@@ -504,15 +504,27 @@ export async function generateKeywords(topic) {
 // Metadata 2.0 — per-platform SEO through the robust chatJson machinery. The returned
 // object keeps the OLD flat shape ({title, description, hashtags}) for every existing
 // consumer, and adds `platforms` with the full per-platform payload + pinnedComment.
-export async function generateMetadata(project, stylePrompt, { ai } = {}) {
+/**
+ * @param {object} project
+ * @param {string|null} stylePrompt owner-defined SEO style prefix
+ * @param {{ai?:object, script?:string}} opts `script` = the narration this video actually
+ *   contains. Without it the model can only riff on the title, which produced generic tags and
+ *   descriptions promising things the video never says (P40 audit finding).
+ */
+export async function generateMetadata(project, stylePrompt, { ai, script = '' } = {}) {
   const llm = ai?.llm || null;
   const title = project?.title || project?.topic || 'Video';
+  const body = String(script || '').trim().slice(0, 6000);
+  const scriptBlock = body
+    ? `\nWHAT THE VIDEO ACTUALLY SAYS (the narration — base every keyword, claim and hook on THIS, never on the title alone, and never promise something the script does not deliver):\n<<<\n${body}\n>>>\n`
+    : '';
   if (llmEnabled(llm)) {
     try {
       const p = await chatJson([
         { role: 'system', content: 'You are a YouTube/Shorts/TikTok SEO expert. Reply with pure JSON.' },
         { role: 'user', content: `${stylePrompt || ''}
-Create multi-platform metadata for the video "${title}". Write every user-facing text (titles, descriptions, pinned comment) in the SAME LANGUAGE as that video title; tags/hashtags may mix in globally searched terms.
+Create multi-platform metadata for the video "${title}".
+${scriptBlock}Write every user-facing text (titles, descriptions, pinned comment) in the SAME LANGUAGE as that video title; tags/hashtags may mix in globally searched terms.
 Output JSON:
 {"youtube":{"title":"click-worthy ≤100 chars, MUST contain the topic's main keyword","description":"2-4 paragraphs; the first 2 lines carry the keywords (the part shown before 'show more'); end with 3-5 hashtags","tags":["10-15 search tags, no # prefix"],"pinnedComment":"1 pinned question inviting viewers to comment"},
 "shorts":{"title":"≤60 chars","hashtags":["#shorts","#..."]},
