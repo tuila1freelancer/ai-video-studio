@@ -28,6 +28,88 @@ function saveCfg(patch) {
 export function configured() { return !!cfg().pageId; }
 export function connected() { return !!(cfg().pageId && cfg().pageToken); }
 
+/**
+ * Every Page the owner has connected. A Page token EXPIRES, and with a single-slot config a
+ * silent expiry looks like "publishing is broken" — a registry lets each Page carry its own
+ * token and its own expiry so the UI can say which one went stale (P42).
+ */
+export function listPages() {
+  const c = cfg();
+  const pages = Array.isArray(c.pages) ? c.pages : [];
+  // the single-slot config from before the registry keeps working: it IS the active page
+  if (!pages.length && c.pageId) return [{ id: c.pageId, name: c.pageName || '', active: true, expiresAt: c.expiresAt || null }];
+  return pages.map((p) => ({ id: p.id, name: p.name || '', active: p.id === c.pageId, expiresAt: p.expiresAt || null }));
+}
+
+function savePage(page) {
+  const c = cfg();
+  const pages = (Array.isArray(c.pages) ? c.pages : []).filter((p) => p.id !== page.id);
+  pages.push(page);
+  saveCfg({ pages, pageId: page.id, pageToken: page.token, pageName: page.name, expiresAt: page.expiresAt || null });
+}
+
+export function selectPage(pageId) {
+  const c = cfg();
+  const hit = (Array.isArray(c.pages) ? c.pages : []).find((p) => p.id === String(pageId));
+  if (!hit) throw new Error('chưa kết nối Page này');
+  saveCfg({ pageId: hit.id, pageToken: hit.token, pageName: hit.name, expiresAt: hit.expiresAt || null });
+  return { pageId: hit.id, pageName: hit.name };
+}
+
+export function removePage(pageId) {
+  const c = cfg();
+  const pages = (Array.isArray(c.pages) ? c.pages : []).filter((p) => p.id !== String(pageId));
+  const next = pages[0] || null;
+  saveCfg({ pages, pageId: next?.id || '', pageToken: next?.token || '', pageName: next?.name || '', expiresAt: next?.expiresAt || null });
+  return { ok: true, remaining: pages.length };
+}
+
+/** Is this Page's token still good, and for how long? Graph tells us via debug_token. */
+export async function checkToken(pageId) {
+  const c = cfg();
+  const page = (Array.isArray(c.pages) ? c.pages : []).find((p) => p.id === String(pageId))
+    || (c.pageId === String(pageId) ? { id: c.pageId, token: c.pageToken, name: c.pageName } : null);
+  if (!page?.token) throw new Error('chưa kết nối Page này');
+  const url = `${GRAPH}/debug_token?input_token=${encodeURIComponent(page.token)}&access_token=${encodeURIComponent(page.token)}`;
+  const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
+  if (!res.ok) throw new Error(`Không kiểm tra được token: ${await graphError(res)}`);
+  const d = (await res.json())?.data || {};
+  // expires_at 0 means "never" — a long-lived Page token derived from a long-lived user token
+  const expiresAt = d.expires_at ? d.expires_at * 1000 : null;
+  return {
+    pageId: page.id, valid: !!d.is_valid, neverExpires: d.expires_at === 0,
+    expiresAt, daysLeft: expiresAt ? Math.round((expiresAt - Date.now()) / 86400000) : null,
+    scopes: d.scopes || [],
+  };
+}
+
+/**
+ * Trade a short-lived token for a long-lived one (Graph `fb_exchange_token`), then re-derive the
+ * PAGE token from it so the Page keeps publishing. Needs the app id/secret of whichever Meta app
+ * issued the token — without them Facebook simply refuses, so we say that instead of guessing.
+ */
+export async function extendToken({ appId, appSecret, pageId } = {}) {
+  const c = cfg();
+  const id = String(pageId || c.pageId || '');
+  const page = (Array.isArray(c.pages) ? c.pages : []).find((p) => p.id === id)
+    || (c.pageId === id ? { id, token: c.pageToken, name: c.pageName } : null);
+  if (!page?.token) throw new Error('chưa kết nối Page này');
+  const aid = String(appId || c.appId || '').trim(), sec = String(appSecret || c.appSecret || '').trim();
+  if (!aid || !sec) throw new Error('cần App ID + App Secret của app Meta đã cấp token này');
+  const q = new URLSearchParams({ grant_type: 'fb_exchange_token', client_id: aid, client_secret: sec, fb_exchange_token: page.token });
+  const res = await fetch(`${GRAPH}/oauth/access_token?${q}`, { signal: AbortSignal.timeout(20000) });
+  if (!res.ok) throw new Error(`Gia hạn thất bại: ${await graphError(res)}`);
+  const long = (await res.json())?.access_token;
+  if (!long) throw new Error('Facebook không trả về token dài hạn');
+  // re-derive the PAGE token from the long-lived USER token
+  const accRes = await fetch(`${GRAPH}/${encodeURIComponent(id)}?fields=access_token,name&access_token=${encodeURIComponent(long)}`, { signal: AbortSignal.timeout(15000) });
+  const acc = accRes.ok ? await accRes.json() : {};
+  const token = acc.access_token || long;
+  saveCfg({ appId: aid, appSecret: sec });
+  savePage({ id, name: acc.name || page.name || '', token, expiresAt: null });
+  return { pageId: id, extended: true, pageName: acc.name || page.name || '' };
+}
+
 /** Graph errors carry the useful message in a nested envelope — surface it, not "HTTP 400". */
 async function graphError(res) {
   try {
@@ -48,7 +130,7 @@ export async function connect({ pageId, pageToken } = {}) {
   const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
   if (!res.ok) throw new Error(`Không xác thực được Page: ${await graphError(res)}`);
   const page = await res.json();
-  saveCfg({ pageId: id, pageToken: token, pageName: String(page.name || '') });
+  savePage({ id, name: String(page.name || ''), token, expiresAt: null });
   return { pageId: id, pageName: String(page.name || '') };
 }
 
@@ -165,4 +247,5 @@ export async function upload({
 
 export default {
   id: 'facebook', name: 'Facebook Page', configured, connected, connect, disconnect, comment, upload,
+  listPages, selectPage, removePage, checkToken, extendToken,
 };

@@ -86,3 +86,40 @@ test('P42: a file can be transcribed without starting a project', () => {
   const block = routes.slice(routes.indexOf("'/edit-video/transcribe'"), routes.indexOf("'/edit-video/transcribe'") + 1400);
   assert.ok(!/createProject|createEditVideoProject/.test(block), 'nothing is created, nothing is spent but CPU');
 });
+
+test('P42: Facebook Pages are a registry with token health, not one silent slot', async () => {
+  const fb = (await import('../src/publish/facebook.js')).default;
+  for (const fn of ['listPages', 'selectPage', 'removePage', 'checkToken', 'extendToken']) {
+    assert.equal(typeof fb[fn], 'function', `${fn} exists`);
+  }
+  const f = src('../src/publish/facebook.js');
+  // the single-slot config from before the registry must keep working
+  assert.match(f, /if \(!pages\.length && c\.pageId\)/, 'a pre-registry config is still the active page');
+  assert.match(f, /debug_token/, 'token validity comes from Graph, not from a guess');
+  assert.match(f, /d\.expires_at === 0/, '0 means never expires — not "expired today"');
+  assert.match(f, /grant_type: 'fb_exchange_token'/, 'renewal is the documented long-lived exchange');
+  assert.match(f, /cần App ID \+ App Secret/, 'and it says what it needs instead of failing vaguely');
+  for (const p of ['/publish/pages', '/publish/pages/:pageId/check', '/publish/pages/:pageId/extend', '/publish/published-ids']) {
+    assert.ok(routes.includes(p), `${p} is exposed`);
+  }
+});
+
+test('P42: a saved preset can be put BACK, and a style can be renamed', () => {
+  assert.match(routes, /'\/logo-presets\/:id\/apply'/, 'a preset nothing can apply is worthless');
+  assert.match(routes, /finalOverlay: \{ enabled: true, \.\.\.payload\.placement \}/, 'placement is restored, not just the file');
+  assert.match(routes, /file logo của preset không còn trên đĩa/, 'a preset pointing at a deleted file fails clearly');
+  assert.match(routes, /r\.patch\('\/styles\/:id'/);
+  assert.match(src('../src/db/repositories/catalogs.js'), /export function renameStyle/);
+});
+
+test('P42: the LLM endpoint and the local voice engine can be checked/installed from the app', () => {
+  assert.match(routes, /r\.post\('\/llm\/test'/);
+  assert.match(routes, /String\(b\.apiKey\)\.includes\('••'\)/, 'the masked round-trip keeps the saved key');
+  assert.match(routes, /maxTokens: 8/, 'the check costs a token, not a paragraph');
+  assert.match(routes, /r\.post\('\/tts\/server\/install'/);
+  assert.match(routes, /'-m', 'pip', 'install', '--upgrade', 'supertonic'/);
+  assert.match(routes, /EXPLICIT button, never automatic/, 'installing on the owner\'s machine is never implicit');
+  const settings = src('../public/js/features/settings.js');
+  assert.match(settings, /btnTestLlm/);
+  assert.match(settings, /ttsSrvInstall/);
+});

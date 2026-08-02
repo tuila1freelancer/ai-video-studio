@@ -78,6 +78,12 @@ export function deleteLibrary(id) {
   db.prepare('DELETE FROM library WHERE id=?').run(id);
   return row;
 }
+/** Rename a saved style/preset (P42) — the row keeps its id, so anything referencing it holds. */
+export function renameStyle(id, name) {
+  db.prepare('UPDATE styles SET name=? WHERE id=?').run(name, id);
+  return db.prepare('SELECT * FROM styles WHERE id=?').get(id) || null;
+}
+
 /** Rename a library entry's DISPLAY name (P40). The file on disk is untouched, so an existing
  *  project that references it by path keeps working. */
 export function renameLibrary(id, name) {

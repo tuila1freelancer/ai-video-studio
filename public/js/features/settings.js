@@ -18,6 +18,16 @@ export function initSettings() {
     const i = e.target;
     if (i.tagName === 'INPUT' && i.type === 'password' && i.value.includes('••')) i.select();
   });
+  // P42: check the LLM endpoint before saving it, not mid-render
+  $('#btnTestLlm')?.addEventListener('click', async () => {
+    const out = $('#llmTestResult');
+    out.textContent = '⏳ đang kiểm tra…';
+    const r = await api.post('/llm/test', {
+      baseUrl: $('#setLlmUrl').value.trim(), apiKey: $('#setLlmKey').value.trim(), model: $('#setLlmModel').value.trim(),
+    });
+    out.textContent = (r.ok ? '✅ ' : '❌ ') + (r.message || '');
+    out.style.color = r.ok ? 'var(--green)' : 'var(--red)';
+  });
   // ---- publish destinations (P40) — the routes existed but nothing reached them ----
   $('#pubYtConnect')?.addEventListener('click', async () => {
     const body = { clientId: $('#pubYtId').value.trim(), clientSecret: $('#pubYtSecret').value.trim() };
@@ -110,6 +120,7 @@ function serverControls(pid) {
     <button class="btn sm" id="ttsSrvStart">▶ Khởi động</button>
     <button class="btn sm" id="ttsSrvStop">⏹ Dừng</button>
     <button class="btn sm" id="ttsSrvStatus">🔄 Kiểm tra</button>
+    <button class="btn sm" id="ttsSrvInstall">⬇ Cài đặt</button>
     <div class="hint" id="ttsSrvOut" style="margin-top:6px">Cài một lần: <code>pip install supertonic</code></div></div>`;
 }
 function wireServerControls(pid) {
@@ -130,6 +141,11 @@ function wireServerControls(pid) {
     out.textContent = r?.error ? `❌ ${r.error}` : (r?.stopped ? '⏹ đã dừng' : 'không có server nào do app quản lý');
   });
   $('#ttsSrvStatus')?.addEventListener('click', async () => show(await api.get('/tts/server/status')));
+  $('#ttsSrvInstall')?.addEventListener('click', async () => {
+    out.textContent = '⏳ đang cài (pip install supertonic) — có thể mất vài phút…';
+    const r = await api.post('/tts/server/install', {});
+    out.textContent = (r.ok ? '✅ ' : '❌ ') + (r.message || r.error || '');
+  });
 }
 async function testProvider() {
   const pid = $('#setTtsProvider').value;
