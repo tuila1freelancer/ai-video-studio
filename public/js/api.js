@@ -34,6 +34,7 @@ export const api = {
   get: (p) => request('GET', p),
   post: (p, body) => request('POST', p, { body: body || {} }),
   put: (p, body) => request('PUT', p, { body: body || {} }),
+  patch: (p, body) => request('PATCH', p, { body: body || {} }),
   del: (p) => request('DELETE', p),
   upload: (p, formData) => request('POST', p, { formData }),
 };

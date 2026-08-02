@@ -97,3 +97,23 @@ test('P40: image search works with NO api key — a real catalog, not gradients'
   // and the offline gradient generator stays the LAST resort, not a step everyone pays for
   assert.ok(s.indexOf('api.openverse.org') < s.indexOf('await makeGradientImage('), 'placeholders are generated only after the real search failed');
 });
+
+test('P40: the media library is browsable per brand, renameable and auditionable', () => {
+  const lib = src('../public/js/views/library.js');
+  assert.match(lib, /brand=\$\{encodeURIComponent\(state\.libBrand/, 'the grid follows the selected brand folder');
+  assert.match(lib, /fd\.append\('brand', state\.libBrand/, 'an upload lands in the folder being browsed');
+  assert.match(lib, /<audio controls preload="none"/, 'BGM/SFX can be auditioned before use');
+  assert.match(lib, /api\.patch\('\/library\/' \+ it\.id, \{ name \}\)/, 'entries can be renamed');
+  assert.match(lib, /it\.onDisk \? ' disabled/, 'a file that only exists on disk is not pretend-editable');
+  const routes = src('../src/api/routes.js');
+  assert.match(routes, /r\.patch\('\/library\/:id'/, 'the rename route exists');
+  assert.match(src('../src/db/repositories/catalogs.js'), /export function renameLibrary/);
+});
+
+test('P40: the publish ledger is finally visible', () => {
+  const studio = src('../public/js/views/studio.js');
+  assert.match(studio, /export async function renderPublishHistory/, 'history renders');
+  assert.match(studio, /\/publishes`\)\)\.publishes/, 'from the ledger the app already wrote');
+  // and it refreshes on both publish paths, not just one
+  assert.equal((studio.match(/renderPublishHistory\(\);/g) || []).length, 3, 'open + youtube + facebook');
+});

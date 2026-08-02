@@ -199,6 +199,7 @@ async function publishCurrent() {
   try {
     const r = await api.post(`/projects/${state.current.id}/publish`, { platform: 'youtube', privacy: pick });
     toast(`✅ Đã đăng (${pick}): ${r.url}`, 'success');
+    renderPublishHistory();
   } catch (e) { toast('Lỗi đăng: ' + e.message, 'error'); }
 }
 
@@ -224,6 +225,7 @@ async function publishToFacebook() {
     const r = await api.post(`/projects/${state.current.id}/publish`, { platform: 'facebook', privacy: pick });
     if (r.error) throw new Error(r.error);
     toast(r.scheduled ? `🕒 Đã lên lịch đăng: ${r.url}` : `✅ Đã đăng: ${r.url}`, 'success');
+    renderPublishHistory();
   } catch (e) { toast('Lỗi đăng: ' + e.message, 'error'); }
 }
 
@@ -288,6 +290,7 @@ export function renderProjectView() {
   renderScenes();
   renderFinal();
   renderMeta();
+  renderPublishHistory();
 }
 
 function resetPipeFromState() {
@@ -337,6 +340,24 @@ function renderFinal() {
     if (sheet) sheet.href = '/api/projects/' + p.id + '/contact-sheet';
   }
 }
+// Publish ledger (P40): every attempt was recorded but never shown, so nothing told the owner
+// whether a video had already gone out — or where. Rendered under the final-video toolbar.
+export async function renderPublishHistory() {
+  const box = $('#pubHistory');
+  if (!box) return;
+  if (!state.current?.id) { box.innerHTML = ''; return; }
+  let rows = [];
+  try { rows = (await api.get(`/projects/${state.current.id}/publishes`)).publishes || []; } catch { return; }
+  if (!rows.length) { box.innerHTML = '<span style="opacity:.6">Chưa đăng ở đâu.</span>'; return; }
+  const ICON = { youtube: '▶️', facebook: '📘' };
+  box.innerHTML = rows.slice(0, 6).map((r) => {
+    const when = r.created_at ? new Date(r.created_at).toLocaleString('vi-VN') : '';
+    const mark = r.status === 'done' ? '✅' : (r.status === 'error' ? '❌' : '⏳');
+    const link = r.url ? ` <a href="${esc(r.url)}" target="_blank" rel="noopener">mở</a>` : '';
+    return `<div>${mark} ${ICON[r.platform] || '📤'} ${esc(r.platform)}${r.privacy ? ` · ${esc(r.privacy)}` : ''} · ${esc(when)}${link}${r.error ? ` <span style="color:var(--bad,#f87171)">${esc(r.error)}</span>` : ''}</div>`;
+  }).join('');
+}
+
 export function renderMeta() {
   const box = $('#metaCard'); const m = state.current && state.current.metadata;
   if (!m) { box.innerHTML = ''; return; }
