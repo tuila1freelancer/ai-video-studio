@@ -259,6 +259,12 @@
                 <div class="hint">💡 HyperFrame đẹp &amp; ổn định nhất với model mạnh (vd gpt-4o, claude, gemini-pro). Nhập tên model để dùng riêng cho khâu AI dựng cảnh.</div>
                 <label class="switch-row" style="margin-top:10px"><span class="switch"><input type="checkbox" id="cfgHfConsistent"><span class="sl"></span></span> 🎨 Scene nhất quán (khoá nền + màu chữ chính mọi cảnh)</label>
                 <label class="switch-row"><span class="switch"><input type="checkbox" id="cfgHfImageFull" checked><span class="sl"></span></span> 🖼️ Image-full (asset ảnh của dự án làm hero giữa khung 75% + Ken Burns)</label>
+                <label class="label" style="margin-top:10px">🎭 Asset thương hiệu tự động</label>
+                <select class="input" id="cfgBrandAssets">
+                  <option value="auto">Tự động — thư mục Default</option>
+                  <option value="none">Tắt</option>
+                </select>
+                <div class="hint">💡 AI tự chọn nhân vật/concept art từ Thư viện → Brand cho từng cảnh hợp nội dung (nhân vật đứng cạnh chữ, giữ nền trong suốt). Cảnh nào không hợp thì để trống.</div>
                 <label class="switch-row"><span class="switch"><input type="checkbox" id="cfgOverlay"><span class="sl"></span></span> 🎥 Overlay mode (đồ hoạ trong suốt ghép lên video nền)</label>
                 <div class="field" id="overlayOpts" style="display:none;margin-top:6px">
                   <label class="label">Video nền (đường dẫn file)</label>

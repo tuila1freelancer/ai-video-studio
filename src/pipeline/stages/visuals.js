@@ -11,6 +11,7 @@ import { animSize } from '../../animation/index.js';
 import { generateSceneSpec } from '../../hyperframe/codegen.js';
 import { densityForScene } from '../../hyperframe/prompt.js';
 import { backdropForScene } from '../../animation/backdrop.js';
+import { brandCatalog, brandFolderFor, castBrandAssets, sceneMediaResolver } from '../brand-assets.js';
 import { heroMediaUri } from '../../util/asset-uri.js';
 import { hash32 } from '../../util/util.js';
 import { resolveGuide } from '../../styleguide/index.js';
@@ -63,20 +64,28 @@ export async function runVisuals(ctx) {
   // Image-full lane (reference-app parity): resolve each scene's master-assigned asset
   // names against config.assets [{name, path, type}] → hero-sized data URIs. Resolution
   // failures simply drop the asset (the scene designs media-free).
-  const assetByName = new Map((Array.isArray(config.assets) ? config.assets : [])
-    .filter((a) => a?.name && a?.path).map((a) => [String(a.name).toLowerCase(), a]));
-  const mediaFor = (sc) => {
-    if (config.hyperframe?.imageFull === false) return null;
-    if (!assetByName.size || !Array.isArray(sc.assets) || !sc.assets.length) return null;
-    const out = [];
-    for (const name of sc.assets) {
-      const a = assetByName.get(String(name || '').toLowerCase());
-      if (!a) continue;
-      const uri = heroMediaUri(a.path);
-      if (uri) out.push({ name: a.name, uri });
+  // P40 brand casting: the brand's own artwork (mascot cutouts + concept art) joins the SAME
+  // lane, so a cast asset is just another {{asset:NAME}} the codegen model may place. One LLM
+  // call for the whole video; no LLM / empty folder / unparseable reply → nothing cast and the
+  // video renders exactly as it did before this feature. Scenes the master script already gave
+  // assets to are left alone — an explicit assignment outranks the cast.
+  const brandFolder = config.hyperframe?.imageFull === false ? null : brandFolderFor(config);
+  const catalog = brandFolder ? brandCatalog(brandFolder) : [];
+  const uncast = catalog.length ? scenes.filter((sc) => !(Array.isArray(sc.assets) && sc.assets.length)) : [];
+  if (uncast.length) {
+    op(projectId, `🎭 AI chọn asset thương hiệu cho ${uncast.length} cảnh…`);
+    const cast = await castBrandAssets({
+      scenes: uncast, catalog, title: project.title, llm: hfAi?.llm,
+      onLog: (m) => logger.info(m, { projectId, stage: 'b5' }),
+    });
+    for (const sc of uncast) {
+      const picks = cast.get(sc.idx + 1);
+      if (!picks?.length) continue;
+      sc.assets = picks;
+      DB.updateScene(sc.id, { assets: picks }); // persists for regen/resume
     }
-    return out.length ? out : null;
-  };
+  }
+  const mediaFor = sceneMediaResolver(config, { heroMediaUri });
   const hfConsistent = config.hyperframe?.consistent === true;
   // Concurrency 2: each codegen now also renders (renderValidate) on the shared headless
   // browser — 2 keeps throughput up without thrashing Chrome with too many parallel pages.

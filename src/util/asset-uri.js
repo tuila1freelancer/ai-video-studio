@@ -21,22 +21,26 @@ function rawUri(path) {
 /**
  * Inline an asset as a hero-sized data URI. Images (and video/gif first frames) are
  * downscaled to ≤maxW wide JPEG via ffmpeg, cached under DIRS.tmp by (path,size,mtime).
+ * `alpha:true` keeps transparency by encoding PNG instead — brand character cutouts are
+ * transparent by contract (P27's transparency gate), and flattening one onto JPEG black
+ * would paste a solid rectangle over the scene.
  * Returns null when the file is missing/unreadable.
  */
-export function heroMediaUri(path, { maxW = 1280 } = {}) {
+export function heroMediaUri(path, { maxW = 1280, alpha = false } = {}) {
   try {
     if (!path || !existsSync(path)) return null;
     if (extname(path).toLowerCase() === '.svg') return rawUri(path); // vector: inline as-is
     const st = statSync(path);
     if (!PATHS.ffmpeg) return rawUri(path);
-    const key = createHash('sha1').update(`${path}|${st.size}|${st.mtimeMs}|${maxW}`).digest('hex').slice(0, 16);
+    const ext = alpha ? 'png' : 'jpg';
+    const key = createHash('sha1').update(`${path}|${st.size}|${st.mtimeMs}|${maxW}|${ext}`).digest('hex').slice(0, 16);
     const dir = join(DIRS.tmp, 'asset-uri');
     mkdirSync(dir, { recursive: true });
-    const out = join(dir, `${key}.jpg`);
+    const out = join(dir, `${key}.${ext}`);
     if (!existsSync(out)) {
       execFileSync(PATHS.ffmpeg, ['-v', 'error', '-i', path, '-frames:v', '1',
-        '-vf', `scale='min(${maxW},iw)':-2`, '-q:v', '4', out, '-y']);
+        '-vf', `scale='min(${maxW},iw)':-2`, ...(alpha ? [] : ['-q:v', '4']), out, '-y']);
     }
-    return `data:image/jpeg;base64,${readFileSync(out).toString('base64')}`;
+    return `data:image/${alpha ? 'png' : 'jpeg'};base64,${readFileSync(out).toString('base64')}`;
   } catch { return rawUri(path); }
 }

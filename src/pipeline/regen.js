@@ -15,6 +15,7 @@ import { generateSceneSpec } from '../hyperframe/codegen.js';
 import { densityForScene } from '../hyperframe/prompt.js';
 import { resolveGuide } from '../styleguide/index.js';
 import { heroMediaUri } from '../util/asset-uri.js';
+import { sceneMediaResolver } from './brand-assets.js';
 import { hash32 } from '../util/util.js';
 import { animSize, previewSceneFrame } from '../animation/index.js';
 import { backdropForScene } from '../animation/backdrop.js';
@@ -70,18 +71,9 @@ export async function regenOne(sceneId, what) {
       // (captions/consistent/overlay/imageFull/diversity salt/per-scene density) and FAILS
       // LOUDLY — the silent heuristic fallback contradicted the no-fallback contract. P38: the
       // quality tier is gone; the render gate is pass/fail (not-broken + balanced).
-      const assetByName = new Map((Array.isArray(config.assets) ? config.assets : [])
-        .filter((a) => a?.name && a?.path).map((a) => [String(a.name).toLowerCase(), a]));
-      let media = null;
-      if (config.hyperframe?.imageFull !== false && assetByName.size && Array.isArray(sc.assets) && sc.assets.length) {
-        const out = [];
-        for (const name of sc.assets) {
-          const a = assetByName.get(String(name || '').toLowerCase());
-          const uri = a ? heroMediaUri(a.path) : null;
-          if (uri) out.push({ name: a.name, uri });
-        }
-        media = out.length ? out : null;
-      }
+      // Same resolver as the batch lane (P40) — project uploads AND the brand folder — so a
+      // regenerated scene keeps exactly the media its first pass was designed around.
+      const media = sceneMediaResolver(config, { heroMediaUri })(sc);
       const { props } = await generateSceneSpec({
         scene: sc, guide, w, h, idx: sc.idx, total, ai: hfAi,
         density: densityForScene(sc, config.hyperframe?.density),
