@@ -231,6 +231,9 @@ export async function renderAnimationScene(scene, project, config, { dir, progre
       exact: edit, audioFrom: edit ? 'footage' : 'scene',
       // P43: where the subject sits when the footage has to be cropped to the project ratio
       position: config.overlay.position || 'center',
+      // P44: a slow push-in/pull-out on the footage, alternating direction per scene so a long
+      // stretch of one static shot never sits perfectly still. Off unless the owner asks.
+      zoom: config.overlay.zoom ? { ...config.overlay.zoom, index: scene.idx } : null,
     });
     return { ...res, path: finalPath, preview: existsSync(previewPath) ? previewPath : null };
   }
