@@ -10,7 +10,10 @@
 // so a cast asset becomes a {{asset:NAME}} placeholder the codegen model may place. The lane is
 // additive and failure-tolerant — no LLM, empty library, or unparseable reply simply means the
 // video is designed media-free, exactly as before this feature.
+import { existsSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
 import * as DB from '../db/index.js';
+import { DIRS } from '../config/paths.js';
 import { chat, llmEnabled } from '../providers/llm.js';
 import { safeJson } from '../util/util.js';
 
@@ -19,15 +22,41 @@ export function isCharacterAsset(name) {
   return /^character\b/i.test(String(name || '').trim());
 }
 
+const ART = /\.(png|jpe?g|webp|gif|svg)$/i;
+
 /**
  * The brand folder's usable art. Returns [{ name, path, character }] — `name` is what the codegen
  * placeholder is keyed by, so it must stay exactly as stored.
+ *
+ * The DB rows are the assets uploaded or generated through the app; the FOLDER is what the owner
+ * sees in Finder. Reading only the DB (as this did at first) made art dropped straight into the
+ * folder invisible — the reference app reads the folder, and dropping files in is the obvious
+ * thing to do. Both are unioned, DB rows winning on a name clash since they carry the real row.
  */
 export function brandCatalog(brandFolder = 'Default') {
-  const rows = DB.listLibrary('brand', brandFolder) || [];
-  return rows
-    .filter((r) => r?.path && r?.name && /\.(png|jpe?g|webp|gif|svg)$/i.test(r.name))
-    .map((r) => ({ name: r.name, path: r.path, character: isCharacterAsset(r.name) }));
+  const seen = new Map();
+  for (const r of DB.listLibrary('brand', brandFolder) || []) {
+    if (r?.path && r?.name && ART.test(r.name) && existsSync(r.path)) {
+      seen.set(r.name.toLowerCase(), { name: r.name, path: r.path, character: isCharacterAsset(r.name) });
+    }
+  }
+  try {
+    const dir = join(DIRS.brand, brandFolder);
+    for (const f of readdirSync(dir)) {
+      if (!ART.test(f) || f.startsWith('.') || seen.has(f.toLowerCase())) continue;
+      seen.set(f.toLowerCase(), { name: f, path: join(dir, f), character: isCharacterAsset(f) });
+    }
+  } catch { /* no such folder — the DB rows (or nothing) are the catalog */ }
+  return [...seen.values()];
+}
+
+/** Brand folders the owner actually has: registered in the DB or simply present on disk. */
+export function brandFolders() {
+  const out = new Set(DB.brandFolders() || []);
+  try { for (const d of readdirSync(DIRS.brand, { withFileTypes: true })) if (d.isDirectory() && !d.name.startsWith('.')) out.add(d.name); }
+  catch { /* library not created yet */ }
+  out.add('Default');
+  return [...out].sort((a, b) => (a === 'Default' ? -1 : b === 'Default' ? 1 : a.localeCompare(b)));
 }
 
 /**
@@ -42,15 +71,51 @@ export function brandFolderFor(config = {}) {
 }
 
 /**
+ * Project assets arrive in three shapes and only one of them used to survive: the UI pushes a
+ * bare filesystem path (upload) or an `/api/file?path=…` URL (image search), while the master
+ * script's asset list carries `{name, path}` objects. Filtering on `a.name && a.path` silently
+ * dropped BOTH string shapes, so an asset the owner uploaded never reached a scene. Normalize
+ * every shape into `{name, path}`, keyed by a name a model can actually write.
+ */
+export function normalizeAssets(list = []) {
+  const out = [];
+  for (const a of Array.isArray(list) ? list : []) {
+    if (!a) continue;
+    let path = null, name = null, character;
+    if (typeof a === 'string') {
+      const s = a.trim();
+      if (!s) continue;
+      // `/api/file?path=<encoded>` is how the UI refers to a local file it already has
+      const m = /[?&]path=([^&]+)/.exec(s);
+      path = m ? decodeURIComponent(m[1]) : (s.startsWith('/') ? s : null);
+      if (!path) continue; // a remote http URL must be downloaded first (POST /media/download)
+    } else if (a.path) {
+      path = String(a.path);
+      name = a.name ? String(a.name) : null;
+      character = a.character;
+    } else continue;
+    const base = path.split('/').pop() || path;
+    out.push({ name: name || base, path, ...(character === undefined ? {} : { character }) });
+  }
+  return out;
+}
+
+/**
  * ONE resolver for the image-full lane, shared by the batch (stages/visuals.js) and single-scene
  * (regen.js) paths so a regenerated scene keeps exactly the media the batch gave it. Names are
  * looked up across project uploads AND the brand folder; a project upload of the same name wins.
+ * A scene may name an asset by its stored name OR by its bare filename — the master script sees
+ * one and the owner's UI list may carry the other.
  * @returns {(scene) => ({name, uri, character}[]|null)}
  */
 export function sceneMediaResolver(config = {}, { heroMediaUri }) {
   if (config.hyperframe?.imageFull === false) return () => null;
-  const byName = new Map((Array.isArray(config.assets) ? config.assets : [])
-    .filter((a) => a?.name && a?.path).map((a) => [String(a.name).toLowerCase(), a]));
+  const byName = new Map();
+  for (const a of normalizeAssets(config.assets)) {
+    byName.set(a.name.toLowerCase(), a);
+    const base = (a.path.split('/').pop() || '').toLowerCase();
+    if (base && !byName.has(base)) byName.set(base, a); // also findable by bare filename
+  }
   const folder = brandFolderFor(config);
   for (const a of folder ? brandCatalog(folder) : []) {
     const k = a.name.toLowerCase();

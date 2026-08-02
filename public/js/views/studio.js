@@ -468,7 +468,22 @@ function showImages(images) {
   images.slice(0, 8).forEach((u) => {
     const i = el('img'); i.src = u.startsWith('/api') || u.startsWith('http') ? u : fileUrl(u);
     i.style = 'width:46px;height:46px;object-fit:cover;border-radius:6px;cursor:pointer';
-    i.title = 'Thêm vào assets'; i.addEventListener('click', () => { state.assets.push(u); toast('Đã thêm ảnh'); });
+    i.title = 'Thêm vào assets';
+    // A search hit lives on someone else's server; a scene must be self-contained and offline,
+    // so a remote URL is downloaded ONCE and the project keeps the local path (P40).
+    i.addEventListener('click', async () => {
+      if (!/^https?:/i.test(u)) { state.assets.push(u); return toast('Đã thêm ảnh'); }
+      i.style.opacity = '.4';
+      try {
+        const r = await api.post('/media/download', { url: u });
+        if (r?.error) throw new Error(r.error);
+        state.assets.push(r.path);
+        const tag = el('span', 'badge', esc(String(r.name).slice(0, 14)));
+        $('#assetList')?.appendChild(tag);
+        toast('Đã tải ảnh về máy ✓', 'success');
+      } catch (e) { toast('Không tải được ảnh: ' + e.message, 'error'); }
+      finally { i.style.opacity = ''; }
+    });
     box.appendChild(i);
   });
 }

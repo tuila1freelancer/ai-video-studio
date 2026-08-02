@@ -8,6 +8,7 @@
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import * as DB from '../../db/index.js';
+import { normalizeAssets } from '../brand-assets.js';
 import { logger } from '../../util/log.js';
 import { generateScript } from '../../providers/llm.js';
 import { generateMasterScenes, scenesJsonFromRows } from '../../content/master-script.js';
@@ -39,7 +40,9 @@ export async function runScript(ctx) {
       () => (useMaster
         ? generateMasterScenes({
           input: project.topic, source: fetched, config, ai, memory, guide: resolveGuide(config),
-          assets: Array.isArray(config.assets) ? config.assets : [],
+          // Normalized (P40): the UI pushes bare paths / file URLs, the engine needs {name,path}
+          // — an un-normalized string list made the master script assign names nothing could resolve.
+          assets: normalizeAssets(config.assets),
           onLog: (m) => logger.info(m, { projectId }),
         })
         : generateScript({ topic: project.topic, inputType: project.input_type, fetched, config, ai, memory })),

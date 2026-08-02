@@ -1,7 +1,7 @@
 // All REST routes.
 import express from 'express';
 import multer from 'multer';
-import { existsSync, statSync, mkdirSync, unlinkSync, renameSync } from 'node:fs';
+import { existsSync, statSync, mkdirSync, unlinkSync, renameSync, writeFileSync } from 'node:fs';
 import { join, resolve, extname, basename } from 'node:path';
 import * as DB from '../db/index.js';
 import db from '../db/index.js';
@@ -938,8 +938,19 @@ export function mountRoutes(app, { version }) {
   });
 
   // ---- library ----
-  r.get('/library/:kind', (req, res) => {
-    res.json({ items: DB.listLibrary(req.params.kind, req.query.brand), brands: DB.brandFolders() });
+  r.get("/library/:kind", async (req, res) => {
+    const { brandFolders, brandCatalog } = await import('../pipeline/brand-assets.js');
+    if (req.params.kind === 'brand') {
+      // Union of registered rows and whatever is sitting in the folder, so art dropped in via
+      // Finder is visible and castable (P40).
+      const folder = req.query.brand || 'Default';
+      const rows = DB.listLibrary('brand', folder) || [];
+      const byName = new Map(rows.map((r) => [String(r.name).toLowerCase(), r]));
+      const items = brandCatalog(folder).map((a) => byName.get(a.name.toLowerCase())
+        || { id: `disk:${folder}:${a.name}`, kind: 'brand', brand_folder: folder, name: a.name, filename: a.name, path: a.path, onDisk: true });
+      return res.json({ items, brands: brandFolders() });
+    }
+    res.json({ items: DB.listLibrary(req.params.kind, req.query.brand), brands: brandFolders() });
   });
   r.post('/library/:kind', upload.array('files'), (req, res) => {
     const kind = req.params.kind;
@@ -996,7 +1007,11 @@ export function mountRoutes(app, { version }) {
   });
 
   // ---- brand gen (P27 — reference-app clone; prompts verbatim, ×10 no-fallback) ----
-  r.get('/brands', (req, res) => res.json({ brands: DB.brandFolders() }));
+  r.get('/brands', async (req, res) => {
+    // Folders on disk count too — the owner may simply have made one in Finder (P40).
+    const { brandFolders } = await import('../pipeline/brand-assets.js');
+    res.json({ brands: brandFolders() });
+  });
   r.post('/brands', async (req, res) => {
     try {
       const { createBrand } = await import('./services/brand-gen.js');
@@ -1064,6 +1079,27 @@ export function mountRoutes(app, { version }) {
       await ffmpeg(['-ss', String(start), '-i', src, '-t', String(dur),
         '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-c:a', 'aac', '-movflags', '+faststart', out]);
       res.json({ path: out });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Bring a remote image/video into the project (P40 — reference `/media/download`). An image
+  // search result is a URL on someone else's server; a scene must be self-contained and offline,
+  // so the file is fetched ONCE into uploads and everything downstream works with a local path.
+  r.post('/media/download', async (req, res) => {
+    try {
+      const url = String(req.body?.url || '').trim();
+      if (!/^https?:\/\//i.test(url)) return res.status(400).json({ error: 'cần URL http(s)' });
+      const resp = await fetch(url, { redirect: 'follow', signal: AbortSignal.timeout(60000) });
+      if (!resp.ok) return res.status(400).json({ error: `tải về lỗi HTTP ${resp.status}` });
+      const type = (resp.headers.get('content-type') || '').toLowerCase();
+      if (!/^(image|video)\//.test(type)) return res.status(400).json({ error: `không phải ảnh/video (${type || 'không rõ'})` });
+      const buf = Buffer.from(await resp.arrayBuffer());
+      if (!buf.length) return res.status(400).json({ error: 'file rỗng' });
+      const EXT = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp', 'image/gif': '.gif', 'video/mp4': '.mp4', 'video/quicktime': '.mov' };
+      const ext = EXT[type.split(';')[0]] || extname(new URL(url).pathname) || '.bin';
+      const out = join(DIRS.uploads, `${newId('dl')}${ext}`);
+      writeFileSync(out, buf);
+      res.json({ path: out, name: basename(out), size: buf.length, type });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
