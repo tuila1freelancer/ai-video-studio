@@ -649,9 +649,13 @@ export function mountRoutes(app, { version }) {
       mkdirSync(outDir, { recursive: true });
       const outPath = join(outDir, `thumb_${Date.now()}.jpg`);
       const md = p.metadata || {};
+      const { normalizeAssets } = await import('../pipeline/brand-assets.js');
+      const { heroMediaUri } = await import('../util/asset-uri.js');
+      const media = normalizeAssets(p.config?.assets).slice(0, 4)
+        .map((a) => ({ name: a.name, uri: heroMediaUri(a.path) })).filter((m) => m.uri);
       let path = null, html = String(req.body?.html || '').trim() || null;
       if (html) {
-        path = await renderThumbnailFragment(html, { guide, size, outPath });
+        path = await renderThumbnailFragment(html, { guide, size, outPath, media });
         if (!path) return res.status(400).json({ error: 'HTML không dựng được (rỗng hoặc bị chặn)' });
       } else {
         const ai = await generateThumbnailImage({
@@ -660,7 +664,7 @@ export function mountRoutes(app, { version }) {
           guide, size, outPath,
           language: p.config?.language && p.config.language !== 'auto' ? p.config.language : 'vi',
           variant: Math.max(0, Math.min(2, parseInt(req.body?.variant, 10) || 0)),
-          llm: DB.aiSettings().llm,
+          media, llm: DB.aiSettings().llm,
         });
         if (!ai) return res.status(400).json({ error: 'AI chưa dựng được thumbnail — kiểm tra LLM trong AI Setting' });
         ({ path } = ai);

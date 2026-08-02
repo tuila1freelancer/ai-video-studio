@@ -218,6 +218,12 @@ export async function finalize(projectId, { dir, size, config }) {
     const base = join(project.outputDir, `thumb_${Date.now()}.jpg`);
     const pathFor = (v) => base.replace(/(\.\w+)$/, v === 0 ? '$1' : `_v${v}$1`);
     const thumbAi = DB.aiSettings();
+    // The owner's own pictures are offered to the thumbnail designer too (P40) — the same
+    // {{asset:NAME}} contract the scenes use, so there is only one convention to learn.
+    const { normalizeAssets } = await import('../brand-assets.js');
+    const { heroMediaUri } = await import('../../util/asset-uri.js');
+    const thumbMedia = normalizeAssets(config.assets).slice(0, 4)
+      .map((a) => ({ name: a.name, uri: heroMediaUri(a.path) })).filter((m) => m.uri);
     const aiOn = config.thumbnailAi !== false && llmEnabled(thumbAi.llm);
     const made = [];
     let thumbHtml = null;
@@ -227,7 +233,7 @@ export async function finalize(projectId, { dir, size, config }) {
         title: project.title, hook: thumbTitle, prompt: project.metadata?.thumbnail?.prompt || '',
         guide, size: nVar > 1 ? { w: 1280, h: 720 } : size, outPath,
         language: config.language && config.language !== 'auto' ? config.language : 'vi',
-        variant: v, llm: thumbAi.llm, onLog: (m) => logger.info(m, { projectId, stage: 'b7' }),
+        variant: v, media: thumbMedia, llm: thumbAi.llm, onLog: (m) => logger.info(m, { projectId, stage: 'b7' }),
       }) : null;
       // Keep the markup of the FIRST design: the owner can edit and re-render it later without
       // paying for another generation (POST /projects/:id/thumbnail/regen with { html }).

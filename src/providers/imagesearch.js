@@ -30,7 +30,35 @@ export async function imageSearch(query, count = 6) {
     } catch { /* fall through */ }
   }
 
-  // offline fallback — generate gradient placeholder images labelled by keyword
+  // Openverse (P40): a REAL web image search that needs no key — the catalog of openly-licensed
+  // images behind WordPress.org. Without this, a user with no Tavily key got gradient
+  // placeholders and no way to find a picture at all. Commercial+modification licenses only, so
+  // anything it returns is safe to put in a video.
+  // Search terms narrow to nothing if they are concatenated: the generated keywords are whole
+  // PHRASES, and joining four of them makes a 20-word query that matches no photograph. Try the
+  // sharpest phrase first, then the owner's own words.
+  for (const term of [keywords?.[0], query].filter(Boolean)) {
+    try {
+      const q = new URLSearchParams({
+        q: term,
+        page_size: String(Math.min(20, count * 2)),
+        license_type: 'commercial,modification',
+        mature: 'false',
+      });
+      const res = await fetch(`https://api.openverse.org/v1/images/?${q}`, {
+        headers: { Accept: 'application/json', 'User-Agent': 'AI-Video-Studio/1.0' },
+        signal: AbortSignal.timeout(15000),
+      });
+      if (!res.ok) continue;
+      const data = await res.json();
+      const images = (data.results || [])
+        .map((r) => r.url || r.thumbnail).filter((u) => typeof u === 'string' && /^https?:\/\//.test(u))
+        .slice(0, count);
+      if (images.length) return { keywords, images, source: 'openverse' };
+    } catch { /* offline → the deterministic placeholders below */ }
+  }
+
+  // last resort, fully offline — gradient placeholders so the feature always returns something
   const images = [];
   for (let i = 0; i < count; i++) {
     const out = join(DIRS.uploads, `${newId('img')}.png`);
