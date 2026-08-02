@@ -116,7 +116,10 @@ export async function runVisuals(ctx) {
         density: densityForScene(sc, config.hyperframe?.density),
         creativeDirection: config.hyperframe?.direction, captionsOn: config.enableSubtitles !== false,
         hookVisual: sc.idx > 0 ? hookVisual : '',
-        consistent: hfConsistent, imageFullAssets: mediaFor(sc), overlay: config.overlay?.enabled === true,
+        consistent: hfConsistent, imageFullAssets: mediaFor(sc),
+        // 'edit' tells the codegen the footage is the owner's OWN video (its own captions/titles
+        // are already burned in) — plain overlay stays B-roll under a narrated scene.
+        overlay: config.overlay?.enabled === true ? (config.overlay.mode === 'edit' ? 'edit' : true) : false,
         diversitySalt: hash32(String(projectId)), // P31: signature rotation differs per video
         onLog: (m) => logger.warn(m, { projectId }),
       });

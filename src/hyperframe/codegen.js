@@ -127,7 +127,7 @@ export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, on
   const beats = extractBeats(scene.srt_json, scene.keywords, duration);
   const direction = cinematicDirection(scene, idx, total);
   const modeBlocks = [];
-  if (overlay) modeBlocks.push(overlayBlock());
+  if (overlay) modeBlocks.push(overlayBlock({ edit: overlay === 'edit' }));
   if (consistent) modeBlocks.push(consistentScenesBlock(guide));
   const media = (Array.isArray(imageFullAssets) ? imageFullAssets : []).filter((a) => a?.name && a?.uri);
   if (media.length) modeBlocks.push(imageFullBlock(media));
