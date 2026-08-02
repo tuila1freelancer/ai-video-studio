@@ -69,17 +69,6 @@ async function buildThumbnailAlt(title, imgPath, size, outPath, opts = {}) {
   try { return await screenshotHtml(html, { w, h, outPath }); } catch { return null; }
 }
 
-/**
- * A/B thumbnail lab: n composition variants (1280x720 YouTube standard by default).
- * Returns the paths that rendered (variant 0 first — it stays the project thumb).
- */
-export async function buildThumbnailVariants(title, imgPath, outBase, { guide = null, count = 1, size = { w: 1280, h: 720 } } = {}) {
-  const out = [];
-  for (let v = 0; v < Math.max(1, Math.min(3, count)); v++) {
-    const path = outBase.replace(/(\.\w+)$/, v === 0 ? '$1' : `_v${v}$1`);
-    const r = await buildThumbnail(title, imgPath, size, path, { guide, variant: v });
-    if (r) out.push(r);
-  }
-  return out;
-}
+// (buildThumbnailVariants was removed in P40: finalize now walks the variants itself so each
+// one can try the AI design first and fall back to buildThumbnail(variant) individually.)
 
