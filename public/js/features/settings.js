@@ -18,6 +18,38 @@ export function initSettings() {
     const i = e.target;
     if (i.tagName === 'INPUT' && i.type === 'password' && i.value.includes('••')) i.select();
   });
+  // ---- publish destinations (P40) — the routes existed but nothing reached them ----
+  $('#pubYtConnect')?.addEventListener('click', async () => {
+    const body = { clientId: $('#pubYtId').value.trim(), clientSecret: $('#pubYtSecret').value.trim() };
+    const r = await api.post('/publish/youtube/auth-url', body);
+    if (r?.error) return toast(r.error, 'error');
+    if (r?.url) { window.open(r.url, '_blank'); toast('Cho phép trên trình duyệt rồi quay lại đây.', 'success'); }
+  });
+  $('#pubFbConnect')?.addEventListener('click', async () => {
+    const r = await api.post('/publish/facebook/connect', {
+      pageId: $('#pubFbPage').value.trim(), pageToken: $('#pubFbToken').value.trim(),
+    });
+    if (r?.error) return toast(r.error, 'error');
+    toast(`✅ Đã kết nối Page: ${r.pageName || r.pageId}`, 'success');
+    loadPublishStatus();
+  });
+  $('#pubFbDisconnect')?.addEventListener('click', async () => {
+    await api.post('/publish/facebook/disconnect', {});
+    toast('Đã ngắt kết nối Page.', 'success');
+    loadPublishStatus();
+  });
+}
+
+// Which destinations are configured/connected right now.
+export async function loadPublishStatus() {
+  const el = $('#pubStatus');
+  if (!el) return;
+  try {
+    const { platforms } = await api.get('/publish/status');
+    el.innerHTML = (platforms || []).map((p) =>
+      `${p.connected ? '🟢' : (p.configured ? '🟡' : '⚪️')} ${esc(p.name)}${p.connected ? ' — đã kết nối' : (p.configured ? ' — chưa kết nối' : ' — chưa cấu hình')}`).join(' · ')
+      || 'Chưa có nền tảng nào.';
+  } catch { el.textContent = 'Không đọc được trạng thái đăng video.'; }
 }
 
 export function openSettings() { $('#settingsModal').classList.add('open'); }
@@ -41,6 +73,7 @@ export async function loadSettings() {
   if ($('#setSubLlmFix')) $('#setSubLlmFix').checked = settings.subtitle?.llmCorrect !== false;
   renderProviderFields();
   renderLangVoiceList();
+  loadPublishStatus();
 }
 
 // ---- dynamic per-provider config form (from configSchema) ----

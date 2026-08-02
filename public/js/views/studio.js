@@ -82,6 +82,12 @@ export function initStudio() {
   $('#btnRepurpose').addEventListener('click', () => withLock($('#btnRepurpose'), repurposeCurrent));
   $('#btnExport')?.addEventListener('click', () => withLock($('#btnExport'), exportCurrent));
   $('#btnPublish')?.addEventListener('click', () => withLock($('#btnPublish'), publishCurrent));
+  // P40: the toolbar button existed but had no handler — reveal the finished file in Finder.
+  $('#btnOpenFolder')?.addEventListener('click', async () => {
+    if (!state.current) return toast('Chưa mở dự án nào.', 'error');
+    const r = await api.post(`/projects/${state.current.id}/open`, {});
+    if (r?.error) toast(r.error, 'error');
+  });
   $('#btnMeta').addEventListener('click', genMeta);
   $('#btnFetch').addEventListener('click', fetchLink);
   $('#btnImgSearch').addEventListener('click', imageSearch);
@@ -165,6 +171,17 @@ async function exportCurrent() {
 // Manual publish — always an explicit choice; 'Riêng tư' (staging) is the safe default.
 async function publishCurrent() {
   if (!state.current) return;
+  // P40: more than one destination exists now, so ask WHERE before asking how visible.
+  let platforms = [];
+  try { platforms = (await api.get('/publish/status')).platforms || []; } catch { platforms = []; }
+  const ready = platforms.filter((p) => p.connected);
+  if (!ready.length) return toast('Chưa kết nối nền tảng nào — vào Cài đặt → Đăng video.', 'error');
+  const platform = ready.length === 1 ? ready[0].id : await menuDialog({
+    title: '📤 Đăng lên đâu?',
+    items: ready.map((p) => ({ id: p.id, label: p.id === 'facebook' ? '📘 Facebook Page' : '▶️ YouTube' })),
+  });
+  if (!platform) return;
+  if (platform === 'facebook') return publishToFacebook();
   const pick = await menuDialog({
     title: '📤 Đăng YouTube — chế độ hiển thị?',
     items: [
@@ -182,6 +199,31 @@ async function publishCurrent() {
   try {
     const r = await api.post(`/projects/${state.current.id}/publish`, { platform: 'youtube', privacy: pick });
     toast(`✅ Đã đăng (${pick}): ${r.url}`, 'success');
+  } catch (e) { toast('Lỗi đăng: ' + e.message, 'error'); }
+}
+
+// Facebook Page (P40). A 9:16/4:5 video goes up as a Reel, anything else as a feed video —
+// the server picks that from the project's own aspect ratio. Anything other than "công khai
+// ngay" is SCHEDULED a few minutes out rather than going live, mirroring the YouTube staging
+// default: a publish is never accidentally public.
+async function publishToFacebook() {
+  const pick = await menuDialog({
+    title: '📘 Đăng lên Facebook Page',
+    items: [
+      { id: 'private', label: '🕒 Hẹn giờ 15 phút nữa (kiểm tra trước — khuyên dùng)' },
+      { id: 'public', label: '🌐 Đăng công khai ngay', danger: true },
+    ],
+  });
+  if (!pick) return;
+  if (pick === 'public') {
+    const ok = await confirmDialog({ title: 'Đăng CÔNG KHAI ngay?', body: 'Video sẽ hiển thị công khai trên Trang. Bạn chắc chứ?', okText: 'Đăng công khai', danger: true });
+    if (!ok) return;
+  }
+  toast('📤 Đang tải lên Facebook…', 'success');
+  try {
+    const r = await api.post(`/projects/${state.current.id}/publish`, { platform: 'facebook', privacy: pick });
+    if (r.error) throw new Error(r.error);
+    toast(r.scheduled ? `🕒 Đã lên lịch đăng: ${r.url}` : `✅ Đã đăng: ${r.url}`, 'success');
   } catch (e) { toast('Lỗi đăng: ' + e.message, 'error'); }
 }
 
