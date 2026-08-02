@@ -154,6 +154,12 @@ export const SAMPLE_SPEC = {
   .hf-track{width:100%;height:5px;margin-top:16px;border-radius:3px;background:rgba(255,255,255,.10);overflow:hidden}
   .hf-track i{display:block;width:100%;height:100%;transform-origin:0 50%;background:linear-gradient(90deg,#7C8CFF,#22D3EE)}
   #kw1{white-space:nowrap}
+  /* thin tick scale — structure, not readable text: it anchors the BOTTOM-CENTRE zone so the
+     frame's weight is spread instead of stacking in the middle band */
+  .hf-scale{display:flex;align-items:flex-end;gap:9px;opacity:0}
+  .hf-scale i{display:block;width:2px;height:14px;background:rgba(255,255,255,.28);transform-origin:50% 100%}
+  .hf-scale i:nth-child(3n){height:24px;background:#22D3EE;box-shadow:0 0 10px rgba(34,211,238,.6)}
+  .hf-scale span{margin-left:12px;font-family:'JetBrains Mono',monospace;font-size:14px;letter-spacing:.2em;color:#8E9AB8}
   `,
   html: `
   <div class="hf-layer hf-mid">
@@ -162,20 +168,24 @@ export const SAMPLE_SPEC = {
     <div class="hf-ghost">01</div>
   </div>
   <div class="hf-layer hf-near">
-    <div class="hf-slot" style="left:50%;top:11%"><div class="hf-label" id="lb1">// KIỂM CHỨNG</div></div>
-    <div class="hf-slot" style="left:50%;top:27%"><div class="hf-kw" id="kw1">TỰ TIN ≠ ĐÚNG</div></div>
+    <!-- SLOT PLACEMENT IS THE LESSON HERE: the six anchors sit in SIX DIFFERENT zones of the
+         3x3 grid (top-left, top-right, top-centre, middle/bottom-left, middle/bottom-right,
+         bottom-centre) so no corner is starved and nothing piles up dead-centre. -->
+    <div class="hf-slot" style="left:20%;top:12%"><div class="hf-label" id="lb1">// KIỂM CHỨNG</div></div>
+    <div class="hf-slot" style="left:82%;top:14%"><div class="hf-iconbox sm" id="ic1">{{icon:shield}}</div></div>
+    <div class="hf-slot" style="left:50%;top:30%"><div class="hf-kw" id="kw1">TỰ TIN ≠ ĐÚNG</div></div>
     <!-- the hero: a bespoke glass instrument whose rows light up in the order the voice names them -->
-    <div class="hf-slot" style="left:32%;top:60%"><div class="hf-vcard" id="vc1">
+    <div class="hf-slot" style="left:30%;top:66%"><div class="hf-vcard" id="vc1">
       <div class="hf-vhead"><b></b><span>Đối chiếu sự thật</span></div>
       <div class="hf-vrow" id="vr1"><span class="k">Có nguồn?</span><span class="v">CHƯA</span></div>
       <div class="hf-vrow" id="vr2"><span class="k">Dữ kiện khớp?</span><span class="v">37%</span></div>
       <div class="hf-track"><i id="tk1"></i></div>
     </div></div>
-    <div class="hf-slot" style="left:78%;top:57%"><div class="hf-stat" id="st1">
+    <div class="hf-slot" style="left:80%;top:62%"><div class="hf-stat" id="st1">
       <div class="hf-stat-v"><span id="st1v">0</span><span class="hf-stat-u">%</span></div>
       <div class="hf-stat-l">độ tin cậy thực</div>
     </div></div>
-    <div class="hf-slot" style="left:78%;top:33%"><div class="hf-iconbox sm" id="ic1">{{icon:shield}}</div></div>
+    <div class="hf-slot" style="left:52%;top:87%"><div class="hf-scale" id="sc1"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><span>0 → 100</span></div></div>
   </div>`,
   script: `
 // camera completes its move in the FIRST half, then holds (no back-half drift).
@@ -206,5 +216,8 @@ FX.beat(tl, '#ic1', 3.15, DUR, { 'in': 'rise', out: 'none' });
 // the money beat: the readout lands with a shock ring + sparks (exactly once per scene)
 FX.impact(tl, '#st1', { at: 5.45, color: '#22D3EE' });
 FX.pulseGlow(tl, '#ic1', { at: 5.5, dur: 0.9, repeat: 1 });
+// bottom-centre anchor: the tick scale wipes in and keeps the lower band from reading as dead space
+tl.to('#sc1', { opacity: 1, duration: 0.5, ease: 'power2.out' }, 2.4);
+tl.from('#sc1 i', { scaleY: 0, duration: 0.45, stagger: 0.045, ease: 'power2.out' }, 2.5);
 `,
 };

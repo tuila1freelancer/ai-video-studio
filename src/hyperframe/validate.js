@@ -76,6 +76,19 @@ const PROBE = `(() => {
   // real visual presence, so mid-scene deadness must count them (prompt v5 mandates them)
   let decorArea=0, centerCover=0;
   const cb={x:W*0.25,y:H*0.25,w:W*0.5,h:H*0.5};
+  // 3x3 ink map (P41): how the composition's visual weight is spread. Every painted box and
+  // every readable text contributes its area to the cells it covers; the caller turns this into
+  // the "starved zone" advisory. Fair share per cell is 1/9 = 0.111.
+  const zones=[0,0,0,0,0,0,0,0,0], zoneEls=[0,0,0,0,0,0,0,0,0];
+  const addZone=(r)=>{ for(let gy=0;gy<3;gy++)for(let gx=0;gx<3;gx++){
+    const ox=Math.max(0,Math.min(r.right,(gx+1)*W/3)-Math.max(r.left,gx*W/3));
+    const oy=Math.max(0,Math.min(r.bottom,(gy+1)*H/3)-Math.max(r.top,gy*H/3));
+    if(ox>0&&oy>0) zones[gy*3+gx]+=ox*oy; }
+    // a zone also counts as OCCUPIED when an element's CENTRE lands in it: a kicker or an icon
+    // is small in area but is absolutely something in that corner, and ink share alone would
+    // call a perfectly composed frame empty there.
+    const cx=(r.left+r.right)/2, cy=(r.top+r.bottom)/2;
+    if(cx>=0&&cx<W&&cy>=0&&cy<H) zoneEls[(cy<H/3?0:cy<2*H/3?1:2)*3+(cx<W/3?0:cx<2*W/3?1:2)]++; };
   for(const el of cam.querySelectorAll('div,section,figure')){
     if(el.closest('.hf-far'))continue;
     const s=getComputedStyle(el);
@@ -85,6 +98,7 @@ const PROBE = `(() => {
     const o=eff(el); if(o<0.12)continue;
     const r=el.getBoundingClientRect();
     if(r.width*r.height>=0.02*W*H&&r.left<W&&r.right>0&&r.top<H&&r.bottom>0) decorArea+=Math.min(r.width*r.height,0.2*W*H);
+    if(r.width*r.height<0.45*W*H) addZone(r); // a near-full-frame wash is backdrop, not composition
     // overlay gate input: how much of the CENTER window is blocked by solid-ish paint
     const am=(s.backgroundColor||'').match(/rgba?\\(([^)]+)\\)/);
     const alpha=am?(am[1].split(',').length>3?parseFloat(am[1].split(',')[3]):1):(s.backgroundImage!=='none'?0.6:0);
@@ -109,6 +123,7 @@ const PROBE = `(() => {
         return (el.scrollWidth-el.clientWidth>3||el.scrollHeight-el.clientHeight>3)?1:0; })(),
       cls:(el.className&&el.className.baseVal!==undefined?el.className.baseVal:String(el.className||'')).slice(0,32),
       txt:(el.textContent||'').trim().slice(0,40)});
+    addZone(r);
     nodes.push({el,ownText,o,r}); }
   // readable text only: element opacity AND text-colour alpha must be substantial — a watermark
   // faded via rgba(...,.05) is decor, not readable text, so it must not count as an overlap.
@@ -199,7 +214,9 @@ const PROBE = `(() => {
       const stroke=parseFloat(cs.webkitTextStrokeWidth||'0')>0;
       const sh=cs.textShadow&&cs.textShadow!=='none';
       primary={fs,grad,stroke,sh,txt:(n.el.textContent||'').trim().slice(0,20)}; } }
-  return {W,H,els:out,overlaps,lowContrast,occluded,decorArea:+(decorArea/(W*H)).toFixed(4),centerCover:+centerCover.toFixed(3),heroParts,primary};
+  const zTotal=zones.reduce((a,b)=>a+b,0)||1;
+  return {W,H,els:out,overlaps,lowContrast,occluded,decorArea:+(decorArea/(W*H)).toFixed(4),centerCover:+centerCover.toFixed(3),heroParts,primary,
+    zones:zones.map(z=>+(z/zTotal).toFixed(3)),zoneEls};
 })()`;
 
 /**
@@ -252,6 +269,10 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
     const narrWords = narrationWordSet(narration);
     const narrLang = detectLang(narration || '');
     let anyVisible = false, unionFrac = 0, maxSpread = 0, hadCluster = false, maxCenterCover = 0;
+    // P41 balance: the BEST 3x3 ink map across the samples. Best, not worst — early beats are
+    // empty by design (the beat protocol starts nearly bare), so a scene is judged on how evenly
+    // it fills once it is fully built, never on its opening frame.
+    let bestZones = null, bestZoneEls = null, bestZoneScore = Infinity;
     // Every geometry accumulator carries an occurrence count `n` — persistence tiering
     // (heldAcrossSamples) later drops one-sample transients (entrance/exit states of slow eases).
     const off = new Map(), sub = new Map(), bad = new Map(), ovl = new Map(), clip = new Map(), occ = new Map(), junk = new Map();
@@ -261,8 +282,13 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
       else map.set(k, { ...data, n: 1 });
     };
     for (const t of T) {
-      const { W, H, els, overlaps = [], occluded = [], centerCover = 0 } = await page.evaluate((tt, probe) => { window.__seek(tt); return eval(probe); }, t, PROBE);
+      const { W, H, els, overlaps = [], occluded = [], centerCover = 0, zones = null, zoneEls = null } = await page.evaluate((tt, probe) => { window.__seek(tt); return eval(probe); }, t, PROBE);
       maxCenterCover = Math.max(maxCenterCover, centerCover);
+      if (zones && zones.length === 9) {
+        // spread score = total absolute deviation from an even 1/9 per cell (0 = perfectly even)
+        const score = zones.reduce((a, z) => a + Math.abs(z - 1 / 9), 0);
+        if (score < bestZoneScore) { bestZoneScore = score; bestZones = zones; bestZoneEls = zoneEls; }
+      }
       for (const p of overlaps) bump(ovl, `${p.a}|${p.b}`, { t, ...p });
       for (const p of occluded) bump(occ, p.txt, { t, ...p });
       const vis = els.filter((e) => e.o > 0.15);
@@ -309,6 +335,24 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
     // distribution: a horizontal frame whose readable elements all bunch on the center axis.
     if (!overlay && w >= h * 1.1 && hadCluster && maxSpread < 0.22 && unionFrac < 0.5) {
       warnings.push(`the composition is stacked on the center axis (readable elements span only ${Math.round(maxSpread * 100)}% of the width) — distribute them across left / center / right per the ratio rules: a wide frame wants a split or an off-center hero with a real counterweight, not everything in the middle.`);
+    }
+    // P41 EVENNESS (owner order 2026-08-02: "bố cục và nội dung đều nhau"). Measured across real
+    // scenes, the failure is not emptiness but LOPSIDEDNESS: the top corners carried ~0.065 of the
+    // ink against a 0.111 fair share while dead-centre carried ~0.192. Named zones make the advice
+    // actionable — "put something in the top-left" is a thing a model can do, "distribute weight"
+    // is not. Advisory only, and judged on the scene's BEST-filled sample, never its opening frame.
+    if (bestZones) {
+      const NAME = ['top-left', 'top-centre', 'top-right', 'middle-left', 'centre', 'middle-right', 'bottom-left', 'bottom-centre', 'bottom-right'];
+      // A zone is DEAD only when nothing is anchored in it AND it carries almost no ink — a small
+      // kicker in the corner is little ink but is not a hole. Calibrated against real renders: a
+      // well-composed frame leaves 0-1 dead zones, the lopsided ones leave 3+.
+      const dead = bestZones.map((z, i) => ({ z, i })).filter(({ z, i }) => z < 0.03 && !(bestZoneEls && bestZoneEls[i]));
+      const hog = bestZones.reduce((best, z, i) => (z > bestZones[best] ? i : best), 0);
+      if (dead.length >= 3) {
+        warnings.push(`the frame is lopsided: ${dead.map(({ i }) => NAME[i]).join(', ')} hold NOTHING at all, while ${NAME[hog]} carries ${Math.round(bestZones[hog] * 100)}% of the visual weight (an even frame is ~11% per zone). Anchor a real element — a label cluster, a stat, a bracket, a tick scale, a satellite panel — in each dead zone instead of stacking more into ${NAME[hog]}.`);
+      } else if (bestZones[hog] > 0.34) {
+        warnings.push(`${Math.round(bestZones[hog] * 100)}% of the composition sits in ${NAME[hog]} alone (an even frame is ~11% per zone) — break that block up and push part of it out toward the emptier zones.`);
+      }
     }
     // telemetry junk net: snake_case/dev tokens with no Vietnamese diacritic. Persistence-tiered.
     const junkH = [...junk.values()].filter(heldAcrossSamples);
