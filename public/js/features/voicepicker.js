@@ -52,8 +52,14 @@ function vpLangs() {
 function renderVpChips() {
   $('#vpLangChips').innerHTML = `<button class="gtab ${!vpFilter.lang ? 'active' : ''}" data-l="">Tất cả</button>`
     + vpLangs().map((l) => `<button class="gtab ${vpFilter.lang === l ? 'active' : ''}" data-l="${l}">${LANG_FLAGS[l] || ''} ${l}</button>`).join('');
+  // Only chip a provider the catalog can actually show. A chip that filters to an empty list is
+  // worse than no chip: it reads as "this provider has no voices" when the truth is "no key yet".
+  const present = new Set((state.voiceCatalog || []).map((v) => v.provider));
   $('#vpProvChips').innerHTML = `<button class="gtab ${!vpFilter.provider ? 'active' : ''}" data-p="">Mọi provider</button>`
-    + state.providers.map((p) => `<button class="gtab ${vpFilter.provider === p.id ? 'active' : ''}" data-p="${p.id}">${esc(p.name.split(' ')[0])}</button>`).join('');
+    + state.providers.filter((p) => present.has(p.id))
+      .map((p) => `<button class="gtab ${vpFilter.provider === p.id ? 'active' : ''}" data-p="${p.id}">${esc(p.name.split(' ')[0])}</button>`).join('')
+    + state.providers.filter((p) => !present.has(p.id))
+      .map((p) => `<button class="gtab" disabled title="Chưa có API key cho ${esc(p.name)} — nhập ở AI Setting" style="opacity:.45">${esc(p.name.split(' ')[0])} 🔑</button>`).join('');
 }
 function renderVpList() {
   const favs = new Set(state.settings?.tts?.favVoices || []);
