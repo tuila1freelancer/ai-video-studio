@@ -60,3 +60,31 @@ test('P41: the validator measures zones by PRESENCE, and stays advisory', () => 
   assert.ok(!/defects\.push/.test(block), 'evenness never blocks a render');
   assert.ok(/warnings\.push/.test(block));
 });
+
+test('P41: the doctrine is countable, and size no longer masquerades as position', () => {
+  const p = src('../src/hyperframe/prompt.js');
+  // named zones + a quota the model can evaluate on its own draft
+  assert.match(p, /TL TC TR \/ ML MC MR \/ BL BC BR/, 'the nine zones are NAMED, not merely described');
+  assert.match(p, /at least 7 of the 9 zones hold an anchor/);
+  assert.match(p, /TL, TR, BL and BR each hold at least one/, 'corners are mandatory — the measured starvation');
+  assert.match(p, /every row holds ≥2 anchors and every column holds ≥2/);
+  assert.match(p, /MC holds AT MOST ONE anchor/, 'the measured 1.7x surplus is capped');
+  assert.match(p, /SELF-CHECK BEFORE YOU EMIT/, 'and the model is told to count before replying');
+  // evenness must not become clutter — that would collide with the density/whitespace rules
+  assert.match(p, /THIS RULE NEVER ASKS FOR MORE ELEMENTS/);
+  assert.match(p, /PLUGGING A HOLE WITH CONFETTI IS A WORSE FAILURE THAN THE HOLE/);
+  // judged on the settled frame: the beat protocol opens nearly bare on purpose
+  assert.match(p, /measured on the SETTLED frame \(last beat → DUR/);
+});
+
+test('P41: SAFE_CENTER no longer reads as "where the composition lives"', () => {
+  // The bug four independent drafts found: the thresholds called a centred 39.5% box "the
+  // primary usable stage" AND said the thresholds always win — so an obedient model was being
+  // TOLD to centre everything, and no amount of balance prose could outrank it.
+  const vp = viewportBlock(1920, 1080, true);
+  assert.ok(!/the primary usable stage/.test(vp), 'the centred box is no longer called the stage');
+  assert.match(vp, /FOOTPRINT CEILING for ONE construction/);
+  assert.match(vp, /MAXIMA AND MARGINS/, 'thresholds cap size, they do not nominate a destination');
+  assert.match(vp, /misread a maximum as a target/);
+  assert.match(src('../src/hyperframe/prompt.js'), /SIZE IS NOT POSITION/);
+});
