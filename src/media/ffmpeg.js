@@ -169,19 +169,27 @@ export async function normalizeVoice(inPath, outPath, { padMs = 500 } = {}) {
 // slice offset wraps around the footage length so any video length works; footage shorter
 // than the scene is frozen on its last frame (tpad clone) rather than cut to black.
 // Scene AUDIO (the narration) is kept; the footage's own audio is dropped.
+// `exact` + `audioFrom:'footage'` switch this into EDIT-VIDEO mode (P40): the graphics belong to
+// one specific moment of the owner's own video, so the slice is taken at exactly `start` (never
+// wrapped) and the ORIGINAL soundtrack is kept instead of a narration track.
 export async function compositeColorkey(scenePath, footagePath, outPath, {
   start = 0, duration, w, h, fps = 30, key = '0x050510', similarity = 0.3, blend = 0.2,
+  exact = false, audioFrom = 'scene',
 } = {}) {
   const footDur = await probeDuration(footagePath);
   const dur = duration || (await probeDuration(scenePath));
-  const off = footDur > 1 ? (Math.max(0, start) % Math.max(0.5, footDur - Math.min(dur, footDur * 0.5))) : 0;
+  const off = exact
+    ? Math.max(0, Math.min(start, Math.max(0, footDur - 0.05)))
+    : (footDur > 1 ? (Math.max(0, start) % Math.max(0.5, footDur - Math.min(dur, footDur * 0.5))) : 0);
   await ffmpeg([
     '-ss', off.toFixed(3), '-i', footagePath, '-i', scenePath,
     '-filter_complex',
     `[0:v]scale=${w}:${h}:force_original_aspect_ratio=increase,crop=${w}:${h},fps=${fps},tpad=stop_mode=clone:stop_duration=${dur.toFixed(3)},setsar=1[bg];` +
     `[1:v]colorkey=${key}:${similarity}:${blend}[fg];` +
     `[bg][fg]overlay=0:0:shortest=1[v]`,
-    '-map', '[v]', '-map', '1:a?', '-t', dur.toFixed(3),
+    '-map', '[v]',
+    // '0:a?' keeps the footage's own audio (edit-video); '1:a?' keeps the scene's narration.
+    '-map', audioFrom === 'footage' ? '0:a?' : '1:a?', '-t', dur.toFixed(3),
     '-c:v', 'libx264', '-preset', 'medium', '-crf', '18', '-pix_fmt', 'yuv420p',
     '-c:a', 'aac', '-b:a', '192k', outPath,
   ]);

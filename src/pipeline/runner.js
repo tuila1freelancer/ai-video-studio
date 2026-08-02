@@ -21,6 +21,7 @@ import { runRender } from './stages/render.js';
 import { finalize } from './stages/finalize.js';
 import { runMetadata } from './stages/metadata.js';
 import { runPublish } from './stages/publish.js';
+import { isEditVideo, runEditVideo } from './edit-video.js';
 
 // Stable import surface for pipeline/queue.js — the public pipeline entry points.
 export { requestStop, clearStop };
@@ -37,6 +38,21 @@ export async function runPipeline(projectId, { resume = false, _auto = 0 } = {})
   jlog(projectId, { kind: 'status', msg: resume ? '▶ Tiếp tục pipeline' : '🚀 Bắt đầu pipeline' });
 
   try {
+    // EDIT VIDEO (P40): the owner's own file IS the content, so there is no script and no TTS —
+    // transcribe, cut, then rejoin the ordinary visuals/render/finalize stages. Routed here (not
+    // as a separate job kind) so stop, resume, the job ledger and the error taxonomy below all
+    // apply unchanged.
+    if (isEditVideo(config)) {
+      const res = await runEditVideo(ctx);
+      if (config.generateMetadata === true) await runMetadata(ctx);
+      DB.updateProject(projectId, { status: 'done' });
+      const done = DB.getProject(projectId);
+      hub.toProject(projectId, { type: 'done', video: done.video_path ? `/api/file?path=${encodeURIComponent(done.video_path)}` : null,
+        thumb: done.thumb_path ? `/api/file?path=${encodeURIComponent(done.thumb_path)}` : null });
+      logger.info(`🎉 Sửa video hoàn thành (${Math.round(res.duration)}s)`, { projectId, kind: 'done', jlevel: 'success' });
+      return;
+    }
+
     await runScript(ctx);                                   // B2
     await runEditorial(ctx);                                // b2.5 — quality gate (B2 banner)
     await runBudgetFit(ctx);                                // b2.75 — total narration ≈ ordered duration

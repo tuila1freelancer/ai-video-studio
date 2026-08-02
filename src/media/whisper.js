@@ -11,7 +11,11 @@ export function whisperAvailable() { return !!(PATHS.whisperCli && PATHS.whisper
 // Returns { words:[{start,end,word}], cues:[{start,end,text}] } with times in seconds.
 // opts.prompt: bias decoding toward the known script (forced-alignment feeds the narration
 // here so names/numbers transcribe the way they were written).
-export async function transcribeWords(audioPath, { language = 'auto', onLog, prompt = '' } = {}) {
+// opts.granularity: 'word' (default — karaoke timing, the alignment use case) or 'segment'.
+//   Segment mode drops `-ml 1 -sow`: forcing one word per segment costs real decoding accuracy,
+//   which only matters when there is NO reference text to align to (the edit-video lane reads
+//   the transcript as content, so wording must be right, not just timed).
+export async function transcribeWords(audioPath, { language = 'auto', onLog, prompt = '', granularity = 'word' } = {}) {
   if (!whisperAvailable()) throw new Error('whisper not available');
   const wav = join(DIRS.tmp, `${newId('w')}.wav`);
   await ffmpeg(['-i', audioPath, '-ar', '16000', '-ac', '1', '-c:a', 'pcm_s16le', wav]);
@@ -19,7 +23,7 @@ export async function transcribeWords(audioPath, { language = 'auto', onLog, pro
   const args = [
     '-m', PATHS.whisperModel, '-f', wav,
     '-oj', '-of', base,
-    '-ml', '1', '-sow',            // one word per segment (karaoke granularity)
+    ...(granularity === 'segment' ? [] : ['-ml', '1', '-sow']), // one word per segment (karaoke granularity)
     '-t', String(Math.max(2, Math.min(8, (await import('node:os')).cpus?.().length || 4))),
   ];
   if (language && language !== 'auto') args.push('-l', language);
@@ -33,18 +37,30 @@ export async function transcribeWords(audioPath, { language = 'auto', onLog, pro
     ps.on('close', (code) => code === 0 ? resolvePromise() : reject(new Error(`whisper exit ${code}: ${err.slice(-400)}`)));
   });
   const jsonPath = `${base}.json`;
-  let words = [];
+  let units = [];
   if (existsSync(jsonPath)) {
     const data = safeJson(readFileSync(jsonPath, 'utf8'), null);
     const segs = (data && data.transcription) || [];
-    words = segs.map((s) => ({
+    units = segs.map((s) => ({
       start: (s.offsets ? s.offsets.from : 0) / 1000,
       end: (s.offsets ? s.offsets.to : 0) / 1000,
-      word: (s.text || '').trim(),
-    })).filter((w) => w.word);
+      text: (s.text || '').trim(),
+    })).filter((u) => u.text);
   }
   for (const f of [wav, jsonPath]) { try { if (existsSync(f)) unlinkSync(f); } catch { /* ignore */ } }
-  return { words, cues: groupWordsIntoCues(words) };
+  if (granularity === 'segment') {
+    // Each unit is already a spoken phrase — that IS the cue. `words` stays populated (split on
+    // whitespace, times spread evenly across the phrase) so callers expecting the word shape
+    // still work; only the timing inside a phrase is approximate.
+    const words = units.flatMap((u) => {
+      const parts = u.text.split(/\s+/).filter(Boolean);
+      const step = parts.length ? (u.end - u.start) / parts.length : 0;
+      return parts.map((word, i) => ({ start: +(u.start + i * step).toFixed(3), end: +(u.start + (i + 1) * step).toFixed(3), word }));
+    });
+    return { words, cues: units.map((u) => ({ ...u, words: [] })), segments: units };
+  }
+  const words = units.map((u) => ({ start: u.start, end: u.end, word: u.text }));
+  return { words, cues: groupWordsIntoCues(words), segments: units };
 }
 
 // Group words into subtitle cues (lines) of up to N words / max duration.

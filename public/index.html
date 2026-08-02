@@ -556,6 +556,18 @@
         <div class="grid2" style="max-width:300px;margin-top:12px"><div><label class="label">Bắt đầu (s)</label><input class="input" id="evStart" type="number" value="0" min="0"></div><div><label class="label">Kết thúc (s)</label><input class="input" id="evEnd" type="number" value="10" min="0"></div></div>
         <button class="btn primary" id="evCut" style="margin-top:12px">✂️ Cắt & xuất</button>
         <div id="evOut" style="margin-top:14px"></div>
+        <hr style="margin:20px 0;border:0;border-top:1px solid var(--line,#2a2a35)">
+        <h3 style="margin-bottom:6px">✨ Thêm đồ hoạ AI lên video có sẵn</h3>
+        <div class="hint">AI bóc lời thoại trong video, cắt thành cảnh, tự dựng đồ hoạ chuyển động nền trong suốt rồi ghép đè lên chính video của bạn — giữ nguyên hình và tiếng gốc.</div>
+        <div class="grid2" style="max-width:420px;margin-top:10px">
+          <div><label class="label">Độ dài mỗi cảnh (giây)</label><input class="input" id="evSceneDur" type="number" value="7" min="3" max="15"></div>
+          <div><label class="label">Ngôn ngữ lời thoại</label>
+            <select class="input" id="evLang"><option value="auto">Tự nhận</option><option value="vi">Tiếng Việt</option><option value="en">English</option></select>
+          </div>
+        </div>
+        <label class="switch-row" style="margin-top:8px"><span class="switch"><input type="checkbox" id="evSubs"><span class="sl"></span></span> Ghi thêm phụ đề karaoke lên video</label>
+        <button class="btn primary" id="evEnhance" style="margin-top:12px">✨ Dựng đồ hoạ & ghép</button>
+        <div id="evEnhanceOut" style="margin-top:10px"></div>
       </div>
     </section>
 
