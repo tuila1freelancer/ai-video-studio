@@ -189,7 +189,11 @@ export async function createEditVideoProject({ source, title = '', language = 'a
     ...config,
     aspectRatio,
     editVideo: { source: src, sourceDuration: +total.toFixed(3) },
-    overlay: { enabled: true, source: src, key: config.overlay?.key || '#050510', mode: 'edit' },
+    overlay: {
+      enabled: true, source: src, key: config.overlay?.key || '#050510', mode: 'edit',
+      // where to keep the subject if the footage must be cropped to the project ratio (P43)
+      position: config.reframePosition || config.overlay?.position || 'center',
+    },
     // The footage already carries its own voice and music — never mix ours over it, and never
     // spend TTS credit: the narration is already in the file.
     autoBgm: false, soundDesign: false, enableSubtitles: config.enableSubtitles === true,

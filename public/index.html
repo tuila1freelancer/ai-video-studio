@@ -594,6 +594,14 @@
           </div>
         </div>
         <label class="switch-row" style="margin-top:8px"><span class="switch"><input type="checkbox" id="evSubs"><span class="sl"></span></span> Ghi thêm phụ đề karaoke lên video</label>
+        <div class="field" style="max-width:420px"><label class="label">Vị trí nhân vật khi phải cắt khung</label>
+          <select class="input" id="evReframe">
+            <option value="center">⬜ Giữa (mặc định)</option>
+            <option value="auto">🤖 Tự dò chủ thể</option>
+            <option value="left">← Bên trái</option>
+            <option value="right">→ Bên phải</option>
+          </select>
+          <div class="hint">Chỉ có tác dụng khi tỉ lệ video nguồn khác tỉ lệ xuất — cắt giữa hay cắt mất người đứng lệch.</div></div>
         <button class="btn primary" id="evEnhance" style="margin-top:12px">✨ Dựng đồ hoạ & ghép</button>
         <div id="evEnhanceOut" style="margin-top:10px"></div>
       </div>
