@@ -65,8 +65,14 @@ server.listen(PORT, '127.0.0.1', () => {
   console.log(`AVS_READY ${url}`);
 });
 
-process.on('SIGTERM', () => server.close(() => process.exit(0)));
-process.on('SIGINT', () => server.close(() => process.exit(0)));
+// Any local TTS server we spawned dies with us — an orphan would hold its port and the next
+// start would find an unreachable zombie.
+const shutdown = async () => {
+  try { (await import('./media/tts-server.js')).stopAllTtsServers(); } catch { /* nothing spawned */ }
+  server.close(() => process.exit(0));
+};
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
 
 // A long-running render server must never die from one stray async error.
 process.on('unhandledRejection', (e) => logger.error(`unhandledRejection: ${e?.message || e}`));

@@ -67,8 +67,12 @@ async function synthWith(pid, voice, text, s, outPath, style) {
   let v = voice;
   if (!v || v === 'auto') v = provider.autoVoiceFor(detectLang(text));
   if (v == null && pid !== 'say') throw new Error(`${pid}: không có giọng phù hợp cho ngôn ngữ`);
-  const ext = pid === 'say' ? '.m4a' : '.mp3';
-  return provider.synthesize(text, v, cfg, outPath.replace(/\.\w+$/, ext));
+  // Container follows what the provider actually writes: `say` emits m4a, the local Supertonic
+  // server returns wav, everything else mp3. A wrong extension would make ffprobe/concat guess.
+  const ext = pid === 'say' ? '.m4a' : (pid === 'supertonic' ? '.wav' : '.mp3');
+  // Detected language is passed through for providers whose API takes it explicitly (Supertonic
+  // is one multilingual model, so the voice alone does not pick the language).
+  return provider.synthesize(text, v, cfg, outPath.replace(/\.\w+$/, ext), { lang: detectLang(text) });
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));

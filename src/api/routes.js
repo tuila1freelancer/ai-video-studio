@@ -58,6 +58,31 @@ export function mountRoutes(app, { version }) {
     } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
   });
 
+  // ---- local TTS server lifecycle (P40, Supertonic) ----
+  // The self-hosted voice needs a process, not a key: report whether it is installed/running and
+  // let the owner start or stop it from the same panel that configures the provider.
+  r.get('/tts/server/status', async (req, res) => {
+    try {
+      const { ttsServerStatus } = await import('../media/tts-server.js');
+      const cfg = (DB.aiSettings().tts?.providers?.supertonic) || {};
+      res.json(await ttsServerStatus(cfg));
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+  r.post('/tts/server/start', async (req, res) => {
+    try {
+      const { ensureSupertonic, ttsServerStatus } = await import('../media/tts-server.js');
+      const cfg = { ...(DB.aiSettings().tts?.providers?.supertonic || {}), ...(req.body || {}) };
+      const ok = await ensureSupertonic(cfg, { restart: req.body?.restart === true });
+      res.json({ ok, ...(await ttsServerStatus(cfg)) });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+  r.post('/tts/server/stop', async (req, res) => {
+    try {
+      const { stopSupertonic } = await import('../media/tts-server.js');
+      res.json({ stopped: stopSupertonic(DB.aiSettings().tts?.providers?.supertonic || {}) });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
   // ---- subtitle preset catalog for the UI gallery ----
   r.get('/subtitle-presets', async (req, res) => {
     const { SUBTITLE_PRESETS } = await import('../subtitles/presets.js');
