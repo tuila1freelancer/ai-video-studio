@@ -123,3 +123,18 @@ test('P42: the LLM endpoint and the local voice engine can be checked/installed 
   assert.match(settings, /btnTestLlm/);
   assert.match(settings, /ttsSrvInstall/);
 });
+
+test('P42: a thumbnail can be edited BY INSTRUCTION, keeping everything else', async () => {
+  const { editThumbnailFragment } = await import('../src/pipeline/thumbnail-codegen.js');
+  // no LLM / no design / no instruction → null, never a mangled thumbnail
+  assert.equal(await editThumbnailFragment('<div>x</div>', 'to hơn', { llm: { enabled: false } }), null);
+  assert.equal(await editThumbnailFragment('', 'to hơn', { llm: { enabled: true, apiKey: 'k', baseUrl: 'u', model: 'm' } }), null);
+  assert.equal(await editThumbnailFragment('<div>x</div>', '', { llm: { enabled: true, apiKey: 'k', baseUrl: 'u', model: 'm' } }), null);
+  const t = src('../src/pipeline/thumbnail-codegen.js');
+  assert.match(t, /YOU ARE EDITING an existing thumbnail, not designing a new one/);
+  assert.match(t, /Apply ONLY what is asked and change nothing else/);
+  // a reply that collapsed the design is a failed edit, not one worth shipping
+  assert.match(t, /next\.length < Math\.max\(80, current\.length \* 0\.4\)/);
+  assert.match(routes, /'\/projects\/:id\/thumbnail\/edit-html'/);
+  assert.match(routes, /chưa có thiết kế thumbnail để sửa/, 'editing needs something to edit');
+});

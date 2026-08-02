@@ -881,6 +881,37 @@ export function mountRoutes(app, { version }) {
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
+  // Edit the thumbnail BY INSTRUCTION (P42 — reference `/thumbnail/edit-html`). Re-designing
+  // throws away everything the owner liked; this changes only what they asked for.
+  r.post('/projects/:id/thumbnail/edit-html', async (req, res) => {
+    try {
+      const p = DB.getProject(req.params.id);
+      if (!p) return res.status(404).json({ error: 'not found' });
+      const current = p.metadata?.thumbnail?.html;
+      if (!current) return res.status(400).json({ error: 'chưa có thiết kế thumbnail để sửa — tạo bằng AI trước' });
+      const prompt = String(req.body?.prompt || '').trim();
+      if (!prompt) return res.status(400).json({ error: 'cần mô tả thay đổi' });
+      const { editThumbnailFragment, renderThumbnailFragment } = await import('../pipeline/thumbnail-codegen.js');
+      const { resolveGuide } = await import('../styleguide/index.js');
+      const { resolveOutputDir } = await import('../pipeline/helpers.js');
+      const { normalizeAssets } = await import('../pipeline/brand-assets.js');
+      const { heroMediaUri } = await import('../util/asset-uri.js');
+      const guide = resolveGuide(p.config || {});
+      const edited = await editThumbnailFragment(current, prompt, { guide, llm: DB.aiSettings().llm });
+      if (!edited) return res.status(422).json({ error: 'AI chưa sửa được — thử mô tả cụ thể hơn' });
+      const media = normalizeAssets(p.config?.assets).slice(0, 4)
+        .map((a) => ({ name: a.name, uri: heroMediaUri(a.path) })).filter((m) => m.uri);
+      const outDir = resolveOutputDir(p.id, p.config || {}, DB.projectDirFor(p.id));
+      mkdirSync(outDir, { recursive: true });
+      const outPath = join(outDir, `thumb_${Date.now()}.jpg`);
+      const path = await renderThumbnailFragment(edited, { guide, size: { w: 1280, h: 720 }, outPath, media });
+      if (!path) return res.status(422).json({ error: 'bản sửa không dựng được' });
+      const md = p.metadata || {};
+      DB.updateProject(p.id, { thumb_path: path, metadata: { ...md, thumbnail: { ...(md.thumbnail || {}), html: edited } } });
+      res.json({ path, url: `/api/file?path=${encodeURIComponent(path)}`, html: edited });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
   // Reveal a project's output folder in Finder (P40 — the toolbar button had no handler).
   r.post('/projects/:id/open', async (req, res) => {
     try {
