@@ -116,8 +116,13 @@ function guideV2Block(guide) {
 // Overlay-mode doctrine (the reference app's 19 KB overlay prompt distilled): the scene
 // composites onto REAL FOOTAGE via colorkey, so the design rules flip from "build a stage"
 // to "decorate a living picture without hiding it".
-export function overlayBlock() {
-  return `OVERLAY MODE ACTIVE (this scene composites ON TOP of the owner's real footage — the themed stage is NOT rendered; your background is keyed transparent):
+export function overlayBlock({ edit = false } = {}) {
+  const editNote = edit
+    ? `
+- THIS FOOTAGE IS THE OWNER'S OWN VIDEO and the narration you are given is what it ALREADY SAYS out loud at this moment. Your graphics ANNOTATE it — a keyword, a number, a label — they never restate the sentence.
+- The footage almost certainly carries its own burned-in subtitles and its own titles: KEEP THE BOTTOM ~22% AND THE TOP ~12% CLEAR and work in the middle bands and side margins, so you never stack text on text.`
+    : '';
+  return `OVERLAY MODE ACTIVE (this scene composites ON TOP of the owner's real footage — the themed stage is NOT rendered; your background is keyed transparent):${editNote}
 - KEEP THE CENTER ~40-50% OF THE FRAME CLEAR — the viewer must see the footage. Design with edges, corners, top bar, lower-third and side columns; a keyword may CROSS the center only during a brief entrance/exit.
 - FORBIDDEN (breaks the key or hides the footage): solid panels/cards with filled backgrounds, backdrop-filter of any kind, any filled rectangle covering >30% of the frame, any element with opacity >0.5 that is not text / a thin line (≤4px) / an icon (≤80px). A "container" is border-only (≤2px, opacity ≤0.4), never filled.
 - TEXT MUST READ OVER VIDEO: active text at opacity 1.0, solid fill (white or a bright accent) + a 3-layer shadow (tight glow, wide glow, dark drop — e.g. 0 0 15px rgba(255,255,255,.8), 0 0 30px rgba(255,255,255,.4), 0 4px 12px rgba(0,0,0,.9)). Outline-only text is an entrance state ONLY (≤0.3s, then fill).
