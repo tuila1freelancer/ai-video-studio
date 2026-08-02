@@ -78,6 +78,12 @@ export function deleteLibrary(id) {
   db.prepare('DELETE FROM library WHERE id=?').run(id);
   return row;
 }
+/** Rename a library entry's DISPLAY name (P40). The file on disk is untouched, so an existing
+ *  project that references it by path keeps working. */
+export function renameLibrary(id, name) {
+  db.prepare('UPDATE library SET name=? WHERE id=?').run(name, id);
+  return db.prepare('SELECT * FROM library WHERE id=?').get(id) || null;
+}
 export function brandFolders() {
   return db.prepare("SELECT DISTINCT brand_folder FROM library WHERE kind='brand'").all().map((r) => r.brand_folder);
 }

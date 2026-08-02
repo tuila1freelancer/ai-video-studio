@@ -1036,6 +1036,16 @@ export function mountRoutes(app, { version }) {
     });
     res.json({ items });
   });
+  // Rename a library entry (P40). The FILE keeps its stored name — only the display name the
+  // codegen/casting lanes key on changes — so a rename can never break an existing project's
+  // asset reference to the path.
+  r.patch('/library/:id', (req, res) => {
+    const name = String(req.body?.name || '').replace(/[^\w.\- À-ỹ]/gu, '').trim();
+    if (!name) return res.status(400).json({ error: 'tên không hợp lệ' });
+    const row = DB.renameLibrary(req.params.id, name);
+    if (!row) return res.status(404).json({ error: 'không tìm thấy' });
+    res.json({ item: row });
+  });
   r.delete('/library/:id', (req, res) => {
     const row = DB.deleteLibrary(req.params.id);
     if (row && row.path && existsSync(row.path)) { try { unlinkSync(row.path); } catch { /* ignore */ } }
