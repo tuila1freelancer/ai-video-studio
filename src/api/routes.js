@@ -980,8 +980,11 @@ export function mountRoutes(app, { version }) {
   r.post('/metadata', async (req, res) => {
     try {
       const p = DB.getProject(req.body.projectId);
-      const md = await generateMetadata(p, req.body.stylePrompt);
-      if (p) DB.updateProject(p.id, { metadata: md });
+      // Same contract as the pipeline stage: SEO is written from the narration, not the title.
+      const script = p ? DB.getScenes(p.id).map((s) => (s.voice_text || '').trim()).filter(Boolean).join('\n') : '';
+      const md = await generateMetadata(p, req.body.stylePrompt, { script });
+      // merge — B2's thumbnail {title,prompt,html} must survive a metadata regeneration
+      if (p) DB.updateProject(p.id, { metadata: { ...(p.metadata || {}), ...md } });
       res.json({ metadata: md });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });

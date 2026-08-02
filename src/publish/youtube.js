@@ -61,12 +61,19 @@ async function accessToken() {
  * Resumable upload. metadata: {title, description, tags, privacy} — privacy defaults to
  * 'private' (staging); 'public' must be passed explicitly by the caller.
  */
-export async function upload({ videoPath, title, description = '', tags = [], privacy = 'private', thumbPath = null }) {
+export async function upload({ videoPath, title, description = '', tags = [], privacy = 'private', thumbPath = null, scheduledAt = null }) {
   const token = await accessToken();
   const size = statSync(videoPath).size;
   const body = {
     snippet: { title: String(title || 'Video').slice(0, 100), description: String(description).slice(0, 4900), tags: tags.slice(0, 30), categoryId: '27' },
-    status: { privacyStatus: ['private', 'unlisted', 'public'].includes(privacy) ? privacy : 'private', selfDeclaredMadeForKids: false },
+    // Scheduled publishing (P40): YouTube only honours publishAt on a PRIVATE video — it flips
+    // to public itself at that moment. scheduledAt is unix seconds, the same unit the Facebook
+    // lane takes, so the caller does not have to remember two conventions.
+    status: {
+      privacyStatus: scheduledAt ? 'private' : (['private', 'unlisted', 'public'].includes(privacy) ? privacy : 'private'),
+      selfDeclaredMadeForKids: false,
+      ...(scheduledAt ? { publishAt: new Date(scheduledAt * 1000).toISOString() } : {}),
+    },
   };
   const init = await fetch('https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status', {
     method: 'POST',
@@ -97,7 +104,7 @@ export async function upload({ videoPath, title, description = '', tags = [], pr
       });
     } catch (e) { logger.warn(`youtube thumbnail: ${e.message}`); }
   }
-  return { videoId: video.id, url: `https://youtu.be/${video.id}`, privacy: body.status.privacyStatus };
+  return { videoId: video.id, url: `https://youtu.be/${video.id}`, privacy: body.status.privacyStatus, scheduled: !!scheduledAt };
 }
 
 export default { id: 'youtube', name: 'YouTube', configured, connected, authUrl, exchangeCode, upload };
