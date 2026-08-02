@@ -315,6 +315,23 @@ export function mountRoutes(app, { version }) {
   // ---- full-video SRT export (all scene cues shifted to the FINAL video timeline) ----
   // Accounts for the image-mode intro card and per-junction xfade overlaps, so exported
   // cues match the finished file instead of drifting late on long transitions videos.
+  // Per-SCENE subtitles (P42 — reference `/projects/:id/scenes-srt`). The whole-project export
+  // above shifts every cue onto the finished timeline; this one keeps each scene on its OWN zero,
+  // which is what you need to hand a single clip to an editor or re-check one scene's timing.
+  r.get('/projects/:id/scenes-srt', async (req, res) => {
+    const p = DB.getProject(req.params.id);
+    if (!p) return res.status(404).json({ error: 'not found' });
+    const { buildSrt } = await import('../pipeline/srt.js');
+    const scenes = DB.getScenes(p.id).sort((a, b) => a.idx - b.idx)
+      .map((sc) => ({ idx: sc.idx, duration: sc.duration || 0, srt: buildSrt(sc.srt_json || []) }));
+    if (req.query.download) {
+      const name = String(p.title || 'video').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^\w.-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'video';
+      res.setHeader('Content-Disposition', `attachment; filename="${name}-scenes.txt"`);
+      return res.type('text/plain').send(scenes.map((s) => `### Cảnh ${s.idx + 1} (${s.duration.toFixed(2)}s)\n${s.srt}`).join('\n'));
+    }
+    res.json({ scenes });
+  });
   r.get('/projects/:id/srt', async (req, res) => {
     const p = DB.getProject(req.params.id);
     if (!p) return res.status(404).json({ error: 'not found' });
@@ -1285,6 +1302,27 @@ export function mountRoutes(app, { version }) {
       const out = join(DIRS.uploads, `${newId('dl')}${ext}`);
       writeFileSync(out, buf);
       res.json({ path: out, name: basename(out), size: buf.length, type });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Standalone transcription (P42 — reference `/edit-video/transcribe`): read the words out of a
+  // video or audio file WITHOUT starting a project or spending anything but CPU. Same segment
+  // granularity and the same optional AI spelling repair the edit-video lane uses.
+  r.post('/edit-video/transcribe', async (req, res) => {
+    try {
+      const src = resolve(String(req.body?.path || ''));
+      if (!inAllowedRoots(src) || !existsSync(src)) return res.status(400).json({ error: 'file không hợp lệ' });
+      const { transcribeWords, whisperAvailable } = await import('../media/whisper.js');
+      if (!whisperAvailable()) return res.status(400).json({ error: 'chưa có whisper (kiểm tra Cài đặt → phụ đề)' });
+      const language = String(req.body?.language || 'auto');
+      const { segments } = await transcribeWords(src, { language, granularity: 'segment' });
+      let cues = segments;
+      if (req.body?.repair !== false) {
+        const { repairTranscript } = await import('../pipeline/edit-video.js');
+        cues = await repairTranscript(segments, { language: language === 'auto' ? 'vi' : language, llm: DB.aiSettings().llm });
+      }
+      const { buildSrt } = await import('../pipeline/srt.js');
+      res.json({ cues, srt: buildSrt(cues.map((c) => ({ start: c.start, end: c.end, text: c.text }))) });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 

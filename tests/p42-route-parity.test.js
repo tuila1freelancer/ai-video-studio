@@ -68,3 +68,21 @@ test('P42: brand-folder rename and delete are pinned inside the library and refu
   assert.match(cat, /export function renameBrandFolder/);
   assert.match(cat, /export function deleteBrandFolder/);
 });
+
+test('P42: per-scene SRT keeps each scene on its OWN zero, unlike the whole-project export', () => {
+  assert.match(routes, /'\/projects\/:id\/scenes-srt'/);
+  assert.match(routes, /buildSrt\(sc\.srt_json \|\| \[\]\)/, 'cues are used as stored — not shifted onto the final timeline');
+  assert.match(routes, /Content-Disposition/, 'and it can be downloaded as one file');
+  // the whole-project export must still do the shifting — the two are different tools
+  assert.match(routes, /shiftCues/, 'the timeline-shifted export survives');
+});
+
+test('P42: a file can be transcribed without starting a project', () => {
+  assert.match(routes, /r\.post\('\/edit-video\/transcribe'/);
+  assert.match(routes, /inAllowedRoots\(src\) \|\| !existsSync\(src\)/, 'the path is still gated');
+  assert.match(routes, /granularity: 'segment'/, 'same decoding accuracy as the edit-video lane');
+  assert.match(routes, /req\.body\?\.repair !== false/, 'AI spelling repair on by default, switchable off');
+  // no project is created — that is the whole point of the endpoint
+  const block = routes.slice(routes.indexOf("'/edit-video/transcribe'"), routes.indexOf("'/edit-video/transcribe'") + 1400);
+  assert.ok(!/createProject|createEditVideoProject/.test(block), 'nothing is created, nothing is spent but CPU');
+});
