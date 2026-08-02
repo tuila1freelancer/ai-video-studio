@@ -45,3 +45,31 @@ test('P40: both publishers can schedule, in the same unit', () => {
   assert.match(fb, /video_state: scheduledAt \? 'SCHEDULED' : 'PUBLISHED'/);
   assert.match(src('../src/api/routes.js'), /scheduledAt: Number\.isFinite\(\+req\.body\?\.scheduledAt\)/, 'and the route passes it through');
 });
+
+test('P40: the free voice finally has prosody controls, and none of them changes the old call', async () => {
+  const { edgeProsody, default: edge } = await import('../src/providers/voice/edge.js');
+  assert.equal(edgeProsody({}), null, 'no knobs set → the historic call, byte for byte');
+  assert.equal(edgeProsody({ rate: '0', pitch: '0' }), null, 'zero is "unchanged", not "+0%"');
+  assert.deepEqual(edgeProsody({ rate: '-10' }), { rate: '-10%' });
+  assert.deepEqual(edgeProsody({ rate: '15', pitch: '20', volume: '-5' }), { rate: '+15%', volume: '-5%', pitch: '+20Hz' });
+  assert.deepEqual(edgeProsody({ rate: '999', pitch: '-99' }), { rate: '+100%', pitch: '-24Hz' }, 'clamped to what Edge accepts');
+  assert.deepEqual(edge.configSchema.map((f) => f.key), ['rate', 'pitch', 'volume']);
+  assert.match(src('../src/providers/voice/edge.js'), /prosody \? await tts\.toStream\(text, prosody\) : await tts\.toStream\(text\)/);
+});
+
+test('P40: silent mode renders a music-only cut without spending TTS credit', () => {
+  const s = src('../src/pipeline/stages/tts.js');
+  assert.match(s, /if \(config\.enableVoice === false\)/, 'the branch exists');
+  assert.match(s, /makeSilence/, 'each scene gets a silent track of its own planned length');
+  assert.match(s, /estimateWordTiming/, 'captions still land on the script timing');
+  assert.ok(!/synthesizeVoice/.test(s.slice(s.indexOf('enableVoice === false'), s.indexOf('const ttsC'))), 'no synthesis in that branch');
+  assert.match(src('../public/js/views/config.js'), /enableVoice: \$\('#cfgNoVoice'\)\?\.checked \? false : undefined/, 'exposed in the panel');
+});
+
+test('P40: named SEO styles reuse the shared styles table and never leave a run dangling', () => {
+  const cfg = src('../public/js/views/config.js');
+  assert.match(cfg, /api\.get\('\/styles\?kind=metadata'\)/, 'named styles are listed');
+  assert.match(cfg, /api\.post\('\/styles', \{ name, kind: 'metadata', prompt \}\)/, 'and saved');
+  assert.match(cfg, /metadataPrompt: \$\('#cfgMetaPrompt'\)\?\.value\.trim\(\)/,
+    'the panel sends the RESOLVED prompt, so deleting the row later cannot break a queued run');
+});

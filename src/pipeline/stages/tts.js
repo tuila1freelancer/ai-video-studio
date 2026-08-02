@@ -28,6 +28,28 @@ export async function runTts(ctx) {
   step(projectId, 'b34', 'running', 'Lồng tiếng + phụ đề');
   DB.updateProject(projectId, { current_step: 'b34' });
   const scenes = DB.getScenes(projectId);
+  // SILENT MODE (P40): a music-only cut — captions and motion still land on the script's timing,
+  // but no voice is synthesized and no TTS credit is spent. The estimated timing seeded before
+  // B5 is already on the scene rows, so the whole downstream (render, concat, subtitles) works
+  // unchanged; each scene just gets a silent track of its own planned length.
+  if (config.enableVoice === false) {
+    const { makeSilence } = await import('../../media/ffmpeg.js');
+    const { estimateWordTiming } = await import('../../providers/subtitle.js');
+    op(projectId, '🔇 Chế độ không lời: bỏ qua lồng tiếng, giữ nhịp theo kịch bản');
+    for (const sc of scenes) {
+      checkStop(projectId);
+      const duration = Math.max(1.5, sc.duration || config.sceneDuration || 6);
+      const audioOut = join(dir, 'audio', `scene_${sc.idx}_silent.m4a`);
+      if (!existsSync(audioOut)) await makeSilence(audioOut, duration);
+      const { cues } = estimateWordTiming(sc.voice_text || '', duration);
+      const srtPath = join(dir, 'srt', `scene_${sc.idx}.srt`);
+      writeFileSync(srtPath, buildSrt(cues));
+      DB.updateScene(sc.id, { audio_path: audioOut, duration, srt_path: srtPath, srt_json: cues, status: 'tts' });
+      hub.toProject(projectId, { type: 'scene', sceneId: sc.id, idx: sc.idx, status: 'tts', duration });
+    }
+    step(projectId, 'b34', 'done', 'không lời');
+    return;
+  }
   const ttsC = config.parallelTTS ? parseInt(config.ttsConcurrency || 4, 10) : 1;
   const voiceFallbacks = []; // scenes that had to switch voice — re-tried once below
   const ttsOne = async (sc, { trackFallback = true } = {}) => {

@@ -381,6 +381,7 @@
               </div>
               <label class="switch-row"><span class="switch"><input type="checkbox" id="cfgBgmAuto" checked><span class="sl"></span></span> 🎵 Nhạc nền tự động</label>
               <label class="switch-row"><span class="switch"><input type="checkbox" id="cfgSoundDesign" checked><span class="sl"></span></span> 🎼 AI sound design (chọn BGM + đặt SFX theo nội dung)</label>
+              <label class="switch-row" title="Video chỉ có nhạc + đồ hoạ + phụ đề, không lồng tiếng. Không tốn credit TTS."><span class="switch"><input type="checkbox" id="cfgNoVoice"><span class="sl"></span></span> 🔇 Không lời (chỉ nhạc + phụ đề, bỏ qua lồng tiếng)</label>
             </div>
           </div>
 
@@ -389,6 +390,10 @@
             <div class="cfg-body">
               <label class="switch-row" title="Mọi cảnh nối nhau bằng dissolve mượt ngắn; thêm 1-2 hero transition theo vai trò kể chuyện (zoom vào cảnh chốt, fade đen vào CTA/outro, fade tại ngăn chương). Tắt để dùng cắt cứng."><span class="switch"><input type="checkbox" id="cfgTrans" checked><span class="sl"></span></span> 🔀 Chuyển cảnh điện ảnh (mượt, theo nhịp kể)</label>
               <label class="switch-row"><span class="switch"><input type="checkbox" id="cfgMeta" checked><span class="sl"></span></span> 📊 Tạo Metadata</label>
+              <div class="field" style="margin-top:6px"><label class="label">Phong cách SEO (metadata style)</label>
+                <select class="input" id="cfgMetaStyle"><option value="">— Mặc định —</option></select>
+                <textarea class="input" id="cfgMetaPrompt" rows="2" placeholder="Yêu cầu riêng cho tiêu đề/mô tả/tag… (vd: giọng chuyên gia, không giật tít)" style="margin-top:6px"></textarea>
+                <button class="btn sm" id="btnSaveMetaStyle" style="margin-top:6px">💾 Lưu thành phong cách có tên</button></div>
               <label class="switch-row"><span class="switch"><input type="checkbox" id="cfgAutoConcat" checked><span class="sl"></span></span> Tự động ghép (B7)</label>
               <label class="switch-row" title="Dừng trước khi ghép để bạn duyệt từng cảnh trong Xem nháp"><span class="switch"><input type="checkbox" id="cfgReview"><span class="sl"></span></span> 🧐 Duyệt từng cảnh trước khi ghép</label>
               <label class="switch-row" title="Dựng toàn bộ cảnh trước rồi DỪNG — bạn duyệt/chỉnh từng cảnh thoải mái, chưa tốn phí lồng tiếng; bấm Lồng tiếng &amp; Render khi ưng ý"><span class="switch"><input type="checkbox" id="cfgSceneGate"><span class="sl"></span></span> 🎬 Dựng cảnh trước — duyệt xong mới lồng tiếng</label>

@@ -7,7 +7,7 @@ import { initHome } from './views/home.js';
 import { initStudio, initWs, loadProjects, openProject } from './views/studio.js';
 import { initScenes, renderScenes } from './views/scenes.js';
 import { buildPipeSteps } from './views/progress.js';
-import { initConfig, buildSubColors, updateEstimate, loadBgmOptions, loadBrandFolders, loadChannelPresets, loadSubtitlePresets, loadFontFamilies } from './views/config.js';
+import { initConfig, buildSubColors, updateEstimate, loadBgmOptions, loadBrandFolders, loadMetadataStyles, loadChannelPresets, loadSubtitlePresets, loadFontFamilies } from './views/config.js';
 import { initLibrary } from './views/library.js';
 import { initBrandGen } from './views/brandgen.js';
 import { initEditVideo } from './views/editvideo.js';
@@ -67,7 +67,7 @@ async function init() {
   // …then load the heavy catalogs when the main thread is idle (voice list ~322 items, BGM, subtitle presets).
   const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 50));
   idle(async () => {
-    await Promise.all([loadVoices(), loadBgmOptions(), loadBrandFolders(), loadSubtitlePresets(), loadFontFamilies()]);
+    await Promise.all([loadVoices(), loadBgmOptions(), loadBrandFolders(), loadMetadataStyles(), loadSubtitlePresets(), loadFontFamilies()]);
     await loadSettings(); // needs state.providers from loadVoices
     if (state.current) renderScenes(); // re-render once catalogs are in (template names etc.)
   });
