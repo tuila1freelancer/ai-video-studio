@@ -84,6 +84,13 @@ export function renameLibrary(id, name) {
   db.prepare('UPDATE library SET name=? WHERE id=?').run(name, id);
   return db.prepare('SELECT * FROM library WHERE id=?').get(id) || null;
 }
+/** Follow a brand folder rename / delete in the library rows, so art keeps its registration. */
+export function renameBrandFolder(from, to) {
+  db.prepare("UPDATE library SET brand_folder=? WHERE kind='brand' AND brand_folder=?").run(to, from);
+}
+export function deleteBrandFolder(name) {
+  db.prepare("DELETE FROM library WHERE kind='brand' AND brand_folder=?").run(name);
+}
 export function brandFolders() {
   return db.prepare("SELECT DISTINCT brand_folder FROM library WHERE kind='brand'").all().map((r) => r.brand_folder);
 }
