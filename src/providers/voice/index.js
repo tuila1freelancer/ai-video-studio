@@ -1,12 +1,13 @@
-// Voice provider registry — one contract, six providers.
+// Voice provider registry — one contract, seven providers.
 import edge from './edge.js';
 import say from './say.js';
 import openai from './openai.js';
 import elevenlabs from './elevenlabs.js';
 import vbee from './vbee.js';
 import larvoice from './larvoice.js';
+import supertonic from './supertonic.js';
 
-export const PROVIDERS = { edge, say, vbee, larvoice, elevenlabs, openai };
+export const PROVIDERS = { edge, say, supertonic, vbee, larvoice, elevenlabs, openai };
 
 export function getProvider(id) { return PROVIDERS[id] || PROVIDERS.edge; }
 
@@ -24,7 +25,7 @@ export function providerConfig(ttsSettings, pid) {
     say: { rate: s.rate },
     openai: { apiKey: s.apiKey, baseUrl: s.baseUrl, model: s.model },
     elevenlabs: { apiKey: s.apiKey, model: s.model },
-    edge: {}, vbee: {},
+    edge: {}, vbee: {}, supertonic: {},
   }[pid] || {};
   return { ...legacy, ...modern };
 }
