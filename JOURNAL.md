@@ -108,3 +108,8 @@ from the studio's own database — every number is real production data.
 - Scenes with rendered clips (active projects): 0 · Jobs: 0 done / 0 error / 0 cancelled
 - AI usage: 0 calls · 0 tokens in / 0 out · 0 TTS chars · est. $0.00
 - Published: — · Calendar-driven runs: —
+## 2026-08-02
+- Videos: 1 created · 1 completed — “P40 edit-video check”
+- Scenes with rendered clips (active projects): 2 · Jobs: 1 done / 0 error / 0 cancelled
+- AI usage: 7 calls · 71.6k tokens in / 11.5k out · 0 TTS chars · est. $0.06
+- Published: — · Calendar-driven runs: —
