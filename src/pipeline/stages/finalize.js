@@ -8,7 +8,9 @@ import * as DB from '../../db/index.js';
 import { logger } from '../../util/log.js';
 import { renderAnimationScene } from '../../animation/index.js';
 import { resolveGuide } from '../../styleguide/index.js';
-import { buildThumbnail, buildThumbnailVariants } from '../visuals.js';
+import { buildThumbnail } from '../visuals.js';
+import { generateThumbnailImage } from '../thumbnail-codegen.js';
+import { llmEnabled } from '../../providers/llm.js';
 import { concatScenes, planTransitions, transitionLoss } from '../render.js';
 import { qcFinalVideo } from '../qc.js';
 import { masterAudio } from '../../media/master.js';
@@ -201,9 +203,11 @@ export async function finalize(projectId, { dir, size, config }) {
     }
   }
 
-  // Premium thumbnail (title over best image); keyed to the video's style guide in
-  // hyperframe mode so it matches the video. config.thumbVariants (1-3) renders extra
-  // A/B compositions next to it (thumb_*_v1.jpg, _v2.jpg) at YouTube 1280x720.
+  // Thumbnail. P40 (reference parity): the AI DESIGNS a static HTML page and Chrome shoots it,
+  // so the result is a real composition instead of a title bar over a frame. It is packaging,
+  // not the video — an unusable reply silently falls back to the deterministic builders that
+  // shipped before, which also cover a project with no LLM configured.
+  // config.thumbVariants (1-3) renders extra A/B compositions (thumb_*_v1.jpg, _v2.jpg).
   let thumb = res.thumb;
   try {
     const guide = visualMode === 'hyperframe' ? resolveGuide(config) : null;
@@ -211,14 +215,24 @@ export async function finalize(projectId, { dir, size, config }) {
     // The master script's thumbnail title (short, mobile-readable, written FOR the thumb)
     // beats the long video title when present.
     const thumbTitle = (project.metadata?.thumbnail?.title || project.title || '').trim() || project.title;
-    if (nVar > 1) {
-      const variants = await buildThumbnailVariants(thumbTitle, firstImg, join(project.outputDir, `thumb_${Date.now()}.jpg`), { guide, count: nVar });
-      if (variants[0]) thumb = variants[0];
-      if (variants.length > 1) op(projectId, `🖼️ Đã tạo ${variants.length} biến thể thumbnail (A/B) trong thư mục xuất`);
-    } else {
-      const t = await buildThumbnail(thumbTitle, firstImg, size, join(project.outputDir, `thumb_${Date.now()}.jpg`), { guide });
-      if (t) thumb = t;
+    const base = join(project.outputDir, `thumb_${Date.now()}.jpg`);
+    const pathFor = (v) => base.replace(/(\.\w+)$/, v === 0 ? '$1' : `_v${v}$1`);
+    const thumbAi = DB.aiSettings();
+    const aiOn = config.thumbnailAi !== false && llmEnabled(thumbAi.llm);
+    const made = [];
+    for (let v = 0; v < nVar; v++) {
+      const outPath = pathFor(v);
+      let p = aiOn ? await generateThumbnailImage({
+        title: project.title, hook: thumbTitle, prompt: project.metadata?.thumbnail?.prompt || '',
+        guide, size: nVar > 1 ? { w: 1280, h: 720 } : size, outPath,
+        language: config.language && config.language !== 'auto' ? config.language : 'vi',
+        variant: v, llm: thumbAi.llm, onLog: (m) => logger.info(m, { projectId, stage: 'b7' }),
+      }) : null;
+      if (!p) p = await buildThumbnail(thumbTitle, firstImg, nVar > 1 ? { w: 1280, h: 720 } : size, outPath, { guide, variant: v });
+      if (p) made.push(p);
     }
+    if (made[0]) thumb = made[0];
+    if (made.length > 1) op(projectId, `🖼️ Đã tạo ${made.length} biến thể thumbnail (A/B) trong thư mục xuất`);
   } catch { /* keep basic */ }
 
   DB.updateProject(projectId, { video_path: res.path, thumb_path: thumb, current_step: 'b7' });
