@@ -78,12 +78,14 @@ export async function runVisuals(ctx) {
       scenes: uncast, catalog, title: project.title, llm: hfAi?.llm,
       onLog: (m) => logger.info(m, { projectId, stage: 'b5' }),
     });
-    for (const sc of uncast) {
-      const picks = cast.get(sc.idx + 1);
-      if (!picks?.length) continue;
+    // The model numbered the list IT was given (1..uncast.length), which is NOT scene.idx+1
+    // whenever some scenes already carried assets — map back by position, never by scene index.
+    uncast.forEach((sc, k) => {
+      const picks = cast.get(k + 1);
+      if (!picks?.length) return;
       sc.assets = picks;
       DB.updateScene(sc.id, { assets: picks }); // persists for regen/resume
-    }
+    });
   }
   const mediaFor = sceneMediaResolver(config, { heroMediaUri });
   const hfConsistent = config.hyperframe?.consistent === true;

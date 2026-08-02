@@ -89,3 +89,11 @@ test('P40-B: both codegen lanes resolve media through the same resolver', () => 
   assert.match(src('../src/pipeline/regen.js'), /sceneMediaResolver\(config, \{ heroMediaUri \}\)\(sc\)/, 'single-scene lane');
   assert.match(src('../src/util/asset-uri.js'), /alpha = false/, 'transparency-preserving inline path exists');
 });
+
+test('P40-B: cast numbering follows the list the model was GIVEN, not scene indices', () => {
+  // The prompt numbers the scenes it receives 1..N. When some scenes already carry assets the
+  // uncast subset is not scene.idx+1, so mapping by scene index would decorate the wrong scenes.
+  const vis = readFileSync(new URL('../src/pipeline/stages/visuals.js', import.meta.url), 'utf8');
+  assert.match(vis, /uncast\.forEach\(\(sc, k\) => \{[\s\S]*?cast\.get\(k \+ 1\)/, 'mapped back by position');
+  assert.ok(!/cast\.get\(sc\.idx \+ 1\)/.test(vis), 'never keyed by scene index');
+});
