@@ -806,7 +806,11 @@ export function mountRoutes(app, { version }) {
       const recId = DB.recordPublish({ projectId: p.id, platform: pub.id, privacy });
       const out = await pub.upload({
         // a platform-shaped caption (P42) outranks the generic description when one was written
-        videoPath: p.video_path, title: md.title || p.title, description: md.captions?.[pub.id] || md.description || '',
+        // P43: a caption/title typed in the publish dialog is the owner's final word — it outranks
+        // the stored platform caption, which outranks the generic description.
+        videoPath: p.video_path,
+        title: String(req.body?.title || '').trim() || md.title || p.title,
+        description: String(req.body?.caption || '').trim() || md.captions?.[pub.id] || md.description || '',
         tags: (md.platforms?.[pub.id]?.tags || md.platforms?.youtube?.tags || md.hashtags || []).map((t) => String(t).replace(/^#/, '')),
         privacy, thumbPath: p.thumb_path && existsSync(p.thumb_path) ? p.thumb_path : null,
         // Facebook picks reels vs feed video from the shape, and can pin a first comment.

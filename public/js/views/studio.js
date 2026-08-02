@@ -11,7 +11,7 @@ import { renderGallery } from './home.js';
 import { switchPage } from './nav.js';
 import { gatherConfig, applyConfig } from './config.js';
 import { openSrt } from '../features/srt.js';
-import { confirmDialog, menuDialog } from '../ui/dialog.js';
+import { confirmDialog, menuDialog, publishDialog } from '../ui/dialog.js';
 
 let ws = null;
 export function initWs() { ws = new WS(onWsMessage); }
@@ -211,38 +211,44 @@ async function publishCurrent() {
 // ngay" is SCHEDULED a few minutes out rather than going live, mirroring the YouTube staging
 // default: a publish is never accidentally public.
 async function publishToFacebook() {
-  const pick = await menuDialog({
-    title: '📘 Đăng lên Facebook Page',
-    items: [
-      { id: 'private', label: '🕒 Hẹn giờ 15 phút nữa (kiểm tra trước — khuyên dùng)' },
-      { id: 'public', label: '🌐 Đăng công khai ngay', danger: true },
-    ],
+  // P43: show the owner the EXACT post text and let them edit it, and let them pick when it goes
+  // live — a privacy menu cannot fix a typo in a caption nobody ever saw.
+  const md = state.current?.metadata || {};
+  let caption = md.captions?.facebook || md.description || '';
+  const wantAi = !caption && await confirmDialog({
+    title: 'Chưa có caption — để AI viết?',
+    body: 'AI viết caption ngắn từ đúng lời thoại trong video. Bỏ qua thì bạn tự soạn.',
+    okText: 'AI viết giúp',
   });
-  if (!pick) return;
-  if (pick === 'public') {
-    const ok = await confirmDialog({ title: 'Đăng CÔNG KHAI ngay?', body: 'Video sẽ hiển thị công khai trên Trang. Bạn chắc chứ?', okText: 'Đăng công khai', danger: true });
-    if (!ok) return;
-  }
-  // A YouTube description is the wrong shape for a Facebook post, so offer to write the
-  // platform-shaped caption first (P42). Saved server-side under metadata.captions.facebook,
-  // which the publish route prefers; declining just leaves the existing description in place.
-  const wantCaption = await confirmDialog({
-    title: 'Để AI viết caption cho Facebook?',
-    body: 'Caption ngắn, mở đầu bằng hook, viết từ đúng lời thoại trong video. Bỏ qua thì dùng mô tả sẵn có.',
-    okText: 'Viết caption',
-  });
-  if (wantCaption) {
+  if (wantAi) {
     try {
       const c = await api.post('/publish/generate-caption', { projectId: state.current.id, platform: 'facebook' });
-      if (c?.error) toast(c.error, 'error');
-      else if (c?.caption) toast(`✍️ ${c.caption.split('\n')[0].slice(0, 60)}…`, 'success');
+      if (c?.caption) caption = c.caption;
     } catch (e) { toast('Không viết được caption: ' + e.message, 'error'); }
   }
-  toast('📤 Đang tải lên Facebook…', 'success');
+  const form = await publishDialog({
+    title: '📘 Đăng lên Facebook Page', platform: 'facebook',
+    caption, postTitle: md.title || state.current?.title || '',
+  });
+  if (!form) return;
+  if (!form.when) {
+    const ok = await confirmDialog({
+      title: 'Đăng CÔNG KHAI ngay?',
+      body: 'Video sẽ hiển thị công khai trên Trang ngay lập tức.',
+      okText: 'Đăng công khai', danger: true,
+    });
+    if (!ok) return;
+  }
+  toast(form.when ? '🕒 Đang lên lịch…' : '📤 Đang tải lên Facebook…', 'success');
   try {
-    const r = await api.post(`/projects/${state.current.id}/publish`, { platform: 'facebook', privacy: pick });
+    const r = await api.post(`/projects/${state.current.id}/publish`, {
+      platform: 'facebook',
+      privacy: form.when ? 'private' : 'public',
+      scheduledAt: form.when || undefined,
+      caption: form.caption, title: form.title,
+    });
     if (r.error) throw new Error(r.error);
-    toast(r.scheduled ? `🕒 Đã lên lịch đăng: ${r.url}` : `✅ Đã đăng: ${r.url}`, 'success');
+    toast(r.scheduled ? `🕒 Đã lên lịch: ${r.url}` : `✅ Đã đăng: ${r.url}`, 'success');
     renderPublishHistory();
   } catch (e) { toast('Lỗi đăng: ' + e.message, 'error'); }
 }

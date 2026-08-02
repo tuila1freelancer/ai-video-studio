@@ -88,3 +88,63 @@ export function menuDialog({ title, items }) {
     },
   });
 }
+
+/**
+ * Publish composer (P43): the reference app lets the owner see and EDIT the exact post text and
+ * title before anything goes out, and pick when it goes live. A menu of privacy levels does not
+ * cover that — you cannot fix a typo in a caption you never saw.
+ * @returns {Promise<{caption,title,when}|null>} `when` is unix SECONDS, or null for "now".
+ */
+export function publishDialog({ title = 'Đăng video', platform = 'facebook', caption = '', postTitle = '', canSchedule = true }) {
+  const QUICK = [
+    { id: '', label: 'Đăng ngay' },
+    { id: '1h', label: '+1 giờ' },
+    { id: '3h', label: '+3 giờ' },
+    { id: 'tonight', label: 'Tối nay 20h' },
+    { id: 'tmr9', label: 'Mai 9h' },
+    { id: 'tmr20', label: 'Mai 20h' },
+  ];
+  return openDialog(`
+    <h3>${esc(title)}</h3>
+    <label class="label">Nội dung bài đăng (hỗ trợ #hashtag)</label>
+    <textarea class="input" id="dlgCaption" rows="6">${esc(caption)}</textarea>
+    <label class="label" style="margin-top:8px">Tiêu đề (tuỳ chọn)</label>
+    <input class="input" id="dlgTitle" value="${esc(postTitle)}">
+    ${canSchedule ? `<label class="label" style="margin-top:10px">Thời điểm đăng</label>
+    <div class="row" id="dlgWhen" style="flex-wrap:wrap;gap:6px">${
+      QUICK.map((q, i) => `<button class="gtab${i === 0 ? ' active' : ''}" data-w="${q.id}">${q.label}</button>`).join('')
+    }</div>
+    <input class="input" id="dlgWhenAt" type="datetime-local" style="margin-top:6px">` : ''}
+    <div class="row" style="justify-content:flex-end;gap:8px;margin-top:14px">
+      <button class="btn" data-x>Huỷ</button><button class="btn primary" data-ok>Đăng</button>
+    </div>`, {
+    onReady(dlg, close) {
+      let quick = '';
+      dlg.querySelectorAll('#dlgWhen .gtab').forEach((b) => b.addEventListener('click', () => {
+        dlg.querySelectorAll('#dlgWhen .gtab').forEach((x) => x.classList.remove('active'));
+        b.classList.add('active'); quick = b.dataset.w; dlg.querySelector('#dlgWhenAt').value = '';
+      }));
+      dlg.querySelector('[data-x]').addEventListener('click', () => close(null));
+      dlg.querySelector('[data-ok]').addEventListener('click', () => {
+        const at = dlg.querySelector('#dlgWhenAt')?.value;
+        close({
+          caption: dlg.querySelector('#dlgCaption').value.trim(),
+          title: dlg.querySelector('#dlgTitle').value.trim(),
+          when: at ? Math.floor(new Date(at).getTime() / 1000) : quickToUnix(quick),
+        });
+      });
+      dlg.querySelector('#dlgCaption')?.focus();
+    },
+  });
+}
+
+/** Turn a quick-pick into unix seconds. null = publish now. */
+export function quickToUnix(id, now = new Date()) {
+  const at = (d, h) => { const x = new Date(now); x.setDate(x.getDate() + d); x.setHours(h, 0, 0, 0); return Math.floor(x.getTime() / 1000); };
+  if (id === '1h') return Math.floor(now.getTime() / 1000) + 3600;
+  if (id === '3h') return Math.floor(now.getTime() / 1000) + 3 * 3600;
+  if (id === 'tonight') { const t = at(0, 20); return t > Math.floor(now.getTime() / 1000) ? t : at(1, 20); }
+  if (id === 'tmr9') return at(1, 9);
+  if (id === 'tmr20') return at(1, 20);
+  return null;
+}
