@@ -91,6 +91,11 @@ export function gatherConfig() {
     transitions: $('#cfgTrans').checked,
     autoBgm: $('#cfgBgmAuto').checked,
     generateMetadata: $('#cfgMeta').checked,
+    // P40: named SEO styles are rows in the shared `styles` table (kind 'metadata'); the panel
+    // sends the resolved PROMPT so a run never depends on a row still existing.
+    metadataPrompt: $('#cfgMetaPrompt')?.value.trim() || undefined,
+    // P40: silent mode — motion + captions on the script's timing, no voice, no TTS credit.
+    enableVoice: $('#cfgNoVoice')?.checked ? false : undefined,
     parallelTTS: $('#cfgPTts').checked,
     ttsConcurrency: +$('#cfgTtsC').value,
     parallelRender: $('#cfgPRender').checked,
@@ -139,6 +144,8 @@ export function applyConfig(cfg = {}) {
   if ($('#cfgHfConsistent')) $('#cfgHfConsistent').checked = cfg.hyperframe?.consistent === true;
   if ($('#cfgHfImageFull')) $('#cfgHfImageFull').checked = cfg.hyperframe?.imageFull !== false;
   if ($('#cfgBrandAssets')) $('#cfgBrandAssets').value = cfg.brandAssets === false ? 'none' : (cfg.brandAssets || 'auto');
+  if ($('#cfgNoVoice')) $('#cfgNoVoice').checked = cfg.enableVoice === false;
+  if ($('#cfgMetaPrompt')) $('#cfgMetaPrompt').value = cfg.metadataPrompt || '';
   if ($('#cfgOverlay')) {
     $('#cfgOverlay').checked = cfg.overlay?.enabled === true;
     if ($('#cfgOverlaySrc')) $('#cfgOverlaySrc').value = cfg.overlay?.source || '';
@@ -294,6 +301,32 @@ export async function loadBrandFolders() {
     + extra.map((b) => `<option value="${esc(b)}">Thư mục: ${esc(b)}</option>`).join('')
     + '<option value="none">Tắt</option>';
   sel.value = [...sel.options].some((o) => o.value === cur) ? cur : 'auto';
+}
+// Named SEO styles (P40): rows in the shared `styles` table, kind 'metadata'. Picking one fills
+// the prompt box; the panel still sends the resolved text, so a deleted row can't break a run.
+export async function loadMetadataStyles() {
+  const sel = $('#cfgMetaStyle');
+  if (!sel) return;
+  let styles = [];
+  try { styles = (await api.get('/styles?kind=metadata')).styles || []; } catch { return; }
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">— Mặc định —</option>'
+    + styles.map((st) => `<option value="${esc(st.id)}" data-prompt="${esc(st.prompt || '')}">${esc(st.name)}</option>`).join('');
+  sel.value = [...sel.options].some((o) => o.value === cur) ? cur : '';
+  sel.onchange = () => {
+    const opt = sel.selectedOptions[0];
+    if (opt && opt.dataset.prompt !== undefined) $('#cfgMetaPrompt').value = opt.dataset.prompt;
+  };
+  const save = $('#btnSaveMetaStyle');
+  if (save) save.onclick = async () => {
+    const prompt = $('#cfgMetaPrompt')?.value.trim();
+    if (!prompt) return toast('Nhập yêu cầu SEO trước đã.', 'error');
+    const name = await promptDialog({ title: 'Tên phong cách SEO', placeholder: 'vd: Chuyên gia, không giật tít' });
+    if (!name) return;
+    await api.post('/styles', { name, kind: 'metadata', prompt });
+    await loadMetadataStyles();
+    toast('Đã lưu phong cách ✓', 'success');
+  };
 }
 export async function loadBgmOptions() {
   const { items } = await api.get('/library/bgm');
