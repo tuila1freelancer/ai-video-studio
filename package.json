@@ -16,7 +16,9 @@
     "fonts:build": "node scripts/build-fonts.mjs",
     "fonts:build:ui": "node scripts/build-fonts.mjs --ui",
     "icon:build": "node scripts/build-icon.mjs",
-    "shell:build": "bash shell/build-app.sh"
+    "shell:build": "bash shell/build-app.sh",
+    "libs:build": "node scripts/build-libs.mjs",
+    "whisper:build": "node scripts/build-whisper-model.mjs"
   },
   "dependencies": {
     "better-sqlite3": "^12.4.1",

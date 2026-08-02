@@ -227,3 +227,32 @@ test('P36: single visual mode — kinetic-statement fallback survives, animation
   // no dispatch site keeps an image-mode branch
   assert.ok(!/=== 'image'/.test(src('src/pipeline/stages/finalize.js')), 'no image-mode guard left in finalize');
 });
+
+test('P40: the new lanes are additive — a project without them renders exactly as before', () => {
+  // Creative libraries are opt-in per scene: a spec that references none must inject none, so
+  // the page bytes of every pre-P40 scene are unchanged.
+  const harness = src('src/animation/harness.js');
+  assert.match(harness, /const libSrc = libIds\.length \? libsBundle\(libIds\) : '';/, 'no reference → no bundle');
+  assert.match(harness, /const libScript = libSrc \? `<script>\$\{libSrc\}<\\\/script>\\n` : '';/, 'no bundle → no tag at all');
+  // Brand casting only ever touches scenes the script left empty, and is opt-out.
+  const vis = src('src/pipeline/stages/visuals.js');
+  assert.match(vis, /scenes\.filter\(\(sc\) => !\(Array\.isArray\(sc\.assets\) && sc\.assets\.length\)\)/,
+    'an explicitly assigned asset outranks the cast');
+  assert.match(vis, /config\.hyperframe\?\.imageFull === false \? null : brandFolderFor\(config\)/, 'imageFull:false disables casting too');
+  // The AI thumbnail can never fail a render — the deterministic builder is always the backup.
+  assert.match(src('src/pipeline/stages/finalize.js'), /if \(!p\) p = await buildThumbnail\(/, 'thumbnail fallback');
+  // Overlay mode keeps its historic wrapping slice + narration audio unless mode==='edit'.
+  assert.match(src('src/animation/index.js'), /exact: edit, audioFrom: edit \? 'footage' : 'scene'/, 'plain overlay unchanged');
+  // Edit-video is routed by config only: a normal project never enters that branch.
+  assert.match(src('src/pipeline/edit-video.js'), /return !!\(config && config\.editVideo && config\.editVideo\.source\)/);
+});
+
+test('P40 determinism: window.__onSeek is the ONLY harness door, and rAF stays banned', () => {
+  const lint = src('src/hyperframe/lint.js');
+  assert.match(lint, /window\\s\*\\\.\\s\*__\(\?!onSeek\\b\)/, 'every other __ internal stays banned');
+  assert.match(lint, /requestAnimationFrame/, 'self-scheduling stays a hard error — the renderer scrubs frames');
+  const harness = src('src/animation/harness.js');
+  assert.match(harness, /window\.__runSeekHooks\(t, st\)/, 'hooks run inside __seek, after the timeline settled');
+  // a hook that throws must never take the whole seek (and thus the render) down
+  assert.match(harness, /try \{ fn\(t, st\); \} catch\(e\) \{ window\.__hookErr/, 'a broken hook is contained');
+});
