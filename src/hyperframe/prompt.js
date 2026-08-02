@@ -7,6 +7,7 @@
 // renderer needs, the FX toolkit and the locked style guide.
 // English instructions (models code better in English); on-screen text stays in the narration's language.
 import { SAMPLE_SPEC } from '../styleguide/index.js';
+import { advertisedLibs } from '../animation/libs.js';
 import { HF_ICON_NAMES } from './icons.js';
 import { directionBlock, beatsBlock } from './beats.js';
 import { motionSignature, signatureBlock } from './signatures.js';
@@ -60,7 +61,7 @@ TECHNICAL RULES (creative freedom, but break these and the frame renders WRONG):
 - DETERMINISM is sacred: identical input must render identical frames. No wall-clock (Date.now/performance.now), no network, no self-scheduling (setTimeout/setInterval/requestAnimationFrame). Randomness is fine — the harness reseeds it per scene — though rng() (a seeded PRNG) is clearest. (Your VARIETY comes from designing differently each time you are asked — not from runtime randomness.)
 - MOTION IS TRANSFORMS ONLY: animate transform (x/y/scale/rotation/skew), opacity, filter, clip-path, CSS variables — NEVER width/height/top/left/margin (they reflow and re-wrap text mid-tween; a bar fill is scaleX with transform-origin). No infinite CSS animation, no repeat:-1 (finite only: repeat: Math.max(0, Math.floor(DUR/period)-1)); every tween ends within 0..DUR, the last one ≈DUR.
 - POSITION every element with a slot wrapper <div class="hf-slot" style="left:_%;top:_%">…</div> — the slot owns the centring transform, so ANIMATE ONLY THE INNER element, never the slot. A slot stacks its children vertically with a gap; for a full-centre element use <div class="hf-center">…</div>. Two readable texts must never overlap (separate in space, or stagger in time).
-- DOM budget 30–160 elements; hero 8–20 crafted parts; no images, no external fonts, no <script>/<iframe>; inline SVG you draw is welcome (palette strokes, animate with FX.drawIn).
+- DOM budget 30–160 elements; hero 8–20 crafted parts; no external fonts, no external URLs, no <script>/<iframe> tags in your html; inline SVG you draw is welcome (palette strokes, animate with FX.drawIn), and a <canvas> is fine when a creative library drives it. Images ONLY via the {{asset:NAME}} placeholders the user message lists — never an invented src.
 
 MATERIALS (all optional — reach for what the scene needs, build the rest yourself):
 - Component classes, pre-styled to the guide (a convenience — bespoke surfaces encouraged): .hf-kw (hero keyword) · .hf-kw2 (medium) · .hf-sub (supporting line) · .hf-label (small mono tag) · .hf-card (glass panel) · .hf-chip (pill) · .hf-stat>.hf-stat-v(+.hf-stat-u)/.hf-stat-l (big number) · .hf-iconbox (icon holder, .sm) · .hf-row/.hf-col · .hf-underline · .hf-accent/2/3.
@@ -252,6 +253,32 @@ export function timelineSkeletonBlock(beats, direction, duration) {
 ${lines.join('\n')}`;
 }
 
+/**
+ * CREATIVE LIBRARIES (P40) — reference-app parity. The reference lets its model pull in up to 4
+ * CDN libraries (three.js, p5.js, …) and rewrites them to a local cache. We vendor the same set
+ * and inject only what a scene references, but the renderer scrubs a PAUSED timeline, so a
+ * library that draws on its own rAF clock would jitter. The block therefore teaches the ONE
+ * pattern that keeps such a layer deterministic: redraw from window.__onSeek(t).
+ * Returns '' when nothing is vendored, so a machine without vendor/libs never sees the offer.
+ */
+export function creativeLibsBlock(available = advertisedLibs()) {
+  const has = (id) => available.includes(id);
+  if (!available.length) return '';
+  const lines = [];
+  if (has('three')) {
+    lines.push('- three.js (global THREE) — real 3D: a slowly rotating wireframe globe//grid/particle field behind the type, a refracting shape, a depth tunnel. Create <canvas> in your html, `new THREE.WebGLRenderer({canvas:document.getElementById(\'yourCanvas\'),alpha:true,antialias:true})`, build the scene ONCE, then redraw per frame from the hook.');
+  }
+  if (has('p5')) {
+    lines.push('- p5.js (global p5) — generative 2D canvas art: flow fields, noise waves, particle constellations. INSTANCE MODE only, with s.noLoop() in setup and s.redraw() from the hook (never the global p5 or a draw loop).');
+  }
+  return `\nCREATIVE LIBRARIES (already loaded when you reference them — OPTIONAL, only reach for one when it genuinely lifts the scene; text-first scenes need none):
+${lines.join('\n')}
+- THE DETERMINISM RULE for any of them: the renderer SCRUBS a paused timeline, so nothing ticks by itself. Register a redraw hook ONCE and make the drawing a pure function of t:
+    window.__onSeek(function(t){ /* t = scene seconds */ mesh.rotation.y = t * 0.35; renderer.render(scene, camera); });
+  Do NOT call requestAnimationFrame, do NOT start an animation loop — a library layer without a hook renders frame 0 and then freezes.
+- Keep the library layer BEHIND the type (z-index below your slots, opacity ≤0.65) — it is atmosphere, never the message. Your typography, beats and GSAP timeline still carry the scene.`;
+}
+
 export function buildCodegenPrompt({ scene, beats, direction, guide, w, h, duration, idx, total, density, creativeDirection, hookVisual = '', captionsOn = true, modeBlocks = [], diversitySalt = 0 }) {
   const sig = motionSignature(direction, idx, diversitySalt);
   const densityNote = DENSITY_NOTE[density] || DENSITY_NOTE.rich; // rich is the house default — sparse scenes read cheap
@@ -292,6 +319,7 @@ BEAT TIMELINE (from the real voice word-timestamps — the visual for each beat 
 ${beatsBlock(beats, duration)}
 
 ICONS available (use as {{icon:name}}): ${HF_ICON_NAMES.join(', ')}
+${creativeLibsBlock()}
 
 EXAMPLE — ONE scene in the required FENCED FORMAT. Study the format and the technical shape ONLY; do NOT copy its layout, its content, or its style — your scene must look nothing like it:
 @@@CSS@@@
