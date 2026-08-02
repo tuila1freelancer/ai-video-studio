@@ -57,6 +57,8 @@ export function gatherConfig() {
       consistent: $('#cfgHfConsistent')?.checked || false,
       imageFull: $('#cfgHfImageFull') ? $('#cfgHfImageFull').checked : true,
     },
+    // P40 brand casting: 'auto' → the Default folder, a folder name → that folder, 'none' → off.
+    brandAssets: $('#cfgBrandAssets') ? $('#cfgBrandAssets').value : 'auto',
     overlay: $('#cfgOverlay')?.checked
       ? { enabled: true, source: $('#cfgOverlaySrc')?.value.trim() || null }
       : { enabled: false },
@@ -136,6 +138,7 @@ export function applyConfig(cfg = {}) {
   if ($('#cfgSoundDesign')) $('#cfgSoundDesign').checked = cfg.soundDesign !== false;
   if ($('#cfgHfConsistent')) $('#cfgHfConsistent').checked = cfg.hyperframe?.consistent === true;
   if ($('#cfgHfImageFull')) $('#cfgHfImageFull').checked = cfg.hyperframe?.imageFull !== false;
+  if ($('#cfgBrandAssets')) $('#cfgBrandAssets').value = cfg.brandAssets === false ? 'none' : (cfg.brandAssets || 'auto');
   if ($('#cfgOverlay')) {
     $('#cfgOverlay').checked = cfg.overlay?.enabled === true;
     if ($('#cfgOverlaySrc')) $('#cfgOverlaySrc').value = cfg.overlay?.source || '';
@@ -279,6 +282,19 @@ function wireHfStyle() {
 }
 
 // ---------------- bgm ----------------
+// Brand-asset casting picker (P40): the brand folders that hold mascot cutouts + concept art.
+export async function loadBrandFolders() {
+  const sel = $('#cfgBrandAssets');
+  if (!sel) return;
+  let brands = [];
+  try { brands = (await api.get('/brands')).brands || []; } catch { return; }
+  const cur = sel.value || 'auto';
+  const extra = brands.filter((b) => b && b !== 'Default');
+  sel.innerHTML = '<option value="auto">Tự động — thư mục Default</option>'
+    + extra.map((b) => `<option value="${esc(b)}">Thư mục: ${esc(b)}</option>`).join('')
+    + '<option value="none">Tắt</option>';
+  sel.value = [...sel.options].some((o) => o.value === cur) ? cur : 'auto';
+}
 export async function loadBgmOptions() {
   const { items } = await api.get('/library/bgm');
   $('#cfgBgm').innerHTML = '<option value="">— Không —</option>' + items.map((i) => `<option value="${esc(i.path)}">${esc(i.name)}</option>`).join('');

@@ -91,12 +91,29 @@ export function applyAssetMedia(spec, assets = []) {
   spec.html = html;
 }
 
-export function imageFullBlock(assetNames) {
-  return `IMAGE FULL MODE (this scene carries project media: ${assetNames.join(', ')}):
-- Place the FIRST listed media as the CENTER HERO covering ~75% of the frame: <img class="hf-media" src="{{asset:${assetNames[0]}}}"> inside a slot; object-fit:cover; rounded corners (~12px); soft box-shadow (0 20px 60px rgba(0,0,0,.6)).
+/**
+ * Media the scene carries. `media` = [{ name, character }]. A picture asset becomes the scene's
+ * hero; a brand CHARACTER cutout (P40) is a co-star instead — a transparent mascot blown up to
+ * hero size and cropped by object-fit reads as a mistake, so it gets its own placement rules.
+ */
+export function imageFullBlock(media) {
+  const list = (Array.isArray(media) ? media : []).map((m) => (typeof m === 'string' ? { name: m } : m)).filter((m) => m?.name);
+  const chars = list.filter((m) => m.character);
+  const pics = list.filter((m) => !m.character);
+  const out = [`SCENE MEDIA (this scene carries: ${list.map((m) => m.name).join(', ')}) — reference the file with the {{asset:NAME}} placeholder in src, never an invented path.`];
+  if (pics.length) {
+    out.push(`- HERO PICTURE "${pics[0].name}": place it as the CENTER HERO covering ~75% of the frame — <img class="hf-media" src="{{asset:${pics[0].name}}}"> inside a slot; object-fit:cover; rounded corners (~12px); soft box-shadow (0 20px 60px rgba(0,0,0,.6)).
 - Entrance: scale 0.9→1 + fade (power2.out, ~0.6s) at its beat; during hold give it a slow Ken Burns (scale 1→1.05 across the scene, ease:'none').
-- Text/keywords overlay ON TOP of the media with strong text-shadow; keep them near the edges of the media, never covering its center.
-- The stage stays dark behind it; do NOT stretch the media full-bleed and do NOT make it a tiny thumbnail.`;
+- Text/keywords overlay ON TOP of the picture with strong text-shadow; keep them near its edges, never covering its center.
+- Do NOT stretch it full-bleed and do NOT make it a tiny thumbnail.`);
+  }
+  if (chars.length) {
+    out.push(`- BRAND CHARACTER "${chars[0].name}" is a transparent cutout of the channel's mascot — a CO-STAR beside the message, never the hero and never a background. <img src="{{asset:${chars[0].name}}}" style="height:__px;width:auto"> with NO object-fit, NO crop, NO rounded corners, NO box, NO border and NO background behind it — the alpha edge IS the shape.
+- Place it in the LEFT or RIGHT third, standing on the lower half, sized 40–55% of the frame height; the type occupies the opposite side. It must never overlap the headline or the subtitle band.
+- Give it life: enter with a slide-in from its own edge + slight overshoot (back.out) at its beat, then a gentle breathing float during the hold (y ±6px, or scale 1↔1.02); a soft drop-shadow filter grounds it (drop-shadow(0 18px 30px rgba(0,0,0,.55))).`);
+  }
+  out.push('- The stage stays dark behind everything; the media supports the narration, it never replaces the typography.');
+  return out.join('\n');
 }
 
 /**
@@ -113,7 +130,7 @@ export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, on
   if (overlay) modeBlocks.push(overlayBlock());
   if (consistent) modeBlocks.push(consistentScenesBlock(guide));
   const media = (Array.isArray(imageFullAssets) ? imageFullAssets : []).filter((a) => a?.name && a?.uri);
-  if (media.length) modeBlocks.push(imageFullBlock(media.map((a) => a.name)));
+  if (media.length) modeBlocks.push(imageFullBlock(media));
   const messages = buildCodegenPrompt({ scene, beats, direction, guide, w, h, duration, idx, total, density, creativeDirection, hookVisual, captionsOn, modeBlocks, diversitySalt });
 
   let lastErrors = null;
