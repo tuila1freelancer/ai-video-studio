@@ -19,8 +19,24 @@ const FPS = 30;
 // those still stand out. Videos with no roles anywhere (template/image modes, older projects)
 // keep the legacy uniform fade the owner's "smooth transitions" always produced.
 const ROLE_RE = /\[ROLE\]\s*(\w+)/i;
-export function planTransitions({ scenes, clipCount, nIntro = 0, nOutro = 0, legacyDur = 0.5, softDur = 0.2 }) {
+// User-pickable transition styles (P43). 'auto' keeps the storytelling doctrine below — the
+// default, and still the best answer — but the owner can now name one look for the whole video
+// the way the reference app lets him, or 'varied' to rotate deterministically. Every value is a
+// real ffmpeg xfade transition, verified against the vendored build.
+export const TRANSITION_STYLES = ['auto', 'fade', 'dissolve', 'slideleft', 'circlecrop', 'circleopen', 'smoothleft', 'zoomin', 'pixelize', 'radial', 'wipeleft', 'varied', 'none'];
+const VARIED_CYCLE = ['fade', 'dissolve', 'slideleft', 'circleopen', 'smoothleft', 'zoomin'];
+
+export function planTransitions({ scenes, clipCount, nIntro = 0, nOutro = 0, legacyDur = 0.5, softDur = 0.2, style = 'auto' }) {
   const n = Math.max(0, clipCount - 1);
+  // An explicit style overrides the role doctrine entirely: the owner asked for ONE look.
+  if (style && style !== 'auto') {
+    if (style === 'none') return Array.from({ length: n }, () => ({ type: 'cut', dur: 0 }));
+    if (style === 'varied') {
+      // deterministic rotation — the same video always cuts the same way
+      return Array.from({ length: n }, (_, b) => ({ type: VARIED_CYCLE[b % VARIED_CYCLE.length], dur: 0.4 }));
+    }
+    if (TRANSITION_STYLES.includes(style)) return Array.from({ length: n }, () => ({ type: style, dur: 0.4 }));
+  }
   const roles = scenes.map((s) => (ROLE_RE.exec(s.visual_prompt || '')?.[1] || '').toLowerCase());
   const anyRole = roles.some(Boolean);
   const plan = [];
