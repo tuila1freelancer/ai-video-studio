@@ -23,6 +23,8 @@ import { getVoiceCatalog } from './services/voice-catalog.js';
 
 const upload = multer({ dest: DIRS.uploads, limits: { fileSize: 512 * 1024 * 1024 } });
 
+const safeJsonParse = (v) => { try { return JSON.parse(v); } catch { return null; } };
+
 export function mountRoutes(app, { version }) {
   const r = express.Router();
 
@@ -106,6 +108,35 @@ export function mountRoutes(app, { version }) {
   r.get('/styles', (req, res) => res.json({ styles: DB.listStyles(req.query.kind || 'scene') }));
   r.post('/styles', (req, res) => res.json({ style: DB.createStyle({ ...req.body }) }));
   r.delete('/styles/:id', (req, res) => { DB.deleteStyle(req.params.id); res.json({ ok: true }); });
+
+  // Logo presets (P42 — reference `/logo-presets*`): a named, reusable {logo file + placement}.
+  // Stored as rows in the shared `styles` table (kind 'logo', payload JSON in `prompt`), the same
+  // way named SEO styles work — no new table, and a preset is portable across channels.
+  r.get('/logo-presets', (req, res) => {
+    const presets = (DB.listStyles('logo') || []).map((row) => ({
+      id: row.id, name: row.name, ...(safeJsonParse(row.prompt) || {}),
+    })).filter((x) => x.assetPath);
+    res.json({ presets });
+  });
+  r.post('/logo-presets', (req, res) => {
+    const name = String(req.body?.name || '').trim();
+    const assetPath = String(req.body?.assetPath || '').trim();
+    if (!name || !assetPath) return res.status(400).json({ error: 'cần tên và file logo' });
+    if (!inAllowedRoots(resolve(assetPath)) || !existsSync(assetPath)) return res.status(400).json({ error: 'file logo không hợp lệ' });
+    // geometry travels with the file — applying a preset must restore WHERE it sat, not just which image
+    const g = req.body?.placement || {};
+    const payload = {
+      assetPath,
+      placement: {
+        cxPct: Number.isFinite(+g.cxPct) ? +g.cxPct : 0.92,
+        cyPct: Number.isFinite(+g.cyPct) ? +g.cyPct : 0.06,
+        wPct: Number.isFinite(+g.wPct) ? +g.wPct : 0.085,
+        opacity: Number.isFinite(+g.opacity) ? +g.opacity : 0.9,
+      },
+    };
+    res.json({ preset: { ...DB.createStyle({ name, kind: 'logo', prompt: JSON.stringify(payload) }), ...payload } });
+  });
+  r.delete('/logo-presets/:id', (req, res) => { DB.deleteStyle(req.params.id); res.json({ ok: true }); });
 
   // ---- channels ----
   // Secrets (per-channel AI keys) are masked on every egress and a '••' round-trip
@@ -233,6 +264,38 @@ export function mountRoutes(app, { version }) {
     const p = DB.getProject(req.params.id);
     if (!p) return res.status(404).json({ error: 'not found' });
     res.json({ project: DB.updateProject(p.id, req.body || {}) });
+  });
+  // Reuse another project's assets (P42 — reference `/projects/:id/copy-assets-from/:sourceId`).
+  // The files are shared by PATH, not copied: both projects then point at the same media, which
+  // is what the owner means by "use the same pictures" and costs no disk.
+  r.post('/projects/:id/copy-assets-from/:sourceId', async (req, res) => {
+    try {
+      const p = DB.getProject(req.params.id), src = DB.getProject(req.params.sourceId);
+      if (!p || !src) return res.status(404).json({ error: 'not found' });
+      const { normalizeAssets } = await import('../pipeline/brand-assets.js');
+      const from = normalizeAssets(src.config?.assets).filter((a) => existsSync(a.path));
+      if (!from.length) return res.status(400).json({ error: 'dự án nguồn không có asset nào còn trên đĩa' });
+      const have = new Set(normalizeAssets(p.config?.assets).map((a) => a.path));
+      const merged = [...normalizeAssets(p.config?.assets), ...from.filter((a) => !have.has(a.path))];
+      DB.updateProject(p.id, { config: { ...(p.config || {}), assets: merged } });
+      res.json({ ok: true, added: merged.length - have.size, total: merged.length });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+  // Restart from scratch (P42 — reference `/projects/:id/restart`): same topic and config, all
+  // generated work discarded. Deliberately a NEW project rather than an in-place wipe, so the
+  // previous attempt stays on disk to compare against and nothing is destroyed by one click.
+  r.post('/projects/:id/restart', async (req, res) => {
+    try {
+      const p = DB.getProject(req.params.id);
+      if (!p) return res.status(404).json({ error: 'not found' });
+      const cfg = { ...(p.config || {}), ...(req.body?.config || {}) };
+      const fresh = DB.createProject({
+        title: p.title, topic: p.topic, inputType: p.input_type,
+        aspectRatio: cfg.aspectRatio || p.aspect_ratio, config: cfg, channelId: p.channel_id,
+      });
+      Pipeline.startProject(fresh.id).catch((e) => logger.error(`restart failed: ${e.message}`, { projectId: fresh.id }));
+      res.json({ projectId: fresh.id, status: 'running' });
+    } catch (e) { res.status(500).json({ error: e.message }); }
   });
   r.delete('/projects/:id', (req, res) => { DB.deleteProject(req.params.id); res.json({ ok: true }); });
   r.delete('/projects', (req, res) => { DB.deleteAllProjects(); res.json({ ok: true }); });
@@ -572,6 +635,30 @@ export function mountRoutes(app, { version }) {
       res.send('<meta charset="utf-8"><body style="font-family:sans-serif;background:#0b1020;color:#eaf2ff;display:grid;place-items:center;height:100vh"><div>✅ Đã kết nối YouTube — bạn có thể đóng tab này.</div></body>');
     } catch (e) { res.status(400).send(`OAuth lỗi: ${e.message}`); }
   });
+  // AI post caption (P42 — reference `/publish/generate-caption`). A YouTube description is not
+  // a Facebook caption: this writes the SHORT hook-first post copy for the platform, from the
+  // narration the video actually contains rather than from its title.
+  r.post('/publish/generate-caption', async (req, res) => {
+    try {
+      const p = DB.getProject(req.body?.projectId || '');
+      if (!p) return res.status(404).json({ error: 'not found' });
+      const { chat, llmEnabled } = await import('../providers/llm.js');
+      const ai = DB.aiSettings();
+      if (!llmEnabled(ai.llm)) return res.status(400).json({ error: 'chưa bật LLM trong AI Setting' });
+      const platform = ['facebook', 'youtube', 'tiktok'].includes(req.body?.platform) ? req.body.platform : 'facebook';
+      const script = DB.getScenes(p.id).map((s) => (s.voice_text || '').trim()).filter(Boolean).join('\n').slice(0, 5000);
+      const reply = await chat([
+        { role: 'system', content: `You write short social captions for ${platform}. Reply with the caption text ONLY — no quotes, no preamble, no markdown.` },
+        { role: 'user', content: `Video title: "${p.title || p.topic}"\n\nWhat the video actually says:\n<<<\n${script}\n>>>\n\nWrite the ${platform} caption in the SAME LANGUAGE as the narration: a hook in the first line (that is all most people see), 2-4 short lines of real substance drawn from the script above, then 3-5 hashtags. Never promise anything the script does not deliver. No emoji spam — two at most.` },
+      ], { temperature: 0.8, maxTokens: 700, llm: ai.llm });
+      const caption = String(reply || '').trim().replace(/^["']|["']$/g, '');
+      if (!caption) return res.status(502).json({ error: 'model không trả về caption' });
+      const md = p.metadata || {};
+      DB.updateProject(p.id, { metadata: { ...md, captions: { ...(md.captions || {}), [platform]: caption } } });
+      res.json({ platform, caption });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
   // Facebook Page connect/disconnect — a pasted Page access token, verified against the Page
   // (P40). No OAuth dance: this is a desktop tool and the reference app works the same way.
   r.post('/publish/facebook/connect', async (req, res) => {
@@ -600,7 +687,8 @@ export function mountRoutes(app, { version }) {
       const md = p.metadata || {};
       const recId = DB.recordPublish({ projectId: p.id, platform: pub.id, privacy });
       const out = await pub.upload({
-        videoPath: p.video_path, title: md.title || p.title, description: md.description || '',
+        // a platform-shaped caption (P42) outranks the generic description when one was written
+        videoPath: p.video_path, title: md.title || p.title, description: md.captions?.[pub.id] || md.description || '',
         tags: (md.platforms?.[pub.id]?.tags || md.platforms?.youtube?.tags || md.hashtags || []).map((t) => String(t).replace(/^#/, '')),
         privacy, thumbPath: p.thumb_path && existsSync(p.thumb_path) ? p.thumb_path : null,
         // Facebook picks reels vs feed video from the shape, and can pin a first comment.
