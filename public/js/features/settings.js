@@ -49,16 +49,54 @@ function renderProviderFields() {
   const schema = (state.providers.find((p) => p.id === pid) || {}).configSchema || [];
   const saved = state.settings?.tts?.providers?.[pid] || {};
   $('#provFields').innerHTML = schema.length
-    ? schema.map((f) => `<div class="field"><label class="label">${esc(f.label)}${f.required ? ' *' : ''}</label>
+    ? schema.map((f) => (f.type === 'checkbox'
+      // a boolean knob is a switch, not a box you type "true" into (P40: Supertonic autoStart)
+      ? `<label class="switch-row"><span class="switch"><input type="checkbox" class="prov-field" data-key="${f.key}"${saved[f.key] ? ' checked' : ''}><span class="sl"></span></span> ${esc(f.label)}</label>`
+      : `<div class="field"><label class="label">${esc(f.label)}${f.required ? ' *' : ''}</label>
         <input class="input prov-field" data-key="${f.key}" type="${f.type === 'password' ? 'password' : 'text'}"
-          placeholder="${esc(f.placeholder || '')}" value="${esc(saved[f.key] || '')}"></div>`).join('')
+          placeholder="${esc(f.placeholder || '')}" value="${esc(saved[f.key] || '')}"></div>`)).join('')
+      + serverControls(pid)
     : '<div class="hint" style="margin-bottom:8px">Provider này không cần cấu hình — dùng ngay.</div>';
   $('#provTestResult').textContent = '';
+  wireServerControls(pid);
 }
 function collectProviderFields() {
   const out = {};
-  $$('#provFields .prov-field').forEach((i) => { if (i.value.trim()) out[i.dataset.key] = i.value.trim(); });
+  $$('#provFields .prov-field').forEach((i) => {
+    if (i.type === 'checkbox') out[i.dataset.key] = i.checked;
+    else if (i.value.trim()) out[i.dataset.key] = i.value.trim();
+  });
   return out;
+}
+
+// A LOCAL provider needs a process, not a key — offer start/stop/status right where it is
+// configured (P40, Supertonic).
+function serverControls(pid) {
+  if (pid !== 'supertonic') return '';
+  return `<div class="field"><label class="label">Server cục bộ</label>
+    <button class="btn sm" id="ttsSrvStart">▶ Khởi động</button>
+    <button class="btn sm" id="ttsSrvStop">⏹ Dừng</button>
+    <button class="btn sm" id="ttsSrvStatus">🔄 Kiểm tra</button>
+    <div class="hint" id="ttsSrvOut" style="margin-top:6px">Cài một lần: <code>pip install supertonic</code></div></div>`;
+}
+function wireServerControls(pid) {
+  if (pid !== 'supertonic') return;
+  const out = $('#ttsSrvOut');
+  const show = (r) => {
+    const s = r?.supertonic || {};
+    out.textContent = r?.error
+      ? `❌ ${r.error}`
+      : `${s.running ? '🟢 đang chạy' : '⚪️ chưa chạy'} · ${s.url || ''}${s.installed ? '' : ' · chưa cài (pip install supertonic)'}`;
+  };
+  $('#ttsSrvStart')?.addEventListener('click', async () => {
+    out.textContent = '⏳ đang khởi động…';
+    show(await api.post('/tts/server/start', collectProviderFields()));
+  });
+  $('#ttsSrvStop')?.addEventListener('click', async () => {
+    const r = await api.post('/tts/server/stop', {});
+    out.textContent = r?.error ? `❌ ${r.error}` : (r?.stopped ? '⏹ đã dừng' : 'không có server nào do app quản lý');
+  });
+  $('#ttsSrvStatus')?.addEventListener('click', async () => show(await api.get('/tts/server/status')));
 }
 async function testProvider() {
   const pid = $('#setTtsProvider').value;
