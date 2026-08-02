@@ -60,7 +60,7 @@ export async function finalize(projectId, { dir, size, config }) {
   // Doctrine transition plan (P5): hard cuts by default, role-driven hero transitions.
   // Computed BEFORE the SFX bed and QC so their timelines account for xfade overlaps exactly.
   const transPlan = config.transitions === true && clips.length > 1
-    ? planTransitions({ scenes, clipCount: clips.length, nIntro: 0, nOutro: 0 })
+    ? planTransitions({ scenes, clipCount: clips.length, nIntro: 0, nOutro: 0, style: config.transitionStyle || 'auto' })
     : null;
   // cumulative xfade loss BEFORE scene k's clip starts (clip index == scene order now)
   const lossBeforeScene = (k) => (transPlan ? transitionLoss(transPlan, k) : 0);

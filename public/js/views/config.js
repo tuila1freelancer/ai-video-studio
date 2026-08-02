@@ -89,6 +89,8 @@ export function gatherConfig() {
     // config merge while the panel shows target mode.
     durationMode: $('#cfgDurMode')?.value === 'auto' ? 'auto' : 'target',
     transitions: $('#cfgTrans').checked,
+    // P43: the owner can name ONE look for the whole video; 'auto' keeps the role doctrine
+    transitionStyle: $('#cfgTransStyle')?.value || 'auto',
     autoBgm: $('#cfgBgmAuto').checked,
     generateMetadata: $('#cfgMeta').checked,
     // P40: named SEO styles are rows in the shared `styles` table (kind 'metadata'); the panel
@@ -138,6 +140,7 @@ export function applyConfig(cfg = {}) {
   if ('sceneGate' in cfg && $('#cfgSceneGate')) $('#cfgSceneGate').checked = cfg.sceneGate === true;
   if ($('#cfgDurMode')) $('#cfgDurMode').value = cfg.durationMode === 'auto' ? 'auto' : 'target';
   if ('transitions' in cfg) $('#cfgTrans').checked = !!cfg.transitions;
+  if ($('#cfgTransStyle')) $('#cfgTransStyle').value = cfg.transitionStyle || 'auto';
   if ('autoBgm' in cfg) $('#cfgBgmAuto').checked = cfg.autoBgm !== false;
   if ('generateMetadata' in cfg) $('#cfgMeta').checked = cfg.generateMetadata !== false;
   if ($('#cfgSoundDesign')) $('#cfgSoundDesign').checked = cfg.soundDesign !== false;

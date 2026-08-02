@@ -11,6 +11,7 @@ import { initConfig, buildSubColors, updateEstimate, loadBgmOptions, loadBrandFo
 import { initLibrary } from './views/library.js';
 import { initBrandGen } from './views/brandgen.js';
 import { initEditVideo } from './views/editvideo.js';
+import { initDragDrop } from './features/dragdrop.js';
 import { initPlayer } from './views/player.js';
 import { initSettings, loadVoices, loadSettings } from './features/settings.js';
 import { initVoicePicker } from './features/voicepicker.js';
@@ -37,6 +38,7 @@ async function init() {
   initLibrary();
   initBrandGen();
   initEditVideo();
+  initDragDrop();
   initPlayer();
   initSettings();
   initVoicePicker();
