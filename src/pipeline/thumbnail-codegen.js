@@ -34,6 +34,21 @@ WHAT MAKES A THUMBNAIL WORK (obey all of it):
 
 OUTPUT: ONLY the markup that goes INSIDE the stage — a fragment, not a document. Start with a <style> block containing your CSS, then your HTML elements. No <!DOCTYPE>, no <html>, no <head>, no <body>, no markdown fence, no explanation.`;
 
+/**
+ * Swap `{{asset:NAME}}` placeholders for the resolved data URIs, then strip any that stayed
+ * unresolved (and the <img> around them) so a hallucinated name can never 404 the render.
+ * Same contract as the scene lane's applyAssetMedia, so the model only has to learn one.
+ */
+export function applyThumbAssets(fragment, media = []) {
+  let html = String(fragment || '');
+  for (const a of media) {
+    if (!a?.name || !a?.uri) continue;
+    const re = new RegExp(`\\{\\{\\s*asset\\s*:\\s*${a.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\}\\}`, 'gi');
+    html = html.replace(re, a.uri);
+  }
+  return html.replace(/<img\b[^>]*\{\{\s*asset\s*:[^}]*\}\}[^>]*>/gi, '').replace(/\{\{\s*asset\s*:[^}]*\}\}/gi, '');
+}
+
 /** Strip anything that could animate, execute, or fetch — a thumbnail is one static paint. */
 export function sanitizeThumbFragment(raw) {
   let s = String(raw || '').trim();
@@ -44,7 +59,7 @@ export function sanitizeThumbFragment(raw) {
     .replace(/<(?:iframe|object|embed|link|meta)\b[^>]*>/gi, '')
     .replace(/\son[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')        // inline handlers
     .replace(/@import[^;]+;/gi, '')
-    .replace(/(?:src|href)\s*=\s*["'](?:https?:)?\/\/[^"']*["']/gi, '')   // external resources
+    .replace(/(?:src|href)\s*=\s*["'](?:https?:)?\/\/[^"']*["']/gi, '')   // external resources (a data: URI is local — kept)
     .replace(/url\(\s*["']?(?:https?:)?\/\/[^)]*\)/gi, 'none')
     .replace(/animation\s*:[^;"}]*/gi, '')                                // no motion in a still
     .replace(/@keyframes[^{]*\{(?:[^{}]*\{[^{}]*\})*[^{}]*\}/gi, '');
@@ -71,12 +86,21 @@ body{font-family:${f.display || 'Be Vietnam Pro'},Arial,sans-serif;color:${p.ink
  * Split out so the owner can re-render an edited design without paying for another generation.
  * @returns {Promise<string|null>} the written image path.
  */
-export async function renderThumbnailFragment(fragment, { guide, size, outPath } = {}) {
+export async function renderThumbnailFragment(fragment, { guide, size, outPath, media = [] } = {}) {
   if (!chromeAvailable()) return null;
   const clean = sanitizeThumbFragment(fragment);
   if (clean.length < 40) return null;
   const w = size?.w || 1280, h = size?.h || 720;
-  return screenshotHtml(shell(clean, { w, h, guide }), { w, h, outPath });
+  return screenshotHtml(shell(applyThumbAssets(clean, media), { w, h, guide }), { w, h, outPath });
+}
+
+/** The owner's own pictures, offered to the model by NAME (P40 — it was text+CSS only before). */
+function assetBlock(media = []) {
+  const list = (media || []).filter((m) => m?.name && m?.uri);
+  if (!list.length) return '';
+  return `\nOWNER'S PICTURES you may use (reference one with the placeholder EXACTLY as written — never invent a src):
+${list.map((m) => `- {{asset:${m.name}}}`).join('\n')}
+Use at most ONE, as the focal subject or a background layer under a dark gradient — the headline must stay the loudest thing in the frame. Ignore them entirely if a pure graphic composition is stronger.`;
 }
 
 /**
@@ -85,7 +109,7 @@ export async function renderThumbnailFragment(fragment, { guide, size, outPath }
  *   so the owner can edit and re-render it), or null when unavailable/unusable.
  */
 export async function generateThumbnailImage({
-  title, hook = '', prompt = '', guide, size, outPath, language = 'vi', variant = 0, llm = null, onLog = () => {},
+  title, hook = '', prompt = '', guide, size, outPath, language = 'vi', variant = 0, media = [], llm = null, onLog = () => {},
 } = {}) {
   if (!chromeAvailable() || !llmEnabled(llm)) return null;
   const w = size?.w || 1280, h = size?.h || 720;
@@ -101,7 +125,7 @@ LOCKED FONTS: display ${f.display || 'Be Vietnam Pro'} · body ${f.body || 'Be V
 LANGUAGE: every visible character must be in ${language === 'vi' ? 'Vietnamese, with correct diacritics' : language}.
 
 COMPOSITION FOR THIS ONE: ${COMPOSITIONS[variant % COMPOSITIONS.length]}
-
+${assetBlock(media)}
 Reply with ONLY the <style> block and the markup.`;
 
   try {
@@ -111,7 +135,7 @@ Reply with ONLY the <style> block and the markup.`;
     ], { temperature: 0.9, maxTokens: 4000, llm });
     const fragment = sanitizeThumbFragment(reply);
     if (fragment.length < 80) { onLog('thumbnail AI: reply quá ngắn — dùng bản dựng sẵn'); return null; }
-    const path = await screenshotHtml(shell(fragment, { w, h, guide }), { w, h, outPath });
+    const path = await screenshotHtml(shell(applyThumbAssets(fragment, media), { w, h, guide }), { w, h, outPath });
     onLog(`thumbnail AI: đã dựng bản ${variant + 1}`);
     return { path, fragment };
   } catch (e) {

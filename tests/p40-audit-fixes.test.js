@@ -73,3 +73,27 @@ test('P40: named SEO styles reuse the shared styles table and never leave a run 
   assert.match(cfg, /metadataPrompt: \$\('#cfgMetaPrompt'\)\?\.value\.trim\(\)/,
     'the panel sends the RESOLVED prompt, so deleting the row later cannot break a queued run');
 });
+
+test('P40: the thumbnail designer may use the owner\'s own pictures, safely', async () => {
+  const { applyThumbAssets } = await import('../src/pipeline/thumbnail-codegen.js');
+  const out = applyThumbAssets(
+    '<img src="{{asset:a.jpg}}"><img src="{{asset:ghost.png}}"><b>{{asset:nope}}</b>',
+    [{ name: 'a.jpg', uri: 'data:image/jpeg;base64,AAA' }],
+  );
+  assert.match(out, /src="data:image\/jpeg;base64,AAA"/, 'a real asset resolves');
+  assert.ok(!/ghost\.png|nope|\{\{asset/.test(out), 'an invented name never reaches the render');
+  assert.equal(applyThumbAssets(null, []), '');
+  // finalize and the regen route both offer the pictures
+  assert.match(src('../src/pipeline/stages/finalize.js'), /media: thumbMedia/);
+  assert.match(src('../src/api/routes.js'), /media, llm: DB\.aiSettings\(\)\.llm/);
+});
+
+test('P40: image search works with NO api key — a real catalog, not gradients', () => {
+  const s = src('../src/providers/imagesearch.js');
+  assert.match(s, /api\.openverse\.org/, 'a keyless web image search exists');
+  assert.match(s, /license_type: 'commercial,modification'/, 'only images that are safe to publish');
+  // the phrases must be tried one at a time; concatenating them matches nothing
+  assert.match(s, /for \(const term of \[keywords\?\.\[0\], query\]\.filter\(Boolean\)\)/);
+  // and the offline gradient generator stays the LAST resort, not a step everyone pays for
+  assert.ok(s.indexOf('api.openverse.org') < s.indexOf('await makeGradientImage('), 'placeholders are generated only after the real search failed');
+});
