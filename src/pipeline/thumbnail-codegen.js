@@ -109,6 +109,36 @@ Use at most ONE, as the focal subject or a background layer under a dark gradien
 }
 
 /**
+ * Edit an EXISTING thumbnail design by instruction (P42), e.g. "làm tiêu đề to hơn và đổi sang
+ * vàng, giữ nguyên phần còn lại". Re-designing from scratch loses everything the owner liked;
+ * this returns the same markup with only the requested change applied.
+ * @returns {Promise<string|null>} the edited fragment, or null when unusable.
+ */
+export async function editThumbnailFragment(fragment, instruction, { guide, llm = null, onLog = () => {} } = {}) {
+  const current = sanitizeThumbFragment(fragment);
+  const want = String(instruction || '').trim();
+  if (!current || !want || !llmEnabled(llm)) return null;
+  const p = guide?.palette || {};
+  try {
+    const reply = await chat([
+      { role: 'system', content: `${SYS}\n\nYOU ARE EDITING an existing thumbnail, not designing a new one. Apply ONLY what is asked and change nothing else — same structure, same elements, same wording, same positions, except where the instruction requires otherwise. Return the COMPLETE edited fragment (style block + markup), never a diff and never a fragment of it.` },
+      { role: 'user', content: `LOCKED PALETTE: bg ${p.bg || '#0b1220'} · ink ${p.ink || '#ffffff'} · accents ${(p.accents || ['#f7b500']).join(' ')}
+
+CURRENT THUMBNAIL:
+${current}
+
+CHANGE REQUESTED: ${want}
+
+Reply with ONLY the complete edited <style> block and markup.` },
+    ], { temperature: 0.35, maxTokens: 4000, llm });
+    const next = sanitizeThumbFragment(reply);
+    // a reply that collapsed the design is a failed edit, not an edit worth shipping
+    if (next.length < Math.max(80, current.length * 0.4)) { onLog('thumbnail edit: reply quá ngắn — giữ bản cũ'); return null; }
+    return next;
+  } catch (e) { onLog(`thumbnail edit: bỏ qua (${e.message.slice(0, 120)})`); return null; }
+}
+
+/**
  * Design one thumbnail with the LLM and rasterize it.
  * @returns {Promise<{path,fragment}|null>} the written image + the markup that produced it (kept
  *   so the owner can edit and re-render it), or null when unavailable/unusable.
