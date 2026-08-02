@@ -221,9 +221,14 @@ export async function renderAnimationScene(scene, project, config, { dir, progre
   if (overlayOn) {
     const { compositeColorkey } = await import('../media/ffmpeg.js');
     const finalPath = join(dir, `scene_${String(scene.idx).padStart(3, '0')}.mp4`);
+    // Edit-video mode (P40): the scenes were cut FROM this footage, so each one composites onto
+    // its exact source moment and keeps the original soundtrack. Plain overlay mode keeps the
+    // historic behaviour — a wrapping slice of B-roll under a narrated scene.
+    const edit = config.overlay.mode === 'edit';
     await compositeColorkey(res.path, config.overlay.source, finalPath, {
       start: progressStart || 0, duration: res.duration, w, h, fps,
       key: (config.overlay.key || '#050510').replace('#', '0x'),
+      exact: edit, audioFrom: edit ? 'footage' : 'scene',
     });
     return { ...res, path: finalPath, preview: existsSync(previewPath) ? previewPath : null };
   }

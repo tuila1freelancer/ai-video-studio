@@ -45,9 +45,12 @@ export const PATHS = {
     join(VENDOR_DIR, 'whisper', 'whisper-cli'),
     join(ORIG_APP, 'whisper', 'whisper-cli')
   ) || which('whisper-cli'),
+  // Biggest model wins. Transcript quality is the ceiling for the edit-video lane (P40), where
+  // there is no script to align against — ggml-small mangles Vietnamese diacritics badly. Drop a
+  // larger ggml file into vendor/whisper/models/ and it is picked up with no config change.
   whisperModel: process.env.AVS_WHISPER_MODEL || firstExisting(
-    join(VENDOR_DIR, 'whisper', 'models', 'ggml-small.bin'),
-    join(ORIG_APP, 'whisper', 'models', 'ggml-small.bin')
+    ...['large-v3-turbo', 'large-v3', 'large-v2', 'large', 'medium', 'small', 'base']
+      .flatMap((m) => [join(VENDOR_DIR, 'whisper', 'models', `ggml-${m}.bin`), join(ORIG_APP, 'whisper', 'models', `ggml-${m}.bin`)])
   ),
   chrome: process.env.AVS_CHROME || firstExisting(
     join(VENDOR_DIR, 'chrome', 'Google Chrome for Testing.app', 'Contents', 'MacOS', 'Google Chrome for Testing'),

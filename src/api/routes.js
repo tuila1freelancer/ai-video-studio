@@ -1032,6 +1032,30 @@ export function mountRoutes(app, { version }) {
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
+  // ---- edit video (P40): motion graphics onto footage the owner already has ----
+  // Creates a normal project carrying config.editVideo, then starts it through the ordinary
+  // queue — so stop/resume/re-render/the job ledger all work exactly as for a scripted video.
+  r.post('/edit-video/start', async (req, res) => {
+    try {
+      const { path: inPath, title, language, config } = req.body || {};
+      const src = resolve(inPath || '');
+      if (!inAllowedRoots(src) || !existsSync(src)) return res.status(400).json({ error: 'file không hợp lệ' });
+      const { createEditVideoProject } = await import('../pipeline/edit-video.js');
+      const project = await createEditVideoProject({
+        source: src, title, language: language || 'auto', config: config || {},
+      });
+      Pipeline.startProject(project.id).catch((e) => logger.error(`edit-video failed: ${e.message}`, { projectId: project.id }));
+      res.json({ projectId: project.id, aspectRatio: project.aspect_ratio, status: 'running' });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+  // Full transcript of an edit-video project, as SRT on the finished timeline.
+  r.get('/edit-video/:id/srt', async (req, res) => {
+    try {
+      const { editVideoSrt } = await import('../pipeline/edit-video.js');
+      res.type('text/plain').send(editVideoSrt(req.params.id));
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
   // duration estimate helper used by the UI
   r.post('/estimate', (req, res) => {
     const { videoDuration = 60, sceneDuration = 7, language } = req.body || {};
