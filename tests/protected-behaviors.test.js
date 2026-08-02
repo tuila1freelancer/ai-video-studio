@@ -240,7 +240,7 @@ test('P40: the new lanes are additive — a project without them renders exactly
     'an explicitly assigned asset outranks the cast');
   assert.match(vis, /config\.hyperframe\?\.imageFull === false \? null : brandFolderFor\(config\)/, 'imageFull:false disables casting too');
   // The AI thumbnail can never fail a render — the deterministic builder is always the backup.
-  assert.match(src('src/pipeline/stages/finalize.js'), /if \(!p\) p = await buildThumbnail\(/, 'thumbnail fallback');
+  assert.match(src('src/pipeline/stages/finalize.js'), /const p = ai\?\.path \|\| await buildThumbnail\(/, 'thumbnail fallback');
   // Overlay mode keeps its historic wrapping slice + narration audio unless mode==='edit'.
   assert.match(src('src/animation/index.js'), /exact: edit, audioFrom: edit \? 'footage' : 'scene'/, 'plain overlay unchanged');
   // Edit-video is routed by config only: a normal project never enters that branch.

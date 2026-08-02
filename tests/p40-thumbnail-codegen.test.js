@@ -5,7 +5,7 @@ import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { sanitizeThumbFragment, generateThumbnailImage } from '../src/pipeline/thumbnail-codegen.js';
+import { sanitizeThumbFragment, generateThumbnailImage, renderThumbnailFragment } from '../src/pipeline/thumbnail-codegen.js';
 
 const src = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 
@@ -39,6 +39,18 @@ test('P40-D: an empty or unusable reply yields nothing rather than a broken imag
 test('P40-D: finalize tries the AI design first and always has a deterministic backup', () => {
   const f = src('../src/pipeline/stages/finalize.js');
   assert.match(f, /generateThumbnailImage\(/, 'AI lane wired in');
-  assert.match(f, /if \(!p\) p = await buildThumbnail\(/, 'deterministic builder is the fallback');
+  assert.match(f, /const p = ai\?\.path \|\| await buildThumbnail\(/, 'deterministic builder is the fallback');
+  assert.match(f, /if \(v === 0 && ai\?\.fragment\) thumbHtml = ai\.fragment/, 'the design markup is kept so it can be edited later');
   assert.match(f, /config\.thumbnailAi !== false/, 'the lane is opt-out');
+});
+
+test('P40-D: an edited design re-renders without paying for another generation', async () => {
+  // renderThumbnailFragment is the split-out rasterizer behind /thumbnail/regen { html }
+  assert.equal(await renderThumbnailFragment('', {}), null, 'empty markup renders nothing');
+  assert.equal(await renderThumbnailFragment('<div>x</div>', {}), null, 'a scrap is not a design');
+  const routes = src('../src/api/routes.js');
+  assert.match(routes, /'\/projects\/:id\/thumbnail'/, 'the current thumbnail is inspectable');
+  assert.match(routes, /'\/projects\/:id\/thumbnail\/regen'/, 'and can be re-designed or re-rendered');
+  assert.match(routes, /renderThumbnailFragment\(html/, 'a hand-edited fragment skips the model');
+  assert.match(routes, /generateThumbnailImage\(\{/, 'no html → a fresh design');
 });

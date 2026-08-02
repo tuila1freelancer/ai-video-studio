@@ -67,8 +67,22 @@ body{font-family:${f.display || 'Be Vietnam Pro'},Arial,sans-serif;color:${p.ink
 }
 
 /**
+ * Rasterize a thumbnail FRAGMENT (already sanitized or hand-edited) through our own shell.
+ * Split out so the owner can re-render an edited design without paying for another generation.
+ * @returns {Promise<string|null>} the written image path.
+ */
+export async function renderThumbnailFragment(fragment, { guide, size, outPath } = {}) {
+  if (!chromeAvailable()) return null;
+  const clean = sanitizeThumbFragment(fragment);
+  if (clean.length < 40) return null;
+  const w = size?.w || 1280, h = size?.h || 720;
+  return screenshotHtml(shell(clean, { w, h, guide }), { w, h, outPath });
+}
+
+/**
  * Design one thumbnail with the LLM and rasterize it.
- * @returns {Promise<string|null>} the written image path, or null when unavailable/unusable.
+ * @returns {Promise<{path,fragment}|null>} the written image + the markup that produced it (kept
+ *   so the owner can edit and re-render it), or null when unavailable/unusable.
  */
 export async function generateThumbnailImage({
   title, hook = '', prompt = '', guide, size, outPath, language = 'vi', variant = 0, llm = null, onLog = () => {},
@@ -99,7 +113,7 @@ Reply with ONLY the <style> block and the markup.`;
     if (fragment.length < 80) { onLog('thumbnail AI: reply quá ngắn — dùng bản dựng sẵn'); return null; }
     const path = await screenshotHtml(shell(fragment, { w, h, guide }), { w, h, outPath });
     onLog(`thumbnail AI: đã dựng bản ${variant + 1}`);
-    return path;
+    return { path, fragment };
   } catch (e) {
     onLog(`thumbnail AI: bỏ qua (${e.message.slice(0, 120)})`);
     return null;

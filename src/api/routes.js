@@ -622,6 +622,55 @@ export function mountRoutes(app, { version }) {
     const { EXPORT_PRESETS } = await import('../pipeline/export-presets.js');
     res.json({ presets: Object.entries(EXPORT_PRESETS).map(([id, p]) => ({ id, ...p })) });
   });
+  // ---- thumbnail operations (P40) — the reference exposes regen/edit/preview; we only ever
+  // produced one at the end of a render, with no way to look at it, retry it or hand-tune it.
+  r.get('/projects/:id/thumbnail', (req, res) => {
+    const p = DB.getProject(req.params.id);
+    if (!p) return res.status(404).json({ error: 'not found' });
+    res.json({
+      path: p.thumb_path || null,
+      url: p.thumb_path && existsSync(p.thumb_path) ? `/api/file?path=${encodeURIComponent(p.thumb_path)}` : null,
+      // the markup of the AI design, when there is one — this is what /edit-html re-renders
+      html: p.metadata?.thumbnail?.html || null,
+      title: p.metadata?.thumbnail?.title || p.title || '',
+    });
+  });
+  // Re-design (no body / {hook,prompt,variant}) or re-render a hand-edited design ({html}).
+  r.post('/projects/:id/thumbnail/regen', async (req, res) => {
+    try {
+      const p = DB.getProject(req.params.id);
+      if (!p) return res.status(404).json({ error: 'not found' });
+      const { generateThumbnailImage, renderThumbnailFragment } = await import('../pipeline/thumbnail-codegen.js');
+      const { resolveGuide } = await import('../styleguide/index.js');
+      const { resolveOutputDir } = await import('../pipeline/helpers.js');
+      const guide = resolveGuide(p.config || {});
+      const size = { w: 1280, h: 720 };
+      const outDir = resolveOutputDir(p.id, p.config || {}, DB.projectDirFor(p.id));
+      mkdirSync(outDir, { recursive: true });
+      const outPath = join(outDir, `thumb_${Date.now()}.jpg`);
+      const md = p.metadata || {};
+      let path = null, html = String(req.body?.html || '').trim() || null;
+      if (html) {
+        path = await renderThumbnailFragment(html, { guide, size, outPath });
+        if (!path) return res.status(400).json({ error: 'HTML không dựng được (rỗng hoặc bị chặn)' });
+      } else {
+        const ai = await generateThumbnailImage({
+          title: p.title, hook: req.body?.hook || md.thumbnail?.title || '',
+          prompt: req.body?.prompt || md.thumbnail?.prompt || '',
+          guide, size, outPath,
+          language: p.config?.language && p.config.language !== 'auto' ? p.config.language : 'vi',
+          variant: Math.max(0, Math.min(2, parseInt(req.body?.variant, 10) || 0)),
+          llm: DB.aiSettings().llm,
+        });
+        if (!ai) return res.status(400).json({ error: 'AI chưa dựng được thumbnail — kiểm tra LLM trong AI Setting' });
+        ({ path } = ai);
+        html = ai.fragment;
+      }
+      DB.updateProject(p.id, { thumb_path: path, metadata: { ...md, thumbnail: { ...(md.thumbnail || {}), html } } });
+      res.json({ path, url: `/api/file?path=${encodeURIComponent(path)}`, html });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
   // Reveal a project's output folder in Finder (P40 — the toolbar button had no handler).
   r.post('/projects/:id/open', async (req, res) => {
     try {
