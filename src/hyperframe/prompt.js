@@ -25,7 +25,15 @@ OUTPUT FORMAT — reply with EXACTLY these three fenced blocks and NOTHING else 
 
 WHAT MAKES A SCENE GOOD (the five masters — HOW you achieve them is your call):
 1. RELEVANT to the narration. Show what THIS scene is actually about — a metaphor, diagram, comparison, device, data instrument, kinetic words — built from divs + inline SVG so it VISUALLY ARGUES the idea. On-screen text is drawn FROM THE MEANING of the voice line: a short headline and/or a few short labels, ALL complete words in the narration's language (a Vietnamese video shows complete Vietnamese words — or none at all when the graphic already speaks). Never dump the full sentence (it is already the subtitle), never invent slogans/CTAs/brand names, never put English or code on screen in a Vietnamese video.
-2. BALANCED & HARMONIOUS — FILL THE FRAME, NEVER CLUMP CENTER. Place every element in a container with EXPLICIT bounds (top/left/width/height, or flex/grid) — never vague values that overflow. Treat the safe area as a 3×3 grid (left/center/right × top/middle/bottom) and DISTRIBUTE weight across it: a hero on one side needs a real counterweight (panel/stat/diagram/label cluster) on the other, so no half sits empty. Comfortable margin from ALL FOUR edges — nothing clips, bleeds off, or touches the edge. Do NOT stack everything on the center axis: a wide frame wants splits / off-center hero + counterweight / elements spread across the width; only a minimal quote or title card stays centered. The per-ratio LAYOUT rules and hard VIEWPORT thresholds in the user message OVERRIDE any conflicting composition idea.
+2. EVEN — THE ZONE BUDGET. Arithmetic, not taste: place by ZONE NAME and COUNT before you answer. Every element goes in a container with EXPLICIT bounds (top/left/width/height, or flex/grid) — never vague values that overflow — with a comfortable margin from ALL FOUR edges so nothing clips, bleeds off or touches an edge.
+- THE NINE ZONES, binned by the two numbers YOU type on the slot (a .hf-slot centres itself on its left/top, so those numbers ARE its centre; a raw-CSS element bins by its box centre). Columns: L = left under 34% · C = 34–66% · R = over 66%. Rows: T = top under 34% · M = 34–66% · B = over 66%. That names TL TC TR / ML MC MR / BL BC BR. Comfortable anchor bands to write into: left 12–26% / 40–60% / 74–88%, top 10–24% / 40–60% / 72–88% — pick your own values inside them, never the same ones twice.
+- AN ANCHOR is anything a viewer can point at: headline, keyword, instrument, card, stat, icon, label pair, tick rail, axis + scale numbers, legend, chart, ghost numeral, bracket. One element centre = one anchor in its zone, and a construction taller or wider than one zone ALSO anchors every zone its box reaches — a rail down the left edge pays for TL, ML and BL at once. A blurred glow orb alone anchors nothing.
+- THE FOUR LAWS, measured on the SETTLED frame (last beat → DUR, the state the viewer stares at longest — the opening is bare by design): (1) at least 7 of the 9 zones hold an anchor; (2) TL, TR, BL and BR each hold at least one — the TWO TOP CORNERS are what every weak layout starves, fill them FIRST; (3) every row holds ≥2 anchors and every column holds ≥2; (4) MC holds AT MOST ONE anchor, and your three biggest masses sit in three DIFFERENT columns, never all in one row.
+- THIS RULE NEVER ASKS FOR MORE ELEMENTS — it decides WHERE the ones you already have go. Satisfy it by MOVING, not adding: the kicker goes to a top corner instead of above the headline · the unit/legend/source label to the opposite corner · the instrument's axis or tick rail extends down into a bottom corner · a stat readout detaches to the far side · a 1px hairline or bracket runs along a starved edge. PLUGGING A HOLE WITH CONFETTI IS A WORSE FAILURE THAN THE HOLE — same element count, same calm, same negative space; only the weight moves.
+- THE MID LAYER IS BALLAST: the .hf-mid glow orbs and the oversized ghost glyph you already build are positionless by default — park them in whichever zones your near layer left thinnest, diagonally opposed, never both behind the hero. Free area, zero extra DOM.
+- BIND LEFT TO RIGHT WITH ONE ELEMENT: a hairline, rail, timeline or axis running most of the width (or height) ties the frame together and pays three zones by itself.
+- SIZE IS NOT POSITION: the VIEWPORT numbers (SAFE_CENTER_W/H, HERO_MAX_W, TEXT_MAX_W, SUBJECT_MAX_H, CARD_MAX_W) cap how BIG one block may be — they never say where it must sit, and SAFE_CENTER is a footprint ceiling for ONE construction, NOT the box the composition lives in. Every point inside the padding line is legal ground. Only a bare quote or title card may stack on the centre axis.
+- SELF-CHECK BEFORE YOU EMIT: read back your own slot list, name the zone each left/top lands in, and count. A bare corner, a row or column under 2, or a crowded MC → MOVE a slot and re-read. A clumped frame is the #1 amateur tell, however beautiful its parts.
 3. BEAUTIFUL, SMOOTH MOTION — RICH & ALIVE. Elements ease in gently (power2/power3/expo.out, ~0.35–0.9s), ONE main thing arriving at a time, each landing ON its spoken beat; between beats the frame stays alive with slow drift, never freezing and never emptying. Aim for ≥5 elements animating at any given moment (hero parts + depth orbs + ticks/particles + ambient drift) so it reads as MOTION GRAPHICS, not a slide; run ≥2 parallax depth layers. Calm beats churn: a settled, still-but-breathing frame is the reference look. Use ≥3 distinct eases across the scene; keep bounce/overshoot for at most one playful accent. Make it look EXPENSIVE: give the hero one premium treatment (chrome / neon / glow) and use premium surfaces (glass, soft shadow, a 1px accent hairline) — never flat, undecorated boxes.
 4. READABLE, CLEAN TYPE. Every readable text is near-white or a bright accent on the dark stage (≥4.5:1) — never dim grey, never accent-on-accent. Text fits inside the frame and NEVER clips. Headlines ≤4 words, wrapped on phrase boundaries (never orphan a word). When subtitles are ON, keep the PRIMARY headline out of the caption band — the band still carries structure and short labels; an empty bottom strip is a worse mistake than a busy one.
 5. CREATIVE & UNIQUE. No two scenes — and no two renders of the same brief — may look alike. Vary the core idea, hero type, placement, motion, type treatment, colour emphasis. A stamped-out arrangement is THE failure.
@@ -52,7 +60,7 @@ char-cascade (FX.splitIn) · elastic pop (FX.pop) · directional slide+blur (FX.
 ■ EXIT LIBRARY (match the energy): fade-dim settle · WHIP (FX.whipOut — slides off +blur; fire a beam/streak at the whip peak) · flip · blur-dissolve · scatter (FX.beat out:'flip'/'blur') · clip-collapse.
 
 ■ INSTANT-FAIL LIST (any of these = amateur, the render gate will bounce it):
-- everything visible from t=0 (no per-beat reveals) · the same entrance twice in a row · flat undecorated hero text · opacity-only entrances (always pair opacity with ≥1 transform) · two consecutive reveals in the same zone · a dead/empty frame mid-scene · a scene that ends nearly empty · full-sentence dump on screen · English/code/telemetry decor text (ai_state=…, FILE.EXE, [SYSTEM_INIT], snake_case) · scene number / page counter / corner status tag (this is a film, not a slide deck) · text on top of text · yoyo repeat loops as the main animation.
+- everything visible from t=0 (no per-beat reveals) · the same entrance twice in a row · flat undecorated hero text · opacity-only entrances (always pair opacity with ≥1 transform) · two consecutive reveals in the same zone (zone = one of the nine named in master rule #2) · A SETTLED FRAME THAT LEAVES A CORNER BARE OR PILES TWO MASSES INTO MC · a dead/empty frame mid-scene · a scene that ends nearly empty · full-sentence dump on screen · English/code/telemetry decor text (ai_state=…, FILE.EXE, [SYSTEM_INIT], snake_case) · scene number / page counter / corner status tag (this is a film, not a slide deck) · text on top of text · yoyo repeat loops as the main animation.
 
 THE STAGE (already rendered — do NOT rebuild it): your html sits inside <div class="hf-cam"> on a themed stage that already carries an animated particle canvas, background motif, vignette, film grain, a light-beam (.hf-beam), karaoke subtitles, a progress bar, and a living backdrop (dual spinning rings, drifting specks, a soft ring pulse on every beat). Never touch or restyle the harness layers (.cap/#capText/.progtrack/#progFill/#bgCanvas/.wm/.vig) — build only the scene's own layers.
 
@@ -175,7 +183,7 @@ export function viewportBlock(w, h, captionsOn) {
   return [
     `VIEWPORT — hard layout thresholds for THIS ${w}x${h}px canvas (${cls}). USE THESE EXACT VALUES DIRECTLY in your CSS/JS — do NOT estimate:`,
     `- SIDE_PADDING=${sideP}px · TOP_PADDING=${topP}px · BOTTOM_PADDING=${bottomP}px — nothing may sit outside x=[${sideP}..${w - sideP}] or y=[${topP}..${contentMaxY}].`,
-    `- SAFE_CENTER_W=${X(T.safeCW)}px · SAFE_CENTER_H=${Y(T.safeCH)}px (the primary usable stage) · SPLIT_GAP=${X(T.gap)}px minimum between side-by-side blocks.`,
+    `- SAFE_CENTER_W=${X(T.safeCW)}px · SAFE_CENTER_H=${Y(T.safeCH)}px — a FOOTPRINT CEILING for ONE construction, NOT the box the composition lives in (every point inside the padding line is legal ground) · SPLIT_GAP=${X(T.gap)}px minimum between side-by-side blocks.`,
     `- TEXT_MAX_W=${X(T.textW)}px (any single text block) · TEXT_BLOCK_MAX_H=${Y(T.textBlockH)}px (no taller vertical text stack).`,
     `- HERO_MAX_W=${X(T.heroW)}px × SUBJECT_MAX_H=${Y(T.subjectH)}px (the hero construction; leave room for its counterweight).`,
     `- CARD_MIN_W=${X(T.cardMin)}px · CARD_MAX_W=${X(T.cardMax)}px (any panel/card).`,
@@ -185,7 +193,7 @@ export function viewportBlock(w, h, captionsOn) {
     captionsOn
       ? `- LOWER_THIRD_Y=${lowerThirdY}px: karaoke subtitles run below this line. Keep the PRIMARY headline and any long label above it, but the band is still yours for structure, panels, charts, ambience and short labels — do NOT leave the bottom of the frame empty.`
       : `- Subtitles are OFF — use the full height down to y=${contentMaxY}px (still keep the ${topP}px / ${bottomP}px margins).`,
-    `- CONTENT is inset ${inset}px from every edge. Put every element in a container with explicit top/left/width/height OR flex/grid — never vague values that overflow. Nothing touches the edge of the safe zone. If the visual concept conflicts with these thresholds, THE THRESHOLDS WIN.`,
+    `- CONTENT is inset ${inset}px from every edge. Put every element in a container with explicit top/left/width/height OR flex/grid — never vague values that overflow. Nothing touches the edge of the safe zone. These numbers are MAXIMA AND MARGINS — how big one block may be and how near an edge it may sit; they never nominate a destination. If a SIZE conflicts with your concept, THE THRESHOLDS WIN; if you have read one as a reason to move the composition inward, you have misread a maximum as a target.`,
     `- The page body is EXACTLY ${w}x${h}px and is upscaled LOSSLESSLY to output; never assume any other resolution.`,
   ].join('\n');
 }
@@ -195,27 +203,33 @@ export function viewportBlock(w, h, captionsOn) {
 // shape — a wide frame spreads horizontally, a tall frame stacks in reading order.
 export function ratioRulesBlock(w, h) {
   const cls = ratioClass(w, h);
+  // Each branch turns master rule #2's zone budget into the quota for THIS shape, then shows one
+  // legal worked map with its arithmetic spelled out. The map is a PATTERN to reason from, never
+  // coordinates to copy — every branch says so, or every scene would land on identical numbers.
   if (cls === '16:9') {
-    return `LAYOUT FOR 16:9 (wide, cinematic):
-- Focal point sits slightly LEFT or RIGHT of center — use the width for split layouts, timelines, dashboards, before/after.
-- Secondary elements SPREAD HORIZONTALLY across the width — never cluster them all on the center axis (that wastes a wide frame and is the #1 amateur tell).
-- Two clear columns or a 60/40 split are encouraged; each block keeps ≥SPLIT_GAP breathing room.
-- Keep the hero ≤HERO_MAX_W so it never stretches into one long hard-to-read line; give the emptier side a real counterweight (panel / stat / diagram / label cluster).`;
+    return `LAYOUT FOR 16:9 (wide, cinematic) — THE ZONE BUDGET FOR THIS CANVAS:
+- QUOTA: ≥7 of the 9 zones anchored · TL TR BL BR each ≥1 · every row ≥2 · every column ≥2 · MC ≤1.
+- THE WIDTH DOES THE READING: your three biggest masses sit in three DIFFERENT COLUMNS — an off-centre hero, a real counterweight across ≥SPLIT_GAP, and a third mass — never all in one row. Two clear columns or a 60/40 split are encouraged; the hero stays ≤HERO_MAX_W so it never becomes one long hard-to-read line.
+- A wide frame with everything on the centre axis is the #1 amateur tell — it wastes the shape it was cut for.
+- WORKED MAP (a legal PATTERN — reuse the ARITHMETIC, invent your own numbers, shift every value by ≥6%): TL kicker 15/17 · TC headline 50/13 · TR legend 84/19 · ML hero keyword 30/46 · MR instrument card 74/44 · BL axis + scale 19/78 · BC tick rail 50/88 · BR stat readout 82/74 → 8/9 zones · corners 4/4 · rows 3/2/3 · cols 3/2/3 · MC 0. LEGAL.`;
   }
   if (cls === '9:16') {
-    return `LAYOUT FOR 9:16 (tall, mobile-first):
-- Work the CENTER COLUMN; stack elements VERTICALLY in reading order (top → bottom), each in its own row with a clear gap.
-- The hero must not exceed SUBJECT_MAX_H — long vertical stacks crowd the frame; prefer one strong hero plus a compact supporting row.
-- Use the tall height for rhythm (kicker high, hero mid, supporting lower) rather than squeezing everything into the middle third.`;
+    return `LAYOUT FOR 9:16 (tall, mobile-first) — THE ZONE BUDGET FOR THIS CANVAS:
+- QUOTA: all THREE ROWS anchored with ≥2 anchors EACH · TL TR BL BR each ≥1 · ≥7 of the 9 zones · MC ≤1. A card at CARD_MIN_W–CARD_MAX_W centred at 50% already spans all three columns, so on this shape the ROWS are what you must earn.
+- THE HEIGHT DOES THE READING: your three biggest masses sit in three DIFFERENT ROWS — top, middle, bottom, in narration order — never all in one column. Keep the hero ≤SUBJECT_MAX_H so one mass never swallows two rows.
+- WORK THE MARGINS: a tall frame starves its corners worst. A kicker top-left, an icon or unit top-right, an index rail down one side and a small readout at a bottom corner cost nothing and pay four zones.
+- WORKED MAP (a legal PATTERN — reuse the ARITHMETIC, invent your own numbers, shift every value by ≥6%): TL kicker 18/10 · TR icon 82/12 · hero keyword 50/34 spanning L-C-R · MR side rail 88/46 · BL step label 19/72 · BC support card 50/80 spanning L-C-R · BR stat 82/88 → rows 2/2/3 · corners 4/4 · MC 0. LEGAL.`;
   }
   if (cls === '1:1') {
-    return `LAYOUT FOR 1:1 (square):
-- Prioritize SYMMETRY and balance around the center; a centered hero with balanced satellites reads best.
-- Corners carry equal weight — if one corner holds an accent, balance it diagonally.`;
+    return `LAYOUT FOR 1:1 (square) — THE ZONE BUDGET FOR THIS CANVAS:
+- QUOTA: ≥7 of the 9 zones anchored · all FOUR corners ≥1 · every row ≥2 · every column ≥2 · MC ≤1.
+- Symmetry is the shape's gift and its trap: balance DIAGONALLY (an accent in one corner answered across the frame) instead of mirroring left/right, or every scene comes out the same.
+- WORKED MAP (a legal PATTERN — reuse the ARITHMETIC, invent your own numbers, shift every value by ≥6%): TL bracket 16/16 · TC kicker 50/12 · TR ghost numeral 84/18 · ML label pair 17/50 · MR instrument 80/47 · BL tick rail 18/82 · BC hero keyword 50/72 · BR unit 84/84 → 8/9 zones · corners 4/4 · MC 0. LEGAL.`;
   }
-  return `LAYOUT FOR 4:5 (portrait):
-- Focal point slightly ABOVE center; keep comfortable top/bottom padding.
-- Distribute weight across the width but stay a touch top-heavy so the hero leads.`;
+  return `LAYOUT FOR 4:5 (portrait) — THE ZONE BUDGET FOR THIS CANVAS:
+- QUOTA: ≥7 of the 9 zones anchored · all FOUR corners ≥1 · every row ≥2 · every column ≥2 · MC ≤1.
+- Slightly TOP-HEAVY so the hero leads, but "top-heavy" means the hero sits above centre — it never means the bottom row is empty; a bare bottom third reads as a cropped mistake.
+- WORKED MAP (a legal PATTERN — reuse the ARITHMETIC, invent your own numbers, shift every value by ≥6%): TL kicker 17/13 · TR icon 83/15 · ML hero keyword 44/33 · MR stat 82/44 · BL caption 19/76 · BC scale rail 50/86 · BR bracket 84/80 → rows 2/2/3 · corners 4/4 · MC 0. LEGAL.`;
 }
 
 // P37/P39 (reference-parity): the reference app hands the model EXACT GSAP values (its

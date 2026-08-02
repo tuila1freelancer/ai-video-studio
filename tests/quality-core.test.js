@@ -159,7 +159,7 @@ test('cinema pacing v3: FX floors, settle state, and the prompt contract', () =>
   const prompt = readFileSync(new URL('../src/hyperframe/prompt.js', import.meta.url), 'utf8');
   assert.match(prompt, /SMOOTH MOTION/, 'smooth-motion contract present');
   assert.match(prompt, /out:'settle'/, 'persistence/settle semantics present');
-  assert.match(prompt, /BALANCED & HARMONIOUS/, 'balanced-composition rule present');
+  assert.match(prompt, /EVEN — THE ZONE BUDGET/, 'balanced-composition rule present (P41: renamed to the zone budget)');
   assert.match(prompt, /premium surfaces/, 'premium-surface bar present');
   assert.match(prompt, /ease in gently/, 'gentle entrance timing stated');
   const warp = readFileSync(new URL('../src/animation/timewarp.js', import.meta.url), 'utf8');

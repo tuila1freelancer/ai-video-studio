@@ -29,16 +29,24 @@ test('P38 ratioClass + ratioRulesBlock select the right per-ratio rules', () => 
   assert.equal(ratioClass(1080, 1920), '9:16');
   assert.equal(ratioClass(1080, 1080), '1:1');
   assert.equal(ratioClass(1080, 1350), '4:5');
-  assert.match(ratioRulesBlock(1920, 1080), /SPREAD HORIZONTALLY/, '16:9 spreads wide, never center-clumps');
-  assert.match(ratioRulesBlock(1080, 1920), /reading order/, '9:16 stacks vertically');
-  assert.match(ratioRulesBlock(1080, 1080), /SYMMETRY/, '1:1 is symmetric');
-  assert.match(ratioRulesBlock(1080, 1350), /ABOVE center/, '4:5 is top-heavy');
+  // P41: the prose became a countable quota — a wide frame must spend its width across columns
+  assert.match(ratioRulesBlock(1920, 1080), /three DIFFERENT COLUMNS/, '16:9 spreads wide, never center-clumps');
+  assert.match(ratioRulesBlock(1080, 1920), /three DIFFERENT ROWS — top, middle, bottom, in narration order/, '9:16 stacks vertically');
+  assert.match(ratioRulesBlock(1080, 1080), /Symmetry is the shape's gift and its trap/, '1:1 is symmetric');
+  assert.match(ratioRulesBlock(1080, 1350), /TOP-HEAVY so the hero leads/, '4:5 is top-heavy');
+  // every branch must carry the countable quota, or one ratio silently keeps the old prose
+  for (const [w, h] of [[1920, 1080], [1080, 1920], [1080, 1080], [1080, 1350]]) {
+    assert.match(ratioRulesBlock(w, h), /QUOTA:/, `${w}x${h} carries the zone quota`);
+    assert.match(ratioRulesBlock(w, h), /WORKED MAP/, `${w}x${h} shows a legal worked map`);
+  }
 });
 
 test('P38 buildCodegenPrompt wires the viewport + ratio-rule blocks; composition uses a 3x3 grid', () => {
   const s = readFileSync(new URL('../src/hyperframe/prompt.js', import.meta.url), 'utf8');
   assert.match(s, /\$\{viewportBlock\(w, h, captionsOn\)\}\n\$\{ratioRulesBlock\(w, h\)\}/, 'both layout blocks are injected, in order');
-  assert.match(s, /3×3 grid/, 'the composition rule distributes weight across a 3x3 grid');
+  // P41: the 3x3 grid is now NAMED (TL..BR) with a quota instead of described as a grid
+  assert.match(s, /TL TC TR \/ ML MC MR \/ BL BC BR/, 'the composition rule names the nine zones');
+  assert.match(s, /at least 7 of the 9 zones hold an anchor/, 'and gives a countable quota');
 });
 
 test('P38 backdrop rotation is deterministic, non-repeating, and stays a legal guide motif', () => {
