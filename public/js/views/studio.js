@@ -88,6 +88,9 @@ export function initStudio() {
     const r = await api.post(`/projects/${state.current.id}/open`, {});
     if (r?.error) toast(r.error, 'error');
   });
+  // P42: restart the whole video, and borrow another project's assets
+  $('#btnRestart')?.addEventListener('click', () => withLock($('#btnRestart'), restartCurrent));
+  $('#btnCopyAssets')?.addEventListener('click', () => withLock($('#btnCopyAssets'), copyAssetsFrom));
   $('#btnMeta').addEventListener('click', genMeta);
   $('#btnFetch').addEventListener('click', fetchLink);
   $('#btnImgSearch').addEventListener('click', imageSearch);
@@ -219,6 +222,21 @@ async function publishToFacebook() {
   if (pick === 'public') {
     const ok = await confirmDialog({ title: 'Đăng CÔNG KHAI ngay?', body: 'Video sẽ hiển thị công khai trên Trang. Bạn chắc chứ?', okText: 'Đăng công khai', danger: true });
     if (!ok) return;
+  }
+  // A YouTube description is the wrong shape for a Facebook post, so offer to write the
+  // platform-shaped caption first (P42). Saved server-side under metadata.captions.facebook,
+  // which the publish route prefers; declining just leaves the existing description in place.
+  const wantCaption = await confirmDialog({
+    title: 'Để AI viết caption cho Facebook?',
+    body: 'Caption ngắn, mở đầu bằng hook, viết từ đúng lời thoại trong video. Bỏ qua thì dùng mô tả sẵn có.',
+    okText: 'Viết caption',
+  });
+  if (wantCaption) {
+    try {
+      const c = await api.post('/publish/generate-caption', { projectId: state.current.id, platform: 'facebook' });
+      if (c?.error) toast(c.error, 'error');
+      else if (c?.caption) toast(`✍️ ${c.caption.split('\n')[0].slice(0, 60)}…`, 'success');
+    } catch (e) { toast('Không viết được caption: ' + e.message, 'error'); }
   }
   toast('📤 Đang tải lên Facebook…', 'success');
   try {
@@ -364,6 +382,37 @@ export function renderMeta() {
   box.innerHTML = `<div class="meta-card"><div class="mt">${esc(m.title || '')}</div><div style="color:var(--muted);white-space:pre-wrap">${esc(m.description || '')}</div>
     <div class="tags">${(m.hashtags || []).map((h) => `<span class="tag-chip">${esc(h)}</span>`).join('')}</div></div>`;
 }
+// Same topic and config, all generated work discarded — as a NEW project, so the previous
+// attempt survives for comparison and one click can never destroy a finished video (P42).
+async function restartCurrent() {
+  if (!state.current) return toast('Mở một dự án trước đã.', 'error');
+  const ok = await confirmDialog({
+    title: 'Làm lại từ đầu?',
+    body: 'Tạo một dự án MỚI với cùng chủ đề và cấu hình, rồi chạy lại toàn bộ. Dự án hiện tại vẫn được giữ nguyên.',
+    okText: 'Làm lại',
+  });
+  if (!ok) return;
+  const r = await api.post(`/projects/${state.current.id}/restart`, {});
+  if (r?.error) return toast(r.error, 'error');
+  toast('♻️ Đã tạo dự án mới và bắt đầu chạy', 'success');
+  await loadProjects();
+  openProject(r.projectId);
+}
+
+async function copyAssetsFrom() {
+  if (!state.current) return toast('Mở một dự án trước đã.', 'error');
+  const others = (state.projects || []).filter((p) => p.id !== state.current.id).slice(0, 12);
+  if (!others.length) return toast('Chưa có dự án nào khác.', 'error');
+  const pick = await menuDialog({
+    title: '🧲 Lấy asset từ dự án nào?',
+    items: others.map((p) => ({ id: p.id, label: p.title || p.topic || p.id })),
+  });
+  if (!pick) return;
+  const r = await api.post(`/projects/${state.current.id}/copy-assets-from/${pick}`, {});
+  if (r?.error) return toast(r.error, 'error');
+  toast(`Đã thêm ${r.added} asset (tổng ${r.total})`, 'success');
+}
+
 async function genMeta() {
   toast('Đang tạo metadata…');
   const r = await api.post('/metadata', { projectId: state.current.id, stylePrompt: '' });
