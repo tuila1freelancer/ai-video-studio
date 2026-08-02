@@ -617,6 +617,20 @@
     <div class="field"><label class="label">Engine</label>
       <select class="input" id="setSubEngine"><option value="align">Align (chữ đúng kịch bản + timing thật từ audio — khuyên dùng)</option><option value="estimate">Estimate (chữ đúng từ kịch bản, chia đều thời gian)</option><option value="whisper">Whisper (transcribe audio)</option></select>
       <label class="switch-row" style="margin-top:6px"><span class="switch"><input type="checkbox" id="setSubLlmFix" checked><span class="sl"></span></span> 🤖 LLM sửa phụ đề Whisper (tên riêng/số/từ nước ngoài — giữ nguyên 100% timestamp)</label></div>
+    <div class="sec-label">Đăng video</div>
+    <div id="pubStatus" class="hint" style="margin-bottom:8px">…</div>
+    <div class="field"><label class="label">YouTube — OAuth Client (Desktop app, console.cloud.google.com)</label>
+      <input class="input" id="pubYtId" placeholder="Client ID">
+      <input class="input" id="pubYtSecret" type="password" placeholder="Client Secret" style="margin-top:6px">
+      <button class="btn sm" id="pubYtConnect" style="margin-top:6px">🔗 Kết nối YouTube</button></div>
+    <div class="field"><label class="label">Facebook Page — Page ID + Page Access Token</label>
+      <input class="input" id="pubFbPage" placeholder="Page ID">
+      <input class="input" id="pubFbToken" type="password" placeholder="Page Access Token" style="margin-top:6px">
+      <div class="row" style="margin-top:6px">
+        <button class="btn sm" id="pubFbConnect">🔗 Kết nối Page</button>
+        <button class="btn sm" id="pubFbDisconnect">✖ Ngắt</button>
+      </div>
+      <div class="hint" style="margin-top:4px">Video dọc (9:16 / 4:5) sẽ đăng dạng <strong>Reel</strong>, còn lại đăng vào feed Trang.</div></div>
     <button class="btn primary block" id="setSave">💾 Lưu cấu hình</button>
   </div>
 </div>

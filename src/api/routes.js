@@ -572,6 +572,21 @@ export function mountRoutes(app, { version }) {
       res.send('<meta charset="utf-8"><body style="font-family:sans-serif;background:#0b1020;color:#eaf2ff;display:grid;place-items:center;height:100vh"><div>✅ Đã kết nối YouTube — bạn có thể đóng tab này.</div></body>');
     } catch (e) { res.status(400).send(`OAuth lỗi: ${e.message}`); }
   });
+  // Facebook Page connect/disconnect — a pasted Page access token, verified against the Page
+  // (P40). No OAuth dance: this is a desktop tool and the reference app works the same way.
+  r.post('/publish/facebook/connect', async (req, res) => {
+    try {
+      const { getPublisher } = await import('../publish/index.js');
+      res.json(await getPublisher('facebook').connect(req.body || {}));
+    } catch (e) { res.status(400).json({ error: e.message }); }
+  });
+  r.post('/publish/facebook/disconnect', async (req, res) => {
+    try {
+      const { getPublisher } = await import('../publish/index.js');
+      res.json(getPublisher('facebook').disconnect());
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
   // Manual publish — an EXPLICIT user action; privacy defaults to 'private' (staging)
   r.post('/projects/:id/publish', async (req, res) => {
     try {
@@ -586,8 +601,13 @@ export function mountRoutes(app, { version }) {
       const recId = DB.recordPublish({ projectId: p.id, platform: pub.id, privacy });
       const out = await pub.upload({
         videoPath: p.video_path, title: md.title || p.title, description: md.description || '',
-        tags: (md.platforms?.youtube?.tags || md.hashtags || []).map((t) => String(t).replace(/^#/, '')),
+        tags: (md.platforms?.[pub.id]?.tags || md.platforms?.youtube?.tags || md.hashtags || []).map((t) => String(t).replace(/^#/, '')),
         privacy, thumbPath: p.thumb_path && existsSync(p.thumb_path) ? p.thumb_path : null,
+        // Facebook picks reels vs feed video from the shape, and can pin a first comment.
+        aspectRatio: p.aspect_ratio,
+        scheduledAt: Number.isFinite(+req.body?.scheduledAt) && +req.body.scheduledAt > 0 ? +req.body.scheduledAt : null,
+        firstComment: String(req.body?.firstComment || md.pinnedComment || '').trim(),
+        onLog: (m) => logger.info(m, { projectId: p.id }),
       });
       DB.settlePublish(recId, { status: 'done', videoId: out.videoId, url: out.url });
       res.json({ ok: true, ...out });
@@ -601,6 +621,21 @@ export function mountRoutes(app, { version }) {
   r.get('/export/presets', async (req, res) => {
     const { EXPORT_PRESETS } = await import('../pipeline/export-presets.js');
     res.json({ presets: Object.entries(EXPORT_PRESETS).map(([id, p]) => ({ id, ...p })) });
+  });
+  // Reveal a project's output folder in Finder (P40 — the toolbar button had no handler).
+  r.post('/projects/:id/open', async (req, res) => {
+    try {
+      const p = DB.getProject(req.params.id);
+      if (!p) return res.status(404).json({ error: 'not found' });
+      const { resolveOutputDir } = await import('../pipeline/helpers.js');
+      const dir = resolveOutputDir(p.id, p.config || {}, DB.projectDirFor(p.id));
+      if (!existsSync(dir)) return res.status(400).json({ error: 'chưa có thư mục xuất — render xong đã' });
+      const { execFile } = await import('node:child_process');
+      // Reveal the finished file when there is one, otherwise just open the folder.
+      const target = p.video_path && existsSync(p.video_path) ? p.video_path : dir;
+      execFile('open', target === dir ? [dir] : ['-R', target], () => {});
+      res.json({ ok: true, dir });
+    } catch (e) { res.status(500).json({ error: e.message }); }
   });
   r.post('/projects/:id/export', async (req, res) => {
     try {

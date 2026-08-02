@@ -1,8 +1,9 @@
 // Publisher registry — one contract per platform, mirroring the voice provider pattern.
 // Each publisher: { id, name, configured(), connected(), authUrl(), exchangeCode(), upload() }.
 import youtube from './youtube.js';
+import facebook from './facebook.js';
 
-export const PUBLISHERS = { youtube };
+export const PUBLISHERS = { youtube, facebook };
 
 export function getPublisher(id) {
   const p = PUBLISHERS[id];
