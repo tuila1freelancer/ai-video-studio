@@ -1,7 +1,7 @@
 // All REST routes.
 import express from 'express';
 import multer from 'multer';
-import { existsSync, statSync, mkdirSync, unlinkSync, renameSync, writeFileSync } from 'node:fs';
+import { existsSync, statSync, mkdirSync, unlinkSync, renameSync, writeFileSync, readdirSync, rmSync } from 'node:fs';
 import { join, resolve, extname, basename } from 'node:path';
 import * as DB from '../db/index.js';
 import db from '../db/index.js';
@@ -1165,6 +1165,37 @@ export function mountRoutes(app, { version }) {
     // Folders on disk count too — the owner may simply have made one in Finder (P40).
     const { brandFolders } = await import('../pipeline/brand-assets.js');
     res.json({ brands: brandFolders() });
+  });
+  // Brand folder rename / delete (P42 — reference PUT /brands/rename, DELETE /brands/:name).
+  // Both are destructive, so both are pinned INSIDE the brand library and refuse 'Default':
+  // a traversal or a typo must never be able to reach anything else on the machine.
+  const brandDirOf = (name) => {
+    const clean = String(name || '').replace(/[\/\\]/g, '').replace(/\.\./g, '').trim();
+    if (!clean || clean === 'Default') return null;
+    const dir = join(DIRS.brand, clean);
+    return resolve(dir).startsWith(resolve(DIRS.brand) + '/') ? { clean, dir } : null;
+  };
+  r.put('/brands/rename', (req, res) => {
+    const from = brandDirOf(req.body?.from), to = brandDirOf(req.body?.to);
+    if (!from || !to) return res.status(400).json({ error: 'tên không hợp lệ (không đổi được thư mục Default)' });
+    if (!existsSync(from.dir)) return res.status(404).json({ error: 'không tìm thấy thư mục' });
+    if (existsSync(to.dir)) return res.status(400).json({ error: 'tên mới đã tồn tại' });
+    renameSync(from.dir, to.dir);
+    DB.renameBrandFolder(from.clean, to.clean); // keep the library rows pointing at the same art
+    res.json({ ok: true, from: from.clean, to: to.clean });
+  });
+  r.delete('/brands/:name', (req, res) => {
+    const b = brandDirOf(req.params.name);
+    if (!b) return res.status(400).json({ error: 'không xoá được thư mục Default' });
+    if (!existsSync(b.dir)) return res.status(404).json({ error: 'không tìm thấy thư mục' });
+    // say what is about to go: the caller must pass the count back to confirm it read this
+    const files = readdirSync(b.dir).filter((f) => !f.startsWith('.'));
+    if (req.query.confirm !== String(files.length)) {
+      return res.status(409).json({ error: 'cần xác nhận', files: files.length, confirmWith: String(files.length) });
+    }
+    rmSync(b.dir, { recursive: true, force: true });
+    DB.deleteBrandFolder(b.clean);
+    res.json({ ok: true, deleted: files.length });
   });
   r.post('/brands', async (req, res) => {
     try {

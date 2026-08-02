@@ -51,3 +51,20 @@ test('P42: all four are reachable from the UI, not just from curl', () => {
   const html = src('../public/index.html');
   for (const id of ['btnRestart', 'btnCopyAssets']) assert.ok(html.includes(`id="${id}"`), `${id} exists in the markup`);
 });
+
+test('P42: brand-folder rename and delete are pinned inside the library and refuse Default', () => {
+  assert.match(routes, /r\.put\('\/brands\/rename'/);
+  assert.match(routes, /r\.delete\('\/brands\/:name'/);
+  // the guard: a name is stripped of separators and '..', then the resolved path MUST still be
+  // under DIRS.brand — a traversal or a typo can never reach anything else on the machine
+  assert.match(routes, /replace\(\/\[\\\/\\\\\]\/g, ''\)\.replace\(\/\\\.\\\.\/g, ''\)/, 'separators and .. stripped');
+  assert.match(routes, /resolve\(dir\)\.startsWith\(resolve\(DIRS\.brand\) \+ '\/'\)/, 'and the result must stay inside the library');
+  assert.match(routes, /clean === 'Default'/, "the Default folder cannot be renamed or deleted");
+  // a delete states what it is about to destroy and refuses until the caller echoes the count
+  assert.match(routes, /req\.query\.confirm !== String\(files\.length\)/);
+  assert.match(routes, /status\(409\)/);
+  // and the library rows follow the folder instead of pointing at art that moved
+  const cat = src('../src/db/repositories/catalogs.js');
+  assert.match(cat, /export function renameBrandFolder/);
+  assert.match(cat, /export function deleteBrandFolder/);
+});
