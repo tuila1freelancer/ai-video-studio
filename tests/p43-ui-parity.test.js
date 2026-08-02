@@ -56,3 +56,33 @@ test('P43: a dropped file is routed by WHAT IT IS, and nothing vanishes silently
   assert.match(dd, /depth = Math\.max\(0, depth - 1\)/);
   assert.match(src('../public/js/main.js'), /initDragDrop\(\)/, 'wired into the app');
 });
+
+test('P43: capabilities that existed only as routes are now reachable in the UI', () => {
+  // "Sửa HTML với AI" — POST /scenes/:id/edit-html shipped long ago and nothing ever called it
+  const ss = src('../public/js/features/scene-studio.js');
+  assert.match(ss, /api\.post\(`\/scenes\/\$\{cur\.id\}\/edit-html`, \{ prompt \}\)/, 'the AI edit lane is wired');
+  assert.match(ss, /htmlLoaded = false;/, 'and the editor reloads so the owner sees the result');
+  assert.ok(src('../public/index.html').includes('id="ssEditPrompt"'));
+
+  // the Facebook Page registry (P42) had no UI at all
+  const set = src('../public/js/features/settings.js');
+  assert.match(set, /export async function loadFbPages/);
+  assert.match(set, /\/publish\/pages\/\$\{b\.dataset\.fbchk\}\/check/, 'token health is checkable per Page');
+  assert.match(set, /r\.neverExpires \? '✅ token không hết hạn'/, 'and "never expires" is not shown as expired');
+
+  // named SEO styles could be created but never removed
+  assert.match(src('../public/js/views/config.js'), /api\.del\(`\/styles\/\$\{id\}`\)/);
+  // brand folders: rename/delete reachable, and the delete states the count it is about to destroy
+  const lib = src('../public/js/views/library.js');
+  assert.match(lib, /libBrandRename/);
+  assert.match(lib, /file trong thư mục này sẽ bị xoá vĩnh viễn/, 'the dialog says what is destroyed');
+  assert.match(lib, /confirm=\$\{n\}/, 'and echoes the count the server demands');
+  assert.match(lib, /e\.status === 409/, 'a stale count is reported, not swallowed — api.del THROWS on 409');
+});
+
+test('P43: subtitle colour is no longer limited to the nine swatches', () => {
+  const cfg = src('../public/js/views/config.js');
+  assert.match(cfg, /const custom = \$\('#cfgSubColorCustom'\);/);
+  assert.match(cfg, /custom\.oninput = \(\) => \{ state\.subColor = custom\.value;/, 'any colour applies live');
+  assert.match(cfg, /\/\^#\[0-9a-f\]\{6\}\$\/i\.test\(state\.subColor\)/, 'a non-hex saved value cannot break the input');
+});

@@ -366,6 +366,8 @@
                   <select class="input" id="cfgSubCase"><option value="original">Gốc</option><option value="uppercase">HOA</option><option value="lowercase">thường</option><option value="titlecase">Hoa Đầu</option></select>
                   <label class="label" style="margin-top:8px">Màu</label>
                   <div class="color-palette" id="cfgSubColors"></div>
+                <label class="hint" style="display:inline-flex;align-items:center;gap:6px;margin-top:6px">Màu tuỳ ý:
+                  <input type="color" id="cfgSubColorCustom" style="width:34px;height:24px;padding:0;border:none;background:none;cursor:pointer"></label>
                   <label class="label" style="margin-top:8px">Vị trí</label>
                   <select class="input" id="cfgSubPos"><option value="bot">Dưới</option><option value="mid">Giữa</option><option value="top">Trên</option></select>
                 </details>
@@ -412,7 +414,8 @@
               <div class="field" style="margin-top:6px"><label class="label">Phong cách SEO (metadata style)</label>
                 <select class="input" id="cfgMetaStyle"><option value="">— Mặc định —</option></select>
                 <textarea class="input" id="cfgMetaPrompt" rows="2" placeholder="Yêu cầu riêng cho tiêu đề/mô tả/tag… (vd: giọng chuyên gia, không giật tít)" style="margin-top:6px"></textarea>
-                <button class="btn sm" id="btnSaveMetaStyle" style="margin-top:6px">💾 Lưu thành phong cách có tên</button></div>
+                <div class="row" style="margin-top:6px"><button class="btn sm" id="btnSaveMetaStyle">💾 Lưu thành phong cách có tên</button>
+                <button class="btn sm danger" id="btnDelMetaStyle">🗑 Xoá phong cách</button></div></div>
               <label class="switch-row"><span class="switch"><input type="checkbox" id="cfgAutoConcat" checked><span class="sl"></span></span> Tự động ghép (B7)</label>
               <label class="switch-row" title="Dừng trước khi ghép để bạn duyệt từng cảnh trong Xem nháp"><span class="switch"><input type="checkbox" id="cfgReview"><span class="sl"></span></span> 🧐 Duyệt từng cảnh trước khi ghép</label>
               <label class="switch-row" title="Dựng toàn bộ cảnh trước rồi DỪNG — bạn duyệt/chỉnh từng cảnh thoải mái, chưa tốn phí lồng tiếng; bấm Lồng tiếng &amp; Render khi ưng ý"><span class="switch"><input type="checkbox" id="cfgSceneGate"><span class="sl"></span></span> 🎬 Dựng cảnh trước — duyệt xong mới lồng tiếng</label>
@@ -655,7 +658,9 @@
       <div class="row" style="margin-top:6px">
         <button class="btn sm" id="pubFbConnect">🔗 Kết nối Page</button>
         <button class="btn sm" id="pubFbDisconnect">✖ Ngắt</button>
+        <button class="btn sm" id="pubFbRefresh">↻ Làm mới</button>
       </div>
+      <div id="pubFbPages" class="hint" style="margin-top:6px;line-height:1.9"></div>
       <div class="hint" style="margin-top:4px">Video dọc (9:16 / 4:5) sẽ đăng dạng <strong>Reel</strong>, còn lại đăng vào feed Trang.</div></div>
     <button class="btn primary block" id="setSave">💾 Lưu cấu hình</button>
   </div>
@@ -823,6 +828,12 @@
           <div class="row" style="gap:8px;margin-top:8px">
             <button class="btn primary" id="ssHtmlApply" title="⌘/Ctrl+Enter">💾 Áp dụng (⌘↵)</button>
             <button class="btn" id="ssHtmlReset">↩ Bỏ bản sửa tay</button>
+          </div>
+          <div class="field" style="margin-top:10px">
+            <label class="label">✏️ Sửa bằng lời — AI chỉnh đúng chỗ bạn nói, giữ nguyên phần còn lại</label>
+            <textarea class="input" id="ssEditPrompt" rows="2" placeholder="vd: làm tiêu đề to hơn và đổi sang vàng, thêm một thẻ số liệu bên phải"></textarea>
+            <div class="row" style="gap:8px;margin-top:6px"><button class="btn primary" id="ssEditAi">✏️ Sửa HTML với AI</button>
+            <span class="hint" id="ssEditOut"></span></div>
           </div>
         </div>
         <div id="ssTabAudio" style="display:none">

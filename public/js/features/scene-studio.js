@@ -20,6 +20,9 @@ export function initSceneStudio() {
   $('#ssVisualSave')?.addEventListener('click', () => withLock($('#ssVisualSave'), saveVisual));
   $('#ssHtmlApply')?.addEventListener('click', () => withLock($('#ssHtmlApply'), applyHtml));
   $('#ssHtmlReset')?.addEventListener('click', () => withLock($('#ssHtmlReset'), resetHtml));
+  // P43: POST /scenes/:id/edit-html existed but nothing in the UI ever called it — the owner had
+  // to hand-edit markup to change one word's colour.
+  $('#ssEditAi')?.addEventListener('click', () => withLock($('#ssEditAi'), editHtmlWithAi));
   $('#ssReload')?.addEventListener('click', reloadPreview);
   // audio director wiring
   $('#ssSfxGain')?.addEventListener('input', () => { $('#ssSfxGainL').textContent = `${$('#ssSfxGain').value} dB`; });
@@ -208,6 +211,29 @@ async function applyHtml() {
     note('✓ Đã áp dụng — cảnh sẽ render lại với markup này.');
     toast('💾 Đã áp bản sửa tay.', 'success');
   } catch (e) { note('✗ ' + e.message, true); }
+}
+
+// Describe the change in plain language; the AI applies it to THIS scene's spec and the preview
+// refreshes. The old spec is kept as a take (server side), so a bad edit is one click to undo.
+async function editHtmlWithAi() {
+  if (!cur) return;
+  const prompt = $('#ssEditPrompt')?.value.trim();
+  const out = $('#ssEditOut');
+  if (!prompt) { if (out) out.textContent = 'Mô tả thay đổi trước đã.'; return; }
+  if (out) out.textContent = '⏳ AI đang sửa…';
+  try {
+    const r = await api.post(`/scenes/${cur.id}/edit-html`, { prompt });
+    if (r?.error) throw new Error(r.error);
+    await syncScene();
+    htmlLoaded = false;
+    await loadHtml();
+    reloadPreview();
+    if (out) out.textContent = '✓ Đã sửa — xem preview bên trái';
+    toast('✏️ AI đã sửa cảnh.', 'success');
+  } catch (e) {
+    if (out) out.textContent = '✗ ' + e.message;
+    note('✗ ' + e.message, true);
+  }
 }
 
 async function resetHtml() {
