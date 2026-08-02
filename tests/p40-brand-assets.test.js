@@ -6,7 +6,7 @@ import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { isCharacterAsset, brandFolderFor, sanitizeCast, castBrandAssets, sceneMediaResolver } from '../src/pipeline/brand-assets.js';
+import { isCharacterAsset, brandFolderFor, sanitizeCast, castBrandAssets, sceneMediaResolver, normalizeAssets } from '../src/pipeline/brand-assets.js';
 import { imageFullBlock } from '../src/hyperframe/codegen.js';
 
 const src = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
@@ -96,4 +96,35 @@ test('P40-B: cast numbering follows the list the model was GIVEN, not scene indi
   const vis = readFileSync(new URL('../src/pipeline/stages/visuals.js', import.meta.url), 'utf8');
   assert.match(vis, /uncast\.forEach\(\(sc, k\) => \{[\s\S]*?cast\.get\(k \+ 1\)/, 'mapped back by position');
   assert.ok(!/cast\.get\(sc\.idx \+ 1\)/.test(vis), 'never keyed by scene index');
+});
+
+test('P40-B: every asset shape the UI can produce survives normalization', () => {
+  const out = normalizeAssets([
+    '/tmp/photo.jpg',                       // an upload — the UI pushes a bare path
+    '/api/file?path=%2Ftmp%2Fchart.png',    // a local file referenced by URL
+    { name: 'Logo', path: '/tmp/logo.svg' }, // the master script's shape
+    'https://cdn/remote.jpg',               // remote — must be downloaded first, not guessed at
+    '', null, { name: 'no path' },
+  ]);
+  assert.deepEqual(out.map((a) => a.name), ['photo.jpg', 'chart.png', 'Logo']);
+  assert.equal(out[1].path, '/tmp/chart.png', 'the file URL is decoded back to a real path');
+  assert.deepEqual(normalizeAssets(null), []);
+});
+
+test('P40-B: an uploaded asset actually reaches a scene, by name OR by filename', () => {
+  const resolve = sceneMediaResolver(
+    { assets: ['/tmp/photo.jpg', { name: 'Ảnh bìa', path: '/tmp/cover.png' }], brandAssets: 'none' },
+    { heroMediaUri: (p) => `uri:${p}` },
+  );
+  // this is the regression that mattered: a bare path used to resolve to NOTHING
+  assert.equal(resolve({ assets: ['photo.jpg'] })[0].uri, 'uri:/tmp/photo.jpg');
+  assert.equal(resolve({ assets: ['Ảnh bìa'] })[0].uri, 'uri:/tmp/cover.png', 'stored name');
+  assert.equal(resolve({ assets: ['cover.png'] })[0].uri, 'uri:/tmp/cover.png', 'or bare filename');
+});
+
+test('P40-B: the brand catalog sees art dropped into the folder, not just DB rows', () => {
+  const s = src('../src/pipeline/brand-assets.js');
+  assert.match(s, /readdirSync\(dir\)/, 'the folder itself is read');
+  assert.match(s, /seen\.has\(f\.toLowerCase\(\)\)/, 'a DB row wins over the same filename on disk');
+  assert.match(s, /export function brandFolders/, 'folders made in Finder are offered too');
 });
