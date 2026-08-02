@@ -35,6 +35,8 @@ export function initEditVideo() {
           sceneDuration: +($('#evSceneDur')?.value || 7),
           enableSubtitles: !!$('#evSubs')?.checked,
           reframePosition: $('#evReframe')?.value || 'center',
+          removeSilence: !!$('#evCutSilence')?.checked,
+          autoZoom: !!$('#evZoom')?.checked,
         },
       });
       if (r.error) throw new Error(r.error);

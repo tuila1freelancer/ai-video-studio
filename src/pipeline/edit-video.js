@@ -13,10 +13,11 @@
 // the original soundtrack (config.overlay.mode = 'edit' → compositeColorkey exact/audioFrom).
 // No TTS is ever spent: the narration is already in the file.
 import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import * as DB from '../db/index.js';
 import { transcribeWords, whisperAvailable } from '../media/whisper.js';
 import { chat, llmEnabled } from '../providers/llm.js';
-import { probeDuration, probeImageSize } from '../media/ffmpeg.js';
+import { probeDuration, probeImageSize, removeSilence } from '../media/ffmpeg.js';
 import { safeJson } from '../util/util.js';
 import { runVisuals } from './stages/visuals.js';
 import { runRender } from './stages/render.js';
@@ -193,6 +194,8 @@ export async function createEditVideoProject({ source, title = '', language = 'a
       enabled: true, source: src, key: config.overlay?.key || '#050510', mode: 'edit',
       // where to keep the subject if the footage must be cropped to the project ratio (P43)
       position: config.reframePosition || config.overlay?.position || 'center',
+      // slow push-in/pull-out on the footage under the graphics (P44) — off unless asked for
+      zoom: config.autoZoom ? { intensity: +config.autoZoomIntensity || 0.5 } : null,
     },
     // The footage already carries its own voice and music — never mix ours over it, and never
     // spend TTS credit: the narration is already in the file.
@@ -221,12 +224,19 @@ export async function runEditVideo(ctx) {
   const existing = DB.getScenes(projectId);
   if (!existing.length) {
     step(projectId, 'b2', 'running', 'Bóc lời thoại từ video');
-    op(projectId, '🎧 Đang bóc lời thoại (whisper)…');
     jlog(projectId, { kind: 'status', msg: `🎬 Sửa video: ${src.split('/').pop()}` });
-    const total = config.editVideo.sourceDuration || await probeDuration(src);
+    // DEAD AIR FIRST (P44). The reference cuts silence AFTER it has split scenes from the
+    // transcript, so every scene then reads the shortened footage at its OLD timestamp and
+    // drifts. Cutting before the transcript means whisper only ever sees the final footage and
+    // the timings are right by construction.
+    const useSrc = await maybeRemoveSilence(ctx, src);
+    op(projectId, '🎧 Đang bóc lời thoại (whisper)…');
+    const total = useSrc === src
+      ? (config.editVideo.sourceDuration || await probeDuration(src))
+      : await probeDuration(useSrc);
     // Segment granularity: the transcript is CONTENT here (it becomes the scene's narration and
     // drives the design), so decoding accuracy beats per-word karaoke timing.
-    const { segments: raw } = await transcribeWords(src, { language: config.language || 'auto', granularity: 'segment' });
+    const { segments: raw } = await transcribeWords(useSrc, { language: config.language || 'auto', granularity: 'segment' });
     if (isStopped(projectId)) throw Object.assign(new Error('stopped'), { stopped: true });
     op(projectId, `📝 Bóc được ${raw.length} câu — đang hiệu đính…`);
     const fixed = await repairTranscript(raw, {
@@ -253,6 +263,43 @@ export async function runEditVideo(ctx) {
   await runVisuals(ctx);
   await runRender(ctx);
   return finalize(projectId, { dir: ctx.dir, size: ctx.size, config: ctx.config });
+}
+
+/**
+ * Cut the dead air out of the footage before anything else looks at it (P44), and repoint the
+ * WHOLE project at the shortened file — `editVideo.source` and `overlay.source` both, so the
+ * composite reads the same footage the transcript was made from. On resume the file is already
+ * on disk and is reused; any failure logs and keeps the original, because a video with pauses
+ * is a far better outcome than no video.
+ * @returns {Promise<string>} the path everything downstream must use
+ */
+async function maybeRemoveSilence(ctx, src) {
+  const { projectId, config } = ctx;
+  if (!config.removeSilence) return src;
+  const out = join(ctx.dir, 'source_no_silence.mp4');
+  const repoint = (path) => {
+    config.editVideo = { ...config.editVideo, source: path, processed: path };
+    config.overlay = { ...(config.overlay || {}), source: path };
+    DB.updateProject(projectId, { config });
+  };
+  if (existsSync(out) && config.editVideo.processed === out) {
+    op(projectId, '▶ Tiếp tục: đã cắt khoảng lặng sẵn');
+    return out;
+  }
+  op(projectId, '✂️ Đang cắt khoảng lặng khỏi video…');
+  try {
+    const r = await removeSilence(src, out, {
+      noiseDb: Number.isFinite(+config.silenceThresholdDb) ? +config.silenceThresholdDb : -30,
+      onLog: (m) => op(projectId, `✂️ ${m}`),
+    });
+    if (!r.segmentsRemoved || !(r.newDuration > 0.5)) return src;
+    repoint(out);
+    jlog(projectId, { kind: 'status', msg: `✂️ Cắt lặng: ${r.originalDuration.toFixed(1)}s → ${r.newDuration.toFixed(1)}s (${r.segmentsRemoved} khoảng)` });
+    return out;
+  } catch (e) {
+    op(projectId, `⚠️ Cắt khoảng lặng thất bại (${e.message.slice(0, 80)}) — dùng video gốc`);
+    return src;
+  }
 }
 
 /** Source pixel dimensions (falls back to 16:9 defaults when the probe says nothing). */
