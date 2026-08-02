@@ -13,16 +13,11 @@
 // the original soundtrack (config.overlay.mode = 'edit' → compositeColorkey exact/audioFrom).
 // No TTS is ever spent: the narration is already in the file.
 import { existsSync } from 'node:fs';
-import { join } from 'node:path';
 import * as DB from '../db/index.js';
-import { hub } from '../ws/hub.js';
-import { logger } from '../util/log.js';
 import { transcribeWords, whisperAvailable } from '../media/whisper.js';
 import { chat, llmEnabled } from '../providers/llm.js';
 import { probeDuration, probeImageSize } from '../media/ffmpeg.js';
-import { ratioToSize, safeJson } from '../util/util.js';
-import { projectDirIn } from '../config/paths.js';
-import { buildContext } from './context.js';
+import { safeJson } from '../util/util.js';
 import { runVisuals } from './stages/visuals.js';
 import { runRender } from './stages/render.js';
 import { finalize } from './stages/finalize.js';
@@ -277,13 +272,3 @@ export function editVideoSrt(projectId) {
   return buildSrt(cues);
 }
 
-/** Where an edit-video project keeps its working files (same layout as any other project). */
-export function editVideoDir(project) {
-  return projectDirIn(project.root_dir, project.id);
-}
-
-/** Exposed for the UI estimate: how many scenes a file of this length will produce. */
-export function estimateEditScenes(totalSeconds, sceneDuration = 7) {
-  const size = ratioToSize('16:9');
-  return { scenes: Math.max(1, Math.round(totalSeconds / Math.max(3, sceneDuration))), size };
-}
