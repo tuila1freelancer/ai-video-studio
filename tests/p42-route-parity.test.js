@@ -138,3 +138,18 @@ test('P42: a thumbnail can be edited BY INSTRUCTION, keeping everything else', a
   assert.match(routes, /'\/projects\/:id\/thumbnail\/edit-html'/);
   assert.match(routes, /chưa có thiết kế thumbnail để sửa/, 'editing needs something to edit');
 });
+
+test('P42: the subtitle position select finally moves the captions — without shifting old videos', async () => {
+  const { captionStyleFrom } = await import('../src/subtitles/presets.js');
+  const theme = { accents: ['#F7B500'], ink: '#fff' };
+  const at = (cfg) => captionStyleFrom(cfg, theme, { w: 1920, h: 1080 }).bottomPct;
+  // it was dead: bottomPct read only marginV, and the panel always sends 0.12
+  assert.equal(at({ subtitlePosition: { preset: 'mid', marginV: 0.12 } }), 45, 'giữa now renders in the middle');
+  assert.equal(at({ subtitlePosition: { preset: 'top', marginV: 0.12 } }), 80, 'trên now renders high');
+  // BYTE-COMPAT: everything that already worked must produce the same number as before
+  assert.equal(at({}), undefined, 'no position → the harness default, untouched');
+  assert.equal(at({ subtitlePosition: { preset: 'bot', marginV: 0.12 } }), undefined, 'dưới → unchanged');
+  assert.equal(at({ subtitlePreset: 'karaoke-vang', subtitlePosition: { preset: 'bot', marginV: 0.12 } }), undefined,
+    'with a subtitle preset, dưới keeps the value it always had');
+  assert.equal(at({ subtitlePreset: 'karaoke-vang', subtitlePosition: { preset: 'top', marginV: 0.12 } }), 80);
+});

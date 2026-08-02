@@ -80,6 +80,9 @@ export const SUBTITLE_PRESETS = [
   },
 ];
 
+// Distance from the BOTTOM of the frame, in %, for each position preset (harness .cap bottom).
+const POSITION_BOTTOM_PCT = { bot: 12, mid: 45, top: 80 };
+
 export function getSubtitlePreset(id) {
   if (!id) return null;
   return SUBTITLE_PRESETS.find((p) => p.id === id) || null;
@@ -112,9 +115,15 @@ export function captionStyleFrom(config, theme, { w, h }) {
   const mode = c.subtitleMode === 'plain' ? 'plain' : 'karaoke';
   const preset = getSubtitlePreset(c.subtitlePreset);
   if (!preset) {
+    // No subtitle preset chosen — this branch must return exactly what buildSceneHtml computed
+    // before presets existed, or every old video shifts on re-render. The ONE addition is the
+    // position preset, and only for 'mid'/'top': those never did anything, while 'bot'/absent
+    // stays undefined so the harness keeps its own default (10% tall / 7% wide) untouched.
+    const movedTo = POSITION_BOTTOM_PCT[c.subtitlePosition?.preset];
     return {
       color: c.subtitleColor || theme.accents[0], fontSizePx,
       ...(pickedStack ? { fontFamily: pickedStack } : {}), mode,
+      ...(c.subtitlePosition?.preset && c.subtitlePosition.preset !== 'bot' && movedTo != null ? { bottomPct: movedTo } : {}),
     };
   }
   const lang = (c.subtitleLang || c.language || '').toLowerCase();
@@ -128,7 +137,12 @@ export function captionStyleFrom(config, theme, { w, h }) {
     effect: preset.effect,
     ...(preset.boxBg ? { boxBg: preset.boxBg } : {}),
     fontSizePx,
-    bottomPct: pos.marginV != null ? Math.round(pos.marginV * 100) : undefined,
+    // P42: the Dưới/Giữa/Trên select was DEAD — bottomPct read only marginV, and the panel always
+    // sends 0.12, so 'mid'/'top' rendered identically to 'bot'. The preset now decides, with
+    // marginV as the fallback for a caller that passes one without a preset. 'bot' maps to 12 on
+    // purpose: it is exactly what every existing project already rendered, so no finished video
+    // shifts when it is re-rendered — only the two settings that never worked start working.
+    bottomPct: POSITION_BOTTOM_PCT[pos.preset] ?? (pos.marginV != null ? Math.round(pos.marginV * 100) : undefined),
     textCase: c.subtitleTextCase || preset.textCase,
     mode,
   };
