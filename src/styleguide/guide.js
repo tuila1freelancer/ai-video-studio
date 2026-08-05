@@ -171,19 +171,24 @@ export const SAMPLE_SPEC = {
     <!-- SLOT PLACEMENT IS THE LESSON HERE: the six anchors sit in SIX DIFFERENT zones of the
          3x3 grid (top-left, top-right, top-centre, middle/bottom-left, middle/bottom-right,
          bottom-centre) so no corner is starved and nothing piles up dead-centre. -->
-    <div class="hf-slot" style="left:20%;top:12%"><div class="hf-label" id="lb1">// KIỂM CHỨNG</div></div>
+    <!-- THE COPY IS DELIBERATELY NUMERIC/SYMBOLIC. This example teaches slot geometry, structure
+         and motion — never wording, and never a language. Written in any real language it would
+         become the strongest language signal in the whole prompt (it is the only finished scene
+         the model ever sees), which is exactly how English videos ended up with Vietnamese
+         labels. Same rule as the HUD text in styleguide/generate.js. -->
+    <div class="hf-slot" style="left:20%;top:12%"><div class="hf-label" id="lb1">// 001</div></div>
     <div class="hf-slot" style="left:82%;top:14%"><div class="hf-iconbox sm" id="ic1">{{icon:shield}}</div></div>
-    <div class="hf-slot" style="left:50%;top:30%"><div class="hf-kw" id="kw1">TỰ TIN ≠ ĐÚNG</div></div>
+    <div class="hf-slot" style="left:50%;top:30%"><div class="hf-kw" id="kw1">37 ≠ 100</div></div>
     <!-- the hero: a bespoke glass instrument whose rows light up in the order the voice names them -->
     <div class="hf-slot" style="left:30%;top:66%"><div class="hf-vcard" id="vc1">
-      <div class="hf-vhead"><b></b><span>Đối chiếu sự thật</span></div>
-      <div class="hf-vrow" id="vr1"><span class="k">Có nguồn?</span><span class="v">CHƯA</span></div>
-      <div class="hf-vrow" id="vr2"><span class="k">Dữ kiện khớp?</span><span class="v">37%</span></div>
+      <div class="hf-vhead"><b></b><span>▸ 001</span></div>
+      <div class="hf-vrow" id="vr1"><span class="k">01</span><span class="v">—</span></div>
+      <div class="hf-vrow" id="vr2"><span class="k">02</span><span class="v">37%</span></div>
       <div class="hf-track"><i id="tk1"></i></div>
     </div></div>
     <div class="hf-slot" style="left:80%;top:62%"><div class="hf-stat" id="st1">
       <div class="hf-stat-v"><span id="st1v">0</span><span class="hf-stat-u">%</span></div>
-      <div class="hf-stat-l">độ tin cậy thực</div>
+      <div class="hf-stat-l">± 0.1</div>
     </div></div>
     <div class="hf-slot" style="left:52%;top:87%"><div class="hf-scale" id="sc1"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><span>0 → 100</span></div></div>
   </div>`,

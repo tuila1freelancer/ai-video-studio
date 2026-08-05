@@ -33,6 +33,13 @@ export const LANG_NAME = {
 /** Human name for a language code — for prompts and owner-facing messages. */
 export function langName(code) { return LANG_NAME[code] || code || 'Vietnamese'; }
 
+/**
+ * The name as an ADJECTIVE, for prose that reads "a ${L} word" / "complete ${L} words".
+ * LANG_NAME carries a disambiguating parenthetical ("English (US)", "Spanish (neutral/Latin
+ * American)") that is right for "write the narration in X" and wrong inside a noun phrase.
+ */
+export function langAdjective(code) { return langName(code).replace(/\s*\(.*\)$/, ''); }
+
 // The channel that has always existed here is Vietnamese, so an app with nothing whatsoever to go
 // on still answers 'vi'. Every other path reaches a real answer long before this constant.
 export const DEFAULT_LANG = 'vi';
