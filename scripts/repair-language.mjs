@@ -18,6 +18,22 @@
 //
 // Every scene it touches is snapshotted as a take by the server first, so any single scene can be
 // rolled back from Scene Studio without undoing the rest.
+//
+// TWO THINGS THIS LEARNED THE HARD WAY — read before trusting a run:
+//
+// 1. NEVER START THIS WHILE A RENDER IS IN FLIGHT. render-only.js reads every scene row into
+//    memory ONCE and renders from that snapshot. A render queued before an edit finishes from the
+//    STALE row and writes video_path back over the null the edit just set — so the clip looks
+//    fresh by mtime AND the DB row reads correct, while the picture is the old one. Check the
+//    project is not 'running' first, and VERIFY BY EXTRACTING A FRAME, never by DB state.
+//
+// 2. THE DIACRITIC TEST HAS A BLIND SPOT. Vietnamese conventions that carry no diacritics slip
+//    through: "84.000.000 đ", "+12 TR" (triệu), and "$5.000" with a dot as the thousands
+//    separator. Worse, telling the model to preserve numbers and currency symbols verbatim — right
+//    for a label — is exactly wrong when the CURRENCY ITSELF is the foreign thing. Those need a
+//    human: the narration usually pins the values ("already at seventy percent"), and a model
+//    asked to convert will invent numbers that contradict the voice-over. Run the reporter below
+//    after every repair and fix what it lists by hand.
 import { readFileSync } from 'node:fs';
 import { chat, llmEnabled } from '../src/providers/llm.js';
 import { aiSettings } from '../src/db/index.js';
@@ -60,9 +76,16 @@ scenes.sort((a, b) => a.idx - b.idx);
 log(`project: ${project.title}`);
 log(`${scenes.length} scenes · target language: ${lang}`);
 
+// What a VIEWER can actually read: HTML text nodes plus strings the script assigns to the DOM.
+// Deliberately NOT the whole props blob — a Vietnamese `// Beat 1: …` comment and the style
+// guide's own name (props.guide.name = "Tài Chính Thực Tế") never reach the screen, and counting
+// them cries wolf on a scene that is already correct.
 const onScreenText = (sc) => {
   const p = sc.props || {};
-  return [p.html, p.css, p.script].filter(Boolean).join('\n');
+  return [...String(p.html || '').matchAll(/>([^<>]+)</g)].map((m) => m[1])
+    .concat([...String(p.script || '').replace(/\/\/[^\n]*/g, '')
+      .matchAll(/(['"`])((?:(?!\1)[^\\]|\\.)*)\1/g)].map((m) => m[2]))
+    .join('\n');
 };
 // Which scenes are actually wrong, measured now rather than assumed from an earlier survey.
 const badVoice = scenes.filter((s) => VN.test(s.voice_text || ''));
@@ -215,11 +238,31 @@ for (let i = 0; i < 360; i++) {
 
 // ---------------------------------------------------------------- 5. verify
 const final = (await api(`/api/projects/${projectId}`)).scenes;
+const visible = (sc) => {
+  const p = sc.props || {};
+  return [...String(p.html || '').matchAll(/>([^<>]+)</g)].map((m) => m[1])
+    // comments are stripped: a Vietnamese `// Beat 1: …` note never reaches the screen, and
+    // neither does the guide's own name in props.guide — flagging those is a false alarm.
+    .concat([...String(p.script || '').replace(/\/\/[^\n]*/g, '')
+      .matchAll(/(['"`])((?:(?!\1)[^\\]|\\.)*)\1/g)].map((m) => m[2]));
+};
 const stillVoice = final.filter((s) => VN.test(s.voice_text || ''));
-const stillHtml = final.filter((s) => !VN.test(s.voice_text || '') && VN.test(onScreenText(s)));
+const stillHtml = final.filter((s) => visible(s).some((t) => VN.test(t)));
+// The blind spot (see the header): Vietnamese conventions with no diacritics. Reported, never
+// auto-fixed — the narration pins these values and a model asked to convert will contradict it.
+const CONV = /\d\.\d{3}(?!\d)|\bTR\b|\bđ\b|VN[ĐD]\b/;
+const conventions = final
+  .map((s) => ({ idx: s.idx, hits: [...new Set(visible(s).filter((t) => CONV.test(t)).map((t) => t.trim()))] }))
+  .filter((x) => x.hits.length);
 log('---- result ----');
 log(`narration still wrong: ${stillVoice.length} ${stillVoice.map((s) => s.idx).join(', ')}`);
 log(`on-screen still wrong: ${stillHtml.length} ${stillHtml.map((s) => s.idx).join(', ')}`);
+if (conventions.length) {
+  log(`NEEDS A HUMAN — ${conventions.length} scenes keep Vietnamese number/currency conventions:`);
+  for (const c of conventions) log(`  scene ${c.idx}: ${JSON.stringify(c.hits).slice(0, 120)}`);
+}
+log('Verify by EXTRACTING A FRAME from the finished file — the DB can read correct while the');
+log('clip is stale (see note 1 in the header).');
 if (rejected.length) {
   log(`${rejected.length} scenes were REFUSED by the render gate and keep their old text:`);
   for (const r of rejected) log(`  scene ${r.idx}: ${r.why}`);
