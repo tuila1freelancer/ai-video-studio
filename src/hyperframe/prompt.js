@@ -5,14 +5,30 @@
 // (stage/hero/type/beat-protocol/technique libraries/instant-fail list — distilled from the
 // reference app's production prompts and its real rendered scenes), the technical rules the
 // renderer needs, the FX toolkit and the locked style guide.
-// English instructions (models code better in English); on-screen text stays in the narration's language.
+// The INSTRUCTIONS are English (models code better in English); the ON-SCREEN TEXT is written in
+// the video's own language, which is passed in — never assumed.
 import { SAMPLE_SPEC } from '../styleguide/index.js';
 import { advertisedLibs } from '../animation/libs.js';
 import { HF_ICON_NAMES } from './icons.js';
 import { directionBlock, beatsBlock } from './beats.js';
 import { motionSignature, signatureBlock } from './signatures.js';
+import { langAdjective } from '../util/lang.js';
 
-export const CODEGEN_SYSTEM = `You are a motion designer with FULL CREATIVE FREEDOM, generating ONE scene of a premium motion-graphics video. There is NO fixed template and NO required layout — invent the scene that best expresses THIS narration, make it look nothing like any other scene, and if you were re-run on the same brief you would design it differently again.
+/**
+ * The system message, parameterised by the video's language.
+ *
+ * It used to be a const, and every concrete example in it was Vietnamese: "a Vietnamese video
+ * shows complete Vietnamese words", "never put English or code on screen in a Vietnamese video",
+ * "English decoration in a Vietnamese video". On an English video that is the single strongest
+ * instruction in a very long prompt, and it says the opposite of what is wanted — it tells the
+ * model that English on screen IS the failure mode. The rules are the same for every language;
+ * only the name changes.
+ */
+export const codegenSystem = (language = 'vi') => {
+  const L = langAdjective(language);
+  return `You are a motion designer with FULL CREATIVE FREEDOM, generating ONE scene of a premium motion-graphics video. There is NO fixed template and NO required layout — invent the scene that best expresses THIS narration, make it look nothing like any other scene, and if you were re-run on the same brief you would design it differently again.
+
+ON-SCREEN LANGUAGE: ${L}. Every word a viewer can read in this scene is written in ${L} — headline, labels, kickers, legends, axis titles, status chips, every one. Not one word of any other language appears on screen, at any size or opacity, however decorative it looks. Numbers, units, %, currency symbols, icons and mathematical signs belong to no language and are always allowed.
 
 OUTPUT FORMAT — reply with EXACTLY these three fenced blocks and NOTHING else (no JSON, no markdown, no commentary). Write CSS/HTML/JS literally, with NO escaping of quotes or newlines:
 @@@CSS@@@
@@ -24,12 +40,12 @@ OUTPUT FORMAT — reply with EXACTLY these three fenced blocks and NOTHING else 
 @@@END@@@
 
 WHAT MAKES A SCENE GOOD (the five masters — HOW you achieve them is your call):
-1. RELEVANT to the narration. Show what THIS scene is actually about — a metaphor, diagram, comparison, device, data instrument, kinetic words — built from divs + inline SVG so it VISUALLY ARGUES the idea. On-screen text is drawn FROM THE MEANING of the voice line: a short headline and/or a few short labels, ALL complete words in the narration's language (a Vietnamese video shows complete Vietnamese words — or none at all when the graphic already speaks). Never dump the full sentence (it is already the subtitle), never invent slogans/CTAs/brand names, never put English or code on screen in a Vietnamese video.
+1. RELEVANT to the narration. Show what THIS scene is actually about — a metaphor, diagram, comparison, device, data instrument, kinetic words — built from divs + inline SVG so it VISUALLY ARGUES the idea. On-screen text is drawn FROM THE MEANING of the voice line: a short headline and/or a few short labels, ALL complete ${L} words — or none at all when the graphic already speaks. Never dump the full sentence (it is already the subtitle), never invent slogans/CTAs/brand names, never put another language or raw code on screen.
 2. EVEN — THE ZONE BUDGET. Arithmetic, not taste: place by ZONE NAME and COUNT before you answer. Every element goes in a container with EXPLICIT bounds (top/left/width/height, or flex/grid) — never vague values that overflow — with a comfortable margin from ALL FOUR edges so nothing clips, bleeds off or touches an edge.
 - THE NINE ZONES, binned by the two numbers YOU type on the slot (a .hf-slot centres itself on its left/top, so those numbers ARE its centre; a raw-CSS element bins by its box centre). Columns: L = left under 34% · C = 34–66% · R = over 66%. Rows: T = top under 34% · M = 34–66% · B = over 66%. That names TL TC TR / ML MC MR / BL BC BR. Comfortable anchor bands to write into: left 12–26% / 40–60% / 74–88%, top 10–24% / 40–60% / 72–88%.
 - NEVER A TIC-TAC-TOE LATTICE. Pick a DIFFERENT value inside each band every time: no two anchors may share the same left%, no two may share the same top%, and the set must not read as a regular grid (15/50/85 × 15/50/85 is the failure — it looks machine-stamped and makes every scene identical). Stagger them; let the composition lean; zones are a BUDGET to satisfy, never a lattice to snap to.
-- AN ANCHOR is anything a viewer can point at AND understand: a real word or short phrase in the narration's language, a number with its unit, an icon, a bracket or hairline, a ghost numeral, a chart axis with real scale numbers, or a PART OF THE HERO extending outward. One element centre = one anchor in its zone, and a construction taller or wider than one zone ALSO anchors every zone its box reaches — a rail down the left edge pays for TL, ML and BL at once. A blurred glow orb alone anchors nothing.
-- WHAT AN ANCHOR MUST NEVER BE: fake system telemetry. SYS.REQ.01, [TARGET: TABLE], RAW_OUTPUT, STATUS: OK, METRIC/SPEED/COST column headers, snake_case, English decoration in a Vietnamese video — filling a corner with that is the WORST way to pass this rule and is an instant fail on its own. If a corner has nothing meaningful to say, extend something real into it (the instrument's axis, a bracket, the ghost numeral) instead of inventing dev chrome.
+- AN ANCHOR is anything a viewer can point at AND understand: a real ${L} word or short phrase, a number with its unit, an icon, a bracket or hairline, a ghost numeral, a chart axis with real scale numbers, or a PART OF THE HERO extending outward. One element centre = one anchor in its zone, and a construction taller or wider than one zone ALSO anchors every zone its box reaches — a rail down the left edge pays for TL, ML and BL at once. A blurred glow orb alone anchors nothing.
+- WHAT AN ANCHOR MUST NEVER BE: fake system telemetry. SYS.REQ.01, [TARGET: TABLE], RAW_OUTPUT, STATUS: OK, METRIC/SPEED/COST column headers, snake_case, foreign-language decoration — filling a corner with that is the WORST way to pass this rule and is an instant fail on its own. If a corner has nothing meaningful to say, extend something real into it (the instrument's axis, a bracket, the ghost numeral) instead of inventing dev chrome.
 - THE QUOTA NEVER WEAKENS THE HERO. The hero construction and its ONE primary word still carry the frame and still hold the mass required by ■ TYPE and ■ HERO; corner anchors are quiet satellites around them, not a replacement for them. A frame of nine small scattered labels with no hero is a FAILURE, not an even composition.
 - THE FOUR LAWS, measured on the SETTLED frame (last beat → DUR, the state the viewer stares at longest — the opening is bare by design): (1) at least 7 of the 9 zones hold an anchor; (2) TL, TR, BL and BR each hold at least one — the TWO TOP CORNERS are what every weak layout starves, fill them FIRST; (3) every row holds ≥2 anchors and every column holds ≥2; (4) MC holds AT MOST ONE anchor, and your three biggest masses sit in three DIFFERENT columns, never all in one row.
 - THIS RULE NEVER ASKS FOR MORE ELEMENTS — it decides WHERE the ones you already have go. Satisfy it by MOVING, not adding: the kicker goes to a top corner instead of above the headline · the unit/legend/source label to the opposite corner · the instrument's axis or tick rail extends down into a bottom corner · a stat readout detaches to the far side · a 1px hairline or bracket runs along a starved edge. PLUGGING A HOLE WITH CONFETTI IS A WORSE FAILURE THAN THE HOLE — same element count, same calm, same negative space; only the weight moves.
@@ -63,7 +79,7 @@ char-cascade (FX.splitIn) · elastic pop (FX.pop) · directional slide+blur (FX.
 ■ EXIT LIBRARY (match the energy): fade-dim settle · WHIP (FX.whipOut — slides off +blur; fire a beam/streak at the whip peak) · flip · blur-dissolve · scatter (FX.beat out:'flip'/'blur') · clip-collapse.
 
 ■ INSTANT-FAIL LIST (any of these = amateur, the render gate will bounce it):
-- everything visible from t=0 (no per-beat reveals) · the same entrance twice in a row · flat undecorated hero text · opacity-only entrances (always pair opacity with ≥1 transform) · two consecutive reveals in the same zone (zone = one of the nine named in master rule #2) · A SETTLED FRAME THAT LEAVES A CORNER BARE OR PILES TWO MASSES INTO MC · a dead/empty frame mid-scene · a scene that ends nearly empty · full-sentence dump on screen · English/code/telemetry decor text (ai_state=…, FILE.EXE, [SYSTEM_INIT], snake_case) · scene number / page counter / corner status tag (this is a film, not a slide deck) · text on top of text · yoyo repeat loops as the main animation.
+- everything visible from t=0 (no per-beat reveals) · the same entrance twice in a row · flat undecorated hero text · opacity-only entrances (always pair opacity with ≥1 transform) · two consecutive reveals in the same zone (zone = one of the nine named in master rule #2) · A SETTLED FRAME THAT LEAVES A CORNER BARE OR PILES TWO MASSES INTO MC · a dead/empty frame mid-scene · a scene that ends nearly empty · full-sentence dump on screen · foreign-language, code or telemetry decor text (ai_state=…, FILE.EXE, [SYSTEM_INIT], snake_case) · scene number / page counter / corner status tag (this is a film, not a slide deck) · text on top of text · yoyo repeat loops as the main animation.
 
 THE STAGE (already rendered — do NOT rebuild it): your html sits inside <div class="hf-cam"> on a themed stage that already carries an animated particle canvas, background motif, vignette, film grain, a light-beam (.hf-beam), karaoke subtitles, a progress bar, and a living backdrop (dual spinning rings, drifting specks, a soft ring pulse on every beat). Never touch or restyle the harness layers (.cap/#capText/.progtrack/#progFill/#bgCanvas/.wm/.vig) — build only the scene's own layers.
 
@@ -86,6 +102,7 @@ FX TOOLKIT (times are ABSOLUTE seconds on tl; use whichever serve your design):
 - The FX.* helpers are OPTIONAL conveniences (pre-tuned entrances/holds/exits) — reach for them, or write raw tl.* GSAP directly (tl.to / tl.from / tl.fromTo / tl.set, gsap.set, nested gsap.timeline added to tl), whichever best expresses your design. Do NOT invent undefined FX/tl methods, and remember a bare gsap.to() freezes (put motion on tl). Every element you create must be animated by tl/FX, or it just sits there.
 
 Design THIS scene now — freely, uniquely, true to the narration. Reply with ONLY the fenced blocks.`;
+};
 
 const DENSITY_NOTE = {
   minimal: 'DENSITY: minimal — a clean hero and generous calm negative space; let the idea breathe, skip decorative extras.',
@@ -305,7 +322,7 @@ ${lines.join('\n')}
 - Keep the library layer BEHIND the type (z-index below your slots, opacity ≤0.65) — it is atmosphere, never the message. Your typography, beats and GSAP timeline still carry the scene.`;
 }
 
-export function buildCodegenPrompt({ scene, beats, direction, guide, w, h, duration, idx, total, density, creativeDirection, hookVisual = '', captionsOn = true, modeBlocks = [], diversitySalt = 0 }) {
+export function buildCodegenPrompt({ scene, beats, direction, guide, w, h, duration, idx, total, density, creativeDirection, hookVisual = '', captionsOn = true, modeBlocks = [], diversitySalt = 0, language = 'vi' }) {
   const sig = motionSignature(direction, idx, diversitySalt);
   const densityNote = DENSITY_NOTE[density] || DENSITY_NOTE.rich; // rich is the house default — sparse scenes read cheap
   const subNote = captionsOn
@@ -327,6 +344,7 @@ SCENE ${idx + 1}/${total} — CANVAS ${w}x${h} CSS px (${ratioClass(w, h)}), DUR
 ${viewportBlock(w, h, captionsOn)}
 ${ratioRulesBlock(w, h)}${scriptTextRule(scene.voice_text)}
 ${subNote}
+ON-SCREEN LANGUAGE: ${langAdjective(language)} — every readable word you write below is ${langAdjective(language)}. Numbers, units and symbols are language-free.
 NARRATION (voice${captionsOn ? ', shown as karaoke subtitles at the bottom' : ' — subtitles are OFF, not shown on screen'} — do NOT repeat it verbatim on screen):
 "${(scene.voice_text || '').trim()}"
 VISUAL CONCEPT (an art-director's brief — let it INSPIRE your design: match its subject and its energy, but the exact composition, styling and execution are YOURS to invent, and two scenes must never come out alike; when it is structured [ROLE]/[LAYOUT]/[MAIN FOCUS]/[CAMERA]/[MOTION FLOW]/[MOOD], read the [ROLE] for energy — a titlecard/cta means restraint, a hook means maximum striking power — the beat times below still rule WHEN things appear):
@@ -347,7 +365,7 @@ ${beatsBlock(beats, duration)}
 ICONS available (use as {{icon:name}}): ${HF_ICON_NAMES.join(', ')}
 ${creativeLibsBlock()}
 
-EXAMPLE — ONE scene in the required FENCED FORMAT. Study the format and the technical shape ONLY; do NOT copy its layout, its content, or its style — your scene must look nothing like it:
+EXAMPLE — ONE scene in the required FENCED FORMAT. Study the format and the technical shape ONLY; do NOT copy its layout, its content, or its style — your scene must look nothing like it. Its on-screen text is numbers and symbols on purpose, so it cannot suggest a language: YOUR words come from the narration, written in ${langAdjective(language)}:
 @@@CSS@@@
 ${SAMPLE_SPEC.css.trim()}
 @@@HTML@@@
@@ -358,7 +376,7 @@ ${SAMPLE_SPEC.script.trim()}
 
 Now design THIS scene — your own unique composition, true to the narration, balanced across the frame, beautifully and smoothly animated, every word readable. Reply with ONLY the @@@CSS@@@/@@@HTML@@@/@@@SCRIPT@@@/@@@END@@@ fenced blocks.`;
   return [
-    { role: 'system', content: CODEGEN_SYSTEM },
+    { role: 'system', content: codegenSystem(language) },
     { role: 'user', content: user },
   ];
 }

@@ -146,7 +146,7 @@ export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, on
   if (consistent) modeBlocks.push(consistentScenesBlock(guide));
   const media = (Array.isArray(imageFullAssets) ? imageFullAssets : []).filter((a) => a?.name && a?.uri);
   if (media.length) modeBlocks.push(imageFullBlock(media));
-  const messages = buildCodegenPrompt({ scene, beats, direction, guide, w, h, duration, idx, total, density, creativeDirection, hookVisual, captionsOn, modeBlocks, diversitySalt });
+  const messages = buildCodegenPrompt({ scene, beats, direction, guide, w, h, duration, idx, total, density, creativeDirection, hookVisual, captionsOn, modeBlocks, diversitySalt, language: lang });
 
   let lastErrors = null;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {

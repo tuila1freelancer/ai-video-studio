@@ -118,6 +118,54 @@ test('lang: the telemetry stripper no longer deletes legitimate English labels',
   assert.equal(strip('CASH FLOW', 'en'), 'CASH FLOW');
 });
 
+test('lang: the codegen prompt states the language instead of assuming Vietnamese', async () => {
+  const { codegenSystem, buildCodegenPrompt } = await import('../src/hyperframe/prompt.js');
+  const vi = codegenSystem('vi');
+  const en = codegenSystem('en');
+  assert.match(vi, /ON-SCREEN LANGUAGE: Vietnamese\./);
+  assert.match(en, /ON-SCREEN LANGUAGE: English\./);
+  // the system message was the strongest instruction in the prompt AND it was Vietnamese-only:
+  // "a Vietnamese video shows complete Vietnamese words", "never put English or code on screen
+  // in a Vietnamese video". On an English video that says the opposite of what is wanted.
+  assert.ok(!/Vietnamese/.test(en), 'an English video is never told about Vietnamese');
+  assert.ok(!/English/.test(vi), 'and a Vietnamese video is never told about English');
+  // LANG_NAME's disambiguating parenthetical must not leak into prose ("a English (US) word")
+  const { langAdjective } = await import('../src/util/lang.js');
+  assert.equal(langAdjective('en'), 'English');
+  assert.equal(langAdjective('es'), 'Spanish');
+  assert.equal(langAdjective('vi'), 'Vietnamese');
+
+  // and the rule is repeated in the USER message, next to the narration it applies to
+  const guide = (await import('../src/styleguide/index.js')).HF_DEFAULT_GUIDE;
+  const msgs = buildCodegenPrompt({
+    scene: { voice_text: EN, visual_prompt: '' }, beats: [], direction: {}, guide,
+    w: 1920, h: 1080, duration: 6, idx: 0, total: 4, language: 'en',
+  });
+  assert.match(msgs[1].content, /ON-SCREEN LANGUAGE: English —/);
+});
+
+test('lang: the one worked example carries no words in any language', async () => {
+  // SAMPLE_SPEC is the only FINISHED scene the model ever sees, which makes it the strongest
+  // language signal in a very long prompt. It used to be written in Vietnamese
+  // ("// KIỂM CHỨNG", "TỰ TIN ≠ ĐÚNG", "Đối chiếu sự thật") — that is how ~23% of the scenes in
+  // an English video came out Vietnamese. Translating it to English would only flip the bias,
+  // so it carries numbers and symbols only.
+  const { SAMPLE_SPEC } = await import('../src/styleguide/index.js');
+  const texts = [...String(SAMPLE_SPEC.html).matchAll(/>([^<>]{1,60})</g)]
+    .map((m) => m[1].trim()).filter(Boolean).filter((t) => !t.startsWith('{{'));
+  const words = texts.filter((t) => /\p{L}{2,}/u.test(t));
+  assert.deepEqual(words, [], `the example must carry no natural-language copy, found ${JSON.stringify(words)}`);
+  assert.ok(texts.length >= 8, 'but it still has real content in its slots');
+  // the LESSON is geometry — the slot anchors and ids are pinned by p41-even-layout/hf-lint
+  for (const id of ['lb1', 'ic1', 'kw1', 'vc1', 'vr1', 'vr2', 'tk1', 'st1', 'sc1']) {
+    assert.ok(SAMPLE_SPEC.html.includes(`id="${id}"`), `${id} is still there`);
+  }
+  for (const at of ['left:20%;top:12%', 'left:82%;top:14%', 'left:50%;top:30%', 'left:30%;top:66%',
+    'left:80%;top:62%', 'left:52%;top:87%']) {
+    assert.ok(SAMPLE_SPEC.html.includes(at), `slot ${at} is unmoved`);
+  }
+});
+
 test('lang: the resolved language reaches codegen from BOTH lanes', () => {
   // fixing normalizeSpec is worthless if the batch and regen lanes do not tell it the language
   assert.match(src('../src/pipeline/stages/visuals.js'), /const videoLang = resolveLang\(config, scenes\)/);
