@@ -61,7 +61,7 @@ test('P37 the emitted spec calls are LINT-CLEAN (the prompt never suggests a ban
 test('P39 render gate: structural floor is HARD (defects), geometry is advisory (warnings)', () => {
   const v = src('../src/hyperframe/validate.js');
   assert.ok(!/softDefects/.test(v), 'the softDefects lane is removed');
-  assert.match(v, /return \{ ok: defects\.length === 0, defects, warnings, tlDur/, 'the gate returns defects (hard floor) + warnings (advisory)');
+  assert.match(v, /return \{ ok: defects\.length === 0, defects, warnings, langDefects, tlDur/, 'the gate returns defects (hard floor) + warnings (advisory) + langDefects (caller decides)');
   // each push statement is a single source line, so the line carrying the finding IS its push.
   const lineWith = (needle) => {
     const i = v.indexOf(needle); if (i < 0) return '';
@@ -73,11 +73,21 @@ test('P39 render gate: structural floor is HARD (defects), geometry is advisory 
     const l = lineWith(hard);
     assert.ok(l && /defects\.push\(/.test(l), `"${hard}" must be a HARD structural defect`);
   }
-  // every GEOMETRY finding is ADVISORY now → warnings.push (reference-parity: validation advisory)
-  for (const soft of ['px off-screen', 'reserved for subtitles', 'stacked on the center axis', 'overlap each other', 'is clipped', 'wrong language']) {
+  // every GEOMETRY finding is ADVISORY → warnings.push (reference-parity: validation advisory)
+  for (const soft of ['px off-screen', 'reserved for subtitles', 'stacked on the center axis', 'overlap each other', 'is clipped']) {
     const l = lineWith(soft);
     assert.ok(l && /warnings\.push\(/.test(l), `"${soft}" must be an advisory warning`);
   }
+  // WRONG LANGUAGE is the documented exception to P39's advisory doctrine, and it goes in its own
+  // bucket rather than into `defects`: renderValidate is stateless and is also called by the
+  // manual scene-edit lane and by repurpose, neither of which has an attempt loop. codegen.js
+  // decides how many attempts it may burn. Advisory cost this its exemption — on a 95-scene
+  // English video it fired 22 times and all 22 scenes shipped with Vietnamese text on screen.
+  assert.match(lineWith('wrong language'), /langDefects\.push\(/, 'language findings are their own bucket');
+  const c = src('../src/hyperframe/codegen.js');
+  assert.match(c, /const LANG_REASK_MAX = 3;/, 'bounded — a scene is worth more than a perfect one');
+  assert.match(c, /attempt <= LANG_REASK_MAX\) renderDefects = \[\.\.\.renderDefects, \.\.\.renderLangDefects\]/);
+  assert.match(c, /vẫn sai ngôn ngữ sau \$\{LANG_REASK_MAX\} lần thử/, 'the downgrade is never silent');
   // the caliber / contrast nudges are removed entirely (the reference app ships none of them)
   for (const gone of ['reads sparse', 'crafted sub-parts', 'produce no visual response', 'the spoken anchor words', 'is unreadable at']) {
     assert.ok(!v.includes(gone), `"${gone}" caliber/contrast nudge is removed`);

@@ -12,7 +12,12 @@ import { extractBeats, cinematicDirection } from './beats.js';
 import { buildCodegenPrompt, overlayBlock } from './prompt.js';
 import { lintSpec } from './lint.js';
 import { renderValidate } from './validate.js';
-import { detectLang } from '../util/lang.js';
+import { detectLang, langAdjective } from '../util/lang.js';
+
+// How many attempts a WRONG-LANGUAGE finding may burn before the scene ships anyway. Bounded on
+// purpose: the no-fallback contract gives a scene 10 attempts total, and a video that fails to
+// render because one label came back in the wrong language is a worse outcome than the label.
+const LANG_REASK_MAX = 3;
 
 // Parse a codegen reply into {css,html,script} or null. Delimiter format first, JSON fallback.
 export function parseSpec(raw) {
@@ -191,18 +196,32 @@ export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, on
     // image-full media lands AFTER lint (placeholders are lint-invisible) and BEFORE the
     // render check, so validation sees the actual inlined hero media.
     if (!errors.length && media.length) applyAssetMedia(clean, media);
-    // dynamic: actually render. P39 (reference-parity): the render gate now returns only the HARD
-    // STRUCTURAL FLOOR as defects (the script threw / the scene renders blank) — those still
-    // re-ask (they are genuinely broken scenes). Every GEOMETRY finding (off-screen / overlap /
-    // caption-band / center-clump / wrong-language / junk) is ADVISORY: logged, never a re-ask —
-    // matching the reference app, whose validation is advisory. No layout defect burns an attempt.
-    let renderDefects = [], renderWarnings = [];
+    // dynamic: actually render. P39 (reference-parity): the render gate returns the HARD
+    // STRUCTURAL FLOOR as defects (the script threw / the scene renders blank) — those re-ask
+    // (they are genuinely broken scenes). Every GEOMETRY finding (off-screen / overlap /
+    // caption-band / center-clump / junk) stays ADVISORY: logged, never a re-ask — matching the
+    // reference app. No layout defect burns an attempt.
+    //
+    // WRONG LANGUAGE is the one exception, and it was earned the hard way: on a 95-scene English
+    // video this fired 22 times as an advisory and all 22 scenes shipped with Vietnamese text on
+    // screen. A viewer cannot read past it the way they can read past a crooked margin. So it
+    // re-asks — but only LANG_REASK_MAX times, because a scene is worth more than a perfect one:
+    // after that it degrades to a warning and the video still gets made. Never silently, though.
+    let renderDefects = [], renderWarnings = [], renderLangDefects = [];
     if (!errors.length && renderCheck) {
       try {
-        const rv = await renderValidate({ spec: { ...clean, guide }, guide, w, h, duration, beats, narration: scene.voice_text || '', captionsOn, overlay });
+        const rv = await renderValidate({ spec: { ...clean, guide }, guide, w, h, duration, beats, narration: scene.voice_text || '', captionsOn, overlay, language: lang });
         renderDefects = rv.defects || [];
         renderWarnings = rv.warnings || [];
+        renderLangDefects = rv.langDefects || [];
       } catch (e) { onLog(`cảnh ${idx + 1}: renderValidate lỗi (${String(e.message).slice(0, 60)}) — bỏ qua`); }
+    }
+    if (renderLangDefects.length) {
+      if (attempt <= LANG_REASK_MAX) renderDefects = [...renderDefects, ...renderLangDefects];
+      else {
+        renderWarnings = [...renderWarnings, ...renderLangDefects];
+        onLog(`cảnh ${idx + 1}: vẫn sai ngôn ngữ sau ${LANG_REASK_MAX} lần thử — CHẤP NHẬN và đi tiếp (chữ trên màn không phải ${langAdjective(lang)})`);
+      }
     }
     const allIssues = [...errors, ...renderDefects];
     if (!allIssues.length) {
