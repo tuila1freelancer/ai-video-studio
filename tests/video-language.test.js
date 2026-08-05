@@ -1,0 +1,72 @@
+// "What language is this video" — the question the app could not answer.
+//
+// config.language was read in 21 places and written by nothing in the create-video UI, so every
+// layer invented its own fallback and they disagreed. On a real 95-scene ENGLISH video that cost
+// 3 scenes of Vietnamese narration (the editorial rewrite hardcoded 'vi' and carried the Vietnamese
+// forms of address into the prompt) and 22 scenes of Vietnamese on-screen text (the art-direction
+// brief claimed the narration was Vietnamese, and the one worked example the codegen model studies
+// was written in Vietnamese). These pin the single resolver and every site that now uses it.
+import './_env.mjs';
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { detectLang, declaredLang, majorityLang, resolveLang, langName, DEFAULT_LANG } from '../src/util/lang.js';
+
+const src = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
+const EN = 'Most advice tells you to skip the coffee and wait.';
+const VI = 'Phần lớn lời khuyên bảo các bạn nhịn cà phê rồi chờ.';
+
+test('lang: a declared language beats whatever the scenes happen to contain', () => {
+  assert.equal(resolveLang({ language: 'en' }, [VI, VI, VI]), 'en');
+  assert.equal(resolveLang({ language: 'vi' }, [EN, EN, EN]), 'vi');
+  assert.equal(declaredLang({ language: 'EN' }), 'en', 'case is normalised');
+});
+
+test("lang: 'auto' and empty mean NOT declared — 'auto' is a value that really reaches the DB", () => {
+  // createEditVideoProject writes language:'auto' verbatim, so treating it as a language code
+  // would be a live bug, not a hypothetical one.
+  assert.equal(declaredLang({ language: 'auto' }), null);
+  assert.equal(declaredLang({ language: '' }), null);
+  assert.equal(declaredLang({}), null);
+  assert.equal(declaredLang(null), null);
+  assert.equal(resolveLang({ language: 'auto' }, [EN, EN, EN]), 'en', 'auto falls through to the content');
+});
+
+test('lang: the content vote is a MAJORITY, not the first scene', () => {
+  assert.equal(resolveLang({}, [EN, VI, VI, VI]), 'vi', 'one English opener cannot flip a Vietnamese video');
+  assert.equal(resolveLang({}, [VI, EN, EN, EN]), 'en', 'nor one Vietnamese line an English one');
+  assert.equal(majorityLang([EN, EN, VI]), 'en');
+});
+
+test('lang: short stubs do not get a vote', () => {
+  // detectLang returns 'en' for anything without diacritics, so an unwritten or title-card scene
+  // would otherwise drag a Vietnamese video to English.
+  assert.equal(majorityLang(['OK', 'Xong', '', '   ']), null, 'nothing substantial → no answer');
+  assert.equal(resolveLang({}, [VI, VI, 'Hi', 'Go', 'Next', 'Stop']), 'vi', 'four stubs cannot outvote two real lines');
+});
+
+test('lang: with nothing to go on at all, the answer is the named house default', () => {
+  assert.equal(DEFAULT_LANG, 'vi', 'the owner\'s main channel is Vietnamese');
+  assert.equal(resolveLang({}, []), DEFAULT_LANG);
+  assert.equal(resolveLang(null), DEFAULT_LANG);
+});
+
+test('lang: scene rows work as well as bare strings, and names are human', () => {
+  assert.equal(resolveLang({}, [{ voice_text: EN }, { voice_text: EN }, { voice_text: VI }]), 'en');
+  assert.equal(langName('en'), 'English (US)');
+  assert.equal(langName('vi'), 'Vietnamese');
+  assert.equal(detectLang(VI), 'vi');
+  assert.equal(detectLang(EN), 'en');
+});
+
+test('lang: scriptLang still falls back to the SOURCE text, not the narration', () => {
+  // At script time no scenes exist yet, so the topic/pasted document is the only signal — a
+  // different question from resolveLang's, and it must keep its own semantics.
+  const llm = src('../src/providers/llm.js');
+  assert.match(llm, /export function scriptLang\(config, sourceText\)/);
+  assert.match(llm, /declaredLang\(config\) \|\| detectLang\(String\(sourceText \|\| ''\)\.slice\(0, 400\)\)/);
+  // LANG_NAME moved to util/lang.js so validate.js can name a language without importing the
+  // LLM module (db + metering + pricing); llm.js re-exports it for the existing call sites.
+  assert.match(llm, /export \{ LANG_NAME, langName \}/);
+  assert.ok(!/^export const LANG_NAME = \{/m.test(llm), 'no second copy of the table');
+});
