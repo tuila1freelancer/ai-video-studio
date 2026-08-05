@@ -108,33 +108,83 @@ NEXT LINE: "${next.slice(0, 220)}"` },
 }
 
 // ---------------------------------------------------------------- 3. on-screen text
-const EDIT = `Translate EVERY word of visible on-screen text into ${lang === 'en' ? 'English' : lang}. `
-  + 'Keep the design absolutely identical: same elements, same ids, same classes, same CSS, same '
-  + 'positions, same sizes, same colours, same GSAP timings — change ONLY the human-readable text '
-  + 'inside the elements. Numbers, units, %, currency symbols and {{icon:...}} placeholders stay '
-  + 'exactly as they are. Keep each translation about the same character length as the original so '
-  + 'nothing overflows its box or re-wraps.';
-// Re-survey FIRST. A scene whose narration was just rewritten (say #16: Vietnamese voice with
+//
+// TEXT NODES ONLY, substituted deterministically. The obvious approach — POST /edit-html and let
+// the model rewrite the spec — was tried and is WRONG for this job on both counts:
+//   * it cannot work: the model must return the complete {css,html,script}, and re-linting that
+//     output rejected all 22 scenes ("touches the harness internal runtime", "spec too long").
+//     One violation the model invents anywhere in 24k characters loses the whole edit.
+//   * it should not work: the owner asked to keep the layout. Handing a model the layout and
+//     trusting it to return an identical one is a promise nobody can keep.
+// So the model only ever sees a LIST OF STRINGS and returns a list of strings. Everything else —
+// ids, classes, CSS, positions, GSAP timings — is untouched by construction, not by instruction.
+const textNodes = (html) => [...String(html).matchAll(/>([^<>]+)</g)]
+  .map((m) => m[1]).filter((t) => VN.test(t));
+// Vietnamese inside a script string literal: `el.textContent = 'CHƯA'`. Quoted runs only — never
+// identifiers, never code.
+const scriptStrings = (js) => [...String(js).matchAll(/(['"`])((?:(?!\1)[^\\]|\\.)*)\1/g)]
+  .map((m) => m[2]).filter((t) => VN.test(t));
+
+async function translateAll(items) {
+  if (!items.length) return [];
+  const numbered = items.map((t, i) => `${i + 1}. ${t}`).join('\n');
+  const reply = await chat([
+    { role: 'system', content: 'You translate short UI labels for motion-graphics videos. Reply with a pure JSON array of strings and nothing else.' },
+    { role: 'user', content: `Translate each of these ${items.length} on-screen labels into ${langLabel}.
+
+RULES
+- Keep each translation close to the ORIGINAL CHARACTER LENGTH. These sit in fixed-size boxes; a longer string overflows or re-wraps and breaks the layout.
+- Keep the register: these are display labels and kickers, not prose. ALL CAPS stays ALL CAPS.
+- Keep every number, unit, %, currency symbol and punctuation mark exactly as it appears.
+- Leading markers like "//" or "▸" are decoration — keep them in place.
+- Translate the MEANING, not word by word.
+
+Return a JSON array of exactly ${items.length} strings, in order.
+
+${numbered}` },
+  ], { json: true, temperature: 0.2, maxTokens: Math.min(8000, 500 + items.length * 60), llm });
+  let arr = null;
+  try {
+    const parsed = JSON.parse(String(reply).replace(/^```json?\s*|\s*```$/g, '').trim());
+    arr = Array.isArray(parsed) ? parsed : (Array.isArray(parsed?.labels) ? parsed.labels : null);
+  } catch { /* handled below */ }
+  if (!arr || arr.length !== items.length) throw new Error(`expected ${items.length} strings, got ${arr ? arr.length : 'unparseable'}`);
+  return arr.map((s, i) => String(s ?? items[i]));
+}
+
+// Re-survey FIRST. A scene whose narration was just rewritten (say #16: a Vietnamese voice with
 // matching Vietnamese labels) was CORRECT a moment ago and is wrong now — it would be missed by
 // the survey taken at the top of this script, which ran before the narration pass.
 const nowHtml = (await api(`/api/projects/${projectId}`)).scenes
-  .filter((s) => !VN.test(s.voice_text || '') && VN.test(onScreenText(s)))
+  .filter((s) => VN.test(onScreenText(s)))
   .sort((a, b) => a.idx - b.idx);
-if (nowHtml.length !== badHtml.length) {
-  log(`re-survey after the narration pass: ${nowHtml.length} scenes need translating (was ${badHtml.length})`);
-}
+if (nowHtml.length !== badHtml.length) log(`re-survey: ${nowHtml.length} scenes need translating (was ${badHtml.length})`);
+
 const rejected = [];
 for (const sc of nowHtml) {
-  process.stdout.write(`[repair] scene ${sc.idx}: translating on-screen text… `);
+  const props = sc.props || {};
+  const htmlItems = textNodes(props.html);
+  const jsItems = scriptStrings(props.script);
+  process.stdout.write(`[repair] scene ${sc.idx}: ${htmlItems.length} labels + ${jsItems.length} strings… `);
   try {
-    await api(`/api/scenes/${sc.id}/edit-html`, { method: 'POST', body: { prompt: EDIT } });
+    const all = await translateAll([...htmlItems, ...jsItems]);
+    const htmlOut = all.slice(0, htmlItems.length);
+    const jsOut = all.slice(htmlItems.length);
+    // Substitute POSITIONALLY, in the same traversal order the extraction used, so the nth
+    // Vietnamese node gets the nth translation even when two nodes share the same text.
+    let hi = 0;
+    const html = String(props.html).replace(/>([^<>]+)</g, (seg, t) => (VN.test(t) ? `>${htmlOut[hi++]}<` : seg));
+    let ji = 0;
+    const script = String(props.script || '').replace(/(['"`])((?:(?!\1)[^\\]|\\.)*)\1/g,
+      (seg, q, t) => (VN.test(t) ? `${q}${String(jsOut[ji++]).replace(/(['"`\\])/g, '\\$1')}${q}` : seg));
+    if (hi !== htmlItems.length || ji !== jsItems.length) throw new Error('substitution count drifted');
+    await api(`/api/scenes/${sc.id}`, { method: 'PUT', body: { props: { ...props, html, script } } });
     console.log('✓');
     touched.add(sc.id);
   } catch (e) {
     console.log('✗');
-    // 422 = the app's own lint/render gate refused the edit. The scene keeps its previous spec.
-    rejected.push({ idx: sc.idx, why: (e.body?.defects || [e.message]).join('; ').slice(0, 160) });
-    log(`  ! scene ${sc.idx} rejected: ${rejected[rejected.length - 1].why}`);
+    rejected.push({ idx: sc.idx, why: String(e.message).slice(0, 160) });
+    log(`  ! scene ${sc.idx}: ${rejected[rejected.length - 1].why}`);
   }
 }
 
