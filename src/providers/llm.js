@@ -2,7 +2,7 @@
 // Always degrades gracefully to a deterministic offline generator when no key is set.
 import { aiSettings } from '../db/index.js';
 import { wordCount, safeJson } from '../util/util.js';
-import { detectLang } from '../util/lang.js';
+import { detectLang, declaredLang, LANG_NAME, langName } from '../util/lang.js';
 import { recordUsage } from '../util/usage.js';
 
 // llm param (optional) = a resolved settings.llm object (e.g. per-channel override);
@@ -232,15 +232,17 @@ export const LANG_WPS = {
   vi: 4.4, en: 2.6, ja: 3.4, ko: 3.1, zh: 3.4, ru: 2.4,
   fr: 4.0, de: 3.8, es: 4.2, pt: 4.0, hi: 4.2, th: 4.0, id: 4.2,
 };
-export const LANG_NAME = {
-  vi: 'Vietnamese', en: 'English (US)', ja: 'Japanese', ko: 'Korean', zh: 'Chinese', ru: 'Russian',
-  fr: 'French', de: 'German', es: 'Spanish (neutral/Latin American)', pt: 'Portuguese (Brazilian)',
-  hi: 'Hindi', th: 'Thai', id: 'Indonesian',
-};
+// LANG_NAME now lives in util/lang.js next to detectLang so the render validator and the codegen
+// prompt can name a language without importing this module (db + metering + pricing). Re-exported
+// here because a dozen call sites already import it from providers/llm.js.
+export { LANG_NAME, langName };
+
+/**
+ * The video's language AT SCRIPT TIME, when no scenes exist yet — so the fallback is the SOURCE
+ * TEXT (topic / pasted document), not the narration. Once scenes exist, use resolveLang().
+ */
 export function scriptLang(config, sourceText) {
-  const c = String(config?.language || '').toLowerCase();
-  if (c && c !== 'auto') return c;
-  return detectLang(String(sourceText || '').slice(0, 400));
+  return declaredLang(config) || detectLang(String(sourceText || '').slice(0, 400));
 }
 // THE canonical per-scene word budget. One formula shared by the script prompts, the
 // editorial rewrite target, the duration-fit gate and the UI estimate — if these ever use
