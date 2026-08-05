@@ -63,7 +63,7 @@ export async function regenOne(sceneId, what) {
         : baseAi;
       // fresh art direction for this scene too (regenerate = user wants a new take)
       try {
-        const d = await generateSceneDirection(sc, { title: project.title, total, guide, ai: hfAi, language: config.language });
+        const d = await generateSceneDirection(sc, { title: project.title, total, guide, ai: hfAi, language: resolveLang(config, DB.getScenes(project.id)) });
         if (d) { DB.updateScene(sc.id, { visual_prompt: d.visual }); sc.visual_prompt = d.visual; }
       } catch { /* keep the old brief */ }
       const hookVisual = sc.idx > 0 ? (DB.getScenes(project.id)[0]?.visual_prompt || '') : '';

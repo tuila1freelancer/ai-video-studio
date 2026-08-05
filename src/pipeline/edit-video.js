@@ -18,6 +18,7 @@ import * as DB from '../db/index.js';
 import { transcribeWords, whisperAvailable } from '../media/whisper.js';
 import { chat, llmEnabled } from '../providers/llm.js';
 import { probeDuration, probeImageSize, removeSilence } from '../media/ffmpeg.js';
+import { declaredLang, majorityLang, langName } from '../util/lang.js';
 import { safeJson } from '../util/util.js';
 import { runVisuals } from './stages/visuals.js';
 import { runRender } from './stages/render.js';
@@ -143,11 +144,15 @@ export function scenesFromSegments(segments = []) {
 export async function repairTranscript(segments = [], { language = 'vi', llm = null, onLog = () => {} } = {}) {
   const list = (segments || []).filter((s) => s && s.text);
   if (list.length < 1 || !llmEnabled(llm)) return segments;
-  const langName = language === 'en' ? 'English' : (language && language !== 'auto' ? language : 'Vietnamese');
+  // The footage itself is the authority. 'auto' is the DEFAULT this lane writes into config, and
+  // it used to slip past `|| 'vi'` and reach the prompt as "Vietnamese" — so English footage was
+  // being "repaired" into Vietnamese. Resolve from the transcript when nothing was declared.
+  const lang = declaredLang({ language }) || majorityLang(list.map((s) => s.text)) || 'vi';
+  const name = langName(lang);
   const numbered = list.map((s, i) => `${i + 1}. ${s.text}`).join('\n');
   try {
     const reply = await chat([
-      { role: 'system', content: `You repair ${langName} speech-to-text output. The recognizer mangles spelling, diacritics, word boundaries and proper nouns, but the SOUND is right — rewrite each line into what was actually said, in correct ${langName}. Keep the meaning and the length; never merge, split, reorder, drop or add lines; never translate; never add commentary.` },
+      { role: 'system', content: `You repair ${name} speech-to-text output. The recognizer mangles spelling, diacritics, word boundaries and proper nouns, but the SOUND is right — rewrite each line into what was actually said, in correct ${name}. Keep the meaning and the length; never merge, split, reorder, drop or add lines; never translate; never add commentary.` },
       { role: 'user', content: `Return ONLY a JSON array of ${list.length} strings — the corrected text of each line, in order.\n\n${numbered}` },
     ], { json: true, temperature: 0.2, maxTokens: Math.min(8000, 400 + list.length * 80), llm });
     const fixed = safeJson(reply, null);
@@ -240,7 +245,7 @@ export async function runEditVideo(ctx) {
     if (isStopped(projectId)) throw Object.assign(new Error('stopped'), { stopped: true });
     op(projectId, `📝 Bóc được ${raw.length} câu — đang hiệu đính…`);
     const fixed = await repairTranscript(raw, {
-      language: config.language || 'vi', llm: ctx.ai?.llm,
+      language: config.language, llm: ctx.ai?.llm, // repairTranscript resolves from the transcript
       onLog: (m) => op(projectId, `📝 ${m}`),
     });
 

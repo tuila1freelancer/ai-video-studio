@@ -59,6 +59,35 @@ test('lang: scene rows work as well as bare strings, and names are human', () =>
   assert.equal(detectLang(EN), 'en');
 });
 
+test('lang: no stage invents its own Vietnamese default any more', () => {
+  // Every one of these used to answer "Vietnamese" whenever config.language was unset — which was
+  // always, because nothing wrote it. They must now go through the resolver.
+  for (const f of ['../src/pipeline/stages/editorial.js', '../src/pipeline/stages/budget.js',
+    '../src/pipeline/stages/finalize.js', '../src/pipeline/direction.js', '../src/audio/sound-design.js',
+    '../src/api/services/topic-autopilot.js', '../src/pipeline/estimate.js']) {
+    const code = src(f).split('\n').filter((l) => !l.trim().startsWith('//')).join('\n');
+    assert.ok(!/\|\| *'vi'/.test(code), `${f} still falls back to 'vi'`);
+    assert.ok(!/\|\| *'Vietnamese'/.test(code), `${f} still falls back to 'Vietnamese'`);
+    assert.ok(!/!== *'auto'\)? *\? *[\w.?]+\.language *: *'vi'/.test(code), `${f} still has the ternary default`);
+  }
+  // and the art-direction brief — which travels into the codegen prompt and so decides the
+  // ON-SCREEN language scene after scene — names a real language
+  assert.match(src('../src/pipeline/direction.js'), /narration in \$\{langName\(/);
+  // the two pass-through sites: fixing direction.js alone would do nothing without these
+  assert.match(src('../src/pipeline/stages/visuals.js'), /language: resolveLang\(config, scenes\)/);
+  assert.match(src('../src/pipeline/regen.js'), /language: resolveLang\(config, DB\.getScenes\(project\.id\)\)/);
+});
+
+test('lang: the editorial rewrite can no longer translate an English video into Vietnamese', () => {
+  const ed = src('../src/pipeline/stages/editorial.js');
+  // the scenes are the authority on their own language
+  assert.match(ed, /const lang = resolveLang\(config, scenes\);/);
+  // FIX_RULES names the language instead of hardcoding the word "Vietnamese"
+  assert.match(ed, /rewrite ENTIRELY in \$\{langName\(lang\)\}/);
+  // and the Vietnamese forms of address stay gated on the video ACTUALLY being Vietnamese
+  assert.match(ed, /lang === 'vi' \? '\\nUse the fixed Vietnamese forms of address/);
+});
+
 test('lang: scriptLang still falls back to the SOURCE text, not the narration', () => {
   // At script time no scenes exist yet, so the topic/pasted document is the only signal — a
   // different question from resolveLang's, and it must keep its own semantics.

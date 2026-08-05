@@ -9,6 +9,7 @@
 // existing visual_prompt (codegen still works, just with a weaker brief).
 import { chatJson, llmEnabled } from '../providers/llm.js';
 import { extractBeats } from '../hyperframe/beats.js';
+import { langName, majorityLang } from '../util/lang.js';
 
 // A structured direction always carries a [MAIN FOCUS] section — used as the "already
 // directed" marker so resume runs and user-edited briefs are never overwritten.
@@ -61,7 +62,11 @@ function batchPrompt({ batch, title, total, guide, hookSummary, language }) {
     return `${sc.idx}. "${String(sc.voice_text || '').trim().slice(0, 360)}"${anchors ? `\n   (spoken anchors: ${anchors})` : ''}`;
   }).join('\n');
   const sys = 'You are an art director for premium Apple-keynote-style motion-graphics videos. Reply with pure JSON, no commentary.';
-  const usr = `Video "${title}" (${total} scenes, narration in ${language || 'Vietnamese'}). The LOCKED style for the whole video:
+  // The brief travels into the codegen prompt, so a wrong language here is not cosmetic: it tells
+  // the design model, scene after scene, what language to put ON SCREEN. This used to read
+  // `language || 'Vietnamese'`, and since nothing ever set config.language it claimed Vietnamese
+  // on every video ever made — including the English one that shipped with 22 Vietnamese scenes.
+  const usr = `Video "${title}" (${total} scenes, narration in ${langName(language || majorityLang(batch.map((s) => s.voice_text)))}). The LOCKED style for the whole video:
 ${guideBrief(guide)}
 
 Write a short, CREATIVE visual brief for each scene below — just enough to spark a UNIQUE design that is true to that scene's narration, NOT a rigid spec. The motion designer who builds it has full freedom; your job is to hand each scene a distinct, relevant idea so no two scenes ever look alike. For each scene return:

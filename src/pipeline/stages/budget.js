@@ -15,6 +15,7 @@ import { SCRIPT_MODE_MIN_WORDS } from '../../content/master-script.js';
 import { wordCount } from '../../util/util.js';
 import { checkStop } from '../stop.js';
 import { op } from '../progress.js';
+import { resolveLang } from '../../util/lang.js';
 
 const TOLERANCE = 0.12; // ±12% of the ordered duration
 const PAD_S = { vi: 0.65, other: 0.4 }; // mirror stages/tts.js padMsFor
@@ -89,7 +90,7 @@ export async function runBudgetFit(ctx) {
   if (config.budgetFit === false) return;
   if (config.durationMode === 'auto') return;       // duration follows the pasted script
   {
-    const lg = (config.language && config.language !== 'auto') ? config.language : 'vi';
+    const lg = resolveLang(config, DB.getScenes(projectId));
     if (lg === 'ja' || lg === 'zh') return;          // no word boundaries — word math misfires
   }
   if (project.input_type === 'json') return;         // owner-authored scenes — never cut
@@ -105,7 +106,7 @@ export async function runBudgetFit(ctx) {
 
   const videoDuration = +config.videoDuration || 60;
   const sceneDuration = Math.max(3, +config.sceneDuration || 7);
-  const lang = (config.language && config.language !== 'auto') ? config.language : 'vi';
+  const lang = resolveLang(config, scenes);
   const wps = LANG_WPS[lang] || 3.0;
   const ask = () => auditBudget(DB.getScenes(projectId), { videoDuration, sceneDuration, lang, wps });
 
