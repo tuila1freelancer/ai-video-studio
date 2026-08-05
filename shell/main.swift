@@ -4,7 +4,7 @@
 import Cocoa
 import WebKit
 
-final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, WKUIDelegate {
   var window: NSWindow!
   var webView: WKWebView!
   var backend: Process?
@@ -44,6 +44,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate {
     webView = WKWebView(frame: frame, configuration: cfg)
     webView.autoresizingMask = [.width, .height]
     webView.navigationDelegate = self
+    // WITHOUT THIS, EVERY <input type="file"> IN THE APP IS DEAD. WKWebView does not open a file
+    // picker on its own — it asks its uiDelegate, and with no delegate the click is silently
+    // dropped: no panel, no error, nothing in the console. That broke the Brand Kit logo, the
+    // library uploads (brand art / BGM / SFX / fonts) and the edit-video source picker, but only
+    // inside this app — the same page in a normal browser worked fine, which is what made it
+    // look like a web bug for so long.
+    webView.uiDelegate = self
     window.contentView = webView
     window.makeKeyAndOrderFront(nil)
     loadSplash("Đang khởi động AI Video Studio…")
@@ -123,6 +130,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate {
     edit.addItem(withTitle: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
     editItem.submenu = edit
     NSApp.mainMenu = main
+  }
+
+  // The file picker for every <input type="file"> in the web UI. WKWebView hands the request
+  // here; returning nil to the completion handler means "user cancelled". The handler MUST be
+  // called exactly once on every path or the page's input stays stuck and can never be clicked
+  // again.
+  func webView(_ webView: WKWebView,
+               runOpenPanelWith parameters: WKOpenPanelParameters,
+               initiatedByFrame frame: WKFrameInfo,
+               completionHandler: @escaping ([URL]?) -> Void) {
+    let panel = NSOpenPanel()
+    panel.canChooseFiles = true
+    panel.canChooseDirectories = parameters.allowsDirectories
+    panel.allowsMultipleSelection = parameters.allowsMultipleSelection
+    panel.resolvesAliases = true
+    panel.beginSheetModal(for: window) { result in
+      completionHandler(result == .OK ? panel.urls : nil)
+    }
   }
 
   func applicationShouldTerminateAfterLastWindowClosed(_ s: NSApplication) -> Bool { true }
