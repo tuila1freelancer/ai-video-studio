@@ -24,6 +24,7 @@ import { resolveLang } from '../../util/lang.js';
 export async function runVisuals(ctx) {
   const { projectId, project, config, ai } = ctx;
   const scenes = DB.getScenes(projectId);
+  const videoLang = resolveLang(config, scenes); // one answer for the art brief AND the codegen
   // HyperFrame: the LLM art-directs each scene's graphics against the REAL voice timeline
   // (beats from srt_json word timestamps).
   step(projectId, 'b5', 'running', 'AI đạo diễn visual từng cảnh');
@@ -50,7 +51,7 @@ export async function runVisuals(ctx) {
   if (undirected.length && llmEnabled(hfAi?.llm)) {
     op(projectId, `🎬 AI viết chỉ đạo hình ảnh ${undirected.length} cảnh…`);
     const dirs = await generateDirections(undirected, {
-      title: project.title, total: totalHf, guide, ai: hfAi, language: resolveLang(config, scenes),
+      title: project.title, total: totalHf, guide, ai: hfAi, language: videoLang,
       onLog: (m) => logger.info(m, { projectId }),
     });
     for (const sc of undirected) {
@@ -112,6 +113,7 @@ export async function runVisuals(ctx) {
     try {
       const { props, beats } = await generateSceneSpec({
         scene: sc, guide, w: hfSize.w, h: hfSize.h, idx: sc.idx, total: totalHf, ai: hfAi,
+        language: videoLang, // decides the ON-SCREEN language, and what counts as dev-decor
         // P35: density follows the scene's ROLE (hook/proof/payoff → rich, cta → minimal);
         // the project knob is the baseline for everything else
         density: densityForScene(sc, config.hyperframe?.density),

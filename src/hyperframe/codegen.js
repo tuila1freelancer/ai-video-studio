@@ -12,6 +12,7 @@ import { extractBeats, cinematicDirection } from './beats.js';
 import { buildCodegenPrompt, overlayBlock } from './prompt.js';
 import { lintSpec } from './lint.js';
 import { renderValidate } from './validate.js';
+import { detectLang } from '../util/lang.js';
 
 // Parse a codegen reply into {css,html,script} or null. Delimiter format first, JSON fallback.
 export function parseSpec(raw) {
@@ -36,7 +37,7 @@ export function parseSpec(raw) {
 // Deterministic pre-lint normalizer: fix the mechanical mistakes a weak model repeats so they do
 // NOT burn a scarce codegen attempt — infinite CSS animation hard-errors the lint; off-guide fonts
 // and <br> ship a cheap look silently. Pure string transforms, meaning unchanged, mutates in place.
-export function normalizeSpec(spec, { guide, duration }) {
+export function normalizeSpec(spec, { guide, duration, language = 'vi' }) {
   const iter = Math.max(8, Math.ceil((duration || 6) / 0.15)); // finite count that always covers DUR
   const OFF = /\b(Inter|Roboto|Poppins|Montserrat|Lato|Nunito|Open Sans|Raleway|Ubuntu|Work Sans|Source Sans(?: Pro)?)\b/gi;
   const body = String(guide?.fonts?.body || 'sans-serif').replace(/'/g, '');
@@ -48,11 +49,22 @@ export function normalizeSpec(spec, { guide, duration }) {
     .replace(/font-family\s*:\s*[^;"'}]*/gi, (m) => m.replace(OFF, body));
   // Strip faint English/code TELEMETRY watermark decor the weak model sprinkles behind scenes
   // (limit_1024, ai_state="LOST_FOCUS", PROMPT_OVERFLOW, OVERLOAD, foo.bar(), NAME.EXE) — these read
-  // as leftover dev text, never as Vietnamese on-screen copy. A text node is blanked ONLY when it
-  // carries a code/telemetry token AND has NO Vietnamese diacritic, so real Vietnamese copy (which
-  // carries diacritics, or has no such token) is always kept. Then any surviving label is
-  // de-snake_cased (DỮ_LIỆU_DƯ_THỪA → DỮ LIỆU DƯ THỪA) so nothing reads like a code identifier.
-  const TOKEN = /\b[A-Za-z][A-Za-z0-9]*(?:_[A-Za-z0-9]+)+\b|\b[A-Za-z_][\w-]*\s*=\s*(?:"[^"]*"|'[^']*'|[\d,.]+|true|false|null)|\b[a-z_][\w]*(?:\.[a-z_][\w]*)+\s*\([^)]*\)|\b[\w-]+\.(?:exe|sh|js|ts|py|json|dll|bat|cfg|log|sys)\b|\[[A-Z][A-Z0-9_]*\]|\b(?:OVERLOAD|OVERFLOW|UNDERFLOW|OFFLINE|ONLINE|LOADING|PROCESSING|ANALYZING|SCANNING|INITIALIZING|REBOOT|LATENCY|BUFFER|KERNEL|DAEMON|STDOUT|STDERR|TIMEOUT|STATUS|ACTIVE|INACTIVE|ENABLED|DISABLED|RUNNING|PENDING|SUCCESS|FAILED|ERROR|WARNING|DEBUG)\b/;
+  // as leftover dev text, never as real on-screen copy. Then any surviving label is de-snake_cased
+  // (DỮ_LIỆU_DƯ_THỪA → DỮ LIỆU DƯ THỪA) so nothing reads like a code identifier.
+  //
+  // TWO nets, because "telemetry" means different things in different languages:
+  //  - STRUCTURAL is always safe: no language writes copy as snake_case, k="v", foo.bar() or x.exe.
+  //  - The WORDLIST (STATUS / ACTIVE / SUCCESS / ERROR …) is safe only in a language that does not
+  //    use those words as copy. In Vietnamese the diacritic guard below protects real text, so the
+  //    wordlist only ever caught decor. On an ENGLISH video there is no such guard, and this
+  //    silently blanked legitimate labels — measured: ACTIVE, SUCCESS, ERROR RATE and RUNNING TOTAL
+  //    all became empty text nodes BEFORE validation could see them, with nothing in the log.
+  const STRUCTURAL = /\b[A-Za-z][A-Za-z0-9]*(?:_[A-Za-z0-9]+)+\b|\b[A-Za-z_][\w-]*\s*=\s*(?:"[^"]*"|'[^']*'|[\d,.]+|true|false|null)|\b[a-z_][\w]*(?:\.[a-z_][\w]*)+\s*\([^)]*\)|\b[\w-]+\.(?:exe|sh|js|ts|py|json|dll|bat|cfg|log|sys)\b|\[[A-Z][A-Z0-9_]*\]/;
+  const DEV_WORDS = /\b(?:OVERLOAD|OVERFLOW|UNDERFLOW|OFFLINE|ONLINE|LOADING|PROCESSING|ANALYZING|SCANNING|INITIALIZING|REBOOT|LATENCY|BUFFER|KERNEL|DAEMON|STDOUT|STDERR|TIMEOUT|STATUS|ACTIVE|INACTIVE|ENABLED|DISABLED|RUNNING|PENDING|SUCCESS|FAILED|ERROR|WARNING|DEBUG)\b/;
+  const wordsAreDecor = language === 'vi'; // English copy legitimately uses these words
+  const TOKEN = wordsAreDecor
+    ? new RegExp(`${STRUCTURAL.source}|${DEV_WORDS.source}`)
+    : STRUCTURAL;
   const VN = /[À-ỿ]/; // a Latin-with-diacritic char ⇒ Vietnamese content, never a code token
   spec.html = spec.html
     .replace(/>([^<>]+)</g, (seg, txt) => (txt.includes('{{') ? seg : (TOKEN.test(txt) && !VN.test(txt) ? '><' : seg)))
@@ -122,7 +134,10 @@ export function imageFullBlock(media) {
  * exhausted this THROWS and the failure surfaces loudly — no fallback model, no heuristic
  * template (fallback output sits below the quality bar).
  */
-export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, onLog = () => {}, renderCheck = true, maxAttempts = 10, density, creativeDirection, hookVisual = '', captionsOn = true, consistent = false, imageFullAssets = null, overlay = false, diversitySalt = 0 }) {
+export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, onLog = () => {}, renderCheck = true, maxAttempts = 10, density, creativeDirection, hookVisual = '', captionsOn = true, consistent = false, imageFullAssets = null, overlay = false, diversitySalt = 0, language = '' }) {
+  // The video's language decides what goes ON SCREEN. A caller that does not know falls back to
+  // this scene's own narration — still right far more often than the old blanket assumption.
+  const lang = language || detectLang(scene.voice_text || '');
   const duration = Math.max(1.5, scene.duration || 6);
   const beats = extractBeats(scene.srt_json, scene.keywords, duration);
   const direction = cinematicDirection(scene, idx, total);
@@ -166,7 +181,7 @@ export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, on
       messages.push({ role: 'user', content: 'Your reply did not match the format. Reply with EXACTLY the three fenced blocks and nothing else:\n@@@CSS@@@\n(css)\n@@@HTML@@@\n(html)\n@@@SCRIPT@@@\n(js)\n@@@END@@@' });
       continue;
     }
-    normalizeSpec(clean, { guide, duration }); // reclaim attempts from mechanical mistakes
+    normalizeSpec(clean, { guide, duration, language: lang }); // reclaim attempts from mechanical mistakes
     const { errors, warnings } = lintSpec(clean, { overlay });
     // static: lint + parse. Cheap — always first.
     if (!errors.length) {
