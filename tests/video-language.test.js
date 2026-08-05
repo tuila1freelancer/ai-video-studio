@@ -178,6 +178,48 @@ test('lang: the resolved language reaches codegen from BOTH lanes', () => {
   assert.match(src('../src/hyperframe/codegen.js'), /const lang = language \|\| detectLang\(scene\.voice_text \|\| ''\)/);
 });
 
+test('lang: the leak detector is MIRRORED, not symmetric — one word means different things', async () => {
+  const { textLanguageLeak } = await import('../src/hyperframe/validate.js');
+  const { fold } = await import('../src/hyperframe/beats.js');
+  const words = (s) => new Set((fold(s).match(/[\p{L}\p{N}]+/gu) || []).filter((w) => w.length >= 2));
+
+  const enNarr = words('Keep that five grand liquid in a high yield savings account');
+  // THE TRAP: the naive fix is to delete the `narrLang !== 'en'` guard so the check is symmetric.
+  // That condemns every valid one-word English label, because the prompt explicitly ASKS for
+  // semantic, non-verbatim keywords — "MOMENTUM" is good design, not a leak.
+  assert.equal(textLanguageLeak('MOMENTUM', enNarr, 'en'), false, 'a semantic English label is fine');
+  assert.equal(textLanguageLeak('LIQUIDITY', enNarr, 'en'), false);
+  // but a foreign SCRIPT in an English video is readable as a leak from a single word
+  assert.equal(textLanguageLeak('TỰ TIN', enNarr, 'en'), true);
+  assert.equal(textLanguageLeak('QUỸ', enNarr, 'en'), true);
+
+  const viNarr = words('Giữ năm nghìn đô ở dạng tiền mặt trong tài khoản lãi cao');
+  // unchanged for Vietnamese: ASCII dev decor is still the leak, real Vietnamese is still fine
+  assert.equal(textLanguageLeak('SCANNING', viNarr, 'vi'), true);
+  assert.equal(textLanguageLeak('TƯỞNG', viNarr, 'vi'), false, 'folds to ASCII but is NOT English decor');
+  assert.equal(textLanguageLeak('tiền mặt', viNarr, 'vi'), false, 'drawn from the narration');
+  // numbers and symbols belong to no language, in either direction
+  for (const l of ['en', 'vi']) {
+    assert.equal(textLanguageLeak('37%', enNarr, l), false);
+    assert.equal(textLanguageLeak('0 → 100', enNarr, l), false);
+  }
+});
+
+test('lang: the validator judges against the DECLARED language, not the narration it is given', () => {
+  const v = src('../src/hyperframe/validate.js');
+  // detecting from the narration was circular: a scene whose narration had itself been rewritten
+  // into the wrong language would then validate its on-screen text against the corruption.
+  assert.match(v, /const narrLang = language \|\| detectLang\(narration \|\| ''\)/);
+  assert.match(v, /language = '' \}\) \{/, 'renderValidate accepts it');
+  assert.match(src('../src/hyperframe/codegen.js'), /captionsOn, overlay, language: lang \}\)/, 'and codegen passes it');
+  // the finding is persistence-tiered like every other one — a label flashing through a 0.3s
+  // entrance must not burn an attempt
+  assert.match(v, /textLanguageLeak\(e\.txt, narrWords, narrLang\)\) bump\(bad, e\.txt/);
+  assert.match(v, /const badH = held\(bad\);/);
+  // and the messages name the language rather than printing the code ("the narration is en")
+  assert.ok(!/narrLang === 'vi' \? 'Vietnamese' : narrLang/.test(v), 'no raw language codes in prose');
+});
+
 test('lang: scriptLang still falls back to the SOURCE text, not the narration', () => {
   // At script time no scenes exist yet, so the topic/pasted document is the only signal — a
   // different question from resolveLang's, and it must keep its own semantics.

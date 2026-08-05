@@ -7,7 +7,7 @@ import { buildTemplate, makeCtx } from '../animation/templates.js';
 import { buildScenePage } from '../animation/harness.js';
 import { themeFromGuide, normalizeGuide } from '../styleguide/index.js';
 import { fold } from './beats.js';
-import { detectLang } from '../util/lang.js';
+import { detectLang, langName, langAdjective } from '../util/lang.js';
 import { getBrowser, chromeAvailable } from '../media/puppeteer.js';
 
 // Diacritic-folded content words of the narration, for the wrong-language text check.
@@ -20,18 +20,19 @@ function narrationWordSet(narration) {
 // line), so "not in the narration" alone is NOT a defect. What IS a defect is a LANGUAGE leak:
 // e.g. an English display headline in a Vietnamese-narrated video. Flag only when the text is
 // multi-word, shares no word with the narration, AND reads as a different language.
-function textLanguageLeak(txt, narrWords, narrLang) {
+export function textLanguageLeak(txt, narrWords, narrLang) {
   const words = (fold(txt || '').match(/[\p{L}]+/gu) || []).filter((w) => w.length >= 3);
   if (words.length < 2) {
-    // single-word English DECOR on a non-English video ("ENTER", "EXECUTE", "SCANNING") —
-    // judged on the RAW text: it must be pure ASCII ≥4 letters BEFORE folding (a Vietnamese
-    // word like "TƯỞNG" folds to ascii but is NOT English decor) and absent from the
-    // narration. Short acronyms (AI, GPT) stay allowed.
-    if (narrLang !== 'en' && words.length === 1) {
-      const raw = String(txt || '').replace(/[^\p{L}]/gu, '');
-      return /^[A-Za-z]{4,}$/.test(raw) && !narrWords.has(fold(raw));
-    }
-    return false; // number / symbol — too little signal
+    if (words.length !== 1) return false; // number / symbol — too little signal
+    const raw = String(txt || '').replace(/[^\p{L}]/gu, '');
+    // ONE word carries little signal, so the test is mirrored rather than symmetric:
+    //  - on a NON-English video, pure-ASCII decor ("ENTER", "EXECUTE", "SCANNING") is the leak.
+    //    Judged on the RAW text so a Vietnamese word like "TƯỞNG", which folds to ASCII, is safe.
+    //  - on an ENGLISH video the same rule would condemn every valid one-word label, because the
+    //    prompt explicitly asks for SEMANTIC, non-verbatim keywords: "MOMENTUM" is good design and
+    //    is absent from its narration. Only a foreign SCRIPT is readable as a leak from one word.
+    if (narrLang !== 'en') return /^[A-Za-z]{4,}$/.test(raw) && !narrWords.has(fold(raw));
+    return raw.length >= 3 && detectLang(raw) !== narrLang;
   }
   if (words.some((w) => narrWords.has(w))) return false; // derived from the narration — fine
   return detectLang(txt) !== narrLang; // semantic same-language headline — fine; leak — defect
@@ -223,12 +224,12 @@ const PROBE = `(() => {
  * @returns {ok, defects:[string], tlDur, skipped?} — defects are phrased as instructions the
  *   LLM can act on when re-prompted.
  */
-export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration = 6, beats = [], narration = '', captionsOn = true, overlay = false }) {
+export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration = 6, beats = [], narration = '', captionsOn = true, overlay = false, language = '' }) {
   // P38: this gate now checks ONLY "the HTML is not broken" + "the layout is balanced" — the two
   // things the owner asked to keep. The reference-caliber nudges (sparse / hero-density / beat-
   // adherence / dialogue-match), the flat-type check, the low-contrast gate + auto-repair, and the
   // mid-scene/ending liveness checks are all removed (the reference app ships none of them).
-  if (!chromeAvailable()) return { ok: true, skipped: true, defects: [], warnings: [] };
+  if (!chromeAvailable()) return { ok: true, skipped: true, defects: [], warnings: [], langDefects: [] };
   const dur = Math.max(1.5, duration);
   const g = normalizeGuide(guide || spec.guide);
   const theme = themeFromGuide(g);
@@ -246,7 +247,7 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
   // "broken scene" cases the reference app's own structure implicitly rejects). Every geometry
   // finding (off-screen / overlap / caption-band / distribution / …) is now an advisory WARNING:
   // surfaced and logged, never a re-ask — mirroring the reference app, whose validation is advisory.
-  const defects = [], warnings = [];
+  const defects = [], warnings = [], langDefects = [];
   try {
     await page.setViewport({ width: w, height: h, deviceScaleFactor: 1 });
     await page.setContent(html, { waitUntil: 'load', timeout: 20000 });
@@ -267,7 +268,10 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
     }
     const T = [...times].filter((t) => t >= 0 && t <= dur).sort((a, c) => a - c);
     const narrWords = narrationWordSet(narration);
-    const narrLang = detectLang(narration || '');
+    // The DECLARED language of the video wins. Detecting from the narration was a circular
+    // check: a scene whose narration had itself been corrupted into another language would
+    // then validate its on-screen text against the corruption.
+    const narrLang = language || detectLang(narration || '');
     let anyVisible = false, unionFrac = 0, maxSpread = 0, hadCluster = false, maxCenterCover = 0;
     // P41 balance: the BEST 3x3 ink map across the samples. Best, not worst — early beats are
     // empty by design (the beat protocol starts nearly bare), so a scene is judged on how evenly
@@ -320,7 +324,7 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
         // meaning-bearing text: component classes PLUS any clearly-readable custom text
         // (≥18px tall at ≥.5 opacity) — used by the wrong-language + junk content checks.
         const meaning = /hf-(kw|label|sub|title|head|lead)/.test(e.cls || '') || (e.h >= 18 && e.o > 0.5);
-        if (narrWords && meaning && textLanguageLeak(e.txt, narrWords, narrLang)) bad.set(e.txt, e);
+        if (narrWords && meaning && textLanguageLeak(e.txt, narrWords, narrLang)) bump(bad, e.txt, { t, ...e });
         if (e.o > 0.25 && e.txt && !e.txt.includes('{{') && JUNK_RE.test(e.txt) && !/[À-ỿ]/.test(e.txt)) bump(junk, e.txt.slice(0, 30), { t, ...e });
       }
     }
@@ -356,19 +360,24 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
     }
     // telemetry junk net: snake_case/dev tokens with no Vietnamese diacritic. Persistence-tiered.
     const junkH = [...junk.values()].filter(heldAcrossSamples);
-    if (junkH.length) { const o = junkH[0]; warnings.push(`the on-screen text "${o.txt}" is leftover dev/telemetry decor (snake_case/code token) — remove it; on-screen words must be real ${narrLang === 'vi' ? 'Vietnamese' : narrLang} copy, numbers or icons.`); }
+    if (junkH.length) { const o = junkH[0]; warnings.push(`the on-screen text "${o.txt}" is leftover dev/telemetry decor (snake_case/code token) — remove it; on-screen words must be real ${langAdjective(narrLang)} copy, numbers or icons.`); }
     // geometry findings pass persistence tiering: one-sample transients are entrance/exit states
     // of slow eases, not defects — only findings HELD across ≥2 samples surface.
     const held = (m) => [...m.values()].filter(heldAcrossSamples);
     const offH = held(off), subH = held(sub), ovlH = held(ovl), clipH = held(clip), occH = held(occ);
     if (offH.length) { const o = offH[0]; warnings.push(`element "${o.txt || o.cls}" runs ${o.overflow}px off-screen at ${o.t.toFixed(1)}s — keep all content inside the frame with a 6% margin; shrink font-size or reposition.`); }
     if (captionsOn && subH.length) { const o = subH[0]; warnings.push(`element "${o.txt || o.cls}" reaches the bottom of the frame at ${o.t.toFixed(1)}s — the bottom 22% is reserved for subtitles, move it up.`); }
-    if (bad.size) { const o = [...bad.values()][0]; warnings.push(`the on-screen text "${o.txt}" is in the wrong language — the narration is ${narrLang === 'vi' ? 'Vietnamese' : narrLang}, and every keyword must be in the narration's language. Semantic (non-verbatim) keywords are fine; translating or mixing languages is not.`); }
+    // LANGUAGE is returned SEPARATELY from geometry: the caller decides whether it blocks.
+    // renderValidate is stateless and is also called by the manual scene-edit lane and by
+    // repurpose, neither of which has an attempt loop — folding this into `defects` would
+    // start rejecting the owner's own edits.
+    const badH = held(bad);
+    if (badH.length) { const o = badH[0]; langDefects.push(`the on-screen text "${o.txt}" is in the wrong language — this video is in ${langName(narrLang)}, and EVERY readable word must be ${langAdjective(narrLang)}. Semantic (non-verbatim) keywords are fine; another language is not. Numbers, units and symbols are always allowed.`); }
     if (ovlH.length) { const o = ovlH[0]; warnings.push(`the texts "${o.a}" and "${o.b}" overlap each other at ${o.t.toFixed(1)}s (${Math.round(o.frac * 100)}% of the smaller box) — text must NEVER sit on top of other text; separate them spatially or stagger their timing so only one occupies that area at a time.`); }
     if (clipH.length) { const o = clipH[0]; warnings.push(`the text "${o.txt}" is clipped at ${o.t.toFixed(1)}s — its box is smaller than its content, cutting words off. Remove fixed widths/heights and overflow:hidden from text elements; shorten the label or let the element size itself.`); }
     if (occH.length) { const o = occH[0]; warnings.push(`the text "${o.txt}" is covered by an opaque element ("${o.by}") at ${o.t.toFixed(1)}s — nothing may paint on top of readable text; move the decor behind it (DOM order/z-index) or offset it.`); }
-    return { ok: defects.length === 0, defects, warnings, tlDur: Number.isFinite(tlDur) ? +tlDur.toFixed(2) : null };
+    return { ok: defects.length === 0, defects, warnings, langDefects, tlDur: Number.isFinite(tlDur) ? +tlDur.toFixed(2) : null };
   } catch (e) {
-    return { ok: true, skipped: true, defects: [], warnings: [], error: String(e.message || e) }; // never block codegen on a harness hiccup
+    return { ok: true, skipped: true, defects: [], warnings: [], langDefects: [], error: String(e.message || e) }; // never block codegen on a harness hiccup
   } finally { await page.close().catch(() => {}); }
 }
