@@ -21,6 +21,7 @@ import { synthPreview } from './services/voice-preview.js';
 import { startBatch } from './services/batch.js';
 import { getVoiceCatalog } from './services/voice-catalog.js';
 import { resolveLang, declaredLang, detectLang, DEFAULT_LANG } from '../util/lang.js';
+import { WEB_SAFE, toPng } from './services/image-convert.js';
 
 const upload = multer({ dest: DIRS.uploads, limits: { fileSize: 512 * 1024 * 1024 } });
 
@@ -269,18 +270,25 @@ export function mountRoutes(app, { version }) {
     res.json({ ok: true });
   });
   // logo/brand asset upload → <channel root>/library/logo/
-  r.post('/channels/:id/brand-logo', upload.single('file'), (req, res) => {
+  r.post('/channels/:id/brand-logo', upload.single('file'), async (req, res) => {
     try {
       const ch = DB.getChannel(req.params.id);
       if (!ch) return res.status(404).json({ error: 'not found' });
       if (!req.file) return res.status(400).json({ error: 'thiếu file' });
       const ext = (extname(req.file.originalname || '') || '.png').toLowerCase();
-      if (!['.png', '.jpg', '.jpeg', '.webp', '.svg'].includes(ext)) return res.status(400).json({ error: 'chỉ nhận ảnh png/jpg/webp/svg' });
       const dir = join(ch.root_dir, 'library', 'logo');
       mkdirSync(dir, { recursive: true });
-      const dest = join(dir, `${newId('logo')}${ext}`);
-      renameSync(req.file.path, dest);
-      res.json({ path: dest, url: `/api/file?path=${encodeURIComponent(dest)}` });
+      // A macOS owner's logo is very often a HEIC (screenshot / iPhone photo) or a GIF, and the
+      // file picker offers image/* — so refusing them read as "upload is broken". Anything the
+      // renderer cannot use directly is CONVERTED to PNG instead of rejected.
+      if (WEB_SAFE.has(ext)) {
+        const dest = join(dir, `${newId('logo')}${ext}`);
+        renameSync(req.file.path, dest);
+        return res.json({ path: dest, url: `/api/file?path=${encodeURIComponent(dest)}` });
+      }
+      const dest = join(dir, `${newId('logo')}.png`);
+      await toPng(req.file.path, dest, ext);
+      res.json({ path: dest, url: `/api/file?path=${encodeURIComponent(dest)}`, converted: ext.replace('.', '').toUpperCase() });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 

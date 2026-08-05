@@ -377,13 +377,24 @@ export function initBrandKit() {
   $('#brandLogoClear').addEventListener('click', () => { state.brandDraft.logo = null; syncBrandStage(); });
   $('#brandLogoFile').addEventListener('change', async (e) => {
     const f = e.target.files[0]; if (!f) return;
-    const fd = new FormData(); fd.append('file', f);
-    const r = await api.upload(`/channels/${state.activeChannel}/brand-logo`, fd);
-    if (r.error) return toast(r.error, 'error');
-    state.brandDraft.logo = { assetPath: r.path };
-    if (!$('#stampOn').checked) { $('#stampOn').checked = true; state.brandDraft.stamp.enabled = true; applyControlState(); }
-    syncBrandStage();
-    toast('🖼 Logo đã tải lên', 'success');
+    // api.upload THROWS on any non-2xx — the old `if (r.error)` branch was unreachable, so a
+    // rejected upload produced an unhandled rejection and the UI did NOTHING AT ALL: no toast,
+    // no message, the logo simply never appeared. Every failure has to be visible.
+    try {
+      if (!state.brandDraft) throw new Error('Mở Brand Kit của kênh trước khi tải logo');
+      const fd = new FormData(); fd.append('file', f);
+      const r = await api.upload(`/channels/${state.activeChannel}/brand-logo`, fd);
+      state.brandDraft.logo = { assetPath: r.path };
+      if (!$('#stampOn').checked) { $('#stampOn').checked = true; state.brandDraft.stamp.enabled = true; applyControlState(); }
+      syncBrandStage();
+      toast(r.converted ? `🖼 Logo đã tải lên (đổi từ ${r.converted} sang PNG)` : '🖼 Logo đã tải lên', 'success');
+    } catch (err) {
+      toast(`✖ Không tải được logo: ${err.message}`, 'error');
+    } finally {
+      // let the SAME file be picked again after a failure — a file input does not re-fire
+      // 'change' for an unchanged value, so without this a retry needs a different file
+      e.target.value = '';
+    }
   });
   $('#brandSave').addEventListener('click', async () => {
     const ch = (state.channels || []).find((c) => c.id === state.activeChannel);
