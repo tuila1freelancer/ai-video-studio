@@ -21,6 +21,7 @@ import { planSoundDesign, usableLibrary } from '../../audio/sound-design.js';
 import { withRetry } from '../../util/retry.js';
 import { step, op, retryHook, progressPlan } from '../progress.js';
 import { resolveOutputDir } from '../helpers.js';
+import { resolveLang } from '../../util/lang.js';
 
 /**
  * @param {string} projectId
@@ -113,7 +114,7 @@ export async function finalize(projectId, { dir, size, config }) {
       sdPlan = await planSoundDesign({
         scenes, lossBeforeScene,
         bgm: usableLibrary(DB.listLibrary('bgm')), sfx: usableLibrary(DB.listLibrary('sfx')),
-        total: expectDur, title: project.title || project.topic || '', lang: config.language || 'vi',
+        total: expectDur, title: project.title || project.topic || '', lang: resolveLang(config, scenes),
         llm: ai.llm, onLog: (m) => op(projectId, `🎼 ${m}`),
       });
     } catch (e) { logger.warn(`sound design: ${e.message} — dùng audio mặc định`, { projectId }); sdPlan = null; }
@@ -232,7 +233,7 @@ export async function finalize(projectId, { dir, size, config }) {
       const ai = aiOn ? await generateThumbnailImage({
         title: project.title, hook: thumbTitle, prompt: project.metadata?.thumbnail?.prompt || '',
         guide, size: nVar > 1 ? { w: 1280, h: 720 } : size, outPath,
-        language: config.language && config.language !== 'auto' ? config.language : 'vi',
+        language: resolveLang(config, scenes),
         variant: v, media: thumbMedia, llm: thumbAi.llm, onLog: (m) => logger.info(m, { projectId, stage: 'b7' }),
       }) : null;
       // Keep the markup of the FIRST design: the owner can edit and re-render it later without

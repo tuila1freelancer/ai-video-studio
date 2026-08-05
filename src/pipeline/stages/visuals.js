@@ -18,6 +18,7 @@ import { resolveGuide } from '../../styleguide/index.js';
 import { checkStop } from '../stop.js';
 import { step, op } from '../progress.js';
 import { mapPool } from '../helpers.js';
+import { resolveLang } from '../../util/lang.js';
 
 /** @param {import('../context.js').PipelineContext} ctx */
 export async function runVisuals(ctx) {
@@ -49,7 +50,7 @@ export async function runVisuals(ctx) {
   if (undirected.length && llmEnabled(hfAi?.llm)) {
     op(projectId, `🎬 AI viết chỉ đạo hình ảnh ${undirected.length} cảnh…`);
     const dirs = await generateDirections(undirected, {
-      title: project.title, total: totalHf, guide, ai: hfAi, language: config.language,
+      title: project.title, total: totalHf, guide, ai: hfAi, language: resolveLang(config, scenes),
       onLog: (m) => logger.info(m, { projectId }),
     });
     for (const sc of undirected) {

@@ -15,13 +15,14 @@ import { scoreScript } from '../../content/scorer.js';
 import { auditCtas, stripCtaSentences } from '../../content/cta-audit.js';
 import { checkStop } from '../stop.js';
 import { op } from '../progress.js';
+import { resolveLang, langName } from '../../util/lang.js';
 
 const CHUNK = 20;      // scenes per rewrite call (the old hard cap, now drained in rounds)
 const MAX_CHUNKS = 3;  // bounded like every heal loop in this pipeline
 
 // Type-keyed rewrite instructions — every scorer/coherence defect type MUST have an entry,
 // or the model receives flagged scenes with unexplained tags.
-const FIX_RULES = (lang, target) => `- lang-leak: rewrite ENTIRELY in ${lang === 'vi' ? 'Vietnamese' : lang}
+const FIX_RULES = (lang, target) => `- lang-leak: rewrite ENTIRELY in ${langName(lang)}
 - truncated: complete the cut-off sentence into a whole one
 - under-budget: write it UP to ~${target} words (the line is too short for its scene duration)
 - over-budget: tighten it DOWN to ~${target} words, keep the core idea
@@ -120,7 +121,12 @@ export async function runEditorial(ctx) {
   if (!llmEnabled(ai?.llm)) return; // scorer findings are logged; offline mode keeps the script
   checkStop(projectId);
 
-  const lang = (config.language && config.language !== 'auto') ? config.language : 'vi';
+  // THE bug that put Vietnamese narration into an English video: this used to hardcode 'vi' when
+  // config.language was unset (which was ALWAYS — nothing wrote it). Scenes flagged for entirely
+  // unrelated defects ("truncated", "anchorless") then came back rewritten in Vietnamese, because
+  // FIX_RULES(lang) says "rewrite ENTIRELY in <lang>" and the continuity line below pins the
+  // Vietnamese forms of address. The scenes themselves are the authority on their own language.
+  const lang = resolveLang(config, scenes);
   const target = wordsForSlot(config.sceneDuration || 7, lang);
   const byIdx = new Map(scenes.map((s) => [s.idx, s]));
   const tailOf = (t) => String(t || '').trim().slice(-90);

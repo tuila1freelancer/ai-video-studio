@@ -7,7 +7,7 @@
 import * as DB from '../db/index.js';
 import { estimateSpeechDuration, estimateWordTiming } from '../providers/subtitle.js';
 import { LANG_WPS } from '../providers/llm.js';
-import { detectLang } from '../util/lang.js';
+import { detectLang, declaredLang } from '../util/lang.js';
 import { logger } from '../util/log.js';
 
 /** @param {import('./context.js').PipelineContext} ctx */
@@ -16,7 +16,8 @@ export function seedEstimatedTiming(ctx) {
   let seeded = 0;
   for (const sc of DB.getScenes(projectId)) {
     if (sc.audio_path) continue; // real voice already exists — its timing is authoritative
-    const lang = (config.language && config.language !== 'auto') ? config.language : detectLang(sc.voice_text || '');
+    // per SCENE here, not per video: the timing seed is for this one line's own delivery rate
+    const lang = declaredLang(config) || detectLang(sc.voice_text || '');
     const duration = estimateSpeechDuration(sc.voice_text || '', lang, LANG_WPS);
     const padS = (lang === 'vi' ? 650 : 400) / 1000; // cues span the SPEECH, not the breath pad
     const { cues } = estimateWordTiming(sc.voice_text || '', Math.max(0.5, duration - padS));

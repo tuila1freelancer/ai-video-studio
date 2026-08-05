@@ -20,6 +20,7 @@ import { inAllowedRoots } from './services/file-access.js';
 import { synthPreview } from './services/voice-preview.js';
 import { startBatch } from './services/batch.js';
 import { getVoiceCatalog } from './services/voice-catalog.js';
+import { resolveLang, declaredLang, detectLang, DEFAULT_LANG } from '../util/lang.js';
 
 const upload = multer({ dest: DIRS.uploads, limits: { fileSize: 512 * 1024 * 1024 } });
 
@@ -464,12 +465,15 @@ export function mountRoutes(app, { version }) {
   r.get('/projects/:id/voice-estimate', (req, res) => {
     const p = DB.getProject(req.params.id);
     if (!p) return res.status(404).json({ error: 'not found' });
-    const pending = DB.getScenes(p.id).filter((s) => !s.audio_path);
+    const all = DB.getScenes(p.id);
+    const pending = all.filter((s) => !s.audio_path);
     const chars = pending.reduce((a, s) => a + String(s.voice_text || '').trim().length, 0);
     const ch = p.channel_id ? DB.getChannel(p.channel_id) : null;
     const o = ttsOverrideFor(ch, p.config);
     const s = { ...(DB.aiSettings().tts || {}), ...(o || {}) };
-    const lang = (p.config?.language && p.config.language !== 'auto') ? p.config.language : 'vi';
+    // language from the WHOLE script, not just the unvoiced tail — on a nearly-finished video
+    // `pending` can be one short scene, which is not enough to read a language from.
+    const lang = resolveLang(p.config, all);
     // the REAL synthesis resolver — the cost line must never disagree with what will be billed
     const { pid: provider } = resolveVoiceTarget(s, lang, o);
     res.json({ chars, scenes: pending.length, provider,
@@ -489,7 +493,7 @@ export function mountRoutes(app, { version }) {
     const b = req.body || {};
     const config = b.config || {};
     const duration = Math.max(10, parseInt(b.videoDuration || config.videoDuration, 10) || 60);
-    const lang = (config.language && config.language !== 'auto') ? config.language : 'vi';
+    const lang = declaredLang(config) || DEFAULT_LANG; // no scenes exist yet on a cost preview
     const words = Math.round(duration * (LANG_WPS[lang] || 3.0));
     const chars = Math.round(words * (lang === 'vi' ? 5.5 : 6));
     const o = config.tts || null;
@@ -872,7 +876,7 @@ export function mountRoutes(app, { version }) {
           title: p.title, hook: req.body?.hook || md.thumbnail?.title || '',
           prompt: req.body?.prompt || md.thumbnail?.prompt || '',
           guide, size, outPath,
-          language: p.config?.language && p.config.language !== 'auto' ? p.config.language : 'vi',
+          language: resolveLang(p.config, DB.getScenes(p.id)),
           variant: Math.max(0, Math.min(2, parseInt(req.body?.variant, 10) || 0)),
           media, llm: DB.aiSettings().llm,
         });
@@ -1176,7 +1180,8 @@ export function mountRoutes(app, { version }) {
       const { buildSubtitles } = await import('../providers/subtitle.js');
       const channel = DB.channelOf(p.id);
       const { aiSettingsFor } = await import('../core/config.js');
-      const lang = (p.config || {}).language;
+      // this scene's OWN text decides — resync runs after the owner edited that one line
+      const lang = declaredLang(p.config) || detectLang(sc.voice_text || '');
       const padMs = /[ạảãàáâậầấẩẫăắằẳẵặđ]/i.test(sc.voice_text || '') ? 650 : 400;
       const speechDur = Math.max(0.3, (sc.duration || 0) - padMs / 1000);
       const sub = await buildSubtitles(sc.audio_path, sc.voice_text || '', speechDur, { language: lang, engine: aiSettingsFor(channel).subtitle?.engine });
@@ -1491,7 +1496,7 @@ export function mountRoutes(app, { version }) {
     const { videoDuration = 60, sceneDuration = 7, language } = req.body || {};
     const scenes = Math.max(1, Math.round(videoDuration / sceneDuration));
     // same formula the script generator budgets with — the UI estimate must never disagree
-    const wordsPerScene = wordsForSlot(sceneDuration, (language && language !== 'auto') ? language : 'vi');
+    const wordsPerScene = wordsForSlot(sceneDuration, declaredLang({ language }) || DEFAULT_LANG);
     res.json({ scenes, wordsPerScene, size: ratioToSize(req.body.aspectRatio || '9:16') });
   });
 

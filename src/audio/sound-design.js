@@ -7,6 +7,7 @@
 import { existsSync } from 'node:fs';
 import { chat, llmEnabled } from '../providers/llm.js';
 import { safeJson } from '../util/util.js';
+import { langName, majorityLang } from '../util/lang.js';
 
 export const BGM_VOL_MIN = 0.06, BGM_VOL_MAX = 0.18;   // pre-duck linear mix level bounds
 export const SFX_VOL_MIN = 0.3, SFX_VOL_MAX = 1.0;     // per-event linear volume bounds
@@ -81,7 +82,7 @@ export async function planSoundDesign({ scenes, lossBeforeScene, bgm = [], sfx =
   if (!cues.length) return null;
   const sheet = cues.map((c) => `${c.t.toFixed(1)}s: ${c.text}`).join('\n').slice(0, 9000);
   const user = [
-    `VIDEO: "${title}" (${lang || 'vi'}) — total ${Math.round(total)}s`,
+    `VIDEO: "${title}" (${langName(lang || majorityLang(scenes.map((s) => s.voice_text)))}) — total ${Math.round(total)}s`,
     `BGM LIBRARY:\n${bgm.map((f) => `- ${f.name}`).join('\n') || '(none)'}`,
     `SFX LIBRARY:\n${sfx.slice(0, 120).map((f) => `- ${f.name}`).join('\n') || '(none)'}`,
     `CUE SHEET:\n${sheet}`,
