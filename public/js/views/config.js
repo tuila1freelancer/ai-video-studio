@@ -67,6 +67,12 @@ export function gatherConfig() {
     resolutionScale: +$('#cfgRes').value,
     watermarkText: $('#cfgWatermark').value.trim(),
     aspectRatio: $('#cfgAr').value,
+    // MUST be undefined for 'auto', never the string. mergeConfigLayers skips ONLY undefined
+    // (core/config.js), and the merge order is defaults → channel → preset → this. Emitting
+    // 'auto' would overwrite a channel that declared its language, so the channel default could
+    // never win — the same trap already documented for durationMode below. null is worse: it is
+    // not skipped either, and it would clobber the channel with a value the resolver rejects.
+    language: $('#cfgLang')?.value === 'auto' ? undefined : ($('#cfgLang')?.value || undefined),
     videoDuration: +$('#cfgVd').value,
     sceneDuration: +$('#cfgSd').value,
     enableSubtitles: $('#cfgSub').checked,
@@ -116,6 +122,10 @@ export function applyConfig(cfg = {}) {
   if (cfg.resolutionScale) $('#cfgRes').value = cfg.resolutionScale;
   $('#cfgWatermark').value = cfg.watermarkText || '';
   if (cfg.aspectRatio) $('#cfgAr').value = cfg.aspectRatio;
+  // UNCONDITIONAL, unlike its neighbours. This runs on every channel switch, so a guarded
+  // `if (cfg.language)` would leave the picker showing the previous channel's language — and
+  // gatherConfig would then PIN it onto a project that should have been auto.
+  if ($('#cfgLang')) $('#cfgLang').value = cfg.language || 'auto';
   if (cfg.videoDuration) $('#cfgVd').value = cfg.videoDuration;
   if (cfg.sceneDuration) $('#cfgSd').value = cfg.sceneDuration;
   $('#cfgSub').checked = cfg.enableSubtitles !== false;

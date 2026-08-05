@@ -52,9 +52,28 @@ app.get('*', (req, res, next) => {
 });
 
 const server = http.createServer(app);
-hub.attach(server);
 
 const PORT = parseInt(process.env.AVS_PORT || '0', 10); // 0 = auto-pick free port
+// A BUSY PORT MUST BE FATAL AND LOUD. Without this, the 'error' event has no listener, so it
+// throws — straight into the catch-all `uncaughtException` handler below, which only logs. The
+// process then stays alive, never listening, never printing AVS_READY. The app launcher polls
+// /api/health, gets a 200 FROM THE OLD SERVER, and happily loads the UI: everything looks fine
+// while you are running yesterday's code. That is a debugging nightmare, and it is why a
+// "rebuild" appears to fix things that a rebuild has nothing to do with.
+server.on('error', (e) => {
+  if (e?.code === 'EADDRINUSE') {
+    logger.error(`cổng ${PORT} đang bị chiếm — một server AI Video Studio khác vẫn đang chạy. Thoát tiến trình cũ rồi mở lại (App: thoát hẳn app; terminal: kill tiến trình 'node src/server.js').`);
+    console.error(`AVS_PORT_IN_USE ${PORT}`);
+  } else {
+    logger.error(`server listen failed: ${e?.message || e}`);
+  }
+  process.exit(1);
+});
+// AFTER the handler above, and that order is load-bearing: `ws` attaches its own 'error'
+// listener to the http server which RE-THROWS, so a WebSocketServer created first turns this
+// into an uncaughtException before our listener is ever reached (verified — the whole point of
+// the handler is lost). Listeners fire in registration order, so ours must be registered first.
+hub.attach(server);
 server.listen(PORT, '127.0.0.1', () => {
   const addr = server.address();
   const url = `http://127.0.0.1:${addr.port}`;

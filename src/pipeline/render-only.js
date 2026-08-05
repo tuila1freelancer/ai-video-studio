@@ -24,18 +24,25 @@ export async function renderOnly(projectId, { mode = 'all', sceneIds = [] }) {
   try {
     const allScenes = DB.getScenes(projectId);
     let scenes = allScenes;
+    // 'concat' means CONCAT ONLY — it re-uses the clips already on disk. This used to fall
+    // through to the full mapPool below (the subset filter only ever applied to 'scenes'), so
+    // "ghép lại" silently re-rendered every clip in the project: on a 95-scene video, ~95
+    // needless renders to join files that were already correct. finalize() still repairs any
+    // scene missing a clip (its own missing-clip pass), so nothing is skipped by doing less here.
+    const renderPass = mode !== 'concat';
     if (mode === 'scenes' && sceneIds.length) scenes = scenes.filter((s) => sceneIds.includes(s.id));
     // Scenes-first order: an unvoiced scene only carries an ESTIMATED duration — rendering
     // it would bake a silent clip cut to the estimate, which the real TTS then invalidates.
     // Voice first (continue past the scene gate or regen-voice), render after.
-    const unvoiced = scenes.filter((s) => !s.audio_path);
+    const unvoiced = renderPass ? scenes.filter((s) => !s.audio_path) : [];
     if (unvoiced.length) {
       scenes = scenes.filter((s) => s.audio_path);
       op(projectId, `⏭️ Bỏ qua ${unvoiced.length} cảnh chưa có lồng tiếng — hãy lồng tiếng trước rồi render`);
       if (!scenes.length) {
         // Nothing renderable — exit CLEANLY (before any b6 step event, so the progress bar
         // never jumps) and restore the entry status: flipping a scene-gate hold to 'error'
-        // would read as a crashed run in the UI.
+        // would read as a crashed run in the UI. Only a RENDER pass can be empty this way;
+        // a concat of a fully-voiced project with clips on disk is perfectly valid work.
         op(projectId, '🎙 Chưa cảnh nào có lồng tiếng — bấm "Lồng tiếng & Render" (hoặc tạo giọng từng cảnh) trước');
         const back = project.status === 'running' ? 'paused' : project.status;
         DB.updateProject(projectId, { status: back });
@@ -43,20 +50,24 @@ export async function renderOnly(projectId, { mode = 'all', sceneIds = [] }) {
         return;
       }
     }
-    step(projectId, 'b6', 'running', 'Render');
-    const rC = parseInt(config.renderConcurrency || 3, 10);
-    const pp = progressPlan(allScenes, config);
-    await mapPool(scenes, rC, async (sc) => {
-      checkStop(projectId);
-      op(projectId, `🎬 Render cảnh ${sc.idx + 1}`);
-      const r = await renderAnimationScene(sc, project, config, {
-        dir: join(dir, 'render'), progressStart: pp.offsets[sc.idx] || 0, progressTotal: pp.total, total: allScenes.length,
-      });
-      const { path, duration, preview } = r;
-      DB.updateScene(sc.id, { video_path: path, duration, status: 'rendered', ...(preview ? { image_path: preview } : {}) });
-      hub.toProject(projectId, { type: 'scene', sceneId: sc.id, idx: sc.idx, status: 'rendered', video: `/api/file?path=${encodeURIComponent(path)}`, ...(preview ? { image: `/api/file?path=${encodeURIComponent(preview)}` } : {}) });
-    }, { pool: 'render' }); // same process-wide bound as pipeline renders
-    step(projectId, 'b6', 'done');
+    if (renderPass) {
+      step(projectId, 'b6', 'running', 'Render');
+      const rC = parseInt(config.renderConcurrency || 3, 10);
+      const pp = progressPlan(allScenes, config);
+      await mapPool(scenes, rC, async (sc) => {
+        checkStop(projectId);
+        op(projectId, `🎬 Render cảnh ${sc.idx + 1}`);
+        const r = await renderAnimationScene(sc, project, config, {
+          dir: join(dir, 'render'), progressStart: pp.offsets[sc.idx] || 0, progressTotal: pp.total, total: allScenes.length,
+        });
+        const { path, duration, preview } = r;
+        DB.updateScene(sc.id, { video_path: path, duration, status: 'rendered', ...(preview ? { image_path: preview } : {}) });
+        hub.toProject(projectId, { type: 'scene', sceneId: sc.id, idx: sc.idx, status: 'rendered', video: `/api/file?path=${encodeURIComponent(path)}`, ...(preview ? { image: `/api/file?path=${encodeURIComponent(preview)}` } : {}) });
+      }, { pool: 'render' }); // same process-wide bound as pipeline renders
+      step(projectId, 'b6', 'done');
+    } else {
+      op(projectId, `🔗 Ghép lại từ ${allScenes.filter((s) => s.video_path).length} clip đã có — không render lại`);
+    }
     // finalize's missing-clip repair renders EVERY clip-less scene — including unvoiced
     // ones, as silent clips cut to their estimate — so concat is only allowed once every
     // scene carries a real voice. Otherwise a partially-voiced gate hold would ship a

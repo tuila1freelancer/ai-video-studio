@@ -220,6 +220,70 @@ test('lang: the validator judges against the DECLARED language, not the narratio
   assert.ok(!/narrLang === 'vi' \? 'Vietnamese' : narrLang/.test(v), 'no raw language codes in prose');
 });
 
+test('lang: the picker exists, and it cannot clobber a channel that declared its language', () => {
+  const html = src('../public/index.html');
+  assert.ok(html.includes('id="cfgLang"'), 'the control exists');
+  for (const code of ['auto', 'vi', 'en', 'ja', 'es']) {
+    assert.ok(html.includes(`<option value="${code}"`), `${code} is offered`);
+  }
+  const cfg = src('../public/js/views/config.js');
+  // 'auto' MUST become undefined. mergeConfigLayers skips only undefined and the merge order is
+  // defaults → channel → preset → request, so emitting the string 'auto' would overwrite a
+  // channel that declared its language and the channel default could never win. null is worse:
+  // also not skipped, and the resolver rejects it.
+  assert.match(cfg, /language: \$\('#cfgLang'\)\?\.value === 'auto' \? undefined : \(\$\('#cfgLang'\)\?\.value \|\| undefined\)/);
+  assert.ok(!/language: \$\('#cfgLang'\)\?\.value \|\| 'auto'/.test(cfg), 'never emits the literal auto');
+  // and the merge really does skip only undefined — the property this depends on
+  assert.match(src('../src/core/config.js'), /if \(v === undefined\) continue;/);
+  // applyConfig must assign UNCONDITIONALLY: it runs on every channel switch, and a guarded
+  // `if (cfg.language)` would leave the previous channel's language in the picker — which
+  // gatherConfig would then pin onto a project that should have been auto.
+  assert.match(cfg, /if \(\$\('#cfgLang'\)\) \$\('#cfgLang'\)\.value = cfg\.language \|\| 'auto';/);
+});
+
+test('lang: a language with no pinned voice warns instead of silently using another', () => {
+  const tts = src('../src/pipeline/stages/tts.js');
+  // this is how three English scenes got read by a Vietnamese voice: resolveTarget falls through
+  // to the default provider when langVoices has no entry for the video's language
+  assert.match(tts, /const lv = ai\.tts\?\.langVoices\?\.\[videoLang\];/);
+  assert.match(tts, /Chưa ghim giọng cho \$\{langName\(videoLang\)\}/);
+  // warn-only: an offline or keyless install must still be able to make a video
+  assert.ok(!/throw new Error\([^)]*langVoices/.test(tts), 'never blocks');
+});
+
+test('lang: "ghép lại" concatenates instead of re-rendering the whole video', () => {
+  const ro = src('../src/pipeline/render-only.js');
+  // the subset filter only ever applied to mode 'scenes', so 'concat' fell through to the full
+  // mapPool — on a 95-scene video that is ~95 needless renders to join clips already on disk
+  assert.match(ro, /const renderPass = mode !== 'concat';/);
+  assert.match(ro, /if \(renderPass\) \{/, 'the render pool is gated');
+  assert.match(ro, /không render lại/, 'and the owner is told what it did');
+  // the unvoiced early-exit belongs to the RENDER path only — a fully-voiced project with clips
+  // is perfectly concat-able
+  assert.match(ro, /const unvoiced = renderPass \? scenes\.filter\(\(s\) => !s\.audio_path\) : \[\];/);
+  // but the half-silent-video guard stays exactly as it was
+  assert.match(ro, /const stillUnvoiced = DB\.getScenes\(projectId\)\.some\(\(s\) => !s\.audio_path\);/);
+  assert.match(ro, /if \(mode !== 'scenes' && stillUnvoiced\)/);
+  // and finalize still repairs any scene missing a clip, so nothing is skipped by rendering less
+  assert.match(src('../src/pipeline/stages/finalize.js'), /missing-clip repair|thiếu clip|!existsSync\(s\.video_path/);
+});
+
+test('lang: a busy port is fatal and loud, and the listener order that makes it work', () => {
+  const s = src('../src/server.js');
+  assert.match(s, /server\.on\('error', \(e\) => \{/);
+  assert.match(s, /e\?\.code === 'EADDRINUSE'/);
+  assert.match(s, /AVS_PORT_IN_USE/);
+  assert.match(s, /process\.exit\(1\);/);
+  // ORDER IS LOAD-BEARING, and this is not a style preference: `ws` attaches its own 'error'
+  // listener to the http server which RE-THROWS. A WebSocketServer created first turns the
+  // listen error into an uncaughtException — which the catch-all only LOGS, leaving a live
+  // process that never listens while the launcher's health probe gets a 200 from the OLD
+  // server. That is exactly the "I rebuilt and it still runs yesterday's code" trap.
+  assert.ok(s.indexOf("server.on('error'") < s.indexOf('hub.attach(server)'),
+    'the error handler must be registered BEFORE hub.attach');
+  assert.ok(s.indexOf('hub.attach(server)') < s.indexOf('server.listen('), 'and both before listen');
+});
+
 test('lang: scriptLang still falls back to the SOURCE text, not the narration', () => {
   // At script time no scenes exist yet, so the topic/pasted document is the only signal — a
   // different question from resolveLang's, and it must keep its own semantics.

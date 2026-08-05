@@ -10,7 +10,7 @@ import { synthesizeVoice } from '../../providers/tts.js';
 import { buildSubtitles } from '../../providers/subtitle.js';
 import { normalizeForTts, moodOf } from '../../providers/tts-normalize.js';
 import { normalizeVoice } from '../../media/ffmpeg.js';
-import { detectLang } from '../../util/lang.js';
+import { detectLang, resolveLang, langName } from '../../util/lang.js';
 import { buildSrt } from '../srt.js';
 import { withRetry } from '../../util/retry.js';
 import { ttsOverrideFor } from '../../core/config.js';
@@ -49,6 +49,18 @@ export async function runTts(ctx) {
     }
     step(projectId, 'b34', 'done', 'không lời');
     return;
+  }
+  // MISSING-VOICE WARNING. langVoices is how the owner pins a voice per language; when the
+  // video's language has no entry, resolveTarget silently falls through to the default provider
+  // — which is how three English-narrated scenes ended up read by a Vietnamese voice. Warn, never
+  // block: an offline install and a keyless setup must both still be able to make a video.
+  {
+    const videoLang = resolveLang(config, scenes);
+    const lv = ai.tts?.langVoices?.[videoLang];
+    if (!lv?.provider) {
+      op(projectId, `⚠️ Chưa ghim giọng cho ${langName(videoLang)} — sẽ dùng provider mặc định (${ai.tts?.provider || 'edge'}). Vào Cài đặt → Giọng mặc định theo ngôn ngữ để chọn.`);
+      logger.warn(`no langVoices entry for ${videoLang} — falling back to ${ai.tts?.provider || 'edge'}`, { projectId, stage: 'b34' });
+    }
   }
   const ttsC = config.parallelTTS ? parseInt(config.ttsConcurrency || 4, 10) : 1;
   const voiceFallbacks = []; // scenes that had to switch voice — re-tried once below
