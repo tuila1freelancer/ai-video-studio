@@ -12,6 +12,7 @@ import { renderValidate } from '../../hyperframe/validate.js';
 import { extractBeats } from '../../hyperframe/beats.js';
 import { resolveGuide, normalizeGuide } from '../../styleguide/index.js';
 import { sceneTemplateSource, animSize } from '../../animation/index.js';
+import { resolveLang } from '../../util/lang.js';
 
 const SYS = `You are an expert motion-graphics HTML editor. You receive ONE scene's current source ({css, html, script} that runs on a GSAP stage: script is the body of function(gsap, tl, S, rng) on a PAUSED timeline scrubbed by a renderer) and ONE edit instruction. Apply the instruction faithfully and keep everything else intact: same structure, ids, classes, FX.* calls, timing and determinism rules (no gsap.* direct calls, no wall-clock, no Math.random, transforms/opacity/filter only, finite repeats). Reply with EXACTLY:
 @@@CSS@@@
@@ -46,7 +47,8 @@ export async function editSceneByPrompt(sceneId, editPrompt, { _chat = chat } = 
   const isHf = sc.template === 'hyperframe';
   const guide = isHf ? normalizeGuide(sc.props?.guide) : resolveGuide(config);
   const duration = Math.max(1.5, sc.duration || config.sceneDuration || 6);
-  normalizeSpec(spec, { guide, duration });
+  const language = resolveLang(config, DB.getScenes(sc.project_id));
+  normalizeSpec(spec, { guide, duration, language });
   const { errors } = lintSpec(spec);
   if (errors.length) return { ok: false, error: 'edit rejected by lint', defects: errors };
   const { w, h } = animSize(project.aspect_ratio, 1);

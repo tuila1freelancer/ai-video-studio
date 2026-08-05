@@ -9,7 +9,7 @@ import { synthesizeVoice } from '../providers/tts.js';
 import { buildSubtitles } from '../providers/subtitle.js';
 import { normalizeForTts, moodOf } from '../providers/tts-normalize.js';
 import { normalizeVoice } from '../media/ffmpeg.js';
-import { detectLang } from '../util/lang.js';
+import { detectLang, resolveLang } from '../util/lang.js';
 import { generateSceneDirection } from './direction.js';
 import { generateSceneSpec } from '../hyperframe/codegen.js';
 import { densityForScene } from '../hyperframe/prompt.js';
@@ -51,7 +51,11 @@ export async function regenOne(sceneId, what) {
   } else if (what === 'html') {
     const vm = config.visualMode || 'hyperframe';
     if (vm === 'hyperframe') {
-      const total = DB.getScenes(project.id).length;
+      const allScenes = DB.getScenes(project.id);
+      const total = allScenes.length;
+      // the WHOLE video decides the language, not this one scene — regenerating a short
+      // number-only card must not flip it to English
+      const sceneLang = resolveLang(config, allScenes);
       const channel = DB.channelOf(project.id);
       const guide = resolveGuide(config);
       const { w, h } = animSize(project.aspect_ratio, 1) /* LOGICAL canvas — render upscales via zoom */;
@@ -63,7 +67,7 @@ export async function regenOne(sceneId, what) {
         : baseAi;
       // fresh art direction for this scene too (regenerate = user wants a new take)
       try {
-        const d = await generateSceneDirection(sc, { title: project.title, total, guide, ai: hfAi, language: resolveLang(config, DB.getScenes(project.id)) });
+        const d = await generateSceneDirection(sc, { title: project.title, total, guide, ai: hfAi, language: sceneLang });
         if (d) { DB.updateScene(sc.id, { visual_prompt: d.visual }); sc.visual_prompt = d.visual; }
       } catch { /* keep the old brief */ }
       const hookVisual = sc.idx > 0 ? (DB.getScenes(project.id)[0]?.visual_prompt || '') : '';
@@ -75,7 +79,7 @@ export async function regenOne(sceneId, what) {
       // regenerated scene keeps exactly the media its first pass was designed around.
       const media = sceneMediaResolver(config, { heroMediaUri })(sc);
       const { props } = await generateSceneSpec({
-        scene: sc, guide, w, h, idx: sc.idx, total, ai: hfAi,
+        scene: sc, guide, w, h, idx: sc.idx, total, ai: hfAi, language: sceneLang,
         density: densityForScene(sc, config.hyperframe?.density),
         creativeDirection: config.hyperframe?.direction,
         captionsOn: config.enableSubtitles !== false,
