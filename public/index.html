@@ -396,6 +396,17 @@
                   <select class="input" id="cfgSubPos"><option value="bot">Dưới</option><option value="mid">Giữa</option><option value="top">Trên</option></select>
                 </details>
                 <div class="sub-preview" id="subPreview">Phụ đề mẫu</div>
+                <!-- Xem thử trên KHUNG THẬT của video: đi qua đúng đường ghép cuối
+                     (logoRect + libass), nên thấy sao thì video ra vậy. -->
+                <div id="framePreviewBox" class="hidden" style="margin-top:10px">
+                  <div class="row" style="gap:6px;align-items:center">
+                    <button class="btn sm" id="btnFramePreview">🎞 Xem trên khung thật</button>
+                    <input type="range" class="range" id="framePreviewAt" min="0" max="100" value="15" style="flex:1" title="Vị trí trong video">
+                    <span class="hint" id="framePreviewT" style="min-width:52px;text-align:right">0:15</span>
+                  </div>
+                  <div class="hint" id="framePreviewNote" style="margin-top:4px"></div>
+                  <img id="framePreviewImg" class="hidden" style="width:100%;border-radius:8px;margin-top:6px;display:block">
+                </div>
               </div>
             </div>
           </div>

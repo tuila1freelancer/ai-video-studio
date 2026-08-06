@@ -202,6 +202,9 @@ function wireConfig() {
     await ensureFontLoaded(fam);
     updateSubPreview();
   });
+  $('#btnFramePreview')?.addEventListener('click', refreshFramePreview);
+  $('#framePreviewAt')?.addEventListener('input', () => { $('#framePreviewT').textContent = fmtT(+$('#framePreviewAt').value); });
+  $('#framePreviewAt')?.addEventListener('change', refreshFramePreview);
   $('#cfgSubFontGet')?.addEventListener('click', async () => {
     const fam = $('#cfgSubFont').value;
     const btn = $('#cfgSubFontGet');
@@ -306,6 +309,47 @@ export function updateSubPreview() {
     + words.map((w, i) => `<span style="color:${i === hit ? accent : base};opacity:${i === hit ? 1 : (i < hit ? 0.95 : 0.55)};`
       + `${previewEffect(effect, fs, i === hit ? accent : base, preset?.boxBg)}">${w}</span>`).join(' ')
     + '</div>';
+}
+
+// ---------------- real-frame preview ----------------
+// The style preview above is CSS pretending to be the renderer. This one IS the renderer: the
+// server pulls a frame out of the finished video and runs it through resolveConcatLogo/logoRect
+// and libass — the same code the concat calls. About a second, against the fifteen minutes of
+// re-concatenating it replaces.
+const fmtT = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+
+export function syncFramePreviewAvailability() {
+  const box = $('#framePreviewBox');
+  if (!box) return;
+  const ok = !!state.current?.id && !!state.current?.video_path;
+  box.classList.toggle('hidden', !ok);
+  // projects carry no duration column; the scene rows do, and their sum is close enough to
+  // scale a scrubber (the server clamps to the real file anyway)
+  const dur = Math.max(1, Math.round((state.scenes || []).reduce((a, s) => a + (s.duration || 0), 0)));
+  const sl = $('#framePreviewAt');
+  if (sl && dur > 1) { sl.max = String(dur); if (+sl.value > dur) sl.value = String(Math.round(dur * 0.15)); }
+  if (sl) $('#framePreviewT').textContent = fmtT(+sl.value);
+}
+
+export async function refreshFramePreview() {
+  const img = $('#framePreviewImg'); const note = $('#framePreviewNote');
+  const btn = $('#btnFramePreview');
+  if (!img || !state.current?.id) return;
+  const t = +($('#framePreviewAt')?.value || 15);
+  btn.disabled = true; note.textContent = '⏳ Đang dựng khung thật…';
+  try {
+    // the panel's LIVE values, not what is saved — the owner is previewing a change in progress
+    const cfg = encodeURIComponent(JSON.stringify(gatherConfig()));
+    const url = `/api/projects/${state.current.id}/frame-preview?t=${t}&cfg=${cfg}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `HTTP ${res.status}`);
+    const warn = res.headers.get('X-Preview-Note');
+    img.src = URL.createObjectURL(await res.blob());
+    img.classList.remove('hidden');
+    note.textContent = warn ? `⚠ ${decodeURIComponent(warn)}` : 'Khung thật của video — logo và phụ đề đi qua đúng đường ghép cuối.';
+  } catch (e) {
+    note.textContent = `✖ ${e.message}`;
+  } finally { btn.disabled = false; }
 }
 
 // ---------------- HyperFrame style guide ("Phong cách video") ----------------
@@ -536,6 +580,8 @@ function openCfgGroupModal(group) {
   slot.appendChild(body);
   $('#cfgModalTitle').textContent = GRP_TITLES[group.id] || 'Cấu hình';
   $('#cfgModal').classList.add('open');
+  // the real-frame preview only means anything once there IS a frame
+  if (group.id === 'grpSubtitle') syncFramePreviewAvailability();
 }
 function wireConfigGroups() {
   try { localStorage.removeItem('cfgGroups'); } catch { /* accordion-era key */ }
