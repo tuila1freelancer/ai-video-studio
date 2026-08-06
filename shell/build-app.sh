@@ -16,7 +16,9 @@ MODE="dev"
 [ "$1" = "--dist" ] && MODE="dist"
 
 AVS_PORT="${AVS_PORT:-8123}"
-APP="AI Video Studio.app"
+# Overridable so a release candidate can be built and smoke-tested without deleting the copy the
+# owner is using — the first thing this script does is `rm -rf` the target.
+APP="${AVS_APP_PATH:-AI Video Studio.app}"
 VERSION="$(node -p "require('$ROOT/package.json').version")"
 
 echo "mode:    $MODE"
@@ -93,7 +95,9 @@ if [ "$MODE" = "dist" ]; then
   echo "installing production dependencies…"
   STAGE="$(mktemp -d)"
   cp package.json package-lock.json "$STAGE/"
-  ( cd "$STAGE" && "$ROOT/vendor/node/bin/node" "$(command -v npm || echo /opt/homebrew/opt/node@22/lib/node_modules/npm/bin/npm-cli.js)" ci --omit=dev --silent )
+  # The vendored runtime's own npm, so the install runs against the ABI the bundle will ship —
+  # `better-sqlite3` is a native module and a mismatch here is a crash on the customer's machine.
+  ( cd "$STAGE" && "$ROOT/vendor/node/bin/node" "$ROOT/vendor/node/lib/node_modules/npm/bin/npm-cli.js" ci --omit=dev --silent )
   cp -R "$STAGE/node_modules" "$APPDIR/node_modules"
   rm -rf "$STAGE"
 
@@ -131,8 +135,9 @@ cat > "$APP/Contents/Info.plist" <<EOF
 </dict></plist>
 EOF
 
-echo "✅ Built: $ROOT/$APP  (v$VERSION, $MODE)"
+APP_ABS="$(cd "$(dirname "$APP")" && pwd)/$(basename "$APP")"
+echo "✅ Built: $APP_ABS  (v$VERSION, $MODE)"
 if [ "$MODE" = "dist" ]; then
   echo "   Kích thước: $(du -sh "$APP" | cut -f1)"
 fi
-echo "   Mở bằng: open \"$ROOT/$APP\""
+echo "   Mở bằng: open \"$APP_ABS\""

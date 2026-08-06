@@ -20,7 +20,9 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const APP = join(ROOT, 'AI Video Studio.app');
+// Same override the build script honours, so a release candidate can be built without deleting
+// the copy the owner has open.
+const APP = process.env.AVS_APP_PATH || join(ROOT, 'AI Video Studio.app');
 const PLATFORM = 'macos-arm64';
 
 const args = parseArgs(process.argv.slice(2));
