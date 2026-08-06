@@ -44,6 +44,15 @@ const FROZEN = {
   ttsNoLanguage: 'f0db042a2d5503b5',   // config: {}
   ttsLangVi: '57804e5af1b0d86f',       // config: { language: 'vi' }
   renderNoLanguage: '218a91492bc8fc00',
+  // Captured 2026-08-06, BEFORE the final-pass subtitle lane existed. Every rendered clip on
+  // disk was stamped with a digest from this exact key set. See the subtitleLane test below.
+  renderWithSubtitles: 'fa8a58618d217dd6',
+  renderBrandOnly: '9bd61cb13ab913d1',
+};
+// The subtitle config a real project carries — every key here is inside RENDER_CFG_KEYS today.
+const SUB_CFG = {
+  enableSubtitles: true, subtitleFont: 'Anton', subtitleFontSize: 80,
+  subtitlePreset: 'bold-impact', subtitlePosition: { preset: 'bot', marginV: 0.12 },
 };
 const frozenScene = { voice_text: 'Xin chào các bạn', template: 'hyperframe', props: { a: 1 } };
 
@@ -63,6 +72,20 @@ test('language is deliberately NOT part of the render fingerprint', () => {
   assert.equal(renderFingerprint(frozenScene, { ...proj, config: {} }), FROZEN.renderNoLanguage);
   assert.equal(renderFingerprint(frozenScene, { ...proj, config: { language: 'en' } }), FROZEN.renderNoLanguage);
   assert.equal(renderFingerprint(frozenScene, { ...proj, config: { language: 'vi' } }), FROZEN.renderNoLanguage);
+});
+
+test('the render digest of a real subtitle config has not moved either', () => {
+  // Every clip on disk was stamped with a digest built from the CURRENT RENDER_CFG_KEYS set.
+  // The final-pass subtitle lane is about to take the `sub*` keys out of that set for projects
+  // that opt in; removing a key from a digest is the same class of accident as adding one. This
+  // pins what the untouched (opt-out) path must keep producing.
+  const proj = { project: { aspect_ratio: '16:9' } };
+  const fp = (config) => renderFingerprint(frozenScene, { ...proj, config });
+  assert.equal(fp(SUB_CFG), FROZEN.renderWithSubtitles);
+  assert.equal(fp({ brandKit: { logo: '/x.png' }, styleId: 'chrome-kinetic' }), FROZEN.renderBrandOnly);
+  // subtitle settings really are inputs to the clip today — that is exactly what the new lane
+  // changes, and why the change has to be gated behind an explicit opt-in
+  assert.notEqual(fp(SUB_CFG), fp({ ...SUB_CFG, subtitleFont: 'Lexend' }));
 });
 
 test('fpCurrent trusts legacy rows (null fp) and enforces stamped ones', () => {
