@@ -50,14 +50,19 @@ export async function finalize(projectId, { dir, size, config, variantName = nul
   //             available that it may still carry them, so on this lane it is rebuilt bare
   //             rather than printed over.
   //
-  // `config` is still the run's own config at this point: finalize has not yet added the concat
-  // logo, the live brand kit or the watermark, and all three are inputs to the render digest.
-  // Asking the question any later would compare every clip against a config none was made from.
+  // A clip is judged against the PROJECT's saved config, never this run's. They are the same
+  // thing for a pipeline run, but a VARIANT export layers concat-level overrides on top
+  // (`logo: null`, no music) — and `logo` is an input to the render digest, so asking the
+  // question with the run config would report all 105 clips stale and re-render the lot to
+  // produce a cut that differs by one overlay filter. It is also why this sits here rather than
+  // further down: finalize is about to add the concat logo, the live brand kit and the watermark
+  // to `config`, and none of those was ever an input to a clip.
+  const clipCfg = project.config || config;
   const burnLane = config.subtitleLane === 'final' && config.enableSubtitles !== false;
   const missing = all.filter((s) => !(s.video_path && existsSync(s.video_path)));
   const missingIds = new Set(missing.map((s) => s.id));
   const stale = burnLane
-    ? all.filter((s) => !missingIds.has(s.id) && !renderCurrent(s, { config, project }, project.config).ok)
+    ? all.filter((s) => !missingIds.has(s.id) && !renderCurrent(s, { config: clipCfg, project }, clipCfg).ok)
     : [];
   const rebuild = [...missing, ...stale].sort((a, b) => a.idx - b.idx);
   if (rebuild.length) {
@@ -73,7 +78,7 @@ export async function finalize(projectId, { dir, size, config, variantName = nul
     let n = 0;
     for (const sc of rebuild) {
       op(projectId, `🎬 Dựng lại cảnh ${sc.idx + 1} (${++n}/${rebuild.length})`);
-      const r = await renderAnimationScene(sc, project, config, {
+      const r = await renderAnimationScene(sc, project, clipCfg, {
         dir: renderDir, progressStart: pp.offsets[sc.idx] || 0, progressTotal: pp.total, total: all.length,
         onLog: (s) => op(projectId, `cảnh ${sc.idx + 1}: ${s}`),
       });
@@ -81,7 +86,7 @@ export async function finalize(projectId, { dir, size, config, variantName = nul
       // so the very next join would find the same scene stale and rebuild it all over again.
       DB.updateScene(sc.id, {
         video_path: r.path, duration: r.duration, status: 'rendered', error: null,
-        fp: fpStamp(sc, 'render', renderFingerprint(sc, { config, project })),
+        fp: fpStamp(sc, 'render', renderFingerprint(sc, { config: clipCfg, project })),
       });
     }
   }
