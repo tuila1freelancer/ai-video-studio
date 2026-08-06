@@ -128,3 +128,8 @@ from the studio's own database — every number is real production data.
 - Scenes with rendered clips (active projects): 93 · Jobs: 1 done / 0 error / 2 cancelled
 - AI usage: 225 calls · 2066k tokens in / 487k out · 15.6k TTS chars · est. $2.01
 - Published: — · Calendar-driven runs: —
+## 2026-08-06
+- Videos: 3 created · 2 completed — “8 Investments Under $100 That Pay You Back” · “Why $5,000 Is the Number That Changes Everything”
+- Scenes with rendered clips (active projects): 206 · Jobs: 10 done / 0 error / 2 cancelled
+- AI usage: 426 calls · 3798k tokens in / 950k out · 30.2k TTS chars · est. $3.80
+- Published: — · Calendar-driven runs: —
