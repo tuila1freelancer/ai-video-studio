@@ -52,6 +52,16 @@ const NEW_PROJECT_DEFAULTS = {
   // B2 script path: 'master' = the master script engine (one master prompt → canonical
   // scenes JSON with per-scene 8-bracket visuals). 'legacy' restores the old generateScript.
   scriptEngine: 'master',
+  // Subtitles are printed onto the ASSEMBLED video, never baked into the clips (owner order
+  // 2026-08-06). A caption drawn inside a clip is an INPUT to that clip: changing the font then
+  // costs one render per scene, and there is no way to take it back out again. Burning once at
+  // the join makes every later subtitle edit cost a single concat.
+  //
+  // It sits in the NEW-project defaults rather than at the consumption sites on purpose: this
+  // layer only runs at creation, so projects that already have clips keep whatever their stored
+  // config says and their render fingerprints do not move. Moving an existing project onto the
+  // lane is a deliberate, priced act (services/change-plan.js), not a side effect of an upgrade.
+  subtitleLane: 'final',
 };
 
 // Effective config for a new project. `preset` = the channel's default preset row (or null).

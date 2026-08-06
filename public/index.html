@@ -375,11 +375,9 @@
                   <label class="label">Số từ mỗi dòng: <strong id="cfgSubWordsL">4</strong></label>
                   <input type="range" class="range" id="cfgSubWords" min="2" max="10" step="1" value="4">
                 </div>
-                <label class="label">Vẽ phụ đề ở đâu</label>
-                <select class="input" id="cfgSubLane" style="margin-bottom:6px">
-                  <option value="scene">🎨 Trong từng cảnh — hiệu ứng đẹp nhất</option>
-                  <option value="final">⚡ Ở bước ghép cuối — sửa lại chỉ tốn 1 lượt ghép</option>
-                </select>
+                <!-- Phụ đề LUÔN được in sau khi ghép video hoàn chỉnh (lệnh chủ 2026-08-06).
+                     Không còn lựa chọn "vẽ trong từng cảnh": phụ đề nướng vào clip là đầu vào
+                     của clip, sửa font là render lại từng cảnh, và không gỡ ra được nữa. -->
                 <div class="hint" id="subLaneHint" style="margin-bottom:8px"></div>
                 <div class="hint" style="margin-bottom:8px">Mọi cách ngắt đều dựng lại từ đúng mốc thời gian từng từ của giọng đọc — phụ đề luôn khớp tiếng.</div>
                 <div class="sub-preset-grid" id="subPresetGrid"></div>

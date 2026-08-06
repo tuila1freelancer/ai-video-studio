@@ -61,10 +61,25 @@ test('subtitleLane:"scene" is the default spelled out — it changes nothing', (
   assert.equal(hash(page({ enableSubtitles: false, subtitleLane: 'scene' })), GOLDEN.off);
 });
 
-test('subtitleLane:"final" renders the clip bare', () => {
+test('subtitleLane:"final" renders the clip bare but still reserves the caption band', () => {
   const html = page({ ...STYLED, subtitleLane: 'final' });
   assert.ok(!/id="capText"/.test(html), 'no caption element — the burn happens at concat');
-  assert.match(html, /"captions":\[\]/, 'and no cue payload rides along');
+  // The cues DO ride along, as layout data. `__safeZone` lifts any hero slot that intrudes into
+  // the bottom band, and it decides from `S.captions.length`; with an empty array a final-lane
+  // clip reserved no room at all, so the captions burned on later would land on top of the
+  // content. A clip that has to be re-rendered to receive subtitles defeats the whole lane.
+  assert.match(html, /"captions":\[\{/, 'the cue payload is the layout reserve');
+  assert.match(html, /if \(!\(S\.captions && S\.captions\.length\)\) return;/, 'and this is what reads it');
+});
+
+test('the caption band is reserved on the final lane even with subtitles off', () => {
+  // Turning captions on and off must stay a CONCAT-level decision — it cannot be one if it
+  // changes the picture underneath, because then every toggle would re-render every scene.
+  const on = page({ ...STYLED, subtitleLane: 'final' });
+  const off = page({ ...STYLED, subtitleLane: 'final', enableSubtitles: false });
+  assert.equal(hash(on), hash(off), 'the clip is identical either way');
+  // …and the scene lane keeps its old behaviour: no captions, no reserve.
+  assert.match(page({ ...STYLED, enableSubtitles: false }), /"captions":\[\]/);
 });
 
 test('the lane must not disturb anything outside the caption layer', () => {

@@ -22,6 +22,7 @@ import { resolveWatermark, watermarkFont } from '../../media/watermark.js';
 import { planSoundDesign, usableLibrary } from '../../audio/sound-design.js';
 import { withRetry } from '../../util/retry.js';
 import { step, op, retryHook, progressPlan } from '../progress.js';
+import { renderCurrent, renderFingerprint, fpStamp } from '../fingerprint.js';
 import { resolveOutputDir } from '../helpers.js';
 import { timed } from '../stats.js';
 import { resolveLang } from '../../util/lang.js';
@@ -37,18 +38,51 @@ export async function finalize(projectId, { dir, size, config, variantName = nul
   project.outputDir = resolveOutputDir(projectId, config, dir);
   const renderDir = join(dir, 'render');
   const all = DB.getScenes(projectId).sort((a, b) => a.idx - b.idx);
+
+  // Which clips have to be built before the join?
+  //
+  //   missing — never silently drop a scene from the final cut.
+  //   stale   — only when the final-pass burn is about to run. Printing captions onto a clip
+  //             that already draws captions INSIDE it ships a video with two rows of subtitles,
+  //             and the cheap ways into this function (a concat-only "ghép lại", a variant
+  //             export) are precisely the ones that skip the render stage. A clip whose stamp no
+  //             longer matches the config it is about to be joined under is the only evidence
+  //             available that it may still carry them, so on this lane it is rebuilt bare
+  //             rather than printed over.
+  //
+  // `config` is still the run's own config at this point: finalize has not yet added the concat
+  // logo, the live brand kit or the watermark, and all three are inputs to the render digest.
+  // Asking the question any later would compare every clip against a config none was made from.
+  const burnLane = config.subtitleLane === 'final' && config.enableSubtitles !== false;
   const missing = all.filter((s) => !(s.video_path && existsSync(s.video_path)));
-  if (missing.length) {
-    // Never silently drop scenes from the final cut — repair them here.
-    op(projectId, `🩹 ${missing.length} cảnh thiếu clip — render bù trước khi ghép…`);
-    logger.warn(`Ghép video: ${missing.length} cảnh thiếu clip — đang render bù`, { projectId, stage: 'b7' });
+  const missingIds = new Set(missing.map((s) => s.id));
+  const stale = burnLane
+    ? all.filter((s) => !missingIds.has(s.id) && !renderCurrent(s, { config, project }, project.config).ok)
+    : [];
+  const rebuild = [...missing, ...stale].sort((a, b) => a.idx - b.idx);
+  if (rebuild.length) {
+    if (missing.length) {
+      op(projectId, `🩹 ${missing.length} cảnh thiếu clip — render bù trước khi ghép…`);
+      logger.warn(`Ghép video: ${missing.length} cảnh thiếu clip — đang render bù`, { projectId, stage: 'b7' });
+    }
+    if (stale.length) {
+      op(projectId, `♻️ ${stale.length} cảnh có clip không khớp cấu hình hiện tại — dựng lại KHÔNG phụ đề trước khi in phụ đề lên bản ghép`);
+      logger.warn(`Ghép video: ${stale.length} clip lệch cấu hình — dựng lại trước khi in phụ đề`, { projectId, stage: 'b7' });
+    }
     const pp = progressPlan(all, config);
-    for (const sc of missing) {
+    let n = 0;
+    for (const sc of rebuild) {
+      op(projectId, `🎬 Dựng lại cảnh ${sc.idx + 1} (${++n}/${rebuild.length})`);
       const r = await renderAnimationScene(sc, project, config, {
         dir: renderDir, progressStart: pp.offsets[sc.idx] || 0, progressTotal: pp.total, total: all.length,
         onLog: (s) => op(projectId, `cảnh ${sc.idx + 1}: ${s}`),
       });
-      DB.updateScene(sc.id, { video_path: r.path, duration: r.duration, status: 'rendered', error: null });
+      // Stamp the clip. Without this the repair leaves the OLD fingerprint next to a NEW file,
+      // so the very next join would find the same scene stale and rebuild it all over again.
+      DB.updateScene(sc.id, {
+        video_path: r.path, duration: r.duration, status: 'rendered', error: null,
+        fp: fpStamp(sc, 'render', renderFingerprint(sc, { config, project })),
+      });
     }
   }
   const scenes = DB.getScenes(projectId).filter((s) => s.video_path && existsSync(s.video_path)).sort((a, b) => a.idx - b.idx);
