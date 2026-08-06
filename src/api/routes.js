@@ -342,6 +342,54 @@ export function mountRoutes(app, { version }) {
     if (!p) return res.status(404).json({ error: 'not found' });
     res.json({ project: DB.updateProject(p.id, req.body || {}) });
   });
+  // ---- export history ----
+  // Every past version of every video has always been on disk; nothing indexed it. That is the
+  // difference between "I could go back if I had to" and "I dare not try anything".
+  r.get('/projects/:id/versions', (req, res) => {
+    try { res.json({ versions: DB.listRenders(req.params.id) }); }
+    catch (e) { res.status(400).json({ error: e.message }); }
+  });
+
+  // Go back: restore that export's config AND point the project at its file. The newer file is
+  // left on disk and still listed — going back is not a deletion.
+  r.post('/projects/:id/versions/:vid/restore', (req, res) => {
+    try {
+      const v = DB.getRender(req.params.vid);
+      if (!v || v.project_id !== req.params.id) return res.status(404).json({ error: 'not found' });
+      if (!v.path || !existsSync(v.path)) return res.status(400).json({ error: 'file của phiên bản này không còn trên đĩa' });
+      DB.updateProject(req.params.id, { config: v.config, video_path: v.path, thumb_path: v.thumb || null });
+      res.json({ ok: true, version: v });
+    } catch (e) { res.status(400).json({ error: e.message }); }
+  });
+
+  // A second deliverable from the same clips — no logo, no music, different music. Because
+  // every one of those lives in the concat, a variant costs one join and nothing else.
+  r.post('/projects/:id/export-variant', async (req, res) => {
+    try {
+      const p = DB.getProject(req.params.id);
+      if (!p) return res.status(404).json({ error: 'not found' });
+      const name = String(req.body?.name || 'Bản khác').slice(0, 60);
+      const overrides = req.body?.config || {};
+      const md = p.metadata || {};
+      const variants = [...(md.variants || []).filter((v) => v.name !== name), { name, config: overrides, at: Date.now() }];
+      DB.updateProject(p.id, { metadata: { ...md, variants } });
+      // run it with the overrides layered on, WITHOUT saving them as the project's config —
+      // a variant is a second output, not a change of mind
+      Pipeline.renderProject(p.id, { mode: 'concat', configOverrides: overrides, variantName: name })
+        .catch((e) => logger.error(e.message, { projectId: p.id }));
+      res.json({ ok: true, name, variants });
+    } catch (e) { res.status(400).json({ error: e.message }); }
+  });
+
+  // Read the finished project back and report what a human would not catch — above all whether
+  // the clip on disk still matches the design in the database. It reports; it never edits.
+  r.get('/projects/:id/qc-scan', async (req, res) => {
+    try {
+      const { qcScan } = await import('./services/qc-scan.js');
+      res.json(qcScan(req.params.id));
+    } catch (e) { res.status(400).json({ error: e.message }); }
+  });
+
   // What would this edit cost? The fingerprints have always known which scenes a config change
   // invalidates; nobody asked them before the owner committed. Changing a subtitle font either
   // took a minute or an hour and the only way to find out was to start it.

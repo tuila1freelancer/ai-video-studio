@@ -30,7 +30,7 @@ import { resolveLang } from '../../util/lang.js';
  * @param {string} projectId
  * @param {{dir:string, size:{w:number,h:number}, config:object}} opts
  */
-export async function finalize(projectId, { dir, size, config }) {
+export async function finalize(projectId, { dir, size, config, variantName = null }) {
   step(projectId, 'b7', 'running', 'Ghép & mix');
   DB.updateProject(projectId, { current_step: 'b7' });
   const project = DB.getProject(projectId);
@@ -94,6 +94,7 @@ export async function finalize(projectId, { dir, size, config }) {
   // Source degrades sensibly (name without a usable font → logo; logo missing → name).
   const wm = resolveWatermark(config.brandKit?.watermark);
   if (wm && !config.watermark) {
+    const bkLogo = config.brandKit?.logo?.assetPath;
     const text = String(config.brandKit?.channelName || '').trim();
     const font = watermarkFont();
     const canText = !!(text && font && await hasDrawtext()); // text lane needs freetype
@@ -298,7 +299,18 @@ export async function finalize(projectId, { dir, size, config }) {
       },
     });
   }
-  DB.updateProject(projectId, { video_path: res.path, thumb_path: thumb, current_step: 'b7' });
+  // A VARIANT is a second deliverable from the same clips — it must not take over as "the"
+  // video, or asking for a no-logo cut would quietly replace the one being published.
+  if (!variantName) DB.updateProject(projectId, { video_path: res.path, thumb_path: thumb, current_step: 'b7' });
+  else op(projectId, `📦 Biến thể "${variantName}" đã xuất — video chính giữ nguyên`);
+  // Index this export. The file was always kept — nothing indexed it, which is the difference
+  // between "I could go back if I had to" and "I dare not try anything".
+  try {
+    DB.recordRender({
+      projectId, path: res.path, thumb, duration: res.duration, tier: res.tier || 'encode',
+      config, variant: variantName,
+    });
+  } catch (e) { logger.warn(`không ghi được lịch sử phiên bản: ${e.message}`, { projectId }); }
   step(projectId, 'b7', 'done', `${Math.round(res.duration)}s`);
   return res;
 }
