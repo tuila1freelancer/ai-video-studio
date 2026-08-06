@@ -48,13 +48,25 @@ test('P26 per-scene layer: logo is stamp-only — resolveBrandKit exposes badge/
   assert.equal(resolveBrandKit({ brandKit: { channelName: 'X', placement: 'off' } }), null);
 });
 
-test('P26 fingerprint: changing finalOverlay invalidates the render fingerprint', () => {
+// CONTRACT REVERSED, deliberately (2026-08-06). P26 asserted the opposite: that moving the logo
+// stamp invalidated every clip's render fingerprint. That was wrong, and expensively so — the
+// stamp is drawn by concatScenes onto the ASSEMBLED programme, so no clip contains it and no clip
+// changes when it moves. Under the old rule, nudging the badge or switching it off cost 105 scene
+// re-renders to change a single ffmpeg overlay filter, which made "turn the logo off" as
+// expensive as remaking the video.
+//
+// The clips are pixel-identical either way; only our idea of which inputs matter has changed. So
+// the digest ignores it, and renderCurrent accepts the older digest so the 11 projects measured
+// carrying this key do not re-render over the redefinition. See tests/fingerprint.test.js.
+test('moving or removing the logo stamp does NOT invalidate any clip', () => {
   const scene = { idx: 0, template: 'hyperframe', props: {}, voice_text: 'x', duration: 5 };
-  const cfgA = { visualMode: 'hyperframe', brandKit: { finalOverlay: { enabled: true, cxPct: 0.9, cyPct: 0.1, wPct: 0.1, opacity: 1 } } };
-  const cfgB = { visualMode: 'hyperframe', brandKit: { finalOverlay: { enabled: true, cxPct: 0.5, cyPct: 0.1, wPct: 0.1, opacity: 1 } } };
-  assert.notEqual(
-    renderFingerprint(scene, { config: cfgA, project: {} }),
-    renderFingerprint(scene, { config: cfgB, project: {} }));
+  const cfg = (finalOverlay) => ({ visualMode: 'hyperframe', brandKit: { finalOverlay } });
+  const fp = (finalOverlay) => renderFingerprint(scene, { config: cfg(finalOverlay), project: {} });
+  const at = (cxPct) => ({ enabled: true, cxPct, cyPct: 0.1, wPct: 0.1, opacity: 1 });
+  assert.equal(fp(at(0.9)), fp(at(0.5)), 'moved');
+  assert.equal(fp(at(0.9)), fp({ enabled: false }), 'switched off');
+  // the geometry still has to REACH the concat, which is what logo-overlay.test.js proves below
+  assert.notDeepEqual(resolveFinalOverlay(at(0.9)), resolveFinalOverlay(at(0.5)));
 });
 
 // ---- the WYSIWYG proof: burn a red logo into a real clip and read the pixels back ----

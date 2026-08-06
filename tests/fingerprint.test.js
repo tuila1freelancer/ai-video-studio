@@ -3,7 +3,7 @@
 import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ttsFingerprint, renderFingerprint, fpCurrent } from '../src/pipeline/fingerprint.js';
+import { ttsFingerprint, renderFingerprint, renderFingerprintLegacy, renderCurrent, fpCurrent } from '../src/pipeline/fingerprint.js';
 
 const scene = { voice_text: 'Xin chào các bạn', template: 'kinetic-statement', props: { a: 1, b: 2 }, fp: null };
 const ctx = {
@@ -115,6 +115,44 @@ test('subtitleLane never moves the digest of an existing project', () => {
     fp({ ...SUB_CFG, subtitleLane: 'final' }),
     fp({ ...SUB_CFG, subtitleLane: 'final', styleId: 'other-style' }),
   );
+});
+
+test('switching the logo stamp off does not invalidate a single clip', () => {
+  // The stamp and the drifting watermark are applied by concatScenes, to the assembled
+  // programme, long after every clip is finished — but they were hashed into the RENDER digest,
+  // so turning the logo off cost 105 scene re-renders to change one overlay filter.
+  const proj = { project: { aspect_ratio: '16:9' } };
+  const fp = (config) => renderFingerprint(frozenScene, { ...proj, config });
+  const bk = (finalOverlay, watermark) => ({
+    brandKit: { logo: { assetPath: '/logo.png' }, channelName: 'X', finalOverlay, watermark },
+  });
+  assert.equal(fp(bk({ enabled: true, wPct: 0.075 })), fp(bk({ enabled: false })));
+  assert.equal(fp(bk({ enabled: true }, { enabled: true })), fp(bk({ enabled: true }, { enabled: false })));
+  // …while the parts of the brand kit that DO reach a scene page still count
+  assert.notEqual(fp(bk({ enabled: true })), fp({ brandKit: { logo: { assetPath: '/other.png' }, channelName: 'X' } }));
+});
+
+test('a clip stamped under the older digest definition is kept, not re-rendered', () => {
+  // Removing a key from a hash invalidates everything stamped with the old one. Usually that is
+  // the correct answer; here it is pure waste — the clips are pixel-identical and only our idea
+  // of which inputs matter has changed. Measured before making the change: 11 of 44 projects
+  // carry brandKit.finalOverlay or brandKit.watermark.
+  const ctx = { project: { aspect_ratio: '16:9' }, config: { brandKit: { logo: { assetPath: '/l.png' }, finalOverlay: { enabled: true, wPct: 0.08 } } } };
+  const old = renderFingerprintLegacy(frozenScene, ctx);
+  const want = renderFingerprint(frozenScene, ctx);
+  assert.notEqual(old, want, 'the definition really did move for this config');
+
+  const stamped = { ...frozenScene, fp: { render: old } };
+  const r = renderCurrent(stamped, ctx);
+  assert.equal(r.ok, true, 'the clip is current');
+  assert.equal(r.migrate, true, 'and asks to be re-stamped so the shim is needed once');
+  assert.equal(r.want, want);
+
+  // a genuinely stale clip is still stale
+  assert.equal(renderCurrent({ ...frozenScene, fp: { render: 'something else' } }, ctx).ok, false);
+  // and an unstamped legacy row keeps being trusted, exactly as before
+  assert.equal(renderCurrent(frozenScene, ctx).ok, true);
+  assert.equal(renderCurrent(frozenScene, ctx).migrate, false);
 });
 
 test('fpCurrent trusts legacy rows (null fp) and enforces stamped ones', () => {

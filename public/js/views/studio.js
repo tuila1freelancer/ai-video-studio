@@ -10,6 +10,7 @@ import { icon } from '../ui/icons.js';
 import { renderGallery } from './home.js';
 import { switchPage } from './nav.js';
 import { gatherConfig, applyConfig } from './config.js';
+import { openChangePlan } from '../features/changeplan.js';
 import { openSrt } from '../features/srt.js';
 import { confirmDialog, menuDialog, publishDialog } from '../ui/dialog.js';
 
@@ -49,7 +50,11 @@ export function initStudio() {
     if (ok) { await api.del('/projects'); startNewProject(); loadProjects(); }
   });
   $('#btnStop').addEventListener('click', () => api.post(`/projects/${state.current.id}/stop`, {}));
-  $('#btnResume').addEventListener('click', () => api.post(`/projects/${state.current.id}/resume`, {}));
+  // On a finished video the button means "apply my edits", which is a different question: show
+  // what the change costs BEFORE spending it. Anywhere else it is the plain resume it always was.
+  $('#btnResume').addEventListener('click', () => (state.current?.status === 'done'
+    ? openChangePlan()
+    : api.post(`/projects/${state.current.id}/resume`, {})));
   $('#btnApproveScenes')?.addEventListener('click', () => withLock($('#btnApproveScenes'), async () => {
     try {
       const r = await api.post(`/projects/${state.current.id}/approve-scenes`, {});
@@ -307,7 +312,12 @@ export function renderProjectView() {
   $('#pvAr').textContent = p.aspect_ratio;
   $('#pvDate').textContent = new Date(p.updated_at).toLocaleString('vi-VN');
   $('#btnStop').classList.toggle('hidden', p.status !== 'running');
-  $('#btnResume').classList.toggle('hidden', !['paused', 'error', 'review'].includes(p.status));
+  // 'done' included: a finished video is a VERSION, not a terminal state. The fingerprint-aware
+  // resume is the fastest correct path for a mixed edit and it was simply unreachable here.
+  $('#btnResume').classList.toggle('hidden', !['paused', 'error', 'review', 'done'].includes(p.status));
+  $('#btnResume').innerHTML = p.status === 'done'
+    ? `${icon('refresh', 14)} Áp dụng thay đổi`
+    : `${icon('play', 14)} Tiếp tục`;
   renderSceneGate(p);
   // reset pipeline visuals from scene statuses
   resetPipeFromState();
@@ -491,7 +501,10 @@ function updateStatusBadge(status) {
   $('#pvStatus').textContent = badgeText(status); $('#pvStatus').className = 'badge ' + status;
   $('#btnStop').classList.toggle('hidden', status !== 'running');
   // 'review' included: a live WS hold must reveal the continue button without a reload
-  $('#btnResume').classList.toggle('hidden', !['paused', 'error', 'review'].includes(status));
+  $('#btnResume').classList.toggle('hidden', !['paused', 'error', 'review', 'done'].includes(status));
+  $('#btnResume').innerHTML = status === 'done'
+    ? `${icon('refresh', 14)} Áp dụng thay đổi`
+    : `${icon('play', 14)} Tiếp tục`;
   renderSceneGate(state.current);
 }
 async function onDone(m) {

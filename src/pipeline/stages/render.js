@@ -13,7 +13,8 @@ import { qcSceneClip } from '../qc.js';
 import { checkStop } from '../stop.js';
 import { step, op, progressPlan } from '../progress.js';
 import { mapPool } from '../helpers.js';
-import { renderFingerprint, fpCurrent, fpStamp } from '../fingerprint.js';
+import { renderFingerprint, renderCurrent, fpCurrent, fpStamp } from '../fingerprint.js';
+import { timed } from '../stats.js';
 
 /** @param {import('../context.js').PipelineContext} ctx */
 export async function runRender(ctx) {
@@ -25,12 +26,13 @@ export async function runRender(ctx) {
   const pp = progressPlan(scenes, config);
 
   const renderSceneOnce = async (sc) => {
-    const r = await renderAnimationScene(sc, project, config, {
+    // measured per scene so the change-cost table quotes THIS project's numbers, not a guess
+    const r = await timed(projectId, 'render', () => renderAnimationScene(sc, project, config, {
       dir: join(dir, 'render'), progressStart: pp.offsets[sc.idx] || 0, progressTotal: pp.total, total: scenes.length,
       onProgress: (f) => { if (f >= 0.999 || Math.round(f * 4) !== Math.round((f - 0.01) * 4)) op(projectId, `🎬 Cảnh ${sc.idx + 1}/${scenes.length} · ${(f * 100).toFixed(0)}%`); },
       // a substituted font used to reach logger.warn and nowhere the owner looks
       onLog: (s) => op(projectId, `cảnh ${sc.idx + 1}: ${s}`),
-    });
+    }));
     const { path, duration, preview } = r;
     DB.updateScene(sc.id, { video_path: path, duration, status: 'rendered', error: null, ...(preview ? { image_path: preview } : {}),
       fp: fpStamp(sc, 'render', renderFingerprint(sc, ctx)) });
@@ -71,7 +73,13 @@ export async function runRender(ctx) {
     if (resume && sc.video_path && existsSync(sc.video_path)) {
       // content-hash resume: keep the clip only while its inputs (template/props/visual
       // config) are unchanged; legacy rows without a stamp stay trusted
-      if (fpCurrent(sc, 'render', renderFingerprint(sc, ctx))) return;
+      const cur = renderCurrent(sc, ctx);
+      if (cur.ok) {
+        // stamped under the older digest definition — the clip is fine, the hash moved. Carry it
+        // forward so the compatibility check is needed exactly once.
+        if (cur.migrate) DB.updateScene(sc.id, { fp: fpStamp(sc, 'render', cur.want) });
+        return;
+      }
       op(projectId, `♻️ Cảnh ${sc.idx + 1}: visual/cấu hình đã thay đổi — render lại`);
     }
     op(projectId, `🎬 Render cảnh ${sc.idx + 1}/${scenes.length}`);

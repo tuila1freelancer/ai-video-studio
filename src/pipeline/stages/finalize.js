@@ -23,6 +23,7 @@ import { planSoundDesign, usableLibrary } from '../../audio/sound-design.js';
 import { withRetry } from '../../util/retry.js';
 import { step, op, retryHook, progressPlan } from '../progress.js';
 import { resolveOutputDir } from '../helpers.js';
+import { timed } from '../stats.js';
 import { resolveLang } from '../../util/lang.js';
 
 /**
@@ -175,7 +176,7 @@ export async function finalize(projectId, { dir, size, config }) {
 
   // What the previous export was made from, so the concat can charge only for what moved.
   const prevMeta = project.metadata?.concat || null;
-  const res = await withRetry(async () => {
+  const res = await timed(projectId, 'concat', () => withRetry(async () => {
     const r = await concatScenes(clips, project, {
       dir: renderDir, size, bgmPath, sfxPath, logo: config.logo, watermark: config.watermark,
       bgmVol: sdPlan?.bgmVol,
@@ -196,7 +197,7 @@ export async function finalize(projectId, { dir, size, config }) {
       throw new Error(`video ghép ngắn bất thường (${Math.round(got || 0)}s / kỳ vọng ~${Math.round(expectDur)}s)`);
     }
     return r;
-  }, { tries: 2, label: 'b7 concat', onRetry: retryHook(projectId, 'b7') });
+  }, { tries: 2, label: 'b7 concat', onRetry: retryHook(projectId, 'b7') }));
 
   // Nothing moved — the export on disk IS the answer. Everything below (audio master, QC decode,
   // thumbnail) would re-do work whose inputs are provably identical, so it is skipped too rather
