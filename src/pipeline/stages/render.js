@@ -28,6 +28,8 @@ export async function runRender(ctx) {
     const r = await renderAnimationScene(sc, project, config, {
       dir: join(dir, 'render'), progressStart: pp.offsets[sc.idx] || 0, progressTotal: pp.total, total: scenes.length,
       onProgress: (f) => { if (f >= 0.999 || Math.round(f * 4) !== Math.round((f - 0.01) * 4)) op(projectId, `🎬 Cảnh ${sc.idx + 1}/${scenes.length} · ${(f * 100).toFixed(0)}%`); },
+      // a substituted font used to reach logger.warn and nowhere the owner looks
+      onLog: (s) => op(projectId, `cảnh ${sc.idx + 1}: ${s}`),
     });
     const { path, duration, preview } = r;
     DB.updateScene(sc.id, { video_path: path, duration, status: 'rendered', error: null, ...(preview ? { image_path: preview } : {}),

@@ -9,6 +9,7 @@ import { beatWarpMap } from './timewarp.js';
 import { renderScenePage, renderPreviewFrame } from './renderer.js';
 import { resolveBrandKit, planBrandPlacement, buildBrandLayer, imgDataUri } from './branding.js';
 import { captionStyleFrom, familyName } from '../subtitles/presets.js';
+import { familyReady } from '../fonts/registry.js';
 import { rechunkCues } from '../subtitles/chunk.js';
 import { ratioToSize, hash32 } from '../util/util.js';
 
@@ -215,6 +216,19 @@ export async function renderAnimationScene(scene, project, config, { dir, progre
   const { w, h } = animSize(project.aspect_ratio, k); // PHYSICAL viewport (4K when k=2)
   const fps = parseInt(config.fps || 30, 10);
   const duration = Math.max(1.5, scene.duration || config.sceneDuration || 6);
+  // A family the owner NAMED has to exist before a single frame is drawn. Chrome substitutes
+  // silently, so the alternative is 95 clips in the wrong typeface discovered by eye — the same
+  // failure mode the burn path refuses, refused here too. Only explicit picks are fatal; a font
+  // the codegen model invented inside its own CSS surfaces as a warning from the render itself.
+  for (const [label, family] of [['phụ đề', config.subtitleFont], ['chữ đồ hoạ', config.fonts?.display]]) {
+    const fam = familyName(family);
+    if (fam && !familyReady(fam)) {
+      throw new Error(
+        `font ${label} "${fam}" chưa có trên máy — Chrome sẽ thay bằng font khác mà không báo. `
+        + 'Vào Thư viện → Font chữ để tải về, hoặc chọn font khác.',
+      );
+    }
+  }
   const html = buildSceneHtml(scene, project, config, { progressStart, progressTotal, total, durationOverride: duration, zoom: k });
   const overlayOn = !!(config.overlay?.enabled && config.overlay.source && existsSync(config.overlay.source));
   const outPath = join(dir, `scene_${String(scene.idx).padStart(3, '0')}${overlayOn ? '_key' : ''}.mp4`);

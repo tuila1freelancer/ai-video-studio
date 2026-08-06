@@ -45,6 +45,7 @@ export async function finalize(projectId, { dir, size, config }) {
     for (const sc of missing) {
       const r = await renderAnimationScene(sc, project, config, {
         dir: renderDir, progressStart: pp.offsets[sc.idx] || 0, progressTotal: pp.total, total: all.length,
+        onLog: (s) => op(projectId, `cảnh ${sc.idx + 1}: ${s}`),
       });
       DB.updateScene(sc.id, { video_path: r.path, duration: r.duration, status: 'rendered', error: null });
     }

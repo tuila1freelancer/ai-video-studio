@@ -59,6 +59,7 @@ export async function renderOnly(projectId, { mode = 'all', sceneIds = [] }) {
         op(projectId, `🎬 Render cảnh ${sc.idx + 1}`);
         const r = await renderAnimationScene(sc, project, config, {
           dir: join(dir, 'render'), progressStart: pp.offsets[sc.idx] || 0, progressTotal: pp.total, total: allScenes.length,
+          onLog: (s) => op(projectId, `cảnh ${sc.idx + 1}: ${s}`),
         });
         const { path, duration, preview } = r;
         DB.updateScene(sc.id, { video_path: path, duration, status: 'rendered', ...(preview ? { image_path: preview } : {}) });
