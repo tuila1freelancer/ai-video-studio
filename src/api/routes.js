@@ -1307,12 +1307,51 @@ export function mountRoutes(app, { version }) {
   });
 
 
-  // Brand fonts: every family the owner can pick (vendored Vietnamese-safe set + uploads)
+  // ---- fonts: ONE list, and the bytes to prove it ----
+  // Every family the owner may pick, each with an honest source and a `ready` flag. A family
+  // that has not been fetched renders as a substitute in both the preview and the video, so it
+  // is listed as not-ready rather than silently offered as though it were there.
   r.get('/fonts/families', async (req, res) => {
     try {
-      const { fontFamilies } = await import('../animation/userfonts.js');
-      res.json(fontFamilies());
+      const { fontLibrary, familiesForLanguage } = await import('../fonts/registry.js');
+      const lang = req.query.lang;
+      res.json({ families: lang ? familiesForLanguage(lang) : fontLibrary() });
     } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  // The actual @font-face bytes for ONE family, so the preview can draw in the real typeface
+  // instead of whatever the browser falls back to. Base64 data URIs — same delivery the scene
+  // pages use, so what the owner previews is what the renderer will embed.
+  r.get('/fonts/:family/css', async (req, res) => {
+    try {
+      const family = String(req.params.family || '');
+      const [{ fontsCss }, { userFontsCss }, { downloadedCss }, { isSystemFamily }] = await Promise.all([
+        import('../animation/harness.js'), import('../animation/userfonts.js'),
+        import('../fonts/files.js'), import('../fonts/files.js'),
+      ]);
+      const css = fontsCss([family]) || downloadedCss(family) || userFontsCss([family]) || '';
+      res.setHeader('Content-Type', 'text/css; charset=utf-8');
+      // system faces need no bytes; the browser already has them
+      res.setHeader('X-Font-Source', css ? 'embedded' : (isSystemFamily(family) ? 'system' : 'missing'));
+      res.send(css);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Fetch a catalogue family from Google Fonts. ALWAYS an explicit action: a render that reaches
+  // out to the network is a render that can fail on a DNS hiccup, in the middle of work the
+  // owner is paying for.
+  r.post('/fonts/:family/download', async (req, res) => {
+    try {
+      const { downloadFamily } = await import('../fonts/store.js');
+      res.json(await downloadFamily(String(req.params.family || '')));
+    } catch (e) { res.status(400).json({ error: e.message }); }
+  });
+
+  r.delete('/fonts/:family', async (req, res) => {
+    try {
+      const { removeFamily } = await import('../fonts/store.js');
+      res.json({ ok: true, removed: removeFamily(String(req.params.family || '')) });
+    } catch (e) { res.status(400).json({ error: e.message }); }
   });
 
   // ---- generic uploads (assets/logo) ----

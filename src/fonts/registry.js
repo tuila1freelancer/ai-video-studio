@@ -18,7 +18,7 @@
 // CJK sits deliberately on `system`. A single Noto Sans SC face is 5–20 MB; vendoring the set
 // would dwarf the entire repository, while macOS already carries PingFang, Hiragino and Apple SD
 // Gothic Neo where both renderers can see them.
-import { vendoredFaces, uploadedFaces, isSystemFamily, normFamily, SYSTEM_FAMILIES } from './files.js';
+import { vendoredFaces, uploadedFaces, isDownloaded, isSystemFamily, normFamily, SYSTEM_FAMILIES } from './files.js';
 
 /**
  * Script coverage, used to put the right families in front of the owner for the video's
@@ -124,6 +124,7 @@ export function fontLibrary() {
     const key = normFamily(entry.family);
     if (uploaded.has(key)) { push(entry.family, entry, { source: 'uploaded', ready: true }); continue; }
     if (vendored.has(key)) { push(entry.family, entry, { source: 'vendored', ready: true }); continue; }
+    if (isDownloaded(entry.family)) { push(entry.family, entry, { source: 'downloaded', ready: true }); continue; }
     if (entry.system || isSystemFamily(entry.family)) { push(entry.family, entry, { source: 'system', ready: true }); continue; }
     push(entry.family, entry, { source: 'downloadable', ready: false });
   }
@@ -149,6 +150,7 @@ export function familyReady(family) {
   if (!key) return false;
   if (uploadedFaces().some((f) => f.key === key)) return true;
   if (vendoredFaces().some((f) => f.key === key)) return true;
+  if (isDownloaded(family)) return true;
   return isSystemFamily(family);
 }
 

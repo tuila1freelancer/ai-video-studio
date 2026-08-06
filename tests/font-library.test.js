@@ -117,6 +117,48 @@ test('the whole point: a scene page is no longer half a megabyte of unused fonts
   assert.ok(html.length < 700_000, `page is ${Math.round(html.length / 1024)}KB — it used to be 757KB`);
 });
 
+// ---------------------------------------------------------------- the picker and the preview
+
+test('the subtitle font picker is no longer a hand-written list', () => {
+  const html = src('../public/index.html');
+  const sel = /<select class="input" id="cfgSubFont">([\s\S]*?)<\/select>/.exec(html)?.[1] ?? 'MISSING';
+  assert.equal(sel.trim(), '', 'options must come from the registry, not from markup');
+  // the two that existed nowhere else are gone with it
+  assert.ok(!/<option>Impact<\/option>/.test(html));
+});
+
+test('the preview loads the real face before claiming to show it', () => {
+  const cfg = src('../public/js/views/config.js');
+  assert.match(cfg, /ensureFontLoaded/, 'a family is fetched before it is drawn');
+  assert.match(cfg, /\/api\/fonts\/\$\{encodeURIComponent\(family\)\}\/css/);
+  assert.match(cfg, /document\.fonts\?\.load/, 'and awaited — a race here paints the fallback');
+  // and the preview draws the STYLE, not just a coloured word in the app's own font
+  const fn = cfg.slice(cfg.indexOf('export function updateSubPreview'), cfg.indexOf('// ---------------- HyperFrame'));
+  for (const bit of ['previewEffect', 'state.subColor', 'cfgSubPos', 'cfgSubCase', 'font-weight']) {
+    assert.ok(fn.includes(bit), `the preview accounts for ${bit}`);
+  }
+});
+
+test('a preset that declares uppercase can finally apply it', () => {
+  // captionStyleFrom reads `c.subtitleTextCase || preset.textCase`, and the panel used to send
+  // 'original' unconditionally — a truthy string that shadowed the preset every time. Impact
+  // Đậm, Thể Thao and Punch all showed uppercase on their preview card and rendered mixed case
+  // in the video. The empty option is what lets the preset through.
+  const html = src('../public/index.html');
+  assert.match(html, /id="cfgSubCase"><option value="">/, 'a "follow the preset" choice exists, and is first');
+  const cfg = src('../public/js/views/config.js');
+  assert.match(cfg, /subtitleTextCase: \$\('#cfgSubCase'\)\.value \|\| undefined/);
+  assert.match(cfg, /\$\('#cfgSubCase'\)\.value = cfg\.subtitleTextCase \|\| ''/, 'restored unconditionally');
+  assert.match(cfg, /\$\('#cfgSubCase'\)\.value \|\| preset\?\.textCase/, 'and the preview follows the same precedence');
+});
+
+test('a family that has not been fetched is offered, not hidden', () => {
+  const cfg = src('../public/js/views/config.js');
+  assert.match(cfg, /chưa tải/, 'the picker says so');
+  assert.match(cfg, /cfgSubFontGet/, 'and offers to go and get it');
+  assert.match(cfg, /downloadFont/);
+});
+
 test('an owner font named in the scene still reaches the page', () => {
   // uploads are matched by the family name on the DB row, not the filename on disk
   const page = buildScenePage({

@@ -8,7 +8,7 @@
 //
 // The browser side already has this discipline (harness `fontChecks` probes document.fonts and
 // reports a miss); this is the same contract for the burn side.
-import { readdirSync, existsSync, mkdirSync, copyFileSync } from 'node:fs';
+import { readdirSync, existsSync, mkdirSync, copyFileSync, readFileSync } from 'node:fs';
 import { join, extname, basename } from 'node:path';
 import { VENDOR_DIR, DIRS } from '../config/paths.js';
 import { userFontRows, familyOf } from '../animation/userfonts.js';
@@ -71,8 +71,50 @@ export function uploadedFaces() {
   return out;
 }
 
+// ---- families fetched from the catalogue on request (src/fonts/store.js writes them) ----
+
+export function webFontDir() {
+  mkdirSync(DIRS.fontWeb, { recursive: true });
+  return DIRS.fontWeb;
+}
+
+export const downloadedCssPath = (family) => join(webFontDir(), `${normFamily(family)}.css`);
+
+/** Stored `@font-face` CSS (base64 woff2) for a fetched family, or null. */
+export function downloadedCss(family) {
+  const p = downloadedCssPath(family);
+  try { return existsSync(p) ? readFileSync(p, 'utf8') : null; } catch { return null; }
+}
+
+export function isDownloaded(family) {
+  return !!downloadedCss(family);
+}
+
+/** Display names of every fetched family, read back out of the CSS they were stored with. */
+export function downloadedFamilies() {
+  try {
+    return readdirSync(webFontDir())
+      .filter((f) => f.endsWith('.css'))
+      .map((f) => /font-family:\s*['"]([^'"]+)['"]/.exec(readFileSync(join(webFontDir(), f), 'utf8'))?.[1])
+      .filter(Boolean);
+  } catch { return []; }
+}
+
+/** Static faces fetched alongside the CSS, in the same `<Family>-<weight>.ttf` shape as vendored. */
+export function downloadedFaces() {
+  try {
+    return readdirSync(webFontDir())
+      .filter((f) => f.toLowerCase().endsWith('.ttf'))
+      .map((name) => {
+        const m = /^(.+?)-(\d{3})\.ttf$/i.exec(name);
+        return m ? { family: m[1], key: normFamily(m[1]), weight: +m[2], path: join(webFontDir(), name), source: 'downloaded' } : null;
+      })
+      .filter(Boolean);
+  } catch { return []; }
+}
+
 export function allFaces() {
-  return [...vendoredFaces(), ...uploadedFaces()];
+  return [...vendoredFaces(), ...downloadedFaces(), ...uploadedFaces()];
 }
 
 /**
