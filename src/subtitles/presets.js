@@ -149,6 +149,39 @@ export function captionStyleFrom(config, theme, { w, h }) {
 }
 
 /**
+ * Everything the FINAL-PASS burn needs, resolved through the same math the DOM lane uses.
+ *
+ * The two lanes have to agree or the app lies to the owner: they pick a style in a preview the
+ * browser draws, and the burned video has to be that. The trap is font size — `assStyleFrom`
+ * reports the raw config number (80) while the harness renders `80 × (min(w,h)/1080) × 0.72`
+ * (58px at 1080p). Burning at 80 would ship subtitles 38% larger than every preview showed. So
+ * the geometry comes from `captionStyleFrom` and only the libass-specific bits (bare family name,
+ * karaoke on/off) come from `assStyleFrom`.
+ *
+ * The `|| Math.min(w,h)*0.052` and `?? (h>w ? 10 : 7)` defaults are the harness's own fallbacks
+ * (buildScenePage capFS/capBottom) restated — the DOM lane leaves them undefined and lets the
+ * page decide, but a burn has to name a number.
+ */
+export function burnStyleFrom(config, theme, { w, h }) {
+  const cap = captionStyleFrom(config, theme, { w, h });
+  const ass = assStyleFrom(config);
+  return {
+    enabled: ass.enabled,
+    font: familyName(cap.fontFamily) || ass.font,
+    fontSizePx: Math.round(cap.fontSizePx || Math.min(w, h) * 0.052),
+    bottomPct: cap.bottomPct ?? (h > w ? 10 : 7),
+    color: cap.color || theme?.accents?.[0] || '#F7B500',
+    baseColor: cap.baseColor || theme?.ink || '#FFFFFF',
+    weight: cap.weight || 800,
+    effect: cap.effect || 'glow',
+    boxBg: cap.boxBg || null,
+    textCase: cap.textCase || 'original',
+    mode: cap.mode === 'plain' ? 'plain' : 'karaoke',
+    marginPct: 0.06, // .cap{left:6%;right:6%}
+  };
+}
+
+/**
  * ASS/libass style — same shape runner.subtitleStyleFrom(config) returns today
  * (enabled/karaoke/font/fontSize/textCase/color/base/position) plus { effect, weight }
  * (and boxBg for box presets) when a preset is active. assStyleFrom({}) deep-equals

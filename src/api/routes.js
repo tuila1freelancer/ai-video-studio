@@ -342,6 +342,100 @@ export function mountRoutes(app, { version }) {
     if (!p) return res.status(404).json({ error: 'not found' });
     res.json({ project: DB.updateProject(p.id, req.body || {}) });
   });
+  // ---- export history ----
+  // Every past version of every video has always been on disk; nothing indexed it. That is the
+  // difference between "I could go back if I had to" and "I dare not try anything".
+  r.get('/projects/:id/versions', (req, res) => {
+    try { res.json({ versions: DB.listRenders(req.params.id) }); }
+    catch (e) { res.status(400).json({ error: e.message }); }
+  });
+
+  // Go back: restore that export's config AND point the project at its file. The newer file is
+  // left on disk and still listed — going back is not a deletion.
+  r.post('/projects/:id/versions/:vid/restore', (req, res) => {
+    try {
+      const v = DB.getRender(req.params.vid);
+      if (!v || v.project_id !== req.params.id) return res.status(404).json({ error: 'not found' });
+      if (!v.path || !existsSync(v.path)) return res.status(400).json({ error: 'file của phiên bản này không còn trên đĩa' });
+      DB.updateProject(req.params.id, { config: v.config, video_path: v.path, thumb_path: v.thumb || null });
+      res.json({ ok: true, version: v });
+    } catch (e) { res.status(400).json({ error: e.message }); }
+  });
+
+  // A second deliverable from the same clips — no logo, no music, different music. Because
+  // every one of those lives in the concat, a variant costs one join and nothing else.
+  r.post('/projects/:id/export-variant', async (req, res) => {
+    try {
+      const p = DB.getProject(req.params.id);
+      if (!p) return res.status(404).json({ error: 'not found' });
+      const name = String(req.body?.name || 'Bản khác').slice(0, 60);
+      const overrides = req.body?.config || {};
+      const md = p.metadata || {};
+      const variants = [...(md.variants || []).filter((v) => v.name !== name), { name, config: overrides, at: Date.now() }];
+      DB.updateProject(p.id, { metadata: { ...md, variants } });
+      // run it with the overrides layered on, WITHOUT saving them as the project's config —
+      // a variant is a second output, not a change of mind
+      Pipeline.renderProject(p.id, { mode: 'concat', configOverrides: overrides, variantName: name })
+        .catch((e) => logger.error(e.message, { projectId: p.id }));
+      res.json({ ok: true, name, variants });
+    } catch (e) { res.status(400).json({ error: e.message }); }
+  });
+
+  // Read the finished project back and report what a human would not catch — above all whether
+  // the clip on disk still matches the design in the database. It reports; it never edits.
+  r.get('/projects/:id/qc-scan', async (req, res) => {
+    try {
+      const { qcScan } = await import('./services/qc-scan.js');
+      res.json(qcScan(req.params.id));
+    } catch (e) { res.status(400).json({ error: e.message }); }
+  });
+
+  // What would this edit cost? The fingerprints have always known which scenes a config change
+  // invalidates; nobody asked them before the owner committed. Changing a subtitle font either
+  // took a minute or an hour and the only way to find out was to start it.
+  r.post('/projects/:id/plan-changes', async (req, res) => {
+    try {
+      const { planChanges } = await import('./services/change-plan.js');
+      res.json(planChanges(req.params.id, req.body?.config || {}));
+    } catch (e) { res.status(400).json({ error: e.message }); }
+  });
+
+  // Save the config and run exactly the work the plan named — no more.
+  r.post('/projects/:id/apply-changes', async (req, res) => {
+    try {
+      const p = DB.getProject(req.params.id);
+      if (!p) return res.status(404).json({ error: 'not found' });
+      const { planChanges } = await import('./services/change-plan.js');
+      const plan = planChanges(p.id, req.body?.config || {});
+      if (!plan.items.length) return res.json({ ok: true, plan, started: false });
+      DB.updateProject(p.id, { config: { ...(p.config || {}), ...(req.body?.config || {}) } });
+      // 'all' rather than a scene subset when clips are stale: renderOnly's subset mode skips the
+      // join, and a half-applied change is worse than a slower one.
+      Pipeline.renderProject(p.id, { mode: plan.mode === 'concat' ? 'concat' : 'all' })
+        .catch((e) => logger.error(e.message, { projectId: p.id }));
+      res.json({ ok: true, plan, started: true });
+    } catch (e) { res.status(400).json({ error: e.message }); }
+  });
+
+  // One real frame with the pending logo / subtitle settings applied through the REAL final
+  // pipeline. About a second, against fifteen minutes of re-concatenating to find out a badge
+  // was four pixels too high.
+  r.get('/projects/:id/frame-preview', async (req, res) => {
+    try {
+      const { framePreview } = await import('./services/frame-preview.js');
+      let overrides = {};
+      if (req.query.cfg) {
+        try { overrides = JSON.parse(String(req.query.cfg)); } catch { overrides = {}; }
+      }
+      const { buffer, t, note } = await framePreview(req.params.id, { t: +req.query.t || 1.5, overrides });
+      res.setHeader('Content-Type', 'image/png');
+      res.setHeader('Cache-Control', 'no-store');
+      res.setHeader('X-Preview-At', String(t));
+      if (note) res.setHeader('X-Preview-Note', encodeURIComponent(note));
+      res.send(buffer);
+    } catch (e) { res.status(400).json({ error: e.message }); }
+  });
+
   // Reuse another project's assets (P42 — reference `/projects/:id/copy-assets-from/:sourceId`).
   // The files are shared by PATH, not copied: both projects then point at the same media, which
   // is what the owner means by "use the same pictures" and costs no disk.
@@ -1307,12 +1401,51 @@ export function mountRoutes(app, { version }) {
   });
 
 
-  // Brand fonts: every family the owner can pick (vendored Vietnamese-safe set + uploads)
+  // ---- fonts: ONE list, and the bytes to prove it ----
+  // Every family the owner may pick, each with an honest source and a `ready` flag. A family
+  // that has not been fetched renders as a substitute in both the preview and the video, so it
+  // is listed as not-ready rather than silently offered as though it were there.
   r.get('/fonts/families', async (req, res) => {
     try {
-      const { fontFamilies } = await import('../animation/userfonts.js');
-      res.json(fontFamilies());
+      const { fontLibrary, familiesForLanguage } = await import('../fonts/registry.js');
+      const lang = req.query.lang;
+      res.json({ families: lang ? familiesForLanguage(lang) : fontLibrary() });
     } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  // The actual @font-face bytes for ONE family, so the preview can draw in the real typeface
+  // instead of whatever the browser falls back to. Base64 data URIs — same delivery the scene
+  // pages use, so what the owner previews is what the renderer will embed.
+  r.get('/fonts/:family/css', async (req, res) => {
+    try {
+      const family = String(req.params.family || '');
+      const [{ fontsCss }, { userFontsCss }, { downloadedCss }, { isSystemFamily }] = await Promise.all([
+        import('../animation/harness.js'), import('../animation/userfonts.js'),
+        import('../fonts/files.js'), import('../fonts/files.js'),
+      ]);
+      const css = fontsCss([family]) || downloadedCss(family) || userFontsCss([family]) || '';
+      res.setHeader('Content-Type', 'text/css; charset=utf-8');
+      // system faces need no bytes; the browser already has them
+      res.setHeader('X-Font-Source', css ? 'embedded' : (isSystemFamily(family) ? 'system' : 'missing'));
+      res.send(css);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Fetch a catalogue family from Google Fonts. ALWAYS an explicit action: a render that reaches
+  // out to the network is a render that can fail on a DNS hiccup, in the middle of work the
+  // owner is paying for.
+  r.post('/fonts/:family/download', async (req, res) => {
+    try {
+      const { downloadFamily } = await import('../fonts/store.js');
+      res.json(await downloadFamily(String(req.params.family || '')));
+    } catch (e) { res.status(400).json({ error: e.message }); }
+  });
+
+  r.delete('/fonts/:family', async (req, res) => {
+    try {
+      const { removeFamily } = await import('../fonts/store.js');
+      res.json({ ok: true, removed: removeFamily(String(req.params.family || '')) });
+    } catch (e) { res.status(400).json({ error: e.message }); }
   });
 
   // ---- generic uploads (assets/logo) ----

@@ -41,10 +41,56 @@ export function ttsFingerprint(scene, { config, channel, ai }) {
 // QC-repaired clip must not read as stale on the next resume.
 const RENDER_CFG_KEYS = /^(sub|brandKit|hyperframe|styleId|richAnimation|renderMode|visualMode|resolutionScale|logo|watermark|overlay)/;
 
-/** Inputs that shape a scene's rendered clip (video_path). */
-export function renderFingerprint(scene, { config, project }) {
+/**
+ * `subtitleLane` decides WHERE captions are drawn, and it is the one config key that must never
+ * reach the digest as itself.
+ *
+ * It starts with "sub", so RENDER_CFG_KEYS picks it up for free — and the first project to save
+ * the default explicitly would invalidate every clip it owns for a setting that changed nothing.
+ * It is stripped, and read only as a mode:
+ *
+ *   'scene' / absent → captions are drawn inside each clip, so every `sub*` key is an input
+ *   'final'          → captions are burned at concat, so no `sub*` key is an input at all
+ *
+ * The second case collapses a subtitled project's digest onto the unsubtitled one, which is
+ * exactly the intent: on the final lane, editing the font or the colour or the position cannot
+ * make a single clip stale. Switching a finished project ONTO the lane does move the digest, and
+ * that re-render is real work — captions already baked into 95 clips cannot be un-baked.
+ */
+const LANE_KEY = 'subtitleLane';
+const SUB_KEY = /^sub/;
+
+/**
+ * Parts of the brand kit that never touch a clip.
+ *
+ * `finalOverlay` is the whole-video logo stamp and `watermark` the drifting perimeter mark —
+ * both applied by concatScenes, to the assembled programme, long after every clip is finished.
+ * Hashing them into the RENDER digest meant switching the logo stamp off invalidated all 105
+ * clips of a video, for a change that alters one ffmpeg overlay filter. Measured on the live DB
+ * before removing them: 11 of 44 projects carry either key, and `renderCurrent` below accepts
+ * their old digests so not one of them re-renders over this.
+ */
+const CONCAT_ONLY_BRAND = ['finalOverlay', 'watermark'];
+
+function renderCfg(config, { legacy = false } = {}) {
   const cfg = {};
-  for (const [k, v] of Object.entries(config || {})) if (RENDER_CFG_KEYS.test(k)) cfg[k] = v;
+  const finalLane = (config || {})[LANE_KEY] === 'final';
+  for (const [k, v] of Object.entries(config || {})) {
+    if (k === LANE_KEY) continue;
+    if (!RENDER_CFG_KEYS.test(k)) continue;
+    if (finalLane && SUB_KEY.test(k)) continue;
+    if (!legacy && k === 'brandKit' && v && typeof v === 'object' && !Array.isArray(v)) {
+      const rest = { ...v };
+      for (const drop of CONCAT_ONLY_BRAND) delete rest[drop];
+      cfg[k] = rest;
+      continue;
+    }
+    cfg[k] = v;
+  }
+  return cfg;
+}
+
+function renderDigest(scene, { config, project }, opts) {
   return digest({
     tpl: scene.template || null,
     props: scene.props || null,
@@ -53,8 +99,52 @@ export function renderFingerprint(scene, { config, project }) {
     // (It WAS an input for the removed image visual mode's Ken-Burns background.)
     img: null,
     ar: project?.aspect_ratio || null,
-    cfg,
+    cfg: renderCfg(config, opts),
   });
+}
+
+/** Inputs that shape a scene's rendered clip (video_path). */
+export function renderFingerprint(scene, ctx) {
+  return renderDigest(scene, ctx, { legacy: false });
+}
+
+/** The same digest as it was computed before the concat-only brand keys were dropped. */
+export function renderFingerprintLegacy(scene, ctx) {
+  return renderDigest(scene, ctx, { legacy: true });
+}
+
+/**
+ * Is this clip still current — and if it only looks stale because the digest DEFINITION moved,
+ * say so instead of re-rendering it.
+ *
+ * Removing a key from a hash invalidates every artifact stamped with the old one. Usually that is
+ * the correct, if expensive, answer. Here it would be pure waste: the clips are pixel-identical
+ * and only our idea of which inputs matter has changed.
+ *
+ * The subtlety is that the two digests live in different spaces, so they cannot be compared
+ * directly. A stamp written before the change describes some config under the OLD rules; the
+ * question being asked is about a new config under the NEW rules. The bridge is `baseConfig` —
+ * the config the clip was rendered from (the project's saved one). If its LEGACY digest matches
+ * the stamp, that config is what the clip contains, and the real question becomes whether the
+ * proposed config differs from it under the new rules. Without this the shim only ever worked
+ * when nothing had changed, which is precisely when it was not needed.
+ *
+ * @param {object} scene
+ * @param {{config:object, project:object}} ctx the PROPOSED config
+ * @param {object} [baseConfig] the config the clip was rendered from; defaults to ctx.config
+ * @returns {{ok:boolean, want:string, migrate:boolean}}
+ */
+export function renderCurrent(scene, ctx, baseConfig) {
+  const want = renderFingerprint(scene, ctx);
+  if (fpCurrent(scene, 'render', want)) return { ok: true, want, migrate: false };
+  const stamp = scene.fp?.render;
+  if (!stamp) return { ok: true, want, migrate: false }; // unstamped legacy row — still trusted
+  const base = baseConfig || ctx.config;
+  if (renderFingerprintLegacy(scene, { ...ctx, config: base }) === stamp
+    && renderFingerprint(scene, { ...ctx, config: base }) === want) {
+    return { ok: true, want, migrate: true };
+  }
+  return { ok: false, want, migrate: false };
 }
 
 /**
