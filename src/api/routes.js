@@ -342,6 +342,25 @@ export function mountRoutes(app, { version }) {
     if (!p) return res.status(404).json({ error: 'not found' });
     res.json({ project: DB.updateProject(p.id, req.body || {}) });
   });
+  // One real frame with the pending logo / subtitle settings applied through the REAL final
+  // pipeline. About a second, against fifteen minutes of re-concatenating to find out a badge
+  // was four pixels too high.
+  r.get('/projects/:id/frame-preview', async (req, res) => {
+    try {
+      const { framePreview } = await import('./services/frame-preview.js');
+      let overrides = {};
+      if (req.query.cfg) {
+        try { overrides = JSON.parse(String(req.query.cfg)); } catch { overrides = {}; }
+      }
+      const { buffer, t, note } = await framePreview(req.params.id, { t: +req.query.t || 1.5, overrides });
+      res.setHeader('Content-Type', 'image/png');
+      res.setHeader('Cache-Control', 'no-store');
+      res.setHeader('X-Preview-At', String(t));
+      if (note) res.setHeader('X-Preview-Note', encodeURIComponent(note));
+      res.send(buffer);
+    } catch (e) { res.status(400).json({ error: e.message }); }
+  });
+
   // Reuse another project's assets (P42 — reference `/projects/:id/copy-assets-from/:sourceId`).
   // The files are shared by PATH, not copied: both projects then point at the same media, which
   // is what the owner means by "use the same pictures" and costs no disk.
