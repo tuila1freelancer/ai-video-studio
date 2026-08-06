@@ -265,11 +265,51 @@ export async function concatScenes(sceneVideos, project, {
   else args.push('-map', '[vout]', ...videoCodecArgs(encoder));
   args.push('-map', '[aout]', '-t', cut.toFixed(2),
     '-c:a', 'aac', '-b:a', '160k', '-ar', '44100', '-ac', '2', '-movflags', '+faststart', finalOut);
-  await (useAssBinary ? ffmpegAss : ffmpeg)(args, { onLog });
+  // The join is the longest single step in the app — up to a quarter of an hour on a full-length
+  // video — and it said nothing at all while it ran, because the ffmpeg wrapper runs at
+  // `-loglevel error`. "✂️ Ghép & mix…" and then silence is indistinguishable from a hang, which
+  // is the whole reason the owner asked for a live processing log.
+  //
+  // `-progress pipe:1` makes ffmpeg write key=value blocks to stdout; `out_time_us` against the
+  // programme duration is the percentage. They stay on the TICKER: progress.js deliberately keeps
+  // `· NN%` lines out of the journal, or one join would write a hundred rows into it.
+  args.unshift('-progress', 'pipe:1', '-nostats'); // global options must precede the inputs
+  const label = copyVideo ? (tier === 'audio' ? '🔊 Trộn lại âm thanh' : '⚡ Sao chép video') : '🎞 Mã hoá video hoàn chỉnh';
+  await (useAssBinary ? ffmpegAss : ffmpeg)(args, {
+    onLog: ffProgress(cut, (pct) => (onNote || onLog)?.(`${label} · ${pct}%`), onLog),
+  });
 
   const thumb = join(project.outputDir || dir, `thumb_${newId('')}.jpg`);
   await ffmpeg(['-ss', String(Math.min(1.5, total / 2)), '-i', finalOut, '-frames:v', '1', '-q:v', '3', thumb]);
   return { path: finalOut, thumb, duration: total, timeline, fp, tier };
+}
+
+/**
+ * Turn ffmpeg's `-progress` stream into whole percentages.
+ *
+ * The stream is key=value lines in blocks, roughly twice a second; `out_time_us` is how far into
+ * the OUTPUT it has written. Only forward movement is reported, and only when the whole number
+ * changes, so a fifteen-minute encode emits at most a hundred lines instead of two thousand.
+ * `N/A` appears in the first block or two and simply does not match.
+ *
+ * @param {number} total output duration in seconds
+ * @param {(pct:number)=>void} onPct
+ * @param {(chunk:string)=>void} [passthrough] the caller's own log sink, still fed everything
+ */
+export function ffProgress(total, onPct, passthrough) {
+  let last = -1;
+  return (chunk) => {
+    passthrough?.(chunk);
+    if (!(total > 0)) return;
+    let us = null, m;
+    const re = /out_time_us=(\d+)/g;
+    while ((m = re.exec(chunk))) us = +m[1];
+    if (us == null) return;
+    // capped at 99: the file is not finished until ffmpeg exits, and reporting 100% while the
+    // moov atom is still being written reads as a stall at the very end
+    const pct = Math.max(0, Math.min(99, Math.round((us / 1e6) / total * 100)));
+    if (pct > last) { last = pct; onPct(pct); }
+  };
 }
 
 /**

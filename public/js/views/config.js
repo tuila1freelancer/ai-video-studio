@@ -227,6 +227,12 @@ function wireConfig() {
     await ensureFontLoaded(fam);
     updateSubPreview();
   });
+  // Put the new subtitles on the video that already exists. Deliberately the same door as the
+  // Brand Kit's: it opens the cost table, which starts the work and then shows the live log.
+  $('#btnSubApply')?.addEventListener('click', async () => {
+    const { openChangePlan } = await import('../features/changeplan.js');
+    await openChangePlan();
+  });
   $('#btnFramePreview')?.addEventListener('click', refreshFramePreview);
   $('#framePreviewAt')?.addEventListener('input', () => { $('#framePreviewT').textContent = fmtT(+$('#framePreviewAt').value); });
   $('#framePreviewAt')?.addEventListener('change', refreshFramePreview);

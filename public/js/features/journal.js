@@ -57,6 +57,21 @@ export function initJournal() {
   $('#logBody')?.addEventListener('scroll', () => { if (nearBottom()) $('#jrNewer').classList.add('hidden'); });
 }
 
+/**
+ * Open the journal and put it in view.
+ *
+ * Called whenever the app starts long work from somewhere that is not the pipeline screen — a
+ * logo edit, a subtitle edit — because a re-render that reports nothing is indistinguishable
+ * from one that never started.
+ */
+export function showJournal() {
+  const p = $('#journalPanel');
+  if (!p) return;
+  p.classList.remove('closed');
+  const c = $('#logCaret'); if (c) c.textContent = '▾';
+  p.scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
+}
+
 /** Project switch: the panel must never bleed lines from the previous project. */
 export function clearJournal() {
   Object.assign(J, { projectId: null, runs: [], events: [], run: 'latest', lastId: 0 });

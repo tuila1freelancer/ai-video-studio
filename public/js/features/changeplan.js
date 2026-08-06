@@ -15,6 +15,9 @@ import { api } from '../api.js';
 import { toast } from '../ui/toast.js';
 import { state } from '../state.js';
 import { gatherConfig } from '../views/config.js';
+import { confirmDialog } from '../ui/dialog.js';
+import { showJournal } from './journal.js';
+import { switchPage } from '../views/nav.js';
 
 const fmt = (s) => {
   const n = Math.max(1, Math.round(s));
@@ -78,6 +81,11 @@ export async function openChangePlan() {
       await api.post(`/projects/${id}/apply-changes`, { config: payload });
       toast('▶️ Đã bắt đầu áp dụng thay đổi', 'success');
       host.classList.remove('open');
+      // A re-render that reports nothing is indistinguishable from one that never started, and
+      // the owner may well have launched this from the Brand Kit dialog with the pipeline screen
+      // nowhere in sight. Show the log; it is already live over the websocket.
+      switchPage('studio');
+      showJournal();
     } catch (e) { toast(`✖ ${e.message}`, 'error'); }
   };
   $('#cpAll')?.addEventListener('click', () => run(config));
@@ -88,6 +96,33 @@ export async function openChangePlan() {
       'autoBgm', 'useDefaultBgm', 'transitions', 'transitionStyle', 'masterFade', 'concatEncoder'];
     run(Object.fromEntries(keep.filter((k) => k in config).map((k) => [k, config[k]])));
   });
+}
+
+/**
+ * "You changed the logo / the subtitles. Want that on the video you already made?"
+ *
+ * Saving a Brand Kit used to end with a toast about future videos and nothing else, so the only
+ * way to get a new logo onto a finished video was to know that the resume button on a 'done'
+ * project had quietly become an apply-changes button. This asks at the moment of the edit, and
+ * hands over to the cost table rather than starting anything on its own.
+ *
+ * @param {string} reason what the owner just did, in their own terms
+ * @returns {Promise<boolean>} whether the change queue was opened
+ */
+export async function offerRerender(reason) {
+  const p = state.current;
+  if (!p?.id || !p.video_path) return false; // nothing finished to re-render
+  if (['running', 'queued'].includes(p.status)) return false; // it is already working
+  const ok = await confirmDialog({
+    title: 'Dựng lại video đang mở?',
+    // confirmDialog escapes its body — plain text only, no markup
+    body: `${reason}. Video "${p.title || 'đang mở'}" đã xuất trước đó — có thể dựng lại bản hoàn chỉnh `
+      + 'với thiết lập mới ngay bây giờ. Bước tiếp theo hiện bảng chi phí trước khi chạy bất cứ thứ gì.',
+    okText: 'Xem chi phí & dựng lại',
+    cancelText: 'Để sau',
+  });
+  if (ok) await openChangePlan();
+  return ok;
 }
 
 export function initChangePlan() {
