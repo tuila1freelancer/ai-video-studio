@@ -2,7 +2,7 @@ import { $, $$, esc } from '../ui/dom.js';
 import { icon } from '../ui/icons.js';
 import { toast } from '../ui/toast.js';
 import { api } from '../api.js';
-import { state } from '../state.js';
+import { state, channelDefaults } from '../state.js';
 import { startNewProject, loadProjects } from '../views/studio.js';
 import { applyConfig, gatherConfig, loadBgmOptions, loadChannelPresets } from '../views/config.js';
 import { refreshBrandSummary } from './brandkit.js';
@@ -25,9 +25,12 @@ export async function switchChannel(id) {
   state.activeChannel = id;
   startNewProject();
   await Promise.all([loadProjects(), loadBgmOptions()]);
-  const ch = state.channels.find((c) => c.id === id);
-  if (ch && ch.config && Object.keys(ch.config).length) applyConfig(ch.config);
+  // Presets FIRST, then apply — the channel's default preset is part of what a new video starts
+  // from, and applying before it loaded showed the channel without it. Unconditional, too: a
+  // channel with no config of its own must reset the panel to the defaults, not inherit the
+  // previous channel's fonts and colours (which the next edit would then save onto it).
   await loadChannelPresets();
+  applyConfig(channelDefaults());
   refreshBrandSummary();
   toast(`Đã chuyển sang kênh ${ch ? ch.name : ''} ✓`, 'success');
 }
