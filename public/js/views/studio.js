@@ -1,7 +1,7 @@
 import { $, $$, el, esc, badgeText, statusIcon } from '../ui/dom.js';
 import { toast } from '../ui/toast.js';
 import { api, fileUrl, withLock, WS } from '../api.js';
-import { state } from '../state.js';
+import { state, channelDefaults } from '../state.js';
 import { PIPE, PHASE_W, PHASE_ORDER, prog, resetProgress, setProgress, recomputeProgress, setStep, showOp, hideOp } from './progress.js';
 import { loadJournal, clearJournal, onJournalEvent } from '../features/journal.js';
 import { refreshTasks } from '../features/tasks.js';
@@ -263,6 +263,10 @@ export function startNewProject() {
   $('#welcome').classList.remove('hidden');
   $('#projView').classList.add('hidden');
   $('#topic').value = ''; $('#assetList').innerHTML = ''; $('#imgResults').innerHTML = '';
+  // Back to the CHANNEL's defaults, not to whatever the last project happened to use. Opening a
+  // project calls applyConfig with that project's config; without this, "video mới" inherited it
+  // silently — so a one-off experiment on one video became the starting point for the next.
+  applyConfig(channelDefaults());
   renderProjectList();
 }
 

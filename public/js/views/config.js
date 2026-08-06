@@ -85,9 +85,15 @@ export function gatherConfig() {
     // explicitly (not `undefined`) is what moves an older project onto the lane when its config
     // is saved — a one-time re-render that the change queue prices before it runs.
     subtitleLane: 'final',
-    subtitlePreset: state.subPreset || undefined,
-    subtitleFont: $('#cfgSubFont').value,
-    subtitleFontSize: +$('#cfgSubSize').value,
+    // '' is a real answer here — "Tuỳ biến tay". Sending `undefined` for it (as this did) meant
+    // the channel's saved preset won the merge back, so custom subtitles could never be chosen:
+    // the card showed selected and the video came out styled by the old preset.
+    subtitlePreset: state.subPreset || '',
+    // …but an EMPTY FONT is not an answer, it is a picker that has not loaded yet (the family
+    // list arrives over the network). Writing it would blank the font on whatever it is merged
+    // into, which is how a saved subtitle look disappears.
+    subtitleFont: $('#cfgSubFont').value || undefined,
+    subtitleFontSize: +$('#cfgSubSize').value || undefined,
     // Empty means "whatever the preset says". The panel used to send 'original' unconditionally,
     // and captionStyleFrom reads `c.subtitleTextCase || preset.textCase` — so the presets that
     // declare uppercase (Impact Đậm, Thể Thao, Punch) could NEVER apply it. Their preview cards
@@ -122,6 +128,16 @@ export function gatherConfig() {
   };
 }
 export function applyConfig(cfg = {}) {
+  // Populating the panel is not the owner editing it. Without this, every channel switch and
+  // every preset click would fire the subtitle autosave and write the config that was just
+  // loaded straight back — harmless on the way out, but it makes the "đã lưu" line lie about
+  // what happened, and one crossed wire away from a channel saving another channel's look.
+  applying = true;
+  try { applyConfigInner(cfg); } finally { applying = false; }
+}
+let applying = false;
+
+function applyConfigInner(cfg = {}) {
   state.hfStyleId = cfg.hyperframe?.styleId || 'tuila1-hud-cyber';
   state.hfGuide = cfg.hyperframe?.guide || null;
   if ($('#cfgHfDensity')) $('#cfgHfDensity').value = cfg.hyperframe?.density || 'balanced';
@@ -149,14 +165,20 @@ export function applyConfig(cfg = {}) {
     $('#subWordsRow').classList.toggle('hidden', $('#cfgSubChunk')?.value !== 'words');
   }
   updateSubLaneHint(cfg);
-  // older configs stored the whole CSS stack — normalize to the bare family the options carry
-  if (cfg.subtitleFont) $('#cfgSubFont').value = String(cfg.subtitleFont).split(',')[0].replace(/['"]/g, '').trim() || cfg.subtitleFont;
-  if (cfg.subtitleFontSize) $('#cfgSubSize').value = cfg.subtitleFontSize;
-  // unconditional: an `if` would leave the previous channel's override in place on a channel
-  // that never set one, which is how a "follow the preset" video silently inherits uppercase
+  // Every subtitle restore below is UNCONDITIONAL, and that is the point. applyConfig runs on
+  // every channel switch and every preset click; a guarded `if (cfg.subtitleFont)` leaves the
+  // PREVIOUS channel's font sitting in the picker on a channel that never chose one — and
+  // gatherConfig then pins it onto the new channel's video. The same trap is already documented
+  // for #cfgLang and #cfgSubCase; these are the rest of it.
+  // (Older configs stored the whole CSS stack — normalize to the bare family the options carry.)
+  $('#cfgSubFont').value = cfg.subtitleFont
+    ? (String(cfg.subtitleFont).split(',')[0].replace(/['"]/g, '').trim() || cfg.subtitleFont)
+    : 'Be Vietnam Pro';
+  $('#cfgSubSize').value = cfg.subtitleFontSize || 80;
   $('#cfgSubCase').value = cfg.subtitleTextCase || '';
-  if (cfg.subtitleColor) { state.subColor = cfg.subtitleColor; buildSubColors(); }
-  if (cfg.subtitlePosition?.preset) $('#cfgSubPos').value = cfg.subtitlePosition.preset;
+  state.subColor = cfg.subtitleColor || '#F7B500';
+  buildSubColors();
+  $('#cfgSubPos').value = cfg.subtitlePosition?.preset || 'bot';
   if ($('#cfgBrandFont')) $('#cfgBrandFont').value = cfg.fonts?.display || '';
   if ('autoConcat' in cfg) $('#cfgAutoConcat').checked = cfg.autoConcat !== false;
   if ('requireReview' in cfg && $('#cfgReview')) $('#cfgReview').checked = cfg.requireReview === true;
@@ -188,6 +210,11 @@ function wireConfig() {
   $('#cfgDurMode')?.addEventListener('change', updateEstimate);
   $('#cfgAr').addEventListener('change', updateEstimate);
   ['#cfgSub', '#cfgSubFont', '#cfgSubSize', '#cfgSubCase', '#cfgSubPos', '#cfgSubMode', '#cfgSubChunk'].forEach((id) => $(id)?.addEventListener('change', updateSubPreview));
+  // …and every one of them, plus the two that only fire 'input', writes the look back onto the
+  // channel. The switch is in this list on purpose: turning subtitles off has to be remembered
+  // too, and the server keeps the style keys untouched while it does.
+  ['#cfgSub', '#cfgSubFont', '#cfgSubSize', '#cfgSubCase', '#cfgSubPos', '#cfgSubMode', '#cfgSubChunk', '#cfgSubWords']
+    .forEach((id) => $(id)?.addEventListener('change', () => saveSubtitleDefaults()));
   $('#cfgSub').addEventListener('change', () => $('#subStyle').style.display = $('#cfgSub').checked ? 'block' : 'none');
   $('#cfgSubChunk')?.addEventListener('change', () => $('#subWordsRow').classList.toggle('hidden', $('#cfgSubChunk').value !== 'words'));
   $('#cfgSubWords')?.addEventListener('input', () => { $('#cfgSubWordsL').textContent = $('#cfgSubWords').value; });
@@ -212,6 +239,7 @@ function wireConfig() {
       toast(`🔤 Đã tải font ${r.family} (${r.faces} kiểu chữ, ${Math.round(r.bytes / 1024)}KB)`, 'success');
       $('#cfgSubFont').value = fam;
       btn.classList.add('hidden');
+      saveSubtitleDefaults(); // setting .value fires no 'change' — the pick would go unsaved
     } catch (e) {
       toast(`✖ Không tải được font: ${e.message}`, 'error');
     } finally { btn.disabled = false; btn.textContent = '⬇︎ Tải'; }
@@ -239,14 +267,14 @@ export function buildSubColors() {
   const box = $('#cfgSubColors'); if (!box) return; box.innerHTML = '';
   SUB_COLORS.forEach((c) => {
     const s = el('button', 'sw' + (c === state.subColor ? ' active' : '')); s.style.background = c;
-    s.addEventListener('click', () => { state.subColor = c; buildSubColors(); updateSubPreview(); });
+    s.addEventListener('click', () => { state.subColor = c; buildSubColors(); updateSubPreview(); saveSubtitleDefaults(); });
     box.appendChild(s);
   });
   // P43: the nine swatches are shortcuts, not the whole palette — any colour is allowed.
   const custom = $('#cfgSubColorCustom');
   if (custom) {
     custom.value = /^#[0-9a-f]{6}$/i.test(state.subColor) ? state.subColor : '#F7B500';
-    custom.oninput = () => { state.subColor = custom.value; buildSubColors(); updateSubPreview(); };
+    custom.oninput = () => { state.subColor = custom.value; buildSubColors(); updateSubPreview(); saveSubtitleDefaults(); };
   }
 }
 /**
@@ -268,6 +296,46 @@ export function updateSubLaneHint(cfg = null) {
         + 'chuyển nó sang cách mới: phải dựng lại clip <em>không có</em> phụ đề <strong>một lần duy nhất</strong> — '
         + 'bảng chi phí sẽ báo trước khi chạy.'
       : '');
+}
+
+// ---------------- the channel remembers its subtitles ----------------
+// Owner order 2026-08-06: editing a channel's subtitles saves them for that channel, so the next
+// video starts where the last one left off. Before this the style lived only in the project being
+// edited, and carrying it forward meant finding a save icon inside the channel-management dialog
+// that wrote the WHOLE panel over the channel — so most videos got their font picked again.
+//
+// The server owns what may be stored and what counts as a real value
+// (api/services/subtitle-defaults.js). That is what makes the on/off switch safe: turning
+// subtitles off sends `enableSubtitles: false` and nothing else changes, so turning them back on
+// restores the same look.
+const SUBTITLE_CFG_KEYS = ['enableSubtitles', 'subtitleMode', 'subtitleChunk', 'subtitleWordsPerCue',
+  'subtitlePreset', 'subtitleFont', 'subtitleFontSize', 'subtitleTextCase', 'subtitleColor', 'subtitlePosition'];
+
+export function gatherSubtitleConfig() {
+  const all = gatherConfig();
+  return Object.fromEntries(SUBTITLE_CFG_KEYS.filter((k) => all[k] !== undefined).map((k) => [k, all[k]]));
+}
+
+let subSaveTimer = null;
+/** Persist the subtitle look onto the active channel. Debounced — this runs on every keystroke. */
+export function saveSubtitleDefaults({ now = false } = {}) {
+  if (applying || !state.activeChannel) return;
+  clearTimeout(subSaveTimer);
+  const go = async () => {
+    const note = $('#subSaveNote');
+    try {
+      const r = await api.put(`/channels/${state.activeChannel}/subtitle-defaults`, { config: gatherSubtitleConfig() });
+      const ch = (state.channels || []).find((c) => c.id === state.activeChannel);
+      if (ch && r.channel) ch.config = r.channel.config; // keep the in-memory copy honest
+      if (note) {
+        note.textContent = `💾 Đã lưu kiểu phụ đề cho kênh ${ch?.name || ''}`.trim()
+          + (r.presetUpdated ? ' (kể cả preset mặc định)' : '') + ' — video sau tự dùng lại.';
+      }
+    } catch (e) {
+      if (note) note.textContent = `⚠ Chưa lưu được kiểu phụ đề cho kênh: ${e.message}`;
+    }
+  };
+  if (now) go(); else subSaveTimer = setTimeout(go, 700);
 }
 
 // The effects the renderer draws, restated in CSS. Kept in the same order and with the same
@@ -721,6 +789,6 @@ export function renderSubPresetGrid() {
     </div>` + cards;
   grid.querySelectorAll('.sub-preset-card').forEach((c) => c.addEventListener('click', () => {
     state.subPreset = c.dataset.id;
-    renderSubPresetGrid(); updateSubPreview(); updateCfgChips();
+    renderSubPresetGrid(); updateSubPreview(); updateCfgChips(); saveSubtitleDefaults();
   }));
 }

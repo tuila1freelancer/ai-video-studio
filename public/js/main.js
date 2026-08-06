@@ -1,13 +1,13 @@
 // Boot: wire every module, then load data and restore the last session.
 import { api } from './api.js';
-import { state } from './state.js';
+import { state, channelDefaults } from './state.js';
 import { initModals } from './ui/modals.js';
 import { initNav, switchPage, renderDeps } from './views/nav.js';
 import { initHome } from './views/home.js';
 import { initStudio, initWs, loadProjects, openProject } from './views/studio.js';
 import { initScenes, renderScenes } from './views/scenes.js';
 import { buildPipeSteps } from './views/progress.js';
-import { initConfig, buildSubColors, updateEstimate, loadBgmOptions, loadBrandFolders, loadMetadataStyles, loadChannelPresets, loadSubtitlePresets, loadFontFamilies } from './views/config.js';
+import { initConfig, applyConfig, buildSubColors, updateEstimate, loadBgmOptions, loadBrandFolders, loadMetadataStyles, loadChannelPresets, loadSubtitlePresets, loadFontFamilies } from './views/config.js';
 import { initLibrary } from './views/library.js';
 import { initBrandGen } from './views/brandgen.js';
 import { initEditVideo } from './views/editvideo.js';
@@ -64,6 +64,10 @@ async function init() {
   // Startup fast-path: paint the shell with critical data first…
   await Promise.all([loadChannels(), loadProjects()]);
   await loadChannelPresets();
+  // Start the panel on the active channel's own settings. Nothing did this before: the form
+  // opened on the markup defaults, so a channel that had chosen its subtitle font, aspect ratio
+  // and voice showed none of them until the owner switched channels and back.
+  applyConfig(channelDefaults());
   refreshBrandSummary();
   updateEstimate();
   // Resume-on-reload: reopen the project that is (or was) running so progress is never lost from view.

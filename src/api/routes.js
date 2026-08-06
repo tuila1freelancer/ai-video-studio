@@ -235,6 +235,16 @@ export function mountRoutes(app, { version }) {
     try { DB.deleteChannel(req.params.id); res.json({ ok: true }); }
     catch (e) { res.status(400).json({ error: e.message }); }
   });
+  // The channel's subtitle look, saved as it is edited so the next video of that channel starts
+  // with it. A narrow door on purpose: the panel calls this on every change, and only subtitle
+  // keys with usable values get through (services/subtitle-defaults.js).
+  r.put('/channels/:id/subtitle-defaults', async (req, res) => {
+    try {
+      const { saveSubtitleDefaults } = await import('./services/subtitle-defaults.js');
+      const { channel, preset, saved } = saveSubtitleDefaults(req.params.id, req.body?.config || {});
+      res.json({ channel: maskChannel(channel), presetUpdated: !!preset, saved });
+    } catch (e) { res.status(400).json({ error: e.message }); }
+  });
   // Persistent brand kit: save a style guide as the CHANNEL's canonical guide — every new
   // project inherits it through the config merge (resolveProjectConfig → resolveGuide).
   // normalizeGuide runs server-side, so the WCAG contrast lock is enforced at save time.
