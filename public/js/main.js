@@ -26,10 +26,15 @@ import { initJournal } from './features/journal.js';
 import { initTasks } from './features/tasks.js';
 import { initSceneStudio } from './features/scene-studio.js';
 import { initPalette } from './ui/palette.js';
+import { bootLicense, initLicense } from './features/license.js';
 
 init();
 
 async function init() {
+  // Before anything else. An unlicensed copy answers 403 to every other route, so loading
+  // channels and projects first would just fill the console with failures behind a lock screen.
+  initLicense();
+  if (!(await bootLicense())) return;
   initNav();
   initHome();
   initStudio();
