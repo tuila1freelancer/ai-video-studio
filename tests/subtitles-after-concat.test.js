@@ -57,6 +57,13 @@ test('a clip made on the old lane reads as stale the moment the burn is switched
   // Once it is rebuilt bare, subtitle settings stop touching it at all — which is the payoff.
   const bare = { ...scene, fp: { render: renderFingerprint(scene, { config: finalcfg, project }) } };
   assert.equal(renderCurrent(bare, { config: finalcfg, project }, finalcfg).ok, true);
+  // A variant's overrides are concat-level, but `logo` is an input to the render digest — which
+  // is exactly why finalize asks this question with the PROJECT's config and not the run's.
+  const variantCfg = { ...finalcfg, logo: null, bgmPath: null };
+  assert.equal(renderCurrent(bare, { config: variantCfg, project }, finalcfg).ok, false,
+    'the run config would condemn every clip…');
+  assert.equal(renderCurrent(bare, { config: finalcfg, project }, finalcfg).ok, true,
+    '…and the project config is the one that answers correctly');
   for (const edit of [{ subtitleFont: 'Bebas Neue' }, { subtitleFontSize: 96 }, { subtitleColor: '#FF0000' },
     { subtitlePosition: { preset: 'top' } }, { subtitleMode: 'plain' }, { enableSubtitles: false }]) {
     const next = { ...finalcfg, ...edit };
@@ -71,10 +78,15 @@ test('finalize rebuilds a clip it cannot vouch for before printing on it', () =>
   // entirely. Without this, one of them on a project that just moved lanes would print captions
   // onto clips that already draw their own, and ship a video with two rows of subtitles.
   assert.match(fin, /const burnLane = config\.subtitleLane === 'final' && config\.enableSubtitles !== false;/);
-  assert.match(fin, /const stale = burnLane\s*\n\s*\? all\.filter\(\(s\) => !missingIds\.has\(s\.id\) && !renderCurrent\(s, \{ config, project \}, project\.config\)\.ok\)/);
+  assert.match(fin, /const stale = burnLane\s*\n\s*\? all\.filter\(\(s\) => !missingIds\.has\(s\.id\) && !renderCurrent\(s, \{ config: clipCfg, project \}, clipCfg\)\.ok\)/);
+  // judged against the PROJECT's config, never the run's: a variant export layers concat-level
+  // overrides on top, `logo` is an input to the render digest, and asking with the run config
+  // would re-render 105 clips to produce a cut that differs by one overlay filter
+  assert.match(fin, /const clipCfg = project\.config \|\| config;/);
+  assert.match(fin, /renderAnimationScene\(sc, project, clipCfg, \{/);
   // …and the repair STAMPS what it made. Leaving the old fingerprint next to a new file would
   // make the very next join find the same scene stale and rebuild it all over again.
-  assert.match(fin, /fp: fpStamp\(sc, 'render', renderFingerprint\(sc, \{ config, project \}\)\)/);
+  assert.match(fin, /fp: fpStamp\(sc, 'render', renderFingerprint\(sc, \{ config: clipCfg, project \}\)\)/);
 });
 
 test('nothing writes a subtitle onto anything except the assembled programme', () => {
