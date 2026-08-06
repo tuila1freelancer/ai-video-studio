@@ -15,7 +15,7 @@ import { concatScenes, planTransitions, transitionLoss } from '../render.js';
 import { qcFinalVideo } from '../qc.js';
 import { masterAudio } from '../../media/master.js';
 import { makeAmbientBed, probeDuration, makeWhoosh, makeSfxBed, hasDrawtext } from '../../media/ffmpeg.js';
-import { resolveFinalOverlay } from '../../media/logo-overlay.js';
+import { resolveConcatLogo } from '../../media/logo-overlay.js';
 import { resolveWatermark, watermarkFont } from '../../media/watermark.js';
 import { planSoundDesign, usableLibrary } from '../../audio/sound-design.js';
 import { withRetry } from '../../util/retry.js';
@@ -66,27 +66,26 @@ export async function finalize(projectId, { dir, size, config }) {
   // cumulative xfade loss BEFORE scene k's clip starts (clip index == scene order now)
   const lossBeforeScene = (k) => (transPlan ? transitionLoss(transPlan, k) : 0);
 
-  // Whole-video logo stamp (P26): the ONLY logo lane — burned once at concat in every
-  // visual mode (the per-scene smart/always logo lane was removed by owner order).
-  // Legacy configs saved before the stamp existed (placement smart/always + a logo, no
-  // finalOverlay key) migrate here so nobody's logo silently disappears: the old per-scene
-  // geometry (sizePct = % of min-dim, center position) maps onto the stamp fractions.
-  const fov = resolveFinalOverlay(config.brandKit?.finalOverlay);
-  const bkLogo = config.brandKit?.logo?.assetPath;
-  if (bkLogo && !config.logo?.path) {
-    if (fov) {
-      config.logo = { path: bkLogo, ...fov };
-    } else if (config.brandKit.finalOverlay === undefined && config.brandKit.placement && config.brandKit.placement !== 'off') {
-      const bl = config.brandKit.logo;
-      const minD = Math.min(size.w, size.h);
-      config.logo = {
-        path: bkLogo,
-        cxPct: bl.position?.xPct ?? 0.92, cyPct: bl.position?.yPct ?? 0.06,
-        wPct: Math.min(0.45, Math.max(0.02, ((bl.sizePct || 8.5) / 100) * (minD / size.w))),
-        opacity: bl.opacity ?? 0.9,
-      };
+  // Brand identity is read LIVE from the channel unless this project overrode it. The old
+  // behaviour used the snapshot taken when the project was created, which is why turning the
+  // logo stamp on or off in the Brand Kit had no effect on anything already made — and why the
+  // "Why $5,000" project, created before its channel had a brand kit, would re-concat with no
+  // logo at all no matter what the channel said. A project that wants its own identity sets
+  // `brandKitOverride: true` when it saves one.
+  if (!config.brandKitOverride) {
+    const live = DB.channelOf(projectId)?.config?.brandKit;
+    if (live) {
+      if (JSON.stringify(live) !== JSON.stringify(config.brandKit)) {
+        op(projectId, '🎨 Nhận diện thương hiệu lấy trực tiếp từ kênh (mới hơn bản lưu trong dự án)');
+      }
+      config.brandKit = live;
     }
   }
+  // Whole-video logo stamp (P26): the ONLY logo lane — burned once at concat in every visual
+  // mode. resolveConcatLogo decides from scratch every run, INCLUDING the answer "no logo";
+  // the version that lived here could only ever assign one, so the Brand Kit toggle was a
+  // one-way switch in practice.
+  config.logo = resolveConcatLogo(config, size);
   // Copyright watermark (P28): slow perimeter drift, logo or channel name, whole program.
   // Source degrades sensibly (name without a usable font → logo; logo missing → name).
   const wm = resolveWatermark(config.brandKit?.watermark);
@@ -159,11 +158,22 @@ export async function finalize(projectId, { dir, size, config }) {
     }
   }
 
+  // What the previous export was made from, so the concat can charge only for what moved.
+  const prevMeta = project.metadata?.concat || null;
   const res = await withRetry(async () => {
     const r = await concatScenes(clips, project, {
       dir: renderDir, size, bgmPath, sfxPath, logo: config.logo, watermark: config.watermark,
       bgmVol: sdPlan?.bgmVol,
-      transitions: transPlan || false, onLog: (s) => logger.debug(s, { projectId }),
+      masterFade: config.masterFade !== false,
+      encoder: config.concatEncoder === 'fast' ? 'fast' : 'quality',
+      prevPath: project.video_path || null,
+      prevFp: prevMeta?.fp || null,
+      // A re-concat may legitimately be a no-op; the FIRST assembly of a run never is, and
+      // silently reusing an old file there would hide a pipeline that did nothing.
+      allowSkip: !!prevMeta,
+      transitions: transPlan || false,
+      onLog: (s) => logger.debug(s, { projectId }),
+      onNote: (s) => op(projectId, s),
     });
     // Output must exist and cover the scene material (10% tolerance + transition losses).
     const got = await probeDuration(r.path);
@@ -172,6 +182,14 @@ export async function finalize(projectId, { dir, size, config }) {
     }
     return r;
   }, { tries: 2, label: 'b7 concat', onRetry: retryHook(projectId, 'b7') });
+
+  // Nothing moved — the export on disk IS the answer. Everything below (audio master, QC decode,
+  // thumbnail) would re-do work whose inputs are provably identical, so it is skipped too rather
+  // than quietly burning a couple of minutes to arrive back where we started.
+  if (res.tier === 'skip') {
+    step(projectId, 'b7', 'done', `${Math.round(res.duration)}s`);
+    return res;
+  }
 
   // Broadcast master (P9's -16 LUFS authority, relocated from the concat graph): measure
   // the mixed program, correct the AUDIO ONLY (-c:v copy — video is never re-encoded).
@@ -250,6 +268,20 @@ export async function finalize(projectId, { dir, size, config }) {
     if (made.length > 1) op(projectId, `🖼️ Đã tạo ${made.length} biến thể thumbnail (A/B) trong thư mục xuất`);
   } catch { /* keep basic */ }
 
+  // The exact timeline this export was assembled on. Everything that has to map a moment in the
+  // finished video back to a scene reads THIS — burned captions, the SRT export, the player's
+  // click-to-scene jump — instead of re-deriving offsets from scene durations and drifting.
+  // `concat.fp` is what lets the next assembly know how little work it has to do.
+  {
+    const md = DB.getProject(projectId).metadata || {};
+    DB.updateProject(projectId, {
+      metadata: {
+        ...md,
+        timeline: (res.timeline || []).map((t, i) => ({ sceneId: scenes[i]?.id, idx: scenes[i]?.idx, ...t })),
+        concat: { fp: res.fp || null, tier: res.tier || null, at: Date.now() },
+      },
+    });
+  }
   DB.updateProject(projectId, { video_path: res.path, thumb_path: thumb, current_step: 'b7' });
   step(projectId, 'b7', 'done', `${Math.round(res.duration)}s`);
   return res;
