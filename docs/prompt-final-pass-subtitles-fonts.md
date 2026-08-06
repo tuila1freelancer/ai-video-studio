@@ -185,6 +185,67 @@ const keys = lane === 'final' ? RENDER_CFG_KEYS_NO_SUB : RENDER_CFG_KEYS;
 
 ---
 
+### 3.4 Bổ sung (chủ yêu cầu 2026-08-06) — công tắc logo và tốc độ ghép lại
+
+**Phần A — công tắc logo phải có hiệu lực mỗi lượt ghép.**
+
+Hiện `finalize.js:76` chỉ gán logo khi `!config.logo?.path`:
+
+```js
+if (bkLogo && !config.logo?.path) { … config.logo = { path: bkLogo, ...fov }; }
+```
+
+Nghĩa là: một khi `config.logo` đã được ghi vào config dự án, **tắt công tắc logo trong Brand Kit
+không còn tác dụng gì** — lượt ghép sau vẫn đóng dấu logo cũ. Đây đúng là lỗi chủ báo.
+
+Sửa: một hàm giải quyết duy nhất, đọc lại **mỗi lượt ghép**, theo thứ tự ưu tiên rõ ràng:
+
+1. `config.logo === null` → **tắt tường minh** cho video này (chủ tự tắt), dừng.
+2. `config.logo.enabled === false` → tắt, dừng.
+3. `config.logo.path` → ghi đè riêng của dự án, dùng nguyên.
+4. Brand kit `finalOverlay.enabled === true` + có logo → đóng dấu.
+5. Ngược lại → **không logo**.
+
+Điểm mấu chốt: bước 4 và 5 phải được **đánh giá lại mỗi lần**, không phải chỉ khi `config.logo`
+còn trống. Bật → có logo; tắt → không logo; không có trạng thái kẹt ở giữa.
+
+**Phần B — ghép lại phải nhanh nhất có thể.**
+
+Hiện `concatScenes` **luôn** dựng filter_complex và **luôn** encode lại toàn bộ video bằng
+`libx264 -crf 18 -preset medium`. Với video 95 cảnh (~11 phút) đó là nhiều phút encode — kể cả khi
+thay đổi duy nhất là *tắt logo*, tức là video không cần một filter nào.
+
+Thêm một bộ chọn bậc — `src/pipeline/concat-plan.js` — quyết định **lượng công việc tối thiểu**:
+
+| Bậc | Điều kiện | Việc làm | Chi phí |
+|---|---|---|---|
+| **T0** | Vân tay ghép không đổi và file cũ còn trên đĩa | **Không làm gì**, báo "không có gì thay đổi" | ~0 |
+| **T1** | Chỉ phần ÂM THANH đổi (nhạc nền, âm lượng, SFX) | `-c:v copy` + encode lại audio | ~30 giây |
+| **T2** | Không cần **bất kỳ** filter video nào (không logo, không watermark, không phụ đề burn, toàn cắt thẳng, không fade) | Concat demuxer + `-c:v copy` | ~30 giây |
+| **T3** | Còn lại | Encode đầy đủ như hiện nay | vài phút |
+
+**Vân tay ghép** (`project.metadata.concatFp`) băm mọi thứ ảnh hưởng tới file cuối: danh sách clip
+(đường dẫn + mtime + size), khối logo đã giải quyết, khối watermark, bgm/sfx, kế hoạch chuyển cảnh,
+nội dung file ASS, kích thước khung, fps, lựa chọn encoder. Tách riêng phần **video** và phần
+**audio** của vân tay — đó chính là thứ phân biệt T1 với T3.
+
+Ràng buộc bắt buộc:
+
+- T2 chỉ mở khi **thật sự** không có filter video nào. Fade mở/đóng hiện đang **luôn bật**; đưa nó
+  thành `config.masterFade` (mặc định `true`, giữ nguyên hành vi cũ). Khi bảng chi phí ở Nhóm 4
+  thấy fade là thứ duy nhất chặn T2, nó **đề nghị** chủ tắt fade để ghép tức thì — đề nghị, không
+  tự quyết.
+- **Đo trước, chọn sau**: thử `h264_videotoolbox` (encoder phần cứng Apple Silicon) so với
+  `libx264 -crf 18` trên **đúng một dự án thật**, so cả thời gian lẫn chất lượng chữ (đồ hoạ chữ nét
+  là chỗ encoder phần cứng dễ lộ nhất). Ghi cả hai con số vào commit message. Chỉ đặt phần cứng làm
+  mặc định nếu số liệu ủng hộ; nếu không thì để nó là lựa chọn "ghép nhanh" hiện rõ trong UI kèm
+  đánh đổi. **Không âm thầm hạ chất lượng để lấy tốc độ.**
+- Mỗi bậc phải **nói ra mình đang làm gì** bằng `op()`: `⏭️ Không có gì thay đổi`,
+  `🔊 Chỉ ghép lại âm thanh`, `⚡ Ghép nhanh không encode lại`, `🎞 Encode lại toàn bộ`. Im lặng
+  chọn đường tắt là cách sinh ra bug "sao video không cập nhật".
+
+---
+
 ## 4. NHÓM 2 — `fonts`: font thật, ở cả ba nơi
 
 ### 4.1 Ba lời hứa phải giữ
