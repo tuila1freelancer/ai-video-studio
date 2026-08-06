@@ -79,10 +79,12 @@ export function gatherConfig() {
     subtitleMode: $('#cfgSubMode')?.value === 'plain' ? 'plain' : 'karaoke',
     subtitleChunk: $('#cfgSubChunk')?.value || 'auto',
     subtitleWordsPerCue: +($('#cfgSubWords')?.value || 4),
-    // 'scene' is the default and MUST be sent as undefined, never as the literal string: the
-    // render fingerprint strips the key, but a channel or preset layer carrying 'final' would
-    // otherwise be silently overwritten by a panel that merely never touched the control.
-    subtitleLane: $('#cfgSubLane')?.value === 'final' ? 'final' : undefined,
+    // Subtitles are printed onto the finished video, never baked into the clips. This is stated
+    // rather than chosen: the panel used to offer a 'scene' lane, and picking it made every later
+    // subtitle edit cost one render per scene with no way back out of the clips. Sending it
+    // explicitly (not `undefined`) is what moves an older project onto the lane when its config
+    // is saved — a one-time re-render that the change queue prices before it runs.
+    subtitleLane: 'final',
     subtitlePreset: state.subPreset || undefined,
     subtitleFont: $('#cfgSubFont').value,
     subtitleFontSize: +$('#cfgSubSize').value,
@@ -146,10 +148,7 @@ export function applyConfig(cfg = {}) {
     $('#cfgSubWordsL').textContent = $('#cfgSubWords').value;
     $('#subWordsRow').classList.toggle('hidden', $('#cfgSubChunk')?.value !== 'words');
   }
-  // unconditional, like #cfgLang: applyConfig runs on every channel switch, and an `if` would
-  // leave the previous channel's lane stuck on a channel that never set one
-  if ($('#cfgSubLane')) $('#cfgSubLane').value = cfg.subtitleLane === 'final' ? 'final' : 'scene';
-  updateSubLaneHint();
+  updateSubLaneHint(cfg);
   // older configs stored the whole CSS stack — normalize to the bare family the options carry
   if (cfg.subtitleFont) $('#cfgSubFont').value = String(cfg.subtitleFont).split(',')[0].replace(/['"]/g, '').trim() || cfg.subtitleFont;
   if (cfg.subtitleFontSize) $('#cfgSubSize').value = cfg.subtitleFontSize;
@@ -192,7 +191,6 @@ function wireConfig() {
   $('#cfgSub').addEventListener('change', () => $('#subStyle').style.display = $('#cfgSub').checked ? 'block' : 'none');
   $('#cfgSubChunk')?.addEventListener('change', () => $('#subWordsRow').classList.toggle('hidden', $('#cfgSubChunk').value !== 'words'));
   $('#cfgSubWords')?.addEventListener('input', () => { $('#cfgSubWordsL').textContent = $('#cfgSubWords').value; });
-  $('#cfgSubLane')?.addEventListener('change', () => { updateSubLaneHint(); updateSubPreview(); });
   // A font that has not been fetched would substitute in the preview AND in the video. Rather
   // than hiding it or letting it fail quietly, the picker offers to go and get it.
   $('#cfgSubFont')?.addEventListener('change', async () => {
@@ -251,16 +249,25 @@ export function buildSubColors() {
     custom.oninput = () => { state.subColor = custom.value; buildSubColors(); updateSubPreview(); };
   }
 }
-// The lane is a real trade, not a preference, so the panel says what each side costs instead of
-// leaving the owner to find out by waiting.
-export function updateSubLaneHint() {
+/**
+ * Say where the subtitles are drawn — and, for a project made before the rule, what moving it
+ * over will cost.
+ *
+ * There is nothing to choose here any more. The panel used to offer a "vẽ trong từng cảnh" lane
+ * and it was a trap: captions drawn inside a clip are an INPUT to that clip, so changing the font
+ * meant re-rendering every scene, and once burned in they could not be taken back out.
+ */
+export function updateSubLaneHint(cfg = null) {
   const el = $('#subLaneHint');
   if (!el) return;
-  el.innerHTML = $('#cfgSubLane')?.value === 'final'
-    ? 'Phụ đề in một lần lên video đã ghép: đổi chữ, font, cỡ, màu hay vị trí về sau chỉ tốn <strong>một lượt ghép</strong>. '
-      + 'Đánh đổi: dòng dài sẽ <em>xuống dòng</em> thay vì tự thu nhỏ, và hiệu ứng phát sáng chỉ là xấp xỉ.'
-    : 'Phụ đề vẽ trong từng cảnh — hiệu ứng đầy đủ (glow mềm, bo góc, tự thu nhỏ cho vừa một dòng). '
-      + 'Đánh đổi: đổi bất kỳ thiết lập phụ đề nào cũng phải <strong>render lại toàn bộ cảnh</strong>.';
+  const legacy = cfg && cfg.subtitleLane !== 'final' && !!state.current?.video_path;
+  el.innerHTML = '💡 Phụ đề được in <strong>sau khi ghép video hoàn chỉnh</strong>, không nướng vào từng cảnh — '
+    + 'nên đổi chữ, font, cỡ, màu hay vị trí về sau chỉ tốn <strong>một lượt ghép</strong>.'
+    + (legacy
+      ? '<br>⚠ Video này được dựng theo cách cũ (phụ đề nằm sẵn trong từng cảnh). Lần lưu cấu hình tới sẽ '
+        + 'chuyển nó sang cách mới: phải dựng lại clip <em>không có</em> phụ đề <strong>một lần duy nhất</strong> — '
+        + 'bảng chi phí sẽ báo trước khi chạy.'
+      : '');
 }
 
 // The effects the renderer draws, restated in CSS. Kept in the same order and with the same

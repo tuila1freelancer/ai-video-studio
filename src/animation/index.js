@@ -88,8 +88,16 @@ export function buildSceneHtml(scene, project, config, extras = {}) {
   // programme instead — that is what makes a subtitle edit cost one concat rather than one
   // render per scene. `ctx.captions` below is untouched either way: those word timings drive
   // template motion (accentTimes), not display, and zeroing them would change the animation.
+  //
+  // On the final lane the cues still ride into the page, as LAYOUT data only: `captionsOff`
+  // removes the element that would draw them, while `__safeZone` and planBrandPlacement keep
+  // reading `captions.length` to hold the bottom band clear. A clip that reserved no room for
+  // subtitles could not receive them later without being re-rendered — which is the one thing
+  // this lane exists to avoid. That is also why the reserve ignores `enableSubtitles` here:
+  // turning captions on or off must stay a concat-level decision, and it cannot be that if it
+  // changes the picture underneath.
   const finalLane = config.subtitleLane === 'final';
-  const captions = !finalLane && config.enableSubtitles !== false
+  const captions = finalLane || config.enableSubtitles !== false
     ? rechunkCues(scene.srt_json || [], {
       chunk: config.subtitleChunk, wordsPerCue: config.subtitleWordsPerCue, text: scene.voice_text,
     })
