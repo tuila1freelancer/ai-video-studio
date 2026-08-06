@@ -90,6 +90,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     p.currentDirectoryURL = URL(fileURLWithPath: PROJECT_ROOT)
     var env = ProcessInfo.processInfo.environment
     env["AVS_PORT"] = AVS_PORT
+    // Build-mode settings (AVS_DIST, AVS_DATA_DIR) come from Config.swift, which the build script
+    // writes per mode. They are set HERE, inside the app, so nothing a customer puts in their
+    // shell can change what the bundle thinks it is.
+    for (k, v) in EXTRA_ENV { env[k] = v }
     p.environment = env
     do { try p.run(); backend = p }
     catch { loadSplash("Không khởi động được backend: \(error.localizedDescription)") }
