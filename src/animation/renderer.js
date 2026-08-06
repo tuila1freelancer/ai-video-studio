@@ -29,6 +29,7 @@ export async function renderScenePage(opts) {
   let audio = opts.audioPath;
   if (!audio) { audio = outPath.replace(/\.mp4$/, '_sil.m4a'); await makeSilence(audio, duration); }
 
+  let fontMiss = [];
   const attempt = async () => {
     const browser = await getBrowser();
     const page = await browser.newPage();
@@ -39,8 +40,14 @@ export async function renderScenePage(opts) {
       const init = await withTimeout(page.evaluate(() => window.__init()), 20000, '__init');
       if (init && init.tplErr) logger.warn(`Cảnh animation: script template lỗi (chỉ render CSS): ${init.tplErr}`);
       if (init && init.fontMiss && init.fontMiss.length) {
-        // P30: never a silent substitute — the owner picked these families explicitly
-        logger.warn(`⚠ font không nạp được, trình duyệt sẽ thay bằng font khác: ${init.fontMiss.join(', ')} — kiểm tra Thư viện → Font chữ`);
+        // Never a silent substitute — the owner picked these families explicitly. This probe has
+        // existed since P30 and only ever reached logger.warn, which is to say: nowhere the
+        // owner looks. It is the same shape as the wrong-language warning that let 22 scenes
+        // ship in the wrong language, so it now travels back to the caller and onto the run log.
+        fontMiss = init.fontMiss;
+        const msg = `⚠ font không nạp được, trình duyệt sẽ thay bằng font khác: ${fontMiss.join(', ')} — kiểm tra Thư viện → Font chữ`;
+        logger.warn(msg);
+        opts.onLog?.(msg);
       }
       logger.debug?.(`anim scene init: ${init && init.n != null ? init.n : init} animations${init && init.gsap ? ' + gsap timeline' : ''}`);
 
@@ -87,7 +94,7 @@ export async function renderScenePage(opts) {
       }
       ff.stdin.end();
       await ffDone;
-      return { path: outPath, duration: await probeDuration(outPath) || duration };
+      return { path: outPath, duration: await probeDuration(outPath) || duration, fontMiss };
     } finally {
       try { if (ff && ff.exitCode == null) { ff.stdin.destroy(); ff.kill('SIGKILL'); } } catch { /* ignore */ }
       await page.close().catch(() => {});
