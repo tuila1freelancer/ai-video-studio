@@ -12,6 +12,10 @@ import { withRunContext } from '../util/run-context.js';
 import { resolveProjectConfig } from '../core/config.js';
 import { runPipeline, renderOnly } from './runner.js';
 import { jlog } from './journal.js';
+import { status as licenseStatus } from '../license/index.js';
+import { isRunnable } from '../license/state.js';
+
+const licensed = () => isRunnable(licenseStatus());
 
 // Per-kind lanes: how many jobs of a kind may run at once across the whole process.
 // Two interactive pipelines may overlap (matches the old per-project Map semantics);
@@ -116,6 +120,13 @@ export function promoteDueSlots() {
 
 export function tick() {
   try {
+    // A licence that lapses mid-session stops NEW work only. Whatever is rendering right now runs
+    // to the end: cutting a customer's video off halfway through destroys work they already paid
+    // for, and the queued rows stay exactly where they are until the licence is sorted out.
+    if (!licensed()) {
+      scheduleTick(60_000);
+      return;
+    }
     promoteDueSlots();
     for (;;) {
       const kinds = laneCapacity();
