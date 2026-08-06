@@ -88,6 +88,35 @@ test('the render digest of a real subtitle config has not moved either', () => {
   assert.notEqual(fp(SUB_CFG), fp({ ...SUB_CFG, subtitleFont: 'Lexend' }));
 });
 
+test('subtitleLane never moves the digest of an existing project', () => {
+  const proj = { project: { aspect_ratio: '16:9' } };
+  const fp = (config) => renderFingerprint(frozenScene, { ...proj, config });
+
+  // 'scene' is the default, so writing it out explicitly must be a NO-OP. This is the trap the
+  // key name sets: `subtitleLane` starts with "sub", so RENDER_CFG_KEYS picks it up for free and
+  // the first project to save the panel would re-render every clip it owns for a setting that
+  // changed nothing. It has to be stripped from the sweep and read only as a mode.
+  assert.equal(fp({ subtitleLane: 'scene' }), FROZEN.renderNoLanguage);
+  assert.equal(fp({ ...SUB_CFG, subtitleLane: 'scene' }), FROZEN.renderWithSubtitles);
+
+  // 'final' DOES move it, and that is correct: clips with captions baked in have to be rendered
+  // once without them. Captions stop being an input, so the digest collapses onto the
+  // no-subtitles one.
+  assert.equal(fp({ ...SUB_CFG, subtitleLane: 'final' }), FROZEN.renderNoLanguage);
+  assert.notEqual(fp({ ...SUB_CFG, subtitleLane: 'final' }), FROZEN.renderWithSubtitles);
+
+  // …which is the whole point: on the final lane a subtitle edit cannot make a clip stale
+  assert.equal(
+    fp({ ...SUB_CFG, subtitleLane: 'final' }),
+    fp({ ...SUB_CFG, subtitleFont: 'Bebas Neue', subtitleColor: '#FF0000', subtitleFontSize: 96, subtitleLane: 'final' }),
+  );
+  // but a NON-subtitle setting still does
+  assert.notEqual(
+    fp({ ...SUB_CFG, subtitleLane: 'final' }),
+    fp({ ...SUB_CFG, subtitleLane: 'final', styleId: 'other-style' }),
+  );
+});
+
 test('fpCurrent trusts legacy rows (null fp) and enforces stamped ones', () => {
   const want = ttsFingerprint(scene, ctx);
   assert.equal(fpCurrent(scene, 'tts', want), true, 'legacy artifact stays trusted');

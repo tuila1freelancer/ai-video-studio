@@ -41,10 +41,35 @@ export function ttsFingerprint(scene, { config, channel, ai }) {
 // QC-repaired clip must not read as stale on the next resume.
 const RENDER_CFG_KEYS = /^(sub|brandKit|hyperframe|styleId|richAnimation|renderMode|visualMode|resolutionScale|logo|watermark|overlay)/;
 
+/**
+ * `subtitleLane` decides WHERE captions are drawn, and it is the one config key that must never
+ * reach the digest as itself.
+ *
+ * It starts with "sub", so RENDER_CFG_KEYS picks it up for free — and the first project to save
+ * the default explicitly would invalidate every clip it owns for a setting that changed nothing.
+ * It is stripped, and read only as a mode:
+ *
+ *   'scene' / absent → captions are drawn inside each clip, so every `sub*` key is an input
+ *   'final'          → captions are burned at concat, so no `sub*` key is an input at all
+ *
+ * The second case collapses a subtitled project's digest onto the unsubtitled one, which is
+ * exactly the intent: on the final lane, editing the font or the colour or the position cannot
+ * make a single clip stale. Switching a finished project ONTO the lane does move the digest, and
+ * that re-render is real work — captions already baked into 95 clips cannot be un-baked.
+ */
+const LANE_KEY = 'subtitleLane';
+const SUB_KEY = /^sub/;
+
 /** Inputs that shape a scene's rendered clip (video_path). */
 export function renderFingerprint(scene, { config, project }) {
   const cfg = {};
-  for (const [k, v] of Object.entries(config || {})) if (RENDER_CFG_KEYS.test(k)) cfg[k] = v;
+  const finalLane = (config || {})[LANE_KEY] === 'final';
+  for (const [k, v] of Object.entries(config || {})) {
+    if (k === LANE_KEY) continue;
+    if (!RENDER_CFG_KEYS.test(k)) continue;
+    if (finalLane && SUB_KEY.test(k)) continue;
+    cfg[k] = v;
+  }
   return digest({
     tpl: scene.template || null,
     props: scene.props || null,

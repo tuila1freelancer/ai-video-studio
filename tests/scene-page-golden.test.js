@@ -50,6 +50,44 @@ test('the default scene page has not moved one byte', () => {
   assert.equal(hash(page({ enableSubtitles: false })), GOLDEN.off);
 });
 
+test('subtitleLane:"scene" is the default spelled out — it changes nothing', () => {
+  // Same trap as the fingerprint: saving the default explicitly must render an identical page,
+  // or switching the setting on and straight back off would re-render the whole video.
+  assert.equal(hash(page({ enableSubtitles: true, subtitleLane: 'scene' })), GOLDEN.plain);
+  assert.equal(hash(page({ ...STYLED, subtitleLane: 'scene' })), GOLDEN.styled);
+  assert.equal(hash(page({ enableSubtitles: false, subtitleLane: 'scene' })), GOLDEN.off);
+});
+
+test('subtitleLane:"final" renders the clip bare', () => {
+  const html = page({ ...STYLED, subtitleLane: 'final' });
+  assert.ok(!/id="capText"/.test(html), 'no caption element — the burn happens at concat');
+  assert.match(html, /"captions":\[\]/, 'and no cue payload rides along');
+});
+
+test('the lane must not disturb anything outside the caption layer', () => {
+  // Template markup, background canvas, progress bar, brand layer and the GSAP payload all have
+  // to survive the switch untouched — otherwise "turn on the fast subtitle lane" would quietly
+  // restyle the video as well.
+  const strip2 = (html) => html
+    .replace(/<div class="cap[^"]*"><span id="capText"><\/span><\/div>/, '')
+    // the cue payload nests a `words` array, so a naive [^\]]* stops at the wrong bracket
+    .replace(/"captions":\[[\s\S]*?\](?=,"capMode")/, '"captions":[]')
+    .replace(/@font-face\s*\{[^}]*\}/g, '');
+  assert.equal(
+    createHash('sha256').update(strip2(page(STYLED))).digest('hex'),
+    createHash('sha256').update(strip2(page({ ...STYLED, subtitleLane: 'final' }))).digest('hex'),
+  );
+});
+
+test('word timings still drive template motion on the final lane', () => {
+  // ctx.captions feeds accentTimes — template beats are choreographed onto the narration's
+  // words. Zeroing it along with the DISPLAY cues would change the animation itself, which is
+  // not what "move the subtitles to the end" is supposed to mean.
+  const tpl = (html) => /<div class="tpl">[\s\S]*?<\/div>\n/.exec(html)?.[0] || '';
+  assert.ok(tpl(page(STYLED)).length > 40, 'the template block is there to compare');
+  assert.equal(tpl(page(STYLED)), tpl(page({ ...STYLED, subtitleLane: 'final' })));
+});
+
 test('the caption layer is present and driven by the config today', () => {
   // Establishes what the final-pass lane will later have to REMOVE, so the two halves of the
   // change can be read against each other.

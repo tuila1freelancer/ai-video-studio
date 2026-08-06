@@ -7,7 +7,9 @@ import { join } from 'node:path';
 import * as DB from '../../db/index.js';
 import { logger } from '../../util/log.js';
 import { renderAnimationScene } from '../../animation/index.js';
-import { resolveGuide } from '../../styleguide/index.js';
+import { resolveGuide, themeFromGuide } from '../../styleguide/index.js';
+import { burnStyleFrom } from '../../subtitles/presets.js';
+import { prepareBurnFontDir, shapingFor } from '../../fonts/files.js';
 import { buildThumbnail } from '../visuals.js';
 import { generateThumbnailImage } from '../thumbnail-codegen.js';
 import { llmEnabled } from '../../providers/llm.js';
@@ -158,6 +160,18 @@ export async function finalize(projectId, { dir, size, config }) {
     }
   }
 
+  // Final-pass captions. The clips were rendered bare, so the burn happens here — and the font
+  // is resolved to a real file FIRST, because fontconfig substitutes without a word and a video
+  // in the wrong typeface is finished work, not a warning.
+  let subtitles = null;
+  if (config.subtitleLane === 'final' && config.enableSubtitles !== false) {
+    const theme = themeFromGuide(resolveGuide(config));
+    const style = burnStyleFrom(config, theme, size);
+    const { fontsDir, source } = prepareBurnFontDir(style.font, style.weight, renderDir);
+    op(projectId, `🔤 Phụ đề in ở bước cuối — font "${style.font}" (${source})`);
+    subtitles = { scenes, config, style, fontsDir, shaping: shapingFor(resolveLang(config, scenes)) };
+  }
+
   // What the previous export was made from, so the concat can charge only for what moved.
   const prevMeta = project.metadata?.concat || null;
   const res = await withRetry(async () => {
@@ -171,7 +185,7 @@ export async function finalize(projectId, { dir, size, config }) {
       // A re-concat may legitimately be a no-op; the FIRST assembly of a run never is, and
       // silently reusing an old file there would hide a pipeline that did nothing.
       allowSkip: !!prevMeta,
-      transitions: transPlan || false,
+      transitions: transPlan || false, subtitles,
       onLog: (s) => logger.debug(s, { projectId }),
       onNote: (s) => op(projectId, s),
     });
