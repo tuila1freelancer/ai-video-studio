@@ -3,7 +3,7 @@ import express from 'express';
 import http from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { hub } from './ws/hub.js';
 import { bindHub, logger } from './util/log.js';
 import { ensureDirs, DIRS } from './config/paths.js';
@@ -11,12 +11,21 @@ import { mountRoutes } from './api/routes.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = join(__dirname, '..', 'public');
-const VERSION = '1.0.0';
+// One source for the version: package.json. It used to be spelled out here, in package.json AND
+// in the build script's Info.plist, so a release could ship three different answers.
+const VERSION = JSON.parse(readFileSync(join(__dirname, '..', 'package.json'), 'utf8')).version;
 
 ensureDirs();
 bindHub(hub);
 await import('./pipeline/journal.js'); // P32 journal: bindJournal before any logger fanout
 await import('./core/metering.js'); // cost meter: subscribe to provider usage before any run
+
+// The licence is resolved before anything can run work: the scheduler picks up QUEUED jobs on its
+// own, so a copy that boots locked must not quietly carry on rendering what it was left with.
+const license = await import('./license/index.js');
+license.setAppVersion(VERSION);
+license.startLicenseLoop();
+
 try {
   const { recoverZombieProjects } = await import('./db/index.js');
   const n = recoverZombieProjects();
@@ -24,7 +33,21 @@ try {
   // After P13's project recovery: requeue jobs orphaned by the dead process and start the
   // scheduler — queued/batched work continues across restarts instead of being stranded.
   const { startScheduler } = await import('./pipeline/scheduler.js');
-  startScheduler();
+  const { isRunnable } = await import('./license/state.js');
+  if (isRunnable(license.status())) {
+    startScheduler();
+  } else {
+    logger.warn('Chưa có license hợp lệ — tạm dừng nhận việc mới. Kích hoạt trong app để tiếp tục.');
+    // Activating must not mean restarting: the moment the verdict turns runnable, the queue
+    // resumes with whatever was left in it.
+    let started = false;
+    license.licenseEvents.on('change', (next) => {
+      if (started || !isRunnable(next)) return;
+      started = true;
+      logger.info('License đã hợp lệ — tiếp tục hàng đợi công việc');
+      startScheduler();
+    });
+  }
 } catch (e) { logger.warn(`boot recovery failed: ${e.message}`); }
 
 const app = express();

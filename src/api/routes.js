@@ -22,6 +22,9 @@ import { startBatch } from './services/batch.js';
 import { getVoiceCatalog } from './services/voice-catalog.js';
 import { resolveLang, declaredLang, detectLang, DEFAULT_LANG } from '../util/lang.js';
 import { WEB_SAFE, toPng } from './services/image-convert.js';
+import { licenseGate } from '../license/gate.js';
+import { activate, publicStatus, refreshNow } from '../license/index.js';
+import { checkUpdate, downloadUrl } from '../license/update.js';
 
 const upload = multer({ dest: DIRS.uploads, limits: { fileSize: 512 * 1024 * 1024 } });
 
@@ -30,10 +33,55 @@ const safeJsonParse = (v) => { try { return JSON.parse(v); } catch { return null
 export function mountRoutes(app, { version }) {
   const r = express.Router();
 
+  // FIRST, before any route: an unlicensed copy answers 403 everywhere except /health and
+  // /license/*. Mounting it here rather than decorating routes means a route added tomorrow is
+  // covered by default instead of by memory.
+  r.use(licenseGate);
+
   r.get('/health', (req, res) => {
     res.json({ ok: true, version, deps: depStatus(), paths: {
       ffmpeg: PATHS.ffmpeg, whisper: !!PATHS.whisperCli, chrome: !!PATHS.chrome, say: !!PATHS.say,
     } });
+  });
+
+  // ---- license ----
+  // Reachable while the app is locked: this is the door out of that state.
+  r.get('/license/status', (req, res) => {
+    res.json(publicStatus());
+  });
+
+  r.post('/license/activate', async (req, res) => {
+    try {
+      await activate(req.body?.key);
+      res.json(publicStatus());
+    } catch (e) {
+      res.status(e.statusCode || 500).json({ error: e.message });
+    }
+  });
+
+  r.post('/license/refresh', async (req, res) => {
+    try {
+      await refreshNow();
+      res.json(publicStatus());
+    } catch (e) {
+      res.status(e.statusCode || 500).json({ error: e.message });
+    }
+  });
+
+  r.get('/license/update', async (req, res) => {
+    try {
+      res.json(await checkUpdate({ force: req.query.force === '1' }));
+    } catch (e) {
+      res.status(e.statusCode || 500).json({ error: e.message });
+    }
+  });
+
+  r.post('/license/update/download', async (req, res) => {
+    try {
+      res.json(await downloadUrl({ versionId: req.body?.versionId }));
+    } catch (e) {
+      res.status(e.statusCode || 500).json({ error: e.message });
+    }
   });
 
   // ---- settings ----
