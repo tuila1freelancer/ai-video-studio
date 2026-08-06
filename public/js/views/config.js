@@ -79,6 +79,10 @@ export function gatherConfig() {
     subtitleMode: $('#cfgSubMode')?.value === 'plain' ? 'plain' : 'karaoke',
     subtitleChunk: $('#cfgSubChunk')?.value || 'auto',
     subtitleWordsPerCue: +($('#cfgSubWords')?.value || 4),
+    // 'scene' is the default and MUST be sent as undefined, never as the literal string: the
+    // render fingerprint strips the key, but a channel or preset layer carrying 'final' would
+    // otherwise be silently overwritten by a panel that merely never touched the control.
+    subtitleLane: $('#cfgSubLane')?.value === 'final' ? 'final' : undefined,
     subtitlePreset: state.subPreset || undefined,
     subtitleFont: $('#cfgSubFont').value,
     subtitleFontSize: +$('#cfgSubSize').value,
@@ -138,6 +142,10 @@ export function applyConfig(cfg = {}) {
     $('#cfgSubWordsL').textContent = $('#cfgSubWords').value;
     $('#subWordsRow').classList.toggle('hidden', $('#cfgSubChunk')?.value !== 'words');
   }
+  // unconditional, like #cfgLang: applyConfig runs on every channel switch, and an `if` would
+  // leave the previous channel's lane stuck on a channel that never set one
+  if ($('#cfgSubLane')) $('#cfgSubLane').value = cfg.subtitleLane === 'final' ? 'final' : 'scene';
+  updateSubLaneHint();
   // older configs stored the whole CSS stack — normalize to the bare family the options carry
   if (cfg.subtitleFont) $('#cfgSubFont').value = String(cfg.subtitleFont).split(',')[0].replace(/['"]/g, '').trim() || cfg.subtitleFont;
   if (cfg.subtitleFontSize) $('#cfgSubSize').value = cfg.subtitleFontSize;
@@ -178,6 +186,7 @@ function wireConfig() {
   $('#cfgSub').addEventListener('change', () => $('#subStyle').style.display = $('#cfgSub').checked ? 'block' : 'none');
   $('#cfgSubChunk')?.addEventListener('change', () => $('#subWordsRow').classList.toggle('hidden', $('#cfgSubChunk').value !== 'words'));
   $('#cfgSubWords')?.addEventListener('input', () => { $('#cfgSubWordsL').textContent = $('#cfgSubWords').value; });
+  $('#cfgSubLane')?.addEventListener('change', () => { updateSubLaneHint(); updateSubPreview(); });
 }
 export function updateEstimate() {
   const vd = +$('#cfgVd').value, sd = +$('#cfgSd').value;
@@ -211,6 +220,18 @@ export function buildSubColors() {
     custom.oninput = () => { state.subColor = custom.value; buildSubColors(); updateSubPreview(); };
   }
 }
+// The lane is a real trade, not a preference, so the panel says what each side costs instead of
+// leaving the owner to find out by waiting.
+export function updateSubLaneHint() {
+  const el = $('#subLaneHint');
+  if (!el) return;
+  el.innerHTML = $('#cfgSubLane')?.value === 'final'
+    ? 'Phụ đề in một lần lên video đã ghép: đổi chữ, font, cỡ, màu hay vị trí về sau chỉ tốn <strong>một lượt ghép</strong>. '
+      + 'Đánh đổi: dòng dài sẽ <em>xuống dòng</em> thay vì tự thu nhỏ, và hiệu ứng phát sáng chỉ là xấp xỉ.'
+    : 'Phụ đề vẽ trong từng cảnh — hiệu ứng đầy đủ (glow mềm, bo góc, tự thu nhỏ cho vừa một dòng). '
+      + 'Đánh đổi: đổi bất kỳ thiết lập phụ đề nào cũng phải <strong>render lại toàn bộ cảnh</strong>.';
+}
+
 export function updateSubPreview() {
   const p = $('#subPreview'); if (!p) return;
   const fam = $('#cfgSubFont').value.split(',')[0].replace(/['"]/g, '').trim();

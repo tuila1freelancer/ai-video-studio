@@ -4,7 +4,8 @@ import { join } from 'node:path';
 import { ffmpeg, ffmpegAss, probeDuration, probeImageSize } from '../media/ffmpeg.js';
 import { logoRect } from '../media/logo-overlay.js';
 import { perimeterExpr, WM_SPEEDS } from '../media/watermark.js';
-import { planOffsets, XFADE_DUR } from '../subtitles/timeline.js';
+import { planOffsets, programCues, XFADE_DUR } from '../subtitles/timeline.js';
+import { buildAss } from '../subtitles/ass.js';
 import { concatFingerprint, needsVideoFilter, planConcat, TIER_LOG } from './concat-plan.js';
 import { ratioToSize, newId } from '../util/util.js';
 
@@ -67,7 +68,7 @@ export function transitionLoss(plan, uptoBoundary = Infinity) {
 // boolean true (legacy uniform fade at every boundary).
 export async function concatScenes(sceneVideos, project, {
   dir, size, bgmPath, sfxPath, logo, watermark, transitions, onLog, onNote, bgmVol,
-  ass = null, masterFade = true, encoder = 'quality',
+  subtitles = null, masterFade = true, encoder = 'quality',
   prevPath = null, prevFp = null, allowSkip = true,
 }) {
   if (!sceneVideos.length) throw new Error('Không có cảnh nào để ghép');
@@ -92,6 +93,21 @@ export async function concatScenes(sceneVideos, project, {
   const slug = (project.title || 'video').replace(/[^\p{L}\p{N}\- ]/gu, '').replace(/\s+/g, '_').slice(0, 40) || 'video';
   const finalOut = join(project.outputDir || dir, `${slug}_${newId('')}.mp4`);
   const timeline = starts.map((s, i) => ({ start: +s.toFixed(3), end: +(s + (durs[i] || 0)).toFixed(3) }));
+
+  // Burned captions are built HERE rather than by the caller, because they need the offsets this
+  // function has just computed. Anywhere else and the two would be free to disagree — which is
+  // the drift this whole lane exists to avoid.
+  let ass = null;
+  if (subtitles?.style && subtitles.style.enabled !== false && subtitles.scenes?.length) {
+    const cues = programCues(subtitles.scenes, starts, subtitles.config || {}, total);
+    if (cues.length) {
+      const text = buildAss(cues, subtitles.style, { w: ow, h: oh });
+      const path = join(dir, `subs_${newId('')}.ass`);
+      writeFileSync(path, text, 'utf8');
+      ass = { text, path, fontsDir: subtitles.fontsDir || null, shaping: subtitles.shaping || null };
+      (onNote || onLog)?.(`💬 In ${cues.length} dòng phụ đề lên video (font ${subtitles.style.font})`);
+    }
+  }
 
   // How little work will do? See pipeline/concat-plan.js — the file on disk plus the fingerprint
   // that produced it decide whether this is a full encode, a stream copy, an audio-only remux,

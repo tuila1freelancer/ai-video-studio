@@ -497,7 +497,7 @@ ${template.css}${opts.brand ? opts.brand.css : ''}
   <div class="tpl">${template.html}</div>
   ${ov ? '' : '<div class="vig"></div>'}
   ${ov ? '' : (opts.brand ? opts.brand.html : wm)}
-  <div class="cap${capCls}"><span id="capText"></span></div>
+  ${opts.captionsOff ? '' : `<div class="cap${capCls}"><span id="capText"></span></div>`}
   ${ov ? '' : '<div class="progtrack"><div id="progFill"></div></div>'}
   ${liveBits}
 </div>
