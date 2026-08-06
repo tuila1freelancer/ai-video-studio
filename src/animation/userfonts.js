@@ -20,11 +20,23 @@ export function familyOf(row) {
   return basename(row.name || row.filename, extname(row.name || row.filename)).replace(/[^\w \-]/g, '').trim() || 'CustomFont';
 }
 
+/** Family names the owner has uploaded — the scan set a scene page filters against. */
+export function uploadedFamilies() {
+  return userFontRows().map(familyOf);
+}
+
 // cache keyed by the rows' identity+size fingerprint — uploads/deletes invalidate naturally
 let cache = { stamp: '', css: '' };
-export function userFontsCss() {
-  const rows = userFontRows();
-  const stamp = rows.map((r) => `${r.id}:${r.size}`).join('|');
+/**
+ * @param {string[]} [families] embed only these (a scene page names one or two); omit for all.
+ *   An uploaded CJK face can be several MB, so "all" stopped being a sensible default once the
+ *   library could hold more than a couple of brand fonts.
+ */
+export function userFontsCss(families) {
+  const rows = families
+    ? userFontRows().filter((r) => families.includes(familyOf(r)))
+    : userFontRows();
+  const stamp = `${families ? families.join(',') : '*'}|${rows.map((r) => `${r.id}:${r.size}`).join('|')}`;
   if (stamp === cache.stamp) return cache.css;
   const css = rows.map((r) => {
     try {

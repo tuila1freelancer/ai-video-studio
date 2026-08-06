@@ -11,11 +11,15 @@ import { jlog } from './journal.js';
 import { mapPool } from './helpers.js';
 import { finalize } from './stages/finalize.js';
 
-export async function renderOnly(projectId, { mode = 'all', sceneIds = [] }) {
+export async function renderOnly(projectId, { mode = 'all', sceneIds = [], configOverrides = null, variantName = null }) {
   clearStop(projectId);
   const project = DB.getProject(projectId);
   if (!project) throw new Error('project not found');
-  const config = project.config || {};
+  // A variant export layers settings over the project's config for THIS run only — it is a
+  // second deliverable from the same clips (no logo, no music, different music), not a change of
+  // mind about the video, so nothing is written back.
+  const config = configOverrides ? { ...(project.config || {}), ...configOverrides } : (project.config || {});
+  if (configOverrides) op(projectId, `🎛 Xuất bản biến thể — ${Object.keys(configOverrides).join(', ')}`);
   const size = ratioToSize(project.aspect_ratio);
   const dir = DB.projectDirFor(projectId);
   DB.updateProject(projectId, { status: 'running' });
@@ -59,6 +63,7 @@ export async function renderOnly(projectId, { mode = 'all', sceneIds = [] }) {
         op(projectId, `🎬 Render cảnh ${sc.idx + 1}`);
         const r = await renderAnimationScene(sc, project, config, {
           dir: join(dir, 'render'), progressStart: pp.offsets[sc.idx] || 0, progressTotal: pp.total, total: allScenes.length,
+          onLog: (s) => op(projectId, `cảnh ${sc.idx + 1}: ${s}`),
         });
         const { path, duration, preview } = r;
         DB.updateScene(sc.id, { video_path: path, duration, status: 'rendered', ...(preview ? { image_path: preview } : {}) });
@@ -76,7 +81,7 @@ export async function renderOnly(projectId, { mode = 'all', sceneIds = [] }) {
     if (mode !== 'scenes' && stillUnvoiced) {
       op(projectId, '⏭️ Bỏ qua ghép — còn cảnh chưa có lồng tiếng; hoàn tất lồng tiếng rồi ghép sau');
     } else if (mode !== 'scenes') {
-      await finalize(projectId, { dir, size, config });
+      await finalize(projectId, { dir, size, config, variantName });
     }
     // A render during a hold (scene gate 'scenes' / review gate 'review') must not destroy
     // the hold: 'done' here would let the owner think the video finished prematurely.

@@ -79,10 +79,18 @@ export function gatherConfig() {
     subtitleMode: $('#cfgSubMode')?.value === 'plain' ? 'plain' : 'karaoke',
     subtitleChunk: $('#cfgSubChunk')?.value || 'auto',
     subtitleWordsPerCue: +($('#cfgSubWords')?.value || 4),
+    // 'scene' is the default and MUST be sent as undefined, never as the literal string: the
+    // render fingerprint strips the key, but a channel or preset layer carrying 'final' would
+    // otherwise be silently overwritten by a panel that merely never touched the control.
+    subtitleLane: $('#cfgSubLane')?.value === 'final' ? 'final' : undefined,
     subtitlePreset: state.subPreset || undefined,
     subtitleFont: $('#cfgSubFont').value,
     subtitleFontSize: +$('#cfgSubSize').value,
-    subtitleTextCase: $('#cfgSubCase').value,
+    // Empty means "whatever the preset says". The panel used to send 'original' unconditionally,
+    // and captionStyleFrom reads `c.subtitleTextCase || preset.textCase` — so the presets that
+    // declare uppercase (Impact Đậm, Thể Thao, Punch) could NEVER apply it. Their preview cards
+    // showed uppercase; the rendered video did not.
+    subtitleTextCase: $('#cfgSubCase').value || undefined,
     subtitleColor: state.subColor,
     subtitlePosition: { preset: $('#cfgSubPos').value, marginV: 0.12 },
     bgmPath: $('#cfgBgm').value || null,
@@ -138,10 +146,16 @@ export function applyConfig(cfg = {}) {
     $('#cfgSubWordsL').textContent = $('#cfgSubWords').value;
     $('#subWordsRow').classList.toggle('hidden', $('#cfgSubChunk')?.value !== 'words');
   }
+  // unconditional, like #cfgLang: applyConfig runs on every channel switch, and an `if` would
+  // leave the previous channel's lane stuck on a channel that never set one
+  if ($('#cfgSubLane')) $('#cfgSubLane').value = cfg.subtitleLane === 'final' ? 'final' : 'scene';
+  updateSubLaneHint();
   // older configs stored the whole CSS stack — normalize to the bare family the options carry
   if (cfg.subtitleFont) $('#cfgSubFont').value = String(cfg.subtitleFont).split(',')[0].replace(/['"]/g, '').trim() || cfg.subtitleFont;
   if (cfg.subtitleFontSize) $('#cfgSubSize').value = cfg.subtitleFontSize;
-  if (cfg.subtitleTextCase) $('#cfgSubCase').value = cfg.subtitleTextCase;
+  // unconditional: an `if` would leave the previous channel's override in place on a channel
+  // that never set one, which is how a "follow the preset" video silently inherits uppercase
+  $('#cfgSubCase').value = cfg.subtitleTextCase || '';
   if (cfg.subtitleColor) { state.subColor = cfg.subtitleColor; buildSubColors(); }
   if (cfg.subtitlePosition?.preset) $('#cfgSubPos').value = cfg.subtitlePosition.preset;
   if ($('#cfgBrandFont')) $('#cfgBrandFont').value = cfg.fonts?.display || '';
@@ -178,6 +192,32 @@ function wireConfig() {
   $('#cfgSub').addEventListener('change', () => $('#subStyle').style.display = $('#cfgSub').checked ? 'block' : 'none');
   $('#cfgSubChunk')?.addEventListener('change', () => $('#subWordsRow').classList.toggle('hidden', $('#cfgSubChunk').value !== 'words'));
   $('#cfgSubWords')?.addEventListener('input', () => { $('#cfgSubWordsL').textContent = $('#cfgSubWords').value; });
+  $('#cfgSubLane')?.addEventListener('change', () => { updateSubLaneHint(); updateSubPreview(); });
+  // A font that has not been fetched would substitute in the preview AND in the video. Rather
+  // than hiding it or letting it fail quietly, the picker offers to go and get it.
+  $('#cfgSubFont')?.addEventListener('change', async () => {
+    const fam = $('#cfgSubFont').value;
+    const entry = (state.fontFamilies || []).find((f) => f.family === fam);
+    $('#cfgSubFontGet')?.classList.toggle('hidden', !entry || entry.ready);
+    await ensureFontLoaded(fam);
+    updateSubPreview();
+  });
+  $('#btnFramePreview')?.addEventListener('click', refreshFramePreview);
+  $('#framePreviewAt')?.addEventListener('input', () => { $('#framePreviewT').textContent = fmtT(+$('#framePreviewAt').value); });
+  $('#framePreviewAt')?.addEventListener('change', refreshFramePreview);
+  $('#cfgSubFontGet')?.addEventListener('click', async () => {
+    const fam = $('#cfgSubFont').value;
+    const btn = $('#cfgSubFontGet');
+    btn.disabled = true; btn.textContent = '⏳ Đang tải…';
+    try {
+      const r = await downloadFont(fam);
+      toast(`🔤 Đã tải font ${r.family} (${r.faces} kiểu chữ, ${Math.round(r.bytes / 1024)}KB)`, 'success');
+      $('#cfgSubFont').value = fam;
+      btn.classList.add('hidden');
+    } catch (e) {
+      toast(`✖ Không tải được font: ${e.message}`, 'error');
+    } finally { btn.disabled = false; btn.textContent = '⬇︎ Tải'; }
+  });
 }
 export function updateEstimate() {
   const vd = +$('#cfgVd').value, sd = +$('#cfgSd').value;
@@ -211,16 +251,105 @@ export function buildSubColors() {
     custom.oninput = () => { state.subColor = custom.value; buildSubColors(); updateSubPreview(); };
   }
 }
+// The lane is a real trade, not a preference, so the panel says what each side costs instead of
+// leaving the owner to find out by waiting.
+export function updateSubLaneHint() {
+  const el = $('#subLaneHint');
+  if (!el) return;
+  el.innerHTML = $('#cfgSubLane')?.value === 'final'
+    ? 'Phụ đề in một lần lên video đã ghép: đổi chữ, font, cỡ, màu hay vị trí về sau chỉ tốn <strong>một lượt ghép</strong>. '
+      + 'Đánh đổi: dòng dài sẽ <em>xuống dòng</em> thay vì tự thu nhỏ, và hiệu ứng phát sáng chỉ là xấp xỉ.'
+    : 'Phụ đề vẽ trong từng cảnh — hiệu ứng đầy đủ (glow mềm, bo góc, tự thu nhỏ cho vừa một dòng). '
+      + 'Đánh đổi: đổi bất kỳ thiết lập phụ đề nào cũng phải <strong>render lại toàn bộ cảnh</strong>.';
+}
+
+// The effects the renderer draws, restated in CSS. Kept in the same order and with the same
+// numbers as buildScenePage's capActFx branch so the two cannot drift apart quietly.
+function previewEffect(effect, fs, color, boxBg) {
+  if (effect === 'outline') return `-webkit-text-stroke:${Math.max(1, Math.round(fs * 0.045))}px rgba(0,0,0,.92);text-shadow:0 2px 8px rgba(0,0,0,.85)`;
+  if (effect === 'box') return `background:${boxBg || 'rgba(10,10,16,.85)'};padding:.06em .28em;border-radius:.16em;box-decoration-break:clone;text-shadow:none`;
+  if (effect === 'shadow') return 'text-shadow:0 2px 0 rgba(0,0,0,.85),0 5px 16px rgba(0,0,0,.7)';
+  return `text-shadow:0 0 ${Math.round(fs * 0.5)}px ${color}, 0 0 ${Math.round(fs * 0.18)}px ${color}`;
+}
+
+/**
+ * Show what the video will look like, not a coloured word in the app's own font.
+ *
+ * The old preview set `fontFamily` and a colour. That was the entire extent of it — no effect, no
+ * position, no karaoke, and (because the UI stylesheet carried two families) usually not even
+ * the right typeface. It answered a question nobody had while looking like it answered the one
+ * everybody did.
+ */
 export function updateSubPreview() {
   const p = $('#subPreview'); if (!p) return;
   const fam = $('#cfgSubFont').value.split(',')[0].replace(/['"]/g, '').trim();
-  p.style.fontFamily = fam ? `'${fam}', sans-serif` : '';
-  // plain mode shows the base (unsung) color — the accent color is the karaoke highlight
+  ensureFontLoaded(fam);
+  const preset = state.subPresets?.find((x) => x.id === state.subPreset);
   const plain = $('#cfgSubMode')?.value === 'plain';
-  p.style.color = plain ? '#FFFFFF' : state.subColor;
-  let txt = plain ? 'Phụ đề thường — dòng tĩnh' : 'Phụ đề mẫu'; const c = $('#cfgSubCase').value;
-  if (c === 'uppercase') txt = txt.toUpperCase(); else if (c === 'lowercase') txt = txt.toLowerCase();
-  p.textContent = txt;
+  const pos = $('#cfgSubPos')?.value || 'bot';
+  const fs = Math.round((+$('#cfgSubSize').value || 80) * 0.28); // preview box ≈ 28% of frame height
+  const accent = state.subColor || preset?.activeColor || '#F7B500';
+  const base = preset?.baseColor || '#FFFFFF';
+  const effect = preset?.effect || 'glow';
+
+  let txt = plain ? 'Phụ đề thường — dòng tĩnh' : 'Phụ đề mẫu của bạn';
+  // same precedence as captionStyleFrom / assStyleFrom: an explicit pick, else the preset's
+  const c = $('#cfgSubCase').value || preset?.textCase || 'original';
+  if (c === 'uppercase') txt = txt.toUpperCase();
+  else if (c === 'lowercase') txt = txt.toLowerCase();
+  else if (c === 'titlecase') txt = txt.replace(/\p{L}[\p{L}\p{M}']*/gu, (w) => w[0].toUpperCase() + w.slice(1).toLowerCase());
+
+  const words = txt.split(' ');
+  const hit = plain ? -1 : Math.min(words.length - 1, 2); // one word accented, like the renderer
+  const align = { bot: 'flex-end', mid: 'center', top: 'flex-start' }[pos] || 'flex-end';
+  p.style.cssText = `margin-top:8px;background:#07070d;border-radius:8px;padding:12px;display:flex;`
+    + `align-items:${align};justify-content:center;min-height:118px;overflow:hidden`;
+  p.innerHTML = `<div style="font-family:'${fam}',sans-serif;font-weight:${preset?.weight || 800};`
+    + `font-size:${fs}px;line-height:1.2;text-align:center">`
+    + words.map((w, i) => `<span style="color:${i === hit ? accent : base};opacity:${i === hit ? 1 : (i < hit ? 0.95 : 0.55)};`
+      + `${previewEffect(effect, fs, i === hit ? accent : base, preset?.boxBg)}">${w}</span>`).join(' ')
+    + '</div>';
+}
+
+// ---------------- real-frame preview ----------------
+// The style preview above is CSS pretending to be the renderer. This one IS the renderer: the
+// server pulls a frame out of the finished video and runs it through resolveConcatLogo/logoRect
+// and libass — the same code the concat calls. About a second, against the fifteen minutes of
+// re-concatenating it replaces.
+const fmtT = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+
+export function syncFramePreviewAvailability() {
+  const box = $('#framePreviewBox');
+  if (!box) return;
+  const ok = !!state.current?.id && !!state.current?.video_path;
+  box.classList.toggle('hidden', !ok);
+  // projects carry no duration column; the scene rows do, and their sum is close enough to
+  // scale a scrubber (the server clamps to the real file anyway)
+  const dur = Math.max(1, Math.round((state.scenes || []).reduce((a, s) => a + (s.duration || 0), 0)));
+  const sl = $('#framePreviewAt');
+  if (sl && dur > 1) { sl.max = String(dur); if (+sl.value > dur) sl.value = String(Math.round(dur * 0.15)); }
+  if (sl) $('#framePreviewT').textContent = fmtT(+sl.value);
+}
+
+export async function refreshFramePreview() {
+  const img = $('#framePreviewImg'); const note = $('#framePreviewNote');
+  const btn = $('#btnFramePreview');
+  if (!img || !state.current?.id) return;
+  const t = +($('#framePreviewAt')?.value || 15);
+  btn.disabled = true; note.textContent = '⏳ Đang dựng khung thật…';
+  try {
+    // the panel's LIVE values, not what is saved — the owner is previewing a change in progress
+    const cfg = encodeURIComponent(JSON.stringify(gatherConfig()));
+    const url = `/api/projects/${state.current.id}/frame-preview?t=${t}&cfg=${cfg}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `HTTP ${res.status}`);
+    const warn = res.headers.get('X-Preview-Note');
+    img.src = URL.createObjectURL(await res.blob());
+    img.classList.remove('hidden');
+    note.textContent = warn ? `⚠ ${decodeURIComponent(warn)}` : 'Khung thật của video — logo và phụ đề đi qua đúng đường ghép cuối.';
+  } catch (e) {
+    note.textContent = `✖ ${e.message}`;
+  } finally { btn.disabled = false; }
 }
 
 // ---------------- HyperFrame style guide ("Phong cách video") ----------------
@@ -361,31 +490,71 @@ export async function loadBgmOptions() {
   const { items } = await api.get('/library/bgm');
   $('#cfgBgm').innerHTML = '<option value="">— Không —</option>' + items.map((i) => `<option value="${esc(i.path)}">${esc(i.name)}</option>`).join('');
 }
-// Brand-font picker: vendored Vietnamese-safe families + owner uploads. The same list is
-// appended to the subtitle-font select so captions can match the brand typography.
+// ---------------- fonts ----------------
+// Both pickers are built from /fonts/families, which is the app's ONE list. index.html used to
+// carry ten hard-coded <option>s, two of which (Arial, Impact) existed in neither the vendored
+// CSS nor the burn directory — so the owner could pick a font the renderer had never heard of
+// and nothing anywhere said so.
+const SOURCE_MARK = { uploaded: '📤 ', downloaded: '⬇︎ ', system: '🖥 ', downloadable: '☁️ ' };
+const loadedFaces = new Set();
+
+/**
+ * Pull a family's real bytes into the page before anything claims to show it.
+ *
+ * The old preview just set `fontFamily` and hoped. The app's own stylesheet only ever loaded
+ * Lexend and JetBrains Mono, so picking Anton painted the system sans-serif and looked, to the
+ * owner, exactly like a font that simply did not work.
+ */
+export async function ensureFontLoaded(family) {
+  if (!family || loadedFaces.has(family)) return;
+  loadedFaces.add(family);
+  try {
+    const css = await (await fetch(`/api/fonts/${encodeURIComponent(family)}/css`)).text();
+    if (css.trim()) {
+      const el = document.createElement('style');
+      el.dataset.font = family;
+      el.textContent = css;
+      document.head.appendChild(el);
+    }
+    if (document.fonts?.load) await document.fonts.load(`16px "${family}"`);
+  } catch { /* the picker already marks unready families; a failed fetch just leaves it unloaded */ }
+}
+
 export async function loadFontFamilies() {
   let families = [];
   try { families = (await api.get('/fonts/families')).families || []; } catch { return; }
+  state.fontFamilies = families;
+  const label = (f) => `${SOURCE_MARK[f.source] || ''}${f.family}${f.ready ? '' : ' — chưa tải'}`;
+
   const bf = $('#cfgBrandFont');
   if (bf) {
     const cur = bf.value;
-    bf.innerHTML = '<option value="">— Theo style guide —</option>' + families.map((f) =>
-      `<option value="${esc(f.name)}">${f.source === 'uploaded' ? '📤 ' : ''}${esc(f.name)}${f.tooBig ? ' (quá 6MB — bỏ qua)' : ''}</option>`).join('');
+    bf.innerHTML = '<option value="">— Theo style guide —</option>'
+      + families.filter((f) => f.ready).map((f) => `<option value="${esc(f.family)}">${esc(label(f))}</option>`).join('');
     bf.value = cur;
   }
   const sf = $('#cfgSubFont');
   if (sf) {
-    // option value = BARE family name (P30): one canonical form feeds both the harness
-    // captions (quoted into a stack there) and the ASS FontName (must be a plain family)
-    const have = new Set([...sf.options].map((o) => o.value));
-    for (const f of families) {
-      if (!have.has(f.name)) {
-        const o = document.createElement('option');
-        o.value = f.name; o.textContent = `${f.source === 'uploaded' ? '📤 ' : ''}${f.name}`;
-        sf.appendChild(o);
-      }
-    }
+    // option value = BARE family name: one canonical form feeds both the harness caption stack
+    // and the ASS FontName, which must be a plain family or libass cannot match it.
+    const cur = sf.value;
+    sf.innerHTML = families.map((f) =>
+      `<option value="${esc(f.family)}" style="font-family:'${esc(f.family)}',sans-serif"${f.ready ? '' : ' data-unready="1"'}>${esc(label(f))}</option>`).join('');
+    sf.value = cur || 'Be Vietnam Pro';
   }
+  // draw the options in their own typeface — choosing a font you cannot see is guesswork
+  await Promise.all(families.filter((f) => f.ready && f.source !== 'system').slice(0, 12).map((f) => ensureFontLoaded(f.family)));
+  await ensureFontLoaded($('#cfgSubFont')?.value);
+  updateSubPreview();
+}
+
+/** Fetch a catalogue family the owner picked but has not got yet. */
+export async function downloadFont(family) {
+  const r = await api.post(`/fonts/${encodeURIComponent(family)}/download`, {});
+  loadedFaces.delete(family);
+  await loadFontFamilies();
+  await ensureFontLoaded(family);
+  return r;
 }
 
 // ================= config groups: summary cards + edit modal =================
@@ -411,6 +580,8 @@ function openCfgGroupModal(group) {
   slot.appendChild(body);
   $('#cfgModalTitle').textContent = GRP_TITLES[group.id] || 'Cấu hình';
   $('#cfgModal').classList.add('open');
+  // the real-frame preview only means anything once there IS a frame
+  if (group.id === 'grpSubtitle') syncFramePreviewAvailability();
 }
 function wireConfigGroups() {
   try { localStorage.removeItem('cfgGroups'); } catch { /* accordion-era key */ }

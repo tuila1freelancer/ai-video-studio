@@ -4,6 +4,9 @@ import { join } from 'node:path';
 import { ffmpeg, ffmpegAss, probeDuration, probeImageSize } from '../media/ffmpeg.js';
 import { logoRect } from '../media/logo-overlay.js';
 import { perimeterExpr, WM_SPEEDS } from '../media/watermark.js';
+import { planOffsets, programCues, XFADE_DUR } from '../subtitles/timeline.js';
+import { buildAss } from '../subtitles/ass.js';
+import { concatFingerprint, needsVideoFilter, planConcat, TIER_LOG } from './concat-plan.js';
 import { ratioToSize, newId } from '../util/util.js';
 
 const FPS = 30;
@@ -63,13 +66,17 @@ export function transitionLoss(plan, uptoBoundary = Infinity) {
 // Final assembly (B7): concat scene clips, mix BGM, overlay logo, make thumbnail.
 // `transitions` is either a plan array from planTransitions (selective, doctrine mode) or
 // boolean true (legacy uniform fade at every boundary).
-export async function concatScenes(sceneVideos, project, { dir, size, bgmPath, sfxPath, logo, watermark, transitions, onLog, bgmVol }) {
+export async function concatScenes(sceneVideos, project, {
+  dir, size, bgmPath, sfxPath, logo, watermark, transitions, onLog, onNote, bgmVol,
+  subtitles = null, masterFade = true, encoder = 'quality',
+  prevPath = null, prevFp = null, allowSkip = true,
+}) {
   if (!sceneVideos.length) throw new Error('Không có cảnh nào để ghép');
   const ow = size.w, oh = size.h;
 
-  // Durations + total (xfade overlaps shorten the timeline). xfade only for moderate counts
-  // (deep xfade chains keep every input decoder open → unstable for very long videos).
-  const TD = 0.5;
+  // Durations + timeline. xfade only for moderate counts (deep xfade chains keep every input
+  // decoder open → unstable for very long videos).
+  const TD = XFADE_DUR;
   const durs = [];
   for (const v of sceneVideos) durs.push(await probeDuration(v));
   const plan = Array.isArray(transitions)
@@ -77,17 +84,63 @@ export async function concatScenes(sceneVideos, project, { dir, size, bgmPath, s
     : (transitions ? sceneVideos.map(() => ({ type: 'fade', dur: TD })).slice(0, sceneVideos.length - 1) : null);
   const anyBlend = !!plan && plan.some((t) => t.type !== 'cut');
   const useGraph = anyBlend && sceneVideos.length > 1 && sceneVideos.length <= 24;
-  const total = durs.reduce((a, b) => a + b, 0) - (useGraph ? transitionLoss(plan) : 0);
+  // planOffsets replays this loop's own arithmetic, clamp included, so the caption timeline and
+  // the video can never disagree. (transitionLoss sums the PLANNED fade lengths and ignores the
+  // per-join clamp — close enough for a QC tolerance, not for placing a subtitle.)
+  const { starts, total } = planOffsets(durs, useGraph ? plan : null);
   const fadeOut = Math.max(0.2, total - 0.6);
 
   const slug = (project.title || 'video').replace(/[^\p{L}\p{N}\- ]/gu, '').replace(/\s+/g, '_').slice(0, 40) || 'video';
   const finalOut = join(project.outputDir || dir, `${slug}_${newId('')}.mp4`);
+  const timeline = starts.map((s, i) => ({ start: +s.toFixed(3), end: +(s + (durs[i] || 0)).toFixed(3) }));
+
+  // Burned captions are built HERE rather than by the caller, because they need the offsets this
+  // function has just computed. Anywhere else and the two would be free to disagree — which is
+  // the drift this whole lane exists to avoid.
+  let ass = null;
+  if (subtitles?.style && subtitles.style.enabled !== false && subtitles.scenes?.length) {
+    const cues = programCues(subtitles.scenes, starts, subtitles.config || {}, total);
+    if (cues.length) {
+      const text = buildAss(cues, subtitles.style, { w: ow, h: oh });
+      const path = join(dir, `subs_${newId('')}.ass`);
+      writeFileSync(path, text, 'utf8');
+      ass = { text, path, fontsDir: subtitles.fontsDir || null, shaping: subtitles.shaping || null };
+      (onNote || onLog)?.(`💬 In ${cues.length} dòng phụ đề lên video (font ${subtitles.style.font})`);
+    }
+  }
+
+  // How little work will do? See pipeline/concat-plan.js — the file on disk plus the fingerprint
+  // that produced it decide whether this is a full encode, a stream copy, an audio-only remux,
+  // or nothing at all.
+  const assText = ass?.text || null;
+  const fp = concatFingerprint({
+    clips: sceneVideos, size, fps: FPS, transitions: plan, logo, watermark, assText,
+    masterFade, encoder, bgmPath, sfxPath, bgmVol,
+  });
+  const videoFilter = needsVideoFilter({ logo, watermark, assText, transitions: plan, masterFade });
+  const { tier, why } = planConcat({ fp, prev: prevFp, prevPath, videoFilter, allowSkip });
+  (onNote || onLog)?.(`${TIER_LOG[tier]} — ${why}`);
+  if (tier === 'skip') {
+    return { path: prevPath, thumb: project.thumb_path || null, duration: total, timeline, fp, tier };
+  }
 
   // Single pass: (selective xfade/concat graph | concat-demuxer) → BGM mix → logo → fades → encode.
   const args = [];
   const fc = [];
   let vbase, abase, nextIdx;
-  if (useGraph) {
+  // Tiers 'audio' and 'copy' keep the video stream untouched, so neither builds a video graph.
+  const copyVideo = tier === 'audio' || tier === 'copy';
+  const clipList = () => {
+    const listFile = join(dir, `list_${newId('')}.txt`);
+    writeFileSync(listFile, sceneVideos.map((v) => `file '${v.replace(/'/g, "'\\''")}'`).join('\n'));
+    return listFile;
+  };
+  if (tier === 'audio') {
+    // The picture is already correct on disk — the only reason to open the clips at all is to
+    // rebuild the mix. Input 0 supplies the video (copied), input 1 the scene audio.
+    args.push('-i', prevPath, '-f', 'concat', '-safe', '0', '-i', clipList());
+    nextIdx = 2; vbase = '[0:v]'; abase = '[1:a]';
+  } else if (useGraph) {
     sceneVideos.forEach((v) => args.push('-i', v));
     nextIdx = sceneVideos.length;
     // settb=AVTB on every video branch: xfade refuses mismatched timebases, and the concat
@@ -112,9 +165,7 @@ export async function concatScenes(sceneVideos, project, { dir, size, bgmPath, s
     }
     vbase = `[${prevV}]`; abase = `[${prevA}]`;
   } else {
-    const listFile = join(dir, `list_${newId('')}.txt`);
-    writeFileSync(listFile, sceneVideos.map((v) => `file '${v.replace(/'/g, "'\\''")}'`).join('\n'));
-    args.push('-f', 'concat', '-safe', '0', '-i', listFile);
+    args.push('-f', 'concat', '-safe', '0', '-i', clipList());
     nextIdx = 1; vbase = '[0:v]'; abase = '[0:a]';
   }
   if (bgmPath && existsSync(bgmPath)) {
@@ -138,7 +189,7 @@ export async function concatScenes(sceneVideos, project, { dir, size, bgmPath, s
     fc.push(`[${nextIdx}:a]volume=0.75[sfx]`, `${abase}[sfx]amix=inputs=2:duration=first:normalize=0:dropout_transition=2[asx]`);
     abase = '[asx]'; nextIdx++;
   }
-  if (logo && logo.path && existsSync(logo.path)) {
+  if (!copyVideo && logo && logo.path && existsSync(logo.path)) {
     args.push('-i', logo.path);
     if (Number.isFinite(+logo.wPct)) {
       // P26 WYSIWYG shape {cxPct,cyPct,wPct,opacity}: logoRect computes the SAME integers the
@@ -162,7 +213,7 @@ export async function concatScenes(sceneVideos, project, { dir, size, bgmPath, s
   // The text lane needs drawtext (freetype) — homebrew builds often lack it, so that lane
   // routes the WHOLE encode through the libass-capable binary (ffmpegAss).
   let useAssBinary = false;
-  if (watermark && (watermark.path || (watermark.text && watermark.fontFile))) {
+  if (!copyVideo && watermark && (watermark.path || (watermark.text && watermark.fontFile))) {
     const wm = watermark;
     const period = WM_SPEEDS[wm.speed] || WM_SPEEDS.slow;
     const marginPx = Math.round(Math.min(ow, oh) * (wm.marginPct ?? 0.02));
@@ -187,19 +238,69 @@ export async function concatScenes(sceneVideos, project, { dir, size, bgmPath, s
       useAssBinary = true;
     }
   }
-  fc.push(`${vbase}fade=t=in:st=0:d=0.5,fade=t=out:st=${fadeOut.toFixed(2)}:d=0.6[vout]`);
+  // Burned captions (final-pass lane). Last video filter before the master fade, so the fade
+  // takes the subtitles down with the picture instead of leaving them floating over black.
+  // libass lives only in the vendored ffmpeg, so this flips the same binary switch the drawtext
+  // watermark lane already uses.
+  if (!copyVideo && ass?.path) {
+    fc.push(`${vbase}ass=filename=${ffQuote(ass.path)}${ass.fontsDir ? `:fontsdir=${ffQuote(ass.fontsDir)}` : ''}`
+      + `${ass.shaping ? `:shaping=${ass.shaping}` : ''}[vsub]`);
+    vbase = '[vsub]';
+    useAssBinary = true;
+  }
+  if (!copyVideo) {
+    // The master fade is the ONE unconditional video filter, which is exactly what keeps the
+    // stream-copy tier out of reach. Turning it off is therefore a real speed lever, not a
+    // cosmetic preference — the change queue surfaces it as such.
+    fc.push(masterFade !== false
+      ? `${vbase}fade=t=in:st=0:d=0.5,fade=t=out:st=${fadeOut.toFixed(2)}:d=0.6[vout]`
+      : `${vbase}null[vout]`);
+  }
   // No loudnorm here anymore: stacking a dynamic normalizer on the mix caused pumping.
   // The measured two-pass master (finalize → masterAudio) sets -16 LUFS on the finished file.
   fc.push(`${abase}alimiter=limit=0.891:level=false,afade=t=in:st=0:d=0.4,afade=t=out:st=${fadeOut.toFixed(2)}:d=0.6[aout]`);
-  args.push('-filter_complex', fc.join(';'), '-map', '[vout]', '-map', '[aout]', '-t', total.toFixed(2),
-    // P39: final master encode matches the reference app (crf 18, preset medium, High@4.0).
-    '-c:v', 'libx264', '-preset', 'medium', '-crf', '18', '-profile:v', 'high', '-level', '4.0', '-pix_fmt', 'yuv420p', '-r', String(FPS),
+  const cut = copyVideo && tier === 'audio' ? (await probeDuration(prevPath)) || total : total;
+  args.push('-filter_complex', fc.join(';'));
+  if (copyVideo) args.push('-map', '0:v', '-c:v', 'copy');
+  else args.push('-map', '[vout]', ...videoCodecArgs(encoder));
+  args.push('-map', '[aout]', '-t', cut.toFixed(2),
     '-c:a', 'aac', '-b:a', '160k', '-ar', '44100', '-ac', '2', '-movflags', '+faststart', finalOut);
   await (useAssBinary ? ffmpegAss : ffmpeg)(args, { onLog });
 
   const thumb = join(project.outputDir || dir, `thumb_${newId('')}.jpg`);
   await ffmpeg(['-ss', String(Math.min(1.5, total / 2)), '-i', finalOut, '-frames:v', '1', '-q:v', '3', thumb]);
-  return { path: finalOut, thumb, duration: total };
+  return { path: finalOut, thumb, duration: total, timeline, fp, tier };
+}
+
+/**
+ * Quote a path for a filtergraph option value. Inside single quotes ffmpeg treats `:` and `,`
+ * as literals, which is the whole problem with passing a filesystem path to `ass=` unquoted.
+ */
+function ffQuote(p) {
+  return `'${String(p).replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
+}
+
+/**
+ * `quality` reproduces the reference app's master exactly (crf 18, preset medium, High@4.0) and
+ * stays the default for anything the owner publishes.
+ *
+ * `fast` is the same encoder at the same CRF with a cheaper preset — NOT the hardware encoder,
+ * which was the obvious guess and measured worse on every axis. On 158s of real 1080p scene
+ * material from this app (M-series, 2026-08-06):
+ *
+ *   libx264 -preset medium -crf 18   38.4s   44.6 MB   baseline
+ *   libx264 -preset veryfast -crf 18 21.8s   43.4 MB   SSIM 0.99952 vs baseline
+ *   h264_videotoolbox -q:v 75        24.5s   54.7 MB   SSIM 0.99875 vs baseline
+ *
+ * VideoToolbox is slower than veryfast, 23% larger, and further from the reference — so there is
+ * no configuration in which it wins here and it is not offered. Note the ceiling on all of this:
+ * the stream-copy tier does the same job in 4.6s. Picking a cheaper encoder is worth 1.8×;
+ * needing no encoder at all is worth 8×, which is why concat-plan.js matters more than this
+ * function does.
+ */
+function videoCodecArgs(encoder) {
+  const preset = encoder === 'fast' ? 'veryfast' : 'medium';
+  return ['-c:v', 'libx264', '-preset', preset, '-crf', '18', '-profile:v', 'high', '-level', '4.0', '-pix_fmt', 'yuv420p', '-r', String(FPS)];
 }
 
 // (renderCard — the hardcoded intro/outro title-card clip — was removed with the synthetic

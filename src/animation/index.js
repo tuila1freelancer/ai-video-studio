@@ -9,6 +9,7 @@ import { beatWarpMap } from './timewarp.js';
 import { renderScenePage, renderPreviewFrame } from './renderer.js';
 import { resolveBrandKit, planBrandPlacement, buildBrandLayer, imgDataUri } from './branding.js';
 import { captionStyleFrom, familyName } from '../subtitles/presets.js';
+import { familyReady } from '../fonts/registry.js';
 import { rechunkCues } from '../subtitles/chunk.js';
 import { ratioToSize, hash32 } from '../util/util.js';
 
@@ -83,7 +84,12 @@ export function buildSceneHtml(scene, project, config, extras = {}) {
   // template motion lands on the narration's beats (still deterministic — srt_json is data).
   // P29: display cues may be re-chunked (sentence / N-word) — a pure rebuild from the SAME
   // word timestamps, so subtitle timing stays glued to the voice; beats keep the raw cues.
-  const captions = config.enableSubtitles !== false
+  // On the FINAL lane the clip is rendered bare and the captions are burned onto the assembled
+  // programme instead — that is what makes a subtitle edit cost one concat rather than one
+  // render per scene. `ctx.captions` below is untouched either way: those word timings drive
+  // template motion (accentTimes), not display, and zeroing them would change the animation.
+  const finalLane = config.subtitleLane === 'final';
+  const captions = !finalLane && config.enableSubtitles !== false
     ? rechunkCues(scene.srt_json || [], {
       chunk: config.subtitleChunk, wordsPerCue: config.subtitleWordsPerCue, text: scene.voice_text,
     })
@@ -127,6 +133,7 @@ export function buildSceneHtml(scene, project, config, extras = {}) {
     watermark: brand ? null : resolveWatermark(config),
     brand: placement ? buildBrandLayer(brand, placement, { w, h, theme }) : null,
     captionStyle: captionStyleFrom(config, theme, { w, h }),
+    captionsOff: finalLane,
     // sentence cues run long — let the caption wrap to 2 lines instead of shrinking to dust
     capWrap: config.subtitleChunk === 'sentence',
     // P30 loud-font contract: the page probes these families after load; a miss surfaces
@@ -209,6 +216,19 @@ export async function renderAnimationScene(scene, project, config, { dir, progre
   const { w, h } = animSize(project.aspect_ratio, k); // PHYSICAL viewport (4K when k=2)
   const fps = parseInt(config.fps || 30, 10);
   const duration = Math.max(1.5, scene.duration || config.sceneDuration || 6);
+  // A family the owner NAMED has to exist before a single frame is drawn. Chrome substitutes
+  // silently, so the alternative is 95 clips in the wrong typeface discovered by eye — the same
+  // failure mode the burn path refuses, refused here too. Only explicit picks are fatal; a font
+  // the codegen model invented inside its own CSS surfaces as a warning from the render itself.
+  for (const [label, family] of [['phụ đề', config.subtitleFont], ['chữ đồ hoạ', config.fonts?.display]]) {
+    const fam = familyName(family);
+    if (fam && !familyReady(fam)) {
+      throw new Error(
+        `font ${label} "${fam}" chưa có trên máy — Chrome sẽ thay bằng font khác mà không báo. `
+        + 'Vào Thư viện → Font chữ để tải về, hoặc chọn font khác.',
+      );
+    }
+  }
   const html = buildSceneHtml(scene, project, config, { progressStart, progressTotal, total, durationOverride: duration, zoom: k });
   const overlayOn = !!(config.overlay?.enabled && config.overlay.source && existsSync(config.overlay.source));
   const outPath = join(dir, `scene_${String(scene.idx).padStart(3, '0')}${overlayOn ? '_key' : ''}.mp4`);

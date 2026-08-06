@@ -223,7 +223,12 @@
                 <button class="btn" id="btnOpenFolder">📂 Mở thư mục</button>
                 <button class="btn" id="btnFinalFs" title="Xem video toàn màn hình">⛶ Toàn màn hình</button>
                 <button class="btn" id="btnPublish" title="Đăng lên YouTube / Facebook Page qua tài khoản đã kết nối — mặc định KHÔNG công khai ngay">📤 Đăng video</button>
+                <!-- Sau khi xong: video là một PHIÊN BẢN, không phải dấu chấm hết -->
+                <button class="btn" id="btnVersions" title="Mọi bản đã xuất — xem lại, quay về bản cũ">🕘 Phiên bản</button>
+                <button class="btn" id="btnVariant" title="Bản khác từ cùng bộ clip: không logo, không nhạc… — chỉ tốn 1 lượt ghép">📦 Bản khác</button>
+                <button class="btn" id="btnQcScan" title="Quét lại video đã xong: chữ sai ngôn ngữ, quy ước số, clip không khớp thiết kế">🔬 Kiểm tra</button>
               </div>
+              <div class="hint" id="jumpHint" style="margin-top:6px"></div>
               <div id="pubHistory" class="hint" style="margin-top:8px"></div>
               <div id="metaCard"></div>
             </div>
@@ -370,20 +375,24 @@
                   <label class="label">Số từ mỗi dòng: <strong id="cfgSubWordsL">4</strong></label>
                   <input type="range" class="range" id="cfgSubWords" min="2" max="10" step="1" value="4">
                 </div>
+                <label class="label">Vẽ phụ đề ở đâu</label>
+                <select class="input" id="cfgSubLane" style="margin-bottom:6px">
+                  <option value="scene">🎨 Trong từng cảnh — hiệu ứng đẹp nhất</option>
+                  <option value="final">⚡ Ở bước ghép cuối — sửa lại chỉ tốn 1 lượt ghép</option>
+                </select>
+                <div class="hint" id="subLaneHint" style="margin-bottom:8px"></div>
                 <div class="hint" style="margin-bottom:8px">Mọi cách ngắt đều dựng lại từ đúng mốc thời gian từng từ của giọng đọc — phụ đề luôn khớp tiếng.</div>
                 <div class="sub-preset-grid" id="subPresetGrid"></div>
                 <details class="cfg-details">
                   <summary>Tinh chỉnh thủ công</summary>
                   <div class="grid2" style="margin-top:8px">
-                    <div><label class="label">Font</label>
-                      <select class="input" id="cfgSubFont">
-                        <option>Be Vietnam Pro</option><option>Montserrat</option><option>Oswald</option><option>Anton</option><option>Nunito</option><option>Archivo Black</option><option>Lexend</option><option>JetBrains Mono</option><option>Arial</option><option>Impact</option>
-                      </select></div>
+                    <div><label class="label">Font <button class="btn sm ghost hidden" id="cfgSubFontGet" title="Tải font này về máy" style="padding:0 6px">⬇︎ Tải</button></label>
+                      <select class="input" id="cfgSubFont"></select></div>
                     <div><label class="label">Size</label>
                       <select class="input" id="cfgSubSize"><option value="60">Nhỏ</option><option value="72">Vừa</option><option value="80" selected>Lớn</option><option value="96">XL</option></select></div>
                   </div>
                   <label class="label" style="margin-top:8px">Kiểu chữ</label>
-                  <select class="input" id="cfgSubCase"><option value="original">Gốc</option><option value="uppercase">HOA</option><option value="lowercase">thường</option><option value="titlecase">Hoa Đầu</option></select>
+                  <select class="input" id="cfgSubCase"><option value="">Theo bộ mẫu</option><option value="original">Gốc</option><option value="uppercase">HOA</option><option value="lowercase">thường</option><option value="titlecase">Hoa Đầu</option></select>
                   <label class="label" style="margin-top:8px">Màu</label>
                   <div class="color-palette" id="cfgSubColors"></div>
                 <label class="hint" style="display:inline-flex;align-items:center;gap:6px;margin-top:6px">Màu tuỳ ý:
@@ -392,6 +401,17 @@
                   <select class="input" id="cfgSubPos"><option value="bot">Dưới</option><option value="mid">Giữa</option><option value="top">Trên</option></select>
                 </details>
                 <div class="sub-preview" id="subPreview">Phụ đề mẫu</div>
+                <!-- Xem thử trên KHUNG THẬT của video: đi qua đúng đường ghép cuối
+                     (logoRect + libass), nên thấy sao thì video ra vậy. -->
+                <div id="framePreviewBox" class="hidden" style="margin-top:10px">
+                  <div class="row" style="gap:6px;align-items:center">
+                    <button class="btn sm" id="btnFramePreview">🎞 Xem trên khung thật</button>
+                    <input type="range" class="range" id="framePreviewAt" min="0" max="100" value="15" style="flex:1" title="Vị trí trong video">
+                    <span class="hint" id="framePreviewT" style="min-width:52px;text-align:right">0:15</span>
+                  </div>
+                  <div class="hint" id="framePreviewNote" style="margin-top:4px"></div>
+                  <img id="framePreviewImg" class="hidden" style="width:100%;border-radius:8px;margin-top:6px;display:block">
+                </div>
               </div>
             </div>
           </div>
@@ -728,6 +748,14 @@
 
 <!-- BRAND KIT EDITOR -->
 <!-- CONFIG GROUP EDITOR (body node is MOVED in/out — ids & listeners travel with it) -->
+<!-- Chi phí của thay đổi, TRƯỚC khi tiêu. Mọi bước đều nói rõ nó làm gì và mất bao lâu. -->
+<div class="modal-bg" id="changePlanModal">
+  <div class="modal">
+    <h2>Áp dụng thay đổi <button class="x" data-close>×</button></h2>
+    <div data-body></div>
+    <div class="row" style="justify-content:flex-end;gap:8px;margin-top:14px" data-actions></div>
+  </div>
+</div>
 <div class="modal-bg" id="cfgModal">
   <div class="modal cfgm">
     <h2><span id="cfgModalTitle">Cấu hình</span> <button class="x" data-close>×</button></h2>

@@ -14,6 +14,7 @@ export * from './repositories/jobs.js';
 export * from './repositories/usage.js';
 export * from './repositories/reviews.js';
 export * from './repositories/takes.js';
+export * from './repositories/renders.js';
 export * from './repositories/publishes.js';
 export * from './repositories/calendar.js';
 export * from './repositories/suggestions.js';

@@ -7,7 +7,9 @@ import { join } from 'node:path';
 import * as DB from '../../db/index.js';
 import { logger } from '../../util/log.js';
 import { renderAnimationScene } from '../../animation/index.js';
-import { resolveGuide } from '../../styleguide/index.js';
+import { resolveGuide, themeFromGuide } from '../../styleguide/index.js';
+import { burnStyleFrom } from '../../subtitles/presets.js';
+import { prepareBurnFontDir, shapingFor } from '../../fonts/files.js';
 import { buildThumbnail } from '../visuals.js';
 import { generateThumbnailImage } from '../thumbnail-codegen.js';
 import { llmEnabled } from '../../providers/llm.js';
@@ -15,19 +17,20 @@ import { concatScenes, planTransitions, transitionLoss } from '../render.js';
 import { qcFinalVideo } from '../qc.js';
 import { masterAudio } from '../../media/master.js';
 import { makeAmbientBed, probeDuration, makeWhoosh, makeSfxBed, hasDrawtext } from '../../media/ffmpeg.js';
-import { resolveFinalOverlay } from '../../media/logo-overlay.js';
+import { resolveConcatLogo } from '../../media/logo-overlay.js';
 import { resolveWatermark, watermarkFont } from '../../media/watermark.js';
 import { planSoundDesign, usableLibrary } from '../../audio/sound-design.js';
 import { withRetry } from '../../util/retry.js';
 import { step, op, retryHook, progressPlan } from '../progress.js';
 import { resolveOutputDir } from '../helpers.js';
+import { timed } from '../stats.js';
 import { resolveLang } from '../../util/lang.js';
 
 /**
  * @param {string} projectId
  * @param {{dir:string, size:{w:number,h:number}, config:object}} opts
  */
-export async function finalize(projectId, { dir, size, config }) {
+export async function finalize(projectId, { dir, size, config, variantName = null }) {
   step(projectId, 'b7', 'running', 'Ghép & mix');
   DB.updateProject(projectId, { current_step: 'b7' });
   const project = DB.getProject(projectId);
@@ -43,6 +46,7 @@ export async function finalize(projectId, { dir, size, config }) {
     for (const sc of missing) {
       const r = await renderAnimationScene(sc, project, config, {
         dir: renderDir, progressStart: pp.offsets[sc.idx] || 0, progressTotal: pp.total, total: all.length,
+        onLog: (s) => op(projectId, `cảnh ${sc.idx + 1}: ${s}`),
       });
       DB.updateScene(sc.id, { video_path: r.path, duration: r.duration, status: 'rendered', error: null });
     }
@@ -66,31 +70,31 @@ export async function finalize(projectId, { dir, size, config }) {
   // cumulative xfade loss BEFORE scene k's clip starts (clip index == scene order now)
   const lossBeforeScene = (k) => (transPlan ? transitionLoss(transPlan, k) : 0);
 
-  // Whole-video logo stamp (P26): the ONLY logo lane — burned once at concat in every
-  // visual mode (the per-scene smart/always logo lane was removed by owner order).
-  // Legacy configs saved before the stamp existed (placement smart/always + a logo, no
-  // finalOverlay key) migrate here so nobody's logo silently disappears: the old per-scene
-  // geometry (sizePct = % of min-dim, center position) maps onto the stamp fractions.
-  const fov = resolveFinalOverlay(config.brandKit?.finalOverlay);
-  const bkLogo = config.brandKit?.logo?.assetPath;
-  if (bkLogo && !config.logo?.path) {
-    if (fov) {
-      config.logo = { path: bkLogo, ...fov };
-    } else if (config.brandKit.finalOverlay === undefined && config.brandKit.placement && config.brandKit.placement !== 'off') {
-      const bl = config.brandKit.logo;
-      const minD = Math.min(size.w, size.h);
-      config.logo = {
-        path: bkLogo,
-        cxPct: bl.position?.xPct ?? 0.92, cyPct: bl.position?.yPct ?? 0.06,
-        wPct: Math.min(0.45, Math.max(0.02, ((bl.sizePct || 8.5) / 100) * (minD / size.w))),
-        opacity: bl.opacity ?? 0.9,
-      };
+  // Brand identity is read LIVE from the channel unless this project overrode it. The old
+  // behaviour used the snapshot taken when the project was created, which is why turning the
+  // logo stamp on or off in the Brand Kit had no effect on anything already made — and why the
+  // "Why $5,000" project, created before its channel had a brand kit, would re-concat with no
+  // logo at all no matter what the channel said. A project that wants its own identity sets
+  // `brandKitOverride: true` when it saves one.
+  if (!config.brandKitOverride) {
+    const live = DB.channelOf(projectId)?.config?.brandKit;
+    if (live) {
+      if (JSON.stringify(live) !== JSON.stringify(config.brandKit)) {
+        op(projectId, '🎨 Nhận diện thương hiệu lấy trực tiếp từ kênh (mới hơn bản lưu trong dự án)');
+      }
+      config.brandKit = live;
     }
   }
+  // Whole-video logo stamp (P26): the ONLY logo lane — burned once at concat in every visual
+  // mode. resolveConcatLogo decides from scratch every run, INCLUDING the answer "no logo";
+  // the version that lived here could only ever assign one, so the Brand Kit toggle was a
+  // one-way switch in practice.
+  config.logo = resolveConcatLogo(config, size);
   // Copyright watermark (P28): slow perimeter drift, logo or channel name, whole program.
   // Source degrades sensibly (name without a usable font → logo; logo missing → name).
   const wm = resolveWatermark(config.brandKit?.watermark);
   if (wm && !config.watermark) {
+    const bkLogo = config.brandKit?.logo?.assetPath;
     const text = String(config.brandKit?.channelName || '').trim();
     const font = watermarkFont();
     const canText = !!(text && font && await hasDrawtext()); // text lane needs freetype
@@ -159,11 +163,34 @@ export async function finalize(projectId, { dir, size, config }) {
     }
   }
 
-  const res = await withRetry(async () => {
+  // Final-pass captions. The clips were rendered bare, so the burn happens here — and the font
+  // is resolved to a real file FIRST, because fontconfig substitutes without a word and a video
+  // in the wrong typeface is finished work, not a warning.
+  let subtitles = null;
+  if (config.subtitleLane === 'final' && config.enableSubtitles !== false) {
+    const theme = themeFromGuide(resolveGuide(config));
+    const style = burnStyleFrom(config, theme, size);
+    const { fontsDir, source } = prepareBurnFontDir(style.font, style.weight, renderDir);
+    op(projectId, `🔤 Phụ đề in ở bước cuối — font "${style.font}" (${source})`);
+    subtitles = { scenes, config, style, fontsDir, shaping: shapingFor(resolveLang(config, scenes)) };
+  }
+
+  // What the previous export was made from, so the concat can charge only for what moved.
+  const prevMeta = project.metadata?.concat || null;
+  const res = await timed(projectId, 'concat', () => withRetry(async () => {
     const r = await concatScenes(clips, project, {
       dir: renderDir, size, bgmPath, sfxPath, logo: config.logo, watermark: config.watermark,
       bgmVol: sdPlan?.bgmVol,
-      transitions: transPlan || false, onLog: (s) => logger.debug(s, { projectId }),
+      masterFade: config.masterFade !== false,
+      encoder: config.concatEncoder === 'fast' ? 'fast' : 'quality',
+      prevPath: project.video_path || null,
+      prevFp: prevMeta?.fp || null,
+      // A re-concat may legitimately be a no-op; the FIRST assembly of a run never is, and
+      // silently reusing an old file there would hide a pipeline that did nothing.
+      allowSkip: !!prevMeta,
+      transitions: transPlan || false, subtitles,
+      onLog: (s) => logger.debug(s, { projectId }),
+      onNote: (s) => op(projectId, s),
     });
     // Output must exist and cover the scene material (10% tolerance + transition losses).
     const got = await probeDuration(r.path);
@@ -171,7 +198,15 @@ export async function finalize(projectId, { dir, size, config }) {
       throw new Error(`video ghép ngắn bất thường (${Math.round(got || 0)}s / kỳ vọng ~${Math.round(expectDur)}s)`);
     }
     return r;
-  }, { tries: 2, label: 'b7 concat', onRetry: retryHook(projectId, 'b7') });
+  }, { tries: 2, label: 'b7 concat', onRetry: retryHook(projectId, 'b7') }));
+
+  // Nothing moved — the export on disk IS the answer. Everything below (audio master, QC decode,
+  // thumbnail) would re-do work whose inputs are provably identical, so it is skipped too rather
+  // than quietly burning a couple of minutes to arrive back where we started.
+  if (res.tier === 'skip') {
+    step(projectId, 'b7', 'done', `${Math.round(res.duration)}s`);
+    return res;
+  }
 
   // Broadcast master (P9's -16 LUFS authority, relocated from the concat graph): measure
   // the mixed program, correct the AUDIO ONLY (-c:v copy — video is never re-encoded).
@@ -250,7 +285,32 @@ export async function finalize(projectId, { dir, size, config }) {
     if (made.length > 1) op(projectId, `🖼️ Đã tạo ${made.length} biến thể thumbnail (A/B) trong thư mục xuất`);
   } catch { /* keep basic */ }
 
-  DB.updateProject(projectId, { video_path: res.path, thumb_path: thumb, current_step: 'b7' });
+  // The exact timeline this export was assembled on. Everything that has to map a moment in the
+  // finished video back to a scene reads THIS — burned captions, the SRT export, the player's
+  // click-to-scene jump — instead of re-deriving offsets from scene durations and drifting.
+  // `concat.fp` is what lets the next assembly know how little work it has to do.
+  {
+    const md = DB.getProject(projectId).metadata || {};
+    DB.updateProject(projectId, {
+      metadata: {
+        ...md,
+        timeline: (res.timeline || []).map((t, i) => ({ sceneId: scenes[i]?.id, idx: scenes[i]?.idx, ...t })),
+        concat: { fp: res.fp || null, tier: res.tier || null, at: Date.now() },
+      },
+    });
+  }
+  // A VARIANT is a second deliverable from the same clips — it must not take over as "the"
+  // video, or asking for a no-logo cut would quietly replace the one being published.
+  if (!variantName) DB.updateProject(projectId, { video_path: res.path, thumb_path: thumb, current_step: 'b7' });
+  else op(projectId, `📦 Biến thể "${variantName}" đã xuất — video chính giữ nguyên`);
+  // Index this export. The file was always kept — nothing indexed it, which is the difference
+  // between "I could go back if I had to" and "I dare not try anything".
+  try {
+    DB.recordRender({
+      projectId, path: res.path, thumb, duration: res.duration, tier: res.tier || 'encode',
+      config, variant: variantName,
+    });
+  } catch (e) { logger.warn(`không ghi được lịch sử phiên bản: ${e.message}`, { projectId }); }
   step(projectId, 'b7', 'done', `${Math.round(res.duration)}s`);
   return res;
 }

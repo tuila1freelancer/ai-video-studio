@@ -18,6 +18,8 @@ import { initVoicePicker } from './features/voicepicker.js';
 import { initChannels, loadChannels } from './features/channels.js';
 import { initBrandKit, refreshBrandSummary } from './features/brandkit.js';
 import { initSrt } from './features/srt.js';
+import { initChangePlan } from './features/changeplan.js';
+import { initAftercare } from './features/aftercare.js';
 import { initBatch } from './features/batch.js';
 import { initAutopilot } from './features/autopilot.js';
 import { initJournal } from './features/journal.js';
@@ -35,6 +37,8 @@ async function init() {
   initConfig();
   initBrandKit();
   initModals();
+  initChangePlan();
+  initAftercare();
   initLibrary();
   initBrandGen();
   initEditVideo();
