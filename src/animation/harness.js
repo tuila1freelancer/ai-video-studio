@@ -14,15 +14,63 @@ import { join } from 'node:path';
 import { VENDOR_DIR } from '../config/paths.js';
 import { gsapBundle } from './gsap.js';
 import { detectLibs, libsBundle } from './libs.js';
-import { userFontsCss } from './userfonts.js';
+import { userFontsCss, uploadedFamilies } from './userfonts.js';
 
 let fontsCssCache = null;
-export function fontsCss() {
+let faceBlocksCache = null;
+
+/** Every `@font-face` in the vendored CSS, tagged with the family it declares. */
+function faceBlocks() {
+  if (faceBlocksCache) return faceBlocksCache;
+  const raw = rawFontsCss();
+  const out = [];
+  for (const m of raw.matchAll(/@font-face\s*\{[^}]*\}/g)) {
+    const fam = /font-family:\s*['"]([^'"]+)['"]/.exec(m[0])?.[1];
+    if (fam) out.push({ family: fam, block: m[0] });
+  }
+  faceBlocksCache = out;
+  return out;
+}
+
+function rawFontsCss() {
   if (fontsCssCache == null) {
     const p = join(VENDOR_DIR, 'fonts', 'fonts.css');
     fontsCssCache = existsSync(p) ? readFileSync(p, 'utf8') : '';
   }
   return fontsCssCache;
+}
+
+/** Families the vendored CSS can supply — the scan set for `familiesIn`. */
+export function vendoredFamilies() {
+  return [...new Set(faceBlocks().map((f) => f.family))];
+}
+
+/**
+ * Which of `known` does this page actually name?
+ *
+ * A plain substring scan rather than a CSS parse, on purpose: families are referenced from
+ * `font-family:` declarations, from `font:` shorthand (`.wmt`), from inline style attributes, and
+ * from whatever the codegen model wrote into the scene's own CSS. Missing one would silently
+ * substitute a typeface; including one spuriously costs a few KB. The asymmetry decides it.
+ */
+export function familiesIn(text, known) {
+  const s = String(text || '');
+  return (known || []).filter((f) => s.includes(f));
+}
+
+/**
+ * The `@font-face` blocks for `families`, or the whole vendored sheet when asked for everything.
+ *
+ * Every scene page used to carry all eight vendored families — 516 KB of base64 on a 757 KB page,
+ * repeated for all 95 scenes of a video, to render text that names one or two of them. Embedding
+ * only what the page references takes ~500 KB off each one, and it is the change that lets the
+ * catalogue grow past a handful of Latin faces at all: a single CJK face is larger than the
+ * entire current sheet.
+ */
+export function fontsCss(families) {
+  if (!families) return rawFontsCss();
+  const want = new Set(families);
+  return faceBlocks().filter((f) => want.has(f.family)).map((f) => f.block).join('\n');
 }
 
 // The in-page runtime. Kept dependency-free and small.
@@ -460,11 +508,7 @@ export function buildScenePage(opts) {
     </div>
   </div>` : '';
 
-  return `<!doctype html><html><head><meta charset="utf-8">
-<style>
-${fontsCss()}
-${userFontsCss()}
-*{margin:0;padding:0;box-sizing:border-box}
+  const styleBody = `*{margin:0;padding:0;box-sizing:border-box}
 html,body{width:${w}px;height:${h}px;overflow:hidden;background:${ov ? KEY : theme.bg}}
 ${Z !== 1 ? `body{zoom:${Z}}` : ''}
 body{font-family:${theme.font};color:${theme.ink};-webkit-font-smoothing:antialiased}
@@ -489,9 +533,9 @@ img.wm{width:${Math.round(Math.min(w,h)*0.085)}px;height:auto}
    even if the codegen model authored no shadow (hf-kw carries its own chrome/neon filter, so it
    is left untouched). template.css follows and may override. */
 .tpl .hf-kw2,.tpl .hf-sub,.tpl .hf-label,.tpl .hf-stat-v,.tpl .hf-stat-l{text-shadow:0 1px 3px rgba(0,0,0,.72)}
-${template.css}${opts.brand ? opts.brand.css : ''}
-</style></head><body>
-<div class="stage">
+${template.css}${opts.brand ? opts.brand.css : ''}`;
+
+  const stageHtml = `<div class="stage">
   ${ov ? '' : `<canvas id="bgCanvas" width="${w * Z}" height="${h * Z}"></canvas>
   <div class="grid"></div>`}
   <div class="tpl">${template.html}</div>
@@ -500,7 +544,21 @@ ${template.css}${opts.brand ? opts.brand.css : ''}
   ${opts.captionsOff ? '' : `<div class="cap${capCls}"><span id="capText"></span></div>`}
   ${ov ? '' : '<div class="progtrack"><div id="progFill"></div></div>'}
   ${liveBits}
-</div>
+</div>`;
+
+  // Embed the faces this page names and nothing else. The scan covers the CSS, the markup and
+  // the template's own script, because a family can be introduced from any of them.
+  const surface = `${styleBody}\n${stageHtml}\n${template.script || ''}`;
+  const vendored = familiesIn(surface, vendoredFamilies());
+  const uploaded = familiesIn(surface, uploadedFamilies());
+
+  return `<!doctype html><html><head><meta charset="utf-8">
+<style>
+${fontsCss(vendored)}
+${userFontsCss(uploaded)}
+${styleBody}
+</style></head><body>
+${stageHtml}
 <script>window.__scene=${JSON.stringify(sceneData).replace(/</g, '\\u003c')};<\/script>
 ${libScript}${template.script ? `<script>${gsapBundle()}<\/script>
 <script>window.__tplScript=function(gsap,tl,S,rng){${String(template.script).replace(/<\/script/gi, '<\\/script')}
