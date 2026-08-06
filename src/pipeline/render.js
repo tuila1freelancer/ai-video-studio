@@ -275,9 +275,15 @@ export async function concatScenes(sceneVideos, project, {
   // `· NN%` lines out of the journal, or one join would write a hundred rows into it.
   args.unshift('-progress', 'pipe:1', '-nostats'); // global options must precede the inputs
   const label = copyVideo ? (tier === 'audio' ? '🔊 Trộn lại âm thanh' : '⚡ Sao chép video') : '🎞 Mã hoá video hoàn chỉnh';
+  const note = onNote || onLog;
+  // The bracketing lines carry no percentage, so they DO reach the journal — the ticker shows
+  // the live count, the journal keeps the record of what ran and how long it took.
+  note?.(`${label} — ${sceneVideos.length} clip · ${Math.round(cut)}s${ass ? ' · có phụ đề in trực tiếp' : ''}`);
+  const t0 = Date.now();
   await (useAssBinary ? ffmpegAss : ffmpeg)(args, {
-    onLog: ffProgress(cut, (pct) => (onNote || onLog)?.(`${label} · ${pct}%`), onLog),
+    onLog: ffProgress(cut, (pct) => note?.(`${label} · ${pct}%`), onLog),
   });
+  note?.(`✅ Ghép xong sau ${Math.round((Date.now() - t0) / 1000)}s → ${finalOut.split('/').pop()}`);
 
   const thumb = join(project.outputDir || dir, `thumb_${newId('')}.jpg`);
   await ffmpeg(['-ss', String(Math.min(1.5, total / 2)), '-i', finalOut, '-frames:v', '1', '-q:v', '3', thumb]);

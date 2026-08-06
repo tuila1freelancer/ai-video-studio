@@ -42,7 +42,12 @@ test('the encode reports how far it has got', () => {
 test('the percentages reach the ticker and stay out of the journal', () => {
   const render = src('../src/pipeline/render.js');
   assert.match(render, /args\.unshift\('-progress', 'pipe:1', '-nostats'\);/);
-  assert.match(render, /onLog: ffProgress\(cut, \(pct\) => \(onNote \|\| onLog\)\?\.\(`\$\{label\} · \$\{pct\}%`\), onLog\),/);
+  assert.match(render, /onLog: ffProgress\(cut, \(pct\) => note\?\.\(`\$\{label\} · \$\{pct\}%`\), onLog\),/);
+  // …and the two lines that bracket it carry no percentage, so they DO reach the journal: the
+  // ticker gets the live count, the journal keeps the record of what ran and how long it took.
+  assert.match(render, /note\?\.\(`\$\{label\} — \$\{sceneVideos\.length\} clip/);
+  assert.match(render, /note\?\.\(`✅ Ghép xong sau \$\{Math\.round\(\(Date\.now\(\) - t0\) \/ 1000\)\}s/);
+  assert.ok(!/·\s*\d{1,3}%\s*$/.test('✅ Ghép xong sau 41s → video.mp4'));
   // op() drops `· NN%` lines from the persistent journal on purpose — a fifteen-minute join would
   // otherwise write a hundred rows into it. The message format has to keep matching that filter.
   assert.match('🎞 Mã hoá video hoàn chỉnh · 42%', /·\s*\d{1,3}%\s*$/);
