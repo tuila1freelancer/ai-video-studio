@@ -155,6 +155,10 @@ function applyConfigInner(cfg = {}) {
   if (cfg.videoDuration) $('#cfgVd').value = cfg.videoDuration;
   if (cfg.sceneDuration) $('#cfgSd').value = cfg.sceneDuration;
   $('#cfgSub').checked = cfg.enableSubtitles !== false;
+  // Only the 'change' handler used to fold the style section away, so a config that arrived with
+  // subtitles OFF still displayed the whole preset gallery and the "apply to this video" button —
+  // controls for something the video was not going to have.
+  $('#subStyle').style.display = $('#cfgSub').checked ? 'block' : 'none';
   state.subPreset = cfg.subtitlePreset || '';
   renderSubPresetGrid();
   if ($('#cfgSubMode')) $('#cfgSubMode').value = cfg.subtitleMode === 'plain' ? 'plain' : 'karaoke';
