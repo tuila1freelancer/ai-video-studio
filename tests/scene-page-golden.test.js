@@ -9,9 +9,12 @@
 // The hashes below were captured on 2026-08-06, before `subtitleLane` existed. They are not a
 // style preference — they are the contract that says "the default path did not move".
 //
-// @font-face blocks are stripped before hashing. Font DELIVERY is deliberately allowed to change
-// (the vendored css is being cut down from all-families-always to only-what-the-scene-uses);
-// what must not change is the markup, the caption CSS, and the scene data payload.
+// The whole font prologue is stripped before hashing — everything from `<style>` up to the first
+// real rule. Font DELIVERY is deliberately free to change (the vendored css is being cut down
+// from all-families-always to only-what-this-scene-uses, which takes ~500KB off every page);
+// what must not change is the markup, the caption CSS, and the scene data payload. Hashes were
+// re-captured with this stripper against the unmodified builder, so the numbers still describe
+// the same pre-change page.
 import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -30,14 +33,14 @@ const scene = {
   }],
 };
 
-const strip = (html) => html.replace(/@font-face\s*\{[^}]*\}/g, '');
+const strip = (html) => html.replace(/<style>[\s\S]*?(?=\*\{margin:0)/, '<style>\n');
 const hash = (html) => createHash('sha256').update(strip(html)).digest('hex').slice(0, 32);
 const page = (config) => buildSceneHtml(scene, project, config, { total: 3 });
 
 const GOLDEN = {
-  plain: '5a748272d4b1c70b524c17746d4dd767',
-  styled: '3605f4dcb6965ddeb59f72b5ba84b660',
-  off: '2371e13435e7c665c1bb5e9174d5cbd3',
+  plain: 'da463c0288d19a62c4324dacc6bf4289',
+  styled: 'd794ad317c9772c61f99c59c1e60cb6f',
+  off: 'f7324101760f18adb424e2bdbbdad5bb',
 };
 const STYLED = {
   enableSubtitles: true, subtitlePreset: 'bold-impact', subtitleFont: 'Anton', subtitleFontSize: 80,
@@ -72,7 +75,7 @@ test('the lane must not disturb anything outside the caption layer', () => {
     .replace(/<div class="cap[^"]*"><span id="capText"><\/span><\/div>/, '')
     // the cue payload nests a `words` array, so a naive [^\]]* stops at the wrong bracket
     .replace(/"captions":\[[\s\S]*?\](?=,"capMode")/, '"captions":[]')
-    .replace(/@font-face\s*\{[^}]*\}/g, '');
+    .replace(/<style>[\s\S]*?(?=\*\{margin:0)/, '<style>\n');
   assert.equal(
     createHash('sha256').update(strip2(page(STYLED))).digest('hex'),
     createHash('sha256').update(strip2(page({ ...STYLED, subtitleLane: 'final' }))).digest('hex'),
