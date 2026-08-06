@@ -1,7 +1,13 @@
 // Subtitle file builders: SRT (plain text) + cue time-shifting for the whole-video export.
-// The karaoke ASS builder was removed with the `image` visual mode (P36): animation/hyperframe
-// scenes render their captions as DOM in the harness, never through libass, so ASS burning had
-// exactly one consumer (the deleted Ken-Burns renderer).
+//
+// The ASS builder is back (src/subtitles/ass.js), this time for the FINAL-PASS lane rather than
+// the deleted Ken-Burns renderer: captions burned once onto the assembled program so that
+// editing them costs a concat instead of a re-render per scene.
+//
+// `shiftCues` moved to src/subtitles/timeline.js, next to the offset arithmetic it is always
+// used with — shifting cues by a guessed offset was the bug that module exists to prevent. It is
+// re-exported here so existing importers keep working.
+export { shiftCues } from '../subtitles/timeline.js';
 
 function pad(n, l = 2) { return String(Math.floor(n)).padStart(l, '0'); }
 function srtTime(t) {
@@ -12,13 +18,4 @@ function srtTime(t) {
 
 export function buildSrt(cues) {
   return cues.map((c, i) => `${i + 1}\n${srtTime(c.start)} --> ${srtTime(c.end)}\n${c.text}\n`).join('\n');
-}
-
-// shift cue/word times by `offset` seconds (for building a whole-video SRT)
-export function shiftCues(cues, offset) {
-  return cues.map((c) => ({
-    start: c.start + offset, end: c.end + offset,
-    text: c.text,
-    words: (c.words || []).map((w) => ({ ...w, start: w.start + offset, end: w.end + offset })),
-  }));
 }
