@@ -54,6 +54,7 @@
     <button class="nav-item" data-page="editvideo"><span class="ic">✂️</span><span class="nav-label">Edit Video</span></button>
     <button class="nav-item" data-page="tutorials"><span class="ic">📖</span><span class="nav-label">Hướng dẫn</span></button>
     <div class="nav-spacer"></div>
+    <button class="license-badge" id="licenseBadge" style="display:none" title="License"></button>
     <button class="btn block sm" id="navSettings">⚙️ AI Setting</button>
     <div class="nav-foot" id="depFoot"></div>
   </nav>
@@ -1102,6 +1103,33 @@
     <h2 style="font-size:15px;margin-bottom:10px">👁 Preview cảnh (animation thật + tiếng) <button class="x" data-close>×</button></h2>
     <div id="liveWrap" style="overflow:hidden;border-radius:10px;background:#000"></div>
   </div>
+</div>
+
+<!-- LICENSE LOCK — covers everything until the app is licensed. Not a modal: there is nothing
+     behind it to go back to. -->
+<div class="license-lock" id="licenseLock">
+  <div class="license-card">
+    <div class="license-logo">🎬</div>
+    <h2>AI Video Studio</h2>
+    <p class="license-msg" id="licenseLockMsg">Nhập license key để bắt đầu sử dụng.</p>
+    <input class="input license-key" id="licenseKeyInput" placeholder="TOOLS-XXXX-XXXX-XXXX-XXXX"
+           autocomplete="off" spellcheck="false">
+    <div class="license-err" id="licenseLockErr"></div>
+    <button class="btn primary block" id="btnLicenseActivate">Kích hoạt</button>
+    <div class="row" style="gap:8px;margin-top:10px">
+      <button class="btn block sm" id="btnLicenseBuy">Mua license</button>
+      <button class="btn block sm ghost" id="btnLicenseRefresh">Kiểm tra lại</button>
+    </div>
+    <div class="hint license-known" id="licenseKnownKey"></div>
+    <div class="hint" style="margin-top:14px">License key được gửi vào email ngay sau khi thanh toán.</div>
+  </div>
+</div>
+
+<!-- UPDATE BANNER -->
+<div class="update-banner" id="updateBanner" style="display:none">
+  <div class="update-text" id="updateBannerText"></div>
+  <button class="btn sm primary" id="btnUpdateDownload">Tải về</button>
+  <button class="btn sm ghost" id="btnUpdateDismiss">Để sau</button>
 </div>
 
 <div class="toasts" id="toasts"></div>

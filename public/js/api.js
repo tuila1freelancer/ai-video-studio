@@ -20,7 +20,16 @@ async function request(method, path, { body, formData } = {}) {
       const text = await res.text();
       let data = null;
       if (text) { try { data = JSON.parse(text); } catch { /* non-JSON body (proxy error page) */ } }
-      if (!res.ok) throw new ApiError(data?.error || `HTTP ${res.status}${data ? '' : ` — ${text.slice(0, 120)}`}`, res.status);
+      if (!res.ok) {
+        // A licence that lapses mid-session shows up here first, as a 403 on whatever the owner
+        // happened to click. One event, and the licence view repaints the lock screen — every
+        // other caller keeps its normal error handling.
+        if (res.status === 403 && data?.error === 'license_required') {
+          window.dispatchEvent(new CustomEvent('license-required', { detail: data }));
+          throw new ApiError(data.message || 'Cần license để tiếp tục', 403);
+        }
+        throw new ApiError(data?.error || `HTTP ${res.status}${data ? '' : ` — ${text.slice(0, 120)}`}`, res.status);
+      }
       return data;
     } catch (e) {
       const retriable = !(e instanceof ApiError) || e.status >= 500;
