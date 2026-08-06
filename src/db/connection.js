@@ -135,6 +135,22 @@ CREATE TABLE IF NOT EXISTS scene_takes (
   created_at INTEGER
 );
 CREATE INDEX IF NOT EXISTS idx_takes_scene ON scene_takes(scene_id, kind, created_at);
+-- Every export this project has produced. finalize already wrote a new timestamped file each
+-- time and never deleted the old one, so the history was on disk and invisible; this is the
+-- index that makes it something the owner can look at and go back to.
+CREATE TABLE IF NOT EXISTS renders (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL,
+  path TEXT,
+  thumb TEXT,
+  duration REAL,
+  tier TEXT,                            -- skip|audio|copy|encode (how it was assembled)
+  variant TEXT,                         -- name when this export is an alternate cut, else NULL
+  config TEXT,                          -- JSON snapshot: what to restore to go back
+  changes TEXT,                         -- JSON: which config keys differ from the previous row
+  created_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_renders_project ON renders(project_id, created_at);
 CREATE TABLE IF NOT EXISTS scene_reviews (
   scene_id TEXT PRIMARY KEY,
   project_id TEXT NOT NULL,
