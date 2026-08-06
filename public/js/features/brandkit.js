@@ -11,6 +11,7 @@ import { toast } from '../ui/toast.js';
 import { api, fileUrl } from '../api.js';
 import { state, activeChannelBrand } from '../state.js';
 import { updateCfgChips } from '../views/config.js';
+import { offerRerender } from './changeplan.js';
 
 // Output resolution per aspect — mirrors src/util/util.js ratioToSize (P26 readout numbers).
 const RATIO_SIZE = { '9:16': [1080, 1920], '16:9': [1920, 1080], '1:1': [1080, 1080], '4:5': [1080, 1350] };
@@ -430,5 +431,9 @@ export function initBrandKit() {
     closeModal('#brandModal');
     refreshBrandSummary();
     toast('🏷 Brand Kit đã lưu — mọi video mới của kênh sẽ tự gắn brand', 'success');
+    // …and the video already on screen? finalize reads the brand kit LIVE from the channel, so
+    // one join is all it takes — but nothing said so, and the only route to it was knowing that
+    // the resume button on a finished project had become an apply-changes button.
+    await offerRerender('Đã đổi nhận diện thương hiệu của kênh');
   });
 }

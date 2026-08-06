@@ -62,9 +62,25 @@ export function planChanges(projectId, nextConfig = {}) {
   const renderStale = scenes.filter((s) => s.video_path && !renderCurrent(s, { config: next, project }, cur).ok);
 
   const size = ratioToSize(project.aspect_ratio);
-  const logoBefore = resolveConcatLogo(cur, size);
-  const logoAfter = resolveConcatLogo(next, size);
+  // What the video on disk actually contains vs what the next join would stamp.
+  //
+  // Both halves used to read `project.config`, and both were wrong about branding. finalize
+  // resolves brand identity LIVE from the channel (unless the project overrode it), so a logo
+  // edited in the Brand Kit never appears in either snapshot — and the plan answered "không có
+  // gì thay đổi" at the exact moment the owner most needed to be told there was work to do.
+  //
+  // BEFORE is the config of the last non-variant export, which finalize records AFTER resolving
+  // the live brand kit and the concat logo: it is literally what was assembled. A variant is a
+  // second deliverable from the same clips, so it can never describe the main video.
+  const lastExport = (DB.listRenders(projectId) || []).find((r) => !r.variant)?.config || cur;
+  const liveBrand = next.brandKitOverride ? null : (channel?.config?.brandKit || null);
+  const after = liveBrand ? { ...next, brandKit: liveBrand } : next;
+  const logoBefore = resolveConcatLogo(lastExport, size);
+  const logoAfter = resolveConcatLogo(after, size);
   const logoMoved = JSON.stringify(logoBefore) !== JSON.stringify(logoAfter);
+  const wmBefore = lastExport.brandKit?.watermark || null;
+  const wmAfter = after.brandKit?.watermark || null;
+  const wmMoved = JSON.stringify(wmBefore) !== JSON.stringify(wmAfter);
   const concatChanged = changedKeys(cur, next, (k) => CONCAT_KEYS.includes(k));
   // On the final lane the subtitle settings are a CONCAT input, so they belong on this side of
   // the ledger — that reclassification is the entire point of the lane.
@@ -101,6 +117,7 @@ export function planChanges(projectId, nextConfig = {}) {
   }
   const joinReasons = [
     logoMoved && (logoAfter ? 'đóng dấu logo' : 'bỏ logo'),
+    wmMoved && (wmAfter?.enabled ? 'đổi watermark' : 'bỏ watermark'),
     ...concatChanged.filter((k) => k !== 'logo' && k !== 'brandKit').map((k) => `đổi ${k}`),
     subMoved.length && 'đổi phụ đề (in ở bước cuối)',
     (ttsStale.length || renderStale.length) && 'ghép lại sau khi dựng cảnh',

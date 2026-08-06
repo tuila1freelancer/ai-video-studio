@@ -405,6 +405,9 @@
                 <!-- Xem thử trên KHUNG THẬT của video: đi qua đúng đường ghép cuối
                      (logoRect + libass), nên thấy sao thì video ra vậy. -->
                 <div id="framePreviewBox" class="hidden" style="margin-top:10px">
+                  <!-- Đổi phụ đề của video ĐÃ XUẤT: in lại trên bản ghép, không render lại cảnh.
+                       Bấm để xem bảng chi phí rồi mới chạy. -->
+                  <button class="btn sm block" id="btnSubApply" style="margin-bottom:8px">🎬 Áp dụng phụ đề mới vào video này (dựng lại bản hoàn chỉnh)</button>
                   <div class="row" style="gap:6px;align-items:center">
                     <button class="btn sm" id="btnFramePreview">🎞 Xem trên khung thật</button>
                     <input type="range" class="range" id="framePreviewAt" min="0" max="100" value="15" style="flex:1" title="Vị trí trong video">
