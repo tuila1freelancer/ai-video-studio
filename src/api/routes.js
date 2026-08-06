@@ -342,6 +342,33 @@ export function mountRoutes(app, { version }) {
     if (!p) return res.status(404).json({ error: 'not found' });
     res.json({ project: DB.updateProject(p.id, req.body || {}) });
   });
+  // What would this edit cost? The fingerprints have always known which scenes a config change
+  // invalidates; nobody asked them before the owner committed. Changing a subtitle font either
+  // took a minute or an hour and the only way to find out was to start it.
+  r.post('/projects/:id/plan-changes', async (req, res) => {
+    try {
+      const { planChanges } = await import('./services/change-plan.js');
+      res.json(planChanges(req.params.id, req.body?.config || {}));
+    } catch (e) { res.status(400).json({ error: e.message }); }
+  });
+
+  // Save the config and run exactly the work the plan named — no more.
+  r.post('/projects/:id/apply-changes', async (req, res) => {
+    try {
+      const p = DB.getProject(req.params.id);
+      if (!p) return res.status(404).json({ error: 'not found' });
+      const { planChanges } = await import('./services/change-plan.js');
+      const plan = planChanges(p.id, req.body?.config || {});
+      if (!plan.items.length) return res.json({ ok: true, plan, started: false });
+      DB.updateProject(p.id, { config: { ...(p.config || {}), ...(req.body?.config || {}) } });
+      // 'all' rather than a scene subset when clips are stale: renderOnly's subset mode skips the
+      // join, and a half-applied change is worse than a slower one.
+      Pipeline.renderProject(p.id, { mode: plan.mode === 'concat' ? 'concat' : 'all' })
+        .catch((e) => logger.error(e.message, { projectId: p.id }));
+      res.json({ ok: true, plan, started: true });
+    } catch (e) { res.status(400).json({ error: e.message }); }
+  });
+
   // One real frame with the pending logo / subtitle settings applied through the REAL final
   // pipeline. About a second, against fifteen minutes of re-concatenating to find out a badge
   // was four pixels too high.
