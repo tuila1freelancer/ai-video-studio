@@ -381,15 +381,13 @@
                 <details class="cfg-details">
                   <summary>Tinh chỉnh thủ công</summary>
                   <div class="grid2" style="margin-top:8px">
-                    <div><label class="label">Font</label>
-                      <select class="input" id="cfgSubFont">
-                        <option>Be Vietnam Pro</option><option>Montserrat</option><option>Oswald</option><option>Anton</option><option>Nunito</option><option>Archivo Black</option><option>Lexend</option><option>JetBrains Mono</option><option>Arial</option><option>Impact</option>
-                      </select></div>
+                    <div><label class="label">Font <button class="btn sm ghost hidden" id="cfgSubFontGet" title="Tải font này về máy" style="padding:0 6px">⬇︎ Tải</button></label>
+                      <select class="input" id="cfgSubFont"></select></div>
                     <div><label class="label">Size</label>
                       <select class="input" id="cfgSubSize"><option value="60">Nhỏ</option><option value="72">Vừa</option><option value="80" selected>Lớn</option><option value="96">XL</option></select></div>
                   </div>
                   <label class="label" style="margin-top:8px">Kiểu chữ</label>
-                  <select class="input" id="cfgSubCase"><option value="original">Gốc</option><option value="uppercase">HOA</option><option value="lowercase">thường</option><option value="titlecase">Hoa Đầu</option></select>
+                  <select class="input" id="cfgSubCase"><option value="">Theo bộ mẫu</option><option value="original">Gốc</option><option value="uppercase">HOA</option><option value="lowercase">thường</option><option value="titlecase">Hoa Đầu</option></select>
                   <label class="label" style="margin-top:8px">Màu</label>
                   <div class="color-palette" id="cfgSubColors"></div>
                 <label class="hint" style="display:inline-flex;align-items:center;gap:6px;margin-top:6px">Màu tuỳ ý:

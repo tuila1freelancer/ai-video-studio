@@ -69,6 +69,9 @@ export const DIRS = {
   bgm: join(DATA_DIR, 'library', 'bgm'),
   sfx: join(DATA_DIR, 'library', 'sfx'),
   font: join(DATA_DIR, 'library', 'fonts'),
+  // Families fetched from Google Fonts on request. Separate from `font` (the owner's own
+  // uploads) so a cache purge never touches a brand asset somebody had to go and find.
+  fontWeb: join(DATA_DIR, 'library', 'fonts-web'),
   uploads: join(DATA_DIR, 'uploads'),
   tmp: join(DATA_DIR, 'tmp'),
 };

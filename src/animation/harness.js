@@ -15,21 +15,36 @@ import { VENDOR_DIR } from '../config/paths.js';
 import { gsapBundle } from './gsap.js';
 import { detectLibs, libsBundle } from './libs.js';
 import { userFontsCss, uploadedFamilies } from './userfonts.js';
+import { downloadedCss, downloadedFamilies } from '../fonts/files.js';
 
 let fontsCssCache = null;
 let faceBlocksCache = null;
 
-/** Every `@font-face` in the vendored CSS, tagged with the family it declares. */
-function faceBlocks() {
-  if (faceBlocksCache) return faceBlocksCache;
-  const raw = rawFontsCss();
+function parseFaces(css) {
   const out = [];
-  for (const m of raw.matchAll(/@font-face\s*\{[^}]*\}/g)) {
+  for (const m of String(css || '').matchAll(/@font-face\s*\{[^}]*\}/g)) {
     const fam = /font-family:\s*['"]([^'"]+)['"]/.exec(m[0])?.[1];
     if (fam) out.push({ family: fam, block: m[0] });
   }
-  faceBlocksCache = out;
   return out;
+}
+
+// Downloaded families are re-read rather than cached for the process lifetime: the owner can
+// fetch one from the Library while the app is running, and the very next preview has to see it.
+let webCache = { stamp: '', blocks: [] };
+function webFaces() {
+  const fams = downloadedFamilies();
+  const stamp = fams.join('|');
+  if (stamp !== webCache.stamp) {
+    webCache = { stamp, blocks: fams.flatMap((f) => parseFaces(downloadedCss(f))) };
+  }
+  return webCache.blocks;
+}
+
+/** Every `@font-face` the renderer can supply — vendored plus anything fetched on request. */
+function faceBlocks() {
+  if (!faceBlocksCache) faceBlocksCache = parseFaces(rawFontsCss());
+  return [...faceBlocksCache, ...webFaces()];
 }
 
 function rawFontsCss() {
