@@ -138,6 +138,33 @@ npm run icon:build       # render shell/icon.svg → shell/AppIcon.icns (headles
 
 ---
 
+## 🔑 Licensing & release
+
+The app is sold through the Tools Platform store: a customer buys a licence, pastes the key into
+the app once, and the app then runs offline against a signed token it verifies itself. A lapsed
+subscription keeps working through a 7-day grace window rather than stopping the day a card fails,
+and the app checks in with the store roughly every six hours to renew the token or learn that the
+licence was revoked.
+
+Running from this repo nothing is locked: a checkout with no store baked in (and no
+`AVS_STORE_URL`) simply runs. `AVS_LICENSE_BYPASS=1` skips the check for local work, and is
+deliberately dead inside a shipped bundle.
+
+**Building something a customer can actually run** — the ordinary `shell:build` bundle points at
+*this* checkout and only works on this Mac:
+
+```bash
+npm run node:fetch                              # portable Node runtime → vendor/node (once)
+npm run shell:build:dist                        # self-contained "AI Video Studio.app"
+npm run release -- --version 1.1.0 --notes "…"  # build, sign, upload and publish to the store
+```
+
+`release` needs `AVS_STORE_URL`, `AVS_STORE_CLIENT_KEY` (baked into the build) and
+`AVS_STORE_PUBLISHER_KEY` (never baked). Add the `APPLE_*` variables to get a notarised build;
+without them the release still completes and says plainly that customers will meet Gatekeeper.
+
+---
+
 ## 🧱 Architecture
 
 > The full living map (layer boundaries, target architecture, the P1–P19 protected-behavior
