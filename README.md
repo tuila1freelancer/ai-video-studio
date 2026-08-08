@@ -140,15 +140,31 @@ npm run icon:build       # render shell/icon.svg → shell/AppIcon.icns (headles
 
 ## 🔑 Licensing & release
 
-The app is sold through the Tools Platform store: a customer buys a licence, pastes the key into
-the app once, and the app then runs offline against a signed token it verifies itself. A lapsed
-subscription keeps working through a 7-day grace window rather than stopping the day a card fails,
-and the app checks in with the store roughly every six hours to renew the token or learn that the
-licence was revoked.
+The app is sold through the Tools Platform store and is unlocked by **signing in with the Google
+account that bought it**. The lock screen leads with one button: the app starts a loopback
+listener, opens the system browser at the store's sign-in, and when the browser lands back the
+customer's licence is found and activated by itself — nobody types a key (a collapsed key field
+remains as a support fallback). The app then runs offline against a signed RS256 token it verifies
+itself. A lapsed subscription keeps working through a 7-day grace window rather than stopping the
+day a card fails, and the app checks in with the store roughly every six hours to renew the token
+or learn that the licence was revoked. Signing out forgets the session and the licence together.
+
+Device seats are counted by the store: freeing one happens on the store's Devices page (once every
+30 days) or by the admin — deliberately never from inside the app.
 
 Running from this repo nothing is locked: a checkout with no store baked in (and no
-`AVS_STORE_URL`) simply runs. `AVS_LICENSE_BYPASS=1` skips the check for local work, and is
-deliberately dead inside a shipped bundle.
+`TOOLS_PLATFORM_URL`) simply runs. `TOOLS_LICENSE_BYPASS=1` skips the check for local work, and is
+deliberately dead inside a shipped bundle. Store integration is configured with the platform's
+cross-app environment names — the same set every desktop app in the store uses:
+
+| Variable | Meaning |
+| --- | --- |
+| `TOOLS_PLATFORM_URL` | store origin (dev: `http://localhost:4311`) |
+| `TOOLS_STORE_CLIENT_KEY` | `client`-scope API key for this product |
+| `TOOLS_STORE_PUBLIC_KEY` | RS256 public key (dev convenience; baked at release) |
+| `TOOLS_PLATFORM_WEB_URL` | dev-only: web origin when it differs from the API |
+| `TOOLS_DEV_LOGIN_EMAIL` | dev-only: sign in without Google via the store's dev-login |
+| `TOOLS_UPDATE_CHANNEL` | release channel to follow (default `stable`) |
 
 **Building something a customer can actually run** — the ordinary `shell:build` bundle points at
 *this* checkout and only works on this Mac:
@@ -159,9 +175,10 @@ npm run shell:build:dist                        # self-contained "AI Video Studi
 npm run release -- --version 1.1.0 --notes "…"  # build, sign, upload and publish to the store
 ```
 
-`release` needs `AVS_STORE_URL`, `AVS_STORE_CLIENT_KEY` (baked into the build) and
-`AVS_STORE_PUBLISHER_KEY` (never baked). Add the `APPLE_*` variables to get a notarised build;
+`release` needs `TOOLS_PLATFORM_URL`, `TOOLS_STORE_CLIENT_KEY` (baked into the build) and
+`TOOLS_STORE_PUBLISHER_KEY` (never baked). Add the `APPLE_*` variables to get a notarised build;
 without them the release still completes and says plainly that customers will meet Gatekeeper.
+Distribution is the store's licence-gated download link — no app store, no GitHub releases.
 
 ---
 
