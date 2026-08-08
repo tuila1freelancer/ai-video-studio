@@ -1111,17 +1111,22 @@
   <div class="license-card">
     <div class="license-logo">🎬</div>
     <h2>AI Video Studio</h2>
-    <p class="license-msg" id="licenseLockMsg">Nhập license key để bắt đầu sử dụng.</p>
-    <input class="input license-key" id="licenseKeyInput" placeholder="TOOLS-XXXX-XXXX-XXXX-XXXX"
-           autocomplete="off" spellcheck="false">
+    <p class="license-msg" id="licenseLockMsg">Đăng nhập bằng tài khoản Google đã mua license để sử dụng.</p>
     <div class="license-err" id="licenseLockErr"></div>
-    <button class="btn primary block" id="btnLicenseActivate">Kích hoạt</button>
+    <button class="btn primary block" id="btnLicenseLogin">Đăng nhập với Google</button>
+    <div class="hint license-account" id="licenseAccount" style="display:none"></div>
     <div class="row" style="gap:8px;margin-top:10px">
       <button class="btn block sm" id="btnLicenseBuy">Mua license</button>
       <button class="btn block sm ghost" id="btnLicenseRefresh">Kiểm tra lại</button>
     </div>
+    <details class="license-manual" style="margin-top:14px">
+      <summary class="hint" style="cursor:pointer">Kích hoạt bằng license key (dự phòng)</summary>
+      <input class="input license-key" id="licenseKeyInput" placeholder="TOOLS-XXXX-XXXX-XXXX-XXXX"
+             autocomplete="off" spellcheck="false" style="margin-top:8px">
+      <button class="btn block sm" id="btnLicenseActivate" style="margin-top:8px">Kích hoạt</button>
+    </details>
     <div class="hint license-known" id="licenseKnownKey"></div>
-    <div class="hint" style="margin-top:14px">License key được gửi vào email ngay sau khi thanh toán.</div>
+    <div class="hint" style="margin-top:14px">Trình duyệt sẽ mở ra để đăng nhập — license gắn với tài khoản, không cần nhập key.</div>
   </div>
 </div>
 

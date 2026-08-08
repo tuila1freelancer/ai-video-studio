@@ -48,19 +48,19 @@ function mockStore(routes) {
 }
 
 function withStore(t) {
-  process.env.AVS_STORE_URL = 'https://store.test';
-  process.env.AVS_STORE_API_KEY = 'pk_test.secret';
-  process.env.AVS_STORE_PUBLIC_KEY = PEM;
-  delete process.env.AVS_LICENSE_BYPASS;
+  process.env.TOOLS_PLATFORM_URL = 'https://store.test';
+  process.env.TOOLS_STORE_CLIENT_KEY = 'pk_test.secret';
+  process.env.TOOLS_STORE_PUBLIC_KEY = PEM;
+  delete process.env.TOOLS_LICENSE_BYPASS;
   setAppVersion('1.0.0');
   clearStore();
   invalidate();
   resetUpdateCache();
   t.after(() => {
     globalThis.fetch = realFetch;
-    delete process.env.AVS_STORE_URL;
-    delete process.env.AVS_STORE_API_KEY;
-    delete process.env.AVS_STORE_PUBLIC_KEY;
+    delete process.env.TOOLS_PLATFORM_URL;
+    delete process.env.TOOLS_STORE_CLIENT_KEY;
+    delete process.env.TOOLS_STORE_PUBLIC_KEY;
     clearStore();
     invalidate();
     resetUpdateCache();

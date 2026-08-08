@@ -26,9 +26,20 @@ function renderLock() {
   const locked = status && !status.runnable;
   lock.classList.toggle('open', Boolean(locked));
   if (!locked) return;
-  $('#licenseLockMsg').textContent = status.message || 'Cần license để sử dụng app.';
+  const account = status.account;
+  const noLicense = account && (status.reason === 'no-key' || status.reason === 'no-token');
+  $('#licenseLockMsg').textContent = noLicense
+    ? `Tài khoản ${account.email} chưa có license cho app này.`
+    : status.message || 'Đăng nhập bằng tài khoản Google đã mua license để sử dụng.';
+  const accountRow = $('#licenseAccount');
+  if (accountRow) {
+    accountRow.textContent = account ? `Đang đăng nhập: ${account.email}` : '';
+    show(accountRow, Boolean(account));
+  }
+  const login = $('#btnLicenseLogin');
+  if (login) login.textContent = account ? 'Đăng nhập tài khoản khác' : 'Đăng nhập với Google';
   const buy = $('#btnLicenseBuy');
-  show(buy, Boolean(status.storeUrl));
+  show(buy, Boolean(status.buyUrl));
   // A key that is already on the machine but refused (expired, wrong device) is worth showing:
   // it tells the owner WHICH licence the message is about.
   const known = $('#licenseKnownKey');
@@ -95,6 +106,26 @@ export async function bootLicense() {
 }
 
 export function initLicense() {
+  $('#btnLicenseLogin')?.addEventListener('click', (e) => withLock(e.currentTarget, async () => {
+    const err = $('#licenseLockErr');
+    err.textContent = '';
+    $('#licenseLockMsg').textContent = 'Đang mở trình duyệt để đăng nhập…';
+    try {
+      status = await api.post('/license/login');
+      state.license = status;
+      renderLock();
+      renderBadge();
+      if (status.runnable) location.reload();
+      else if (status.licenseFound === false && status.account) {
+        // Signed in fine — the account simply owns nothing for this app yet.
+        renderLock();
+      }
+    } catch (ex) {
+      err.textContent = ex.message;
+      renderLock();
+    }
+  }));
+
   const input = $('#licenseKeyInput');
   if (input) {
     input.addEventListener('input', () => {
@@ -124,7 +155,7 @@ export function initLicense() {
   }));
 
   $('#btnLicenseBuy')?.addEventListener('click', () => {
-    if (status?.storeUrl) window.open(`${status.storeUrl}/products/ai-video-generation`, '_blank');
+    if (status?.buyUrl) window.open(status.buyUrl, '_blank');
   });
 
   $('#btnLicenseRefresh')?.addEventListener('click', (e) => withLock(e.currentTarget, async () => {

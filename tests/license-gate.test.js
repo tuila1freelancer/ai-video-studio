@@ -24,14 +24,14 @@ function call(path) {
 test('an unlicensed copy still opens its own front door', async (t) => {
   // /health is what the Swift launcher polls to decide the server is up. Gate it and the window
   // never appears — the customer cannot even reach the screen that asks for a key.
-  process.env.AVS_STORE_URL = 'http://127.0.0.1:1';
-  process.env.AVS_STORE_API_KEY = 'pk_test.secret';
-  delete process.env.AVS_LICENSE_BYPASS;
+  process.env.TOOLS_PLATFORM_URL = 'http://127.0.0.1:1';
+  process.env.TOOLS_STORE_CLIENT_KEY = 'pk_test.secret';
+  delete process.env.TOOLS_LICENSE_BYPASS;
   const { invalidate } = await import('../src/license/index.js');
   invalidate();
   t.after(() => {
-    delete process.env.AVS_STORE_URL;
-    delete process.env.AVS_STORE_API_KEY;
+    delete process.env.TOOLS_PLATFORM_URL;
+    delete process.env.TOOLS_STORE_CLIENT_KEY;
     invalidate();
   });
 
@@ -55,8 +55,8 @@ test('a build with no store wired in runs — a developer checkout is not a pira
 });
 
 test('the developer bypass cannot survive being shipped', (t) => {
-  t.after(() => { delete process.env.AVS_LICENSE_BYPASS; delete process.env.AVS_DIST; });
-  process.env.AVS_LICENSE_BYPASS = '1';
+  t.after(() => { delete process.env.TOOLS_LICENSE_BYPASS; delete process.env.AVS_DIST; });
+  process.env.TOOLS_LICENSE_BYPASS = '1';
   assert.equal(bypassed(), true, 'works from the repo');
   process.env.AVS_DIST = '1';
   assert.equal(bypassed(), false, 'and is dead inside the bundle');

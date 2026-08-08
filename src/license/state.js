@@ -102,8 +102,8 @@ export function isRunnable(status) {
 
 /** What the lock screen says. Vietnamese: this is user-facing. */
 export const REASON_TEXT = {
-  'no-key': 'Nhập license key để bắt đầu sử dụng.',
-  'no-token': 'License chưa được kích hoạt trên máy này.',
+  'no-key': 'Đăng nhập bằng tài khoản Google đã mua license để bắt đầu.',
+  'no-token': 'License chưa được kích hoạt trên máy này. Đăng nhập để kích hoạt.',
   revoked: 'License này đã bị thu hồi. Liên hệ shop nếu bạn cho rằng đây là nhầm lẫn.',
   suspended: 'License này đang tạm ngưng. Kiểm tra lại tình trạng thanh toán.',
   expired: 'License đã hết hạn. Gia hạn để tiếp tục sử dụng.',

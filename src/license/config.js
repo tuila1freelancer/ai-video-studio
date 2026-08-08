@@ -8,6 +8,9 @@
 // Running from the repo (development) there is nothing baked, so the three values come from the
 // environment instead. That fallback is deliberately unavailable to a distributed build: see
 // `isDist()` — a customer must not be able to repoint their copy at a store they control.
+//
+// Environment names are the store's cross-app convention (TOOLS_*), shared verbatim by every
+// desktop product that integrates with the platform.
 
 // --- BEGIN BAKED CONFIG (rewritten by scripts/release.mjs — do not edit by hand) ---
 const BAKED = {
@@ -24,12 +27,12 @@ export function isDist() {
 
 export function storeUrl() {
   if (BAKED.storeUrl) return BAKED.storeUrl;
-  return isDist() ? '' : (process.env.AVS_STORE_URL || '');
+  return isDist() ? '' : (process.env.TOOLS_PLATFORM_URL || '');
 }
 
 export function clientApiKey() {
   if (BAKED.clientApiKey) return BAKED.clientApiKey;
-  return isDist() ? '' : (process.env.AVS_STORE_API_KEY || '');
+  return isDist() ? '' : (process.env.TOOLS_STORE_CLIENT_KEY || '');
 }
 
 /**
@@ -41,7 +44,7 @@ export function clientApiKey() {
  */
 export function publicKeyPem() {
   if (BAKED.publicKeyPem) return BAKED.publicKeyPem;
-  return isDist() ? '' : (process.env.AVS_STORE_PUBLIC_KEY || '');
+  return isDist() ? '' : (process.env.TOOLS_STORE_PUBLIC_KEY || '');
 }
 
 /** Is this build wired to a store at all? */
@@ -53,4 +56,16 @@ export function configured() {
 export const PLATFORM = 'macos-arm64';
 
 /** Which release channel this build follows. */
-export const CHANNEL = process.env.AVS_UPDATE_CHANNEL || 'stable';
+export const CHANNEL = process.env.TOOLS_UPDATE_CHANNEL || 'stable';
+
+/** The store product this app is sold as. The one constant that differs between apps. */
+export const PRODUCT_SLUG = 'ai-video-generation';
+
+/**
+ * Where humans go — the storefront. In production web and API share one origin, so this is the
+ * baked store URL; development may split them (web :4310, api :4311), hence the override.
+ */
+export function webUrl() {
+  if (!isDist() && process.env.TOOLS_PLATFORM_WEB_URL) return process.env.TOOLS_PLATFORM_WEB_URL;
+  return storeUrl();
+}
