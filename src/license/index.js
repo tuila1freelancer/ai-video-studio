@@ -6,7 +6,7 @@
 // they have already paid for.
 import { EventEmitter } from 'node:events';
 import { logger } from '../util/log.js';
-import { clientApiKey, configured, isDist, publicKeyPem, storeUrl } from './config.js';
+import { PRODUCT_SLUG, clientApiKey, configured, isDist, publicKeyPem, storeUrl, webUrl } from './config.js';
 import { deviceId, deviceInfo } from './device.js';
 import { LicenseClient, OfflineError } from './sdk.js';
 import { isRunnable, licenseState, reasonText } from './state.js';
@@ -30,7 +30,7 @@ let timer = null;
  * — which is what a developer does — the bypass works.
  */
 export function bypassed() {
-  return process.env.AVS_LICENSE_BYPASS === '1' && !isDist();
+  return process.env.TOOLS_LICENSE_BYPASS === '1' && !isDist();
 }
 
 function client() {
@@ -89,7 +89,17 @@ export function publicStatus() {
     expiresAt: claims?.expiresAt || null,
     graceUntil: claims?.graceUntil || null,
     lastOnlineAt: readStore().lastOnlineAt || null,
+    productSlug: PRODUCT_SLUG,
+    buyUrl: configured() ? `${webUrl()}/products/${PRODUCT_SLUG}` : null,
+    devicesUrl: configured() ? `${webUrl()}/dashboard/devices` : null,
   };
+}
+
+/** Sign-out support: forget the licence and report the new (locked) verdict. */
+export function forgetLicense() {
+  const before = status();
+  writeStore({});
+  return announce(before);
 }
 
 /**
@@ -215,7 +225,7 @@ function translate(e, licenseKey) {
   if (e?.status === 403 && /device limit/i.test(e.message || '')) {
     return withStatus(
       403,
-      `Hết slot thiết bị cho license này. Gỡ bớt một máy tại ${storeUrl()}/dashboard/devices rồi kích hoạt lại.`,
+      `Hết slot thiết bị cho license này. Gỡ bớt một máy tại ${webUrl()}/dashboard/devices rồi kích hoạt lại.`,
     );
   }
   if (e?.status === 403) {

@@ -15,11 +15,11 @@ const src = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 test('a shipped build cannot be repointed at another store by an environment variable', (t) => {
   t.after(() => {
     delete process.env.AVS_DIST;
-    delete process.env.AVS_STORE_URL;
-    delete process.env.AVS_STORE_PUBLIC_KEY;
+    delete process.env.TOOLS_PLATFORM_URL;
+    delete process.env.TOOLS_STORE_PUBLIC_KEY;
   });
-  process.env.AVS_STORE_URL = 'http://evil.example';
-  process.env.AVS_STORE_PUBLIC_KEY = '-----BEGIN PUBLIC KEY-----fake';
+  process.env.TOOLS_PLATFORM_URL = 'http://evil.example';
+  process.env.TOOLS_STORE_PUBLIC_KEY = '-----BEGIN PUBLIC KEY-----fake';
   assert.equal(storeUrl(), 'http://evil.example', 'a developer checkout reads the environment');
 
   process.env.AVS_DIST = '1';

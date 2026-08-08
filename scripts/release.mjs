@@ -9,9 +9,9 @@
 // a human to click "upload" is a release that eventually does not happen.
 //
 // Environment (the vendor's machine only — none of this ever ships inside the app):
-//   AVS_STORE_URL             production store origin
-//   AVS_STORE_CLIENT_KEY      `client`-scope API key; gets BAKED into the build
-//   AVS_STORE_PUBLISHER_KEY   `publisher`-scope API key; used to upload, never baked
+//   TOOLS_PLATFORM_URL             production store origin
+//   TOOLS_STORE_CLIENT_KEY      `client`-scope API key; gets BAKED into the build
+//   TOOLS_STORE_PUBLISHER_KEY   `publisher`-scope API key; used to upload, never baked
 //   APPLE_SIGNING_IDENTITY, APPLE_ID, APPLE_TEAM_ID, APPLE_APP_PASSWORD   optional, for notarising
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
@@ -55,14 +55,14 @@ const notes = args['notes-file']
   ? readFileSync(join(ROOT, args['notes-file']), 'utf8').trim()
   : (typeof args.notes === 'string' ? args.notes : '');
 
-const storeUrl = (process.env.AVS_STORE_URL || '').replace(/\/+$/, '');
-const clientKey = process.env.AVS_STORE_CLIENT_KEY || '';
-const publisherKey = process.env.AVS_STORE_PUBLISHER_KEY || '';
+const storeUrl = (process.env.TOOLS_PLATFORM_URL || '').replace(/\/+$/, '');
+const clientKey = process.env.TOOLS_STORE_CLIENT_KEY || '';
+const publisherKey = process.env.TOOLS_STORE_PUBLISHER_KEY || '';
 const dryRun = Boolean(args['dry-run']);
 
-if (!storeUrl) die('thiếu AVS_STORE_URL');
-if (!clientKey) die('thiếu AVS_STORE_CLIENT_KEY (khoá scope `client`, sẽ được bake vào app)');
-if (!publisherKey && !dryRun) die('thiếu AVS_STORE_PUBLISHER_KEY (khoá scope `publisher` để phát hành)');
+if (!storeUrl) die('thiếu TOOLS_PLATFORM_URL');
+if (!clientKey) die('thiếu TOOLS_STORE_CLIENT_KEY (khoá scope `client`, sẽ được bake vào app)');
+if (!publisherKey && !dryRun) die('thiếu TOOLS_STORE_PUBLISHER_KEY (khoá scope `publisher` để phát hành)');
 
 console.log(`\n▶ Phát hành AI Video Studio v${version}`);
 console.log(`  store: ${storeUrl}${dryRun ? '  (dry-run — không upload)' : ''}\n`);

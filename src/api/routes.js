@@ -24,6 +24,7 @@ import { resolveLang, declaredLang, detectLang, DEFAULT_LANG } from '../util/lan
 import { WEB_SAFE, toPng } from './services/image-convert.js';
 import { licenseGate } from '../license/gate.js';
 import { activate, publicStatus, refreshNow } from '../license/index.js';
+import { adoptWithStoredSession, sessionAccount, signIn, signOut } from '../license/auth.js';
 import { checkUpdate, downloadUrl } from '../license/update.js';
 
 const upload = multer({ dest: DIRS.uploads, limits: { fileSize: 512 * 1024 * 1024 } });
@@ -47,7 +48,32 @@ export function mountRoutes(app, { version }) {
   // ---- license ----
   // Reachable while the app is locked: this is the door out of that state.
   r.get('/license/status', (req, res) => {
-    res.json(publicStatus());
+    res.json({ ...publicStatus(), account: sessionAccount() });
+  });
+
+  // Sign in with the store (Google) account; the licence follows automatically.
+  r.post('/license/login', async (req, res) => {
+    try {
+      const result = await signIn();
+      res.json({ ...publicStatus(), account: result.account, licenseFound: result.licenseFound });
+    } catch (e) {
+      res.status(e.statusCode || 500).json({ error: e.message });
+    }
+  });
+
+  // Re-adopt a licence with the stored session (after an admin device reset).
+  r.post('/license/relink', async (req, res) => {
+    try {
+      const licenseFound = await adoptWithStoredSession();
+      res.json({ ...publicStatus(), account: sessionAccount(), licenseFound });
+    } catch (e) {
+      res.status(e.statusCode || 500).json({ error: e.message });
+    }
+  });
+
+  r.post('/license/logout', (req, res) => {
+    signOut();
+    res.json({ ...publicStatus(), account: null });
   });
 
   r.post('/license/activate', async (req, res) => {

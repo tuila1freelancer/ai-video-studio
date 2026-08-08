@@ -54,3 +54,39 @@ export function maskKey(key) {
   if (parts.length < 3) return `${String(key).slice(0, 4)}••••`;
   return [parts[0], ...parts.slice(1, -1).map(() => '••••'), parts.at(-1)].join('-');
 }
+
+// ---------------------------------------------------------------------------
+// The signed-in account: `<DATA_DIR>/session.json`, same atomicity and 0600
+// as the licence file. Kept separate on purpose — signing out must be able to
+// destroy the session without touching a licence mid-write, and vice versa.
+// ---------------------------------------------------------------------------
+
+export function sessionFilePath() {
+  return join(DIRS.data, 'session.json');
+}
+
+/** The stored session (user + JWT pair), or `{}` when nobody is signed in. */
+export function readSession() {
+  const path = sessionFilePath();
+  if (!existsSync(path)) return {};
+  try {
+    const parsed = JSON.parse(readFileSync(path, 'utf8'));
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+export function writeSession(next) {
+  const path = sessionFilePath();
+  const tmp = `${path}.tmp`;
+  writeFileSync(tmp, `${JSON.stringify(next, null, 2)}\n`, { mode: 0o600 });
+  renameSync(tmp, path);
+  try { chmodSync(path, 0o600); } catch { /* best effort on odd filesystems */ }
+  return next;
+}
+
+export function clearSession() {
+  const path = sessionFilePath();
+  if (existsSync(path)) unlinkSync(path);
+}

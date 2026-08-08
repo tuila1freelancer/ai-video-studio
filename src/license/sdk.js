@@ -10,7 +10,7 @@
 //   - errors are CLASSIFIED. "No network" and "your licence was revoked" look identical to a
 //     `fetch` that rejects, and treating the first like the second would lock a paying customer
 //     out of their own work the moment their wifi drops.
-import { createVerify } from 'node:crypto';
+import { createVerify, randomBytes } from 'node:crypto';
 
 const REQUEST_TIMEOUT_MS = 10_000;
 
@@ -139,4 +139,81 @@ function tokenError(reason, message) {
 export function isWithinGrace(claims, now = new Date()) {
   if (!claims?.graceUntil) return true;
   return new Date(claims.graceUntil).getTime() >= now.getTime();
+}
+
+// ============================================================================
+// Desktop sign-in bridge (client half)
+//
+// Mirrors the desktop-auth helpers in `@tools/sdk`. The app starts a loopback
+// listener, opens the browser at `desktopAuthorizeUrl(...)`, trades the
+// one-time code for a JWT pair, then finds the customer's licence with
+// `listMyLicenses(...)` — nobody types a licence key.
+// ============================================================================
+
+/** An unguessable, URL-safe `state` for the loopback flow. */
+export function randomState() {
+  return randomBytes(24).toString('base64url');
+}
+
+/** The URL the system browser opens to start a desktop sign-in. */
+export function desktopAuthorizeUrl(baseUrl, { state, port }) {
+  const origin = String(baseUrl).replace(/\/+$/, '');
+  const params = new URLSearchParams({ state, port: String(port) });
+  return `${origin}/api/auth/desktop/authorize?${params}`;
+}
+
+async function desktopRequest(baseUrl, path, body) {
+  const origin = String(baseUrl).replace(/\/+$/, '');
+  let res;
+  try {
+    res = await fetch(`${origin}${path}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+  } catch (e) {
+    throw new OfflineError(e?.message || 'không kết nối được tới cửa hàng');
+  }
+  const text = await res.text().catch(() => '');
+  const json = text ? safeJson(text) : null;
+  if (!res.ok) {
+    throw new StoreError(res.status, json?.message || text || `HTTP ${res.status}`, json);
+  }
+  return json;
+}
+
+/** Trade the one-time code from the loopback redirect for a session. */
+export function exchangeDesktopCode(baseUrl, code) {
+  return desktopRequest(baseUrl, '/api/auth/desktop/exchange', { code });
+}
+
+/** Rotate a stored session before its access token runs out. */
+export function refreshDesktopSession(baseUrl, refreshToken) {
+  return desktopRequest(baseUrl, '/api/auth/desktop/refresh', { refreshToken });
+}
+
+/** Development-only: a session for any email while the store runs without Google. */
+export function desktopDevLogin(baseUrl, email) {
+  return desktopRequest(baseUrl, '/api/auth/desktop/dev-login', { email });
+}
+
+/** The signed-in customer's licences, for picking the one this app activates. */
+export async function listMyLicenses(baseUrl, accessToken) {
+  const origin = String(baseUrl).replace(/\/+$/, '');
+  let res;
+  try {
+    res = await fetch(`${origin}/api/me/licenses`, {
+      headers: { authorization: `Bearer ${accessToken}` },
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+  } catch (e) {
+    throw new OfflineError(e?.message || 'không kết nối được tới cửa hàng');
+  }
+  const text = await res.text().catch(() => '');
+  const json = text ? safeJson(text) : null;
+  if (!res.ok) {
+    throw new StoreError(res.status, json?.message || text || `HTTP ${res.status}`, json);
+  }
+  return Array.isArray(json) ? json : [];
 }
