@@ -40,6 +40,31 @@ export function recoverZombieProjects() {
   return db.prepare("UPDATE projects SET status='paused' WHERE status='running'").run().changes;
 }
 
+// ---- durable stop ----------------------------------------------------------------------
+// The in-process stop signal (pipeline/stop.js) dies with the process, and a job left
+// 'running' by a killed app is requeued at boot. Without a record on disk, quitting the app
+// mid-render ERASED the owner's decision to stop and the render resumed on the next launch.
+//
+// The flag means "a stop was asked for and has not been honoured yet". It is cleared when a
+// run is deliberately started again, and when a run settles as paused.
+
+export function markStopRequested(id) {
+  return db.prepare('UPDATE projects SET stop_requested_at=? WHERE id=?').run(Date.now(), id).changes;
+}
+
+export function clearStopRequest(id) {
+  return db.prepare('UPDATE projects SET stop_requested_at=NULL WHERE id=?').run(id).changes;
+}
+
+export function stopRequestedAt(id) {
+  return db.prepare('SELECT stop_requested_at FROM projects WHERE id=?').get(id)?.stop_requested_at ?? null;
+}
+
+/** Every project with a stop still pending — used to rehydrate the signal at boot. */
+export function stopRequestedProjects() {
+  return db.prepare('SELECT id FROM projects WHERE stop_requested_at IS NOT NULL').all().map((r) => r.id);
+}
+
 export function updateProject(id, fields) {
   const allowed = ['title', 'topic', 'aspect_ratio', 'status', 'current_step', 'config', 'metadata', 'video_path', 'thumb_path', 'error', 'scenes_approved_at'];
   const sets = [], vals = {};

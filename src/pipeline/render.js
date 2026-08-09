@@ -70,6 +70,8 @@ export async function concatScenes(sceneVideos, project, {
   dir, size, bgmPath, sfxPath, logo, watermark, transitions, onLog, onNote, bgmVol,
   subtitles = null, masterFade = true, encoder = 'quality',
   prevPath = null, prevFp = null, allowSkip = true,
+  // Forwarded straight to the encoder so a stop can end the join instead of waiting it out.
+  signal = undefined,
 }) {
   if (!sceneVideos.length) throw new Error('Không có cảnh nào để ghép');
   const ow = size.w, oh = size.h;
@@ -281,12 +283,13 @@ export async function concatScenes(sceneVideos, project, {
   note?.(`${label} — ${sceneVideos.length} clip · ${Math.round(cut)}s${ass ? ' · có phụ đề in trực tiếp' : ''}`);
   const t0 = Date.now();
   await (useAssBinary ? ffmpegAss : ffmpeg)(args, {
+    signal,
     onLog: ffProgress(cut, (pct) => note?.(`${label} · ${pct}%`), onLog),
   });
   note?.(`✅ Ghép xong sau ${Math.round((Date.now() - t0) / 1000)}s → ${finalOut.split('/').pop()}`);
 
   const thumb = join(project.outputDir || dir, `thumb_${newId('')}.jpg`);
-  await ffmpeg(['-ss', String(Math.min(1.5, total / 2)), '-i', finalOut, '-frames:v', '1', '-q:v', '3', thumb]);
+  await ffmpeg(['-ss', String(Math.min(1.5, total / 2)), '-i', finalOut, '-frames:v', '1', '-q:v', '3', thumb], { signal });
   return { path: finalOut, thumb, duration: total, timeline, fp, tier };
 }
 

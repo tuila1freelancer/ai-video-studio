@@ -81,8 +81,12 @@ export async function renderOnly(projectId, { mode = 'all', sceneIds = [], confi
     if (mode !== 'scenes' && stillUnvoiced) {
       op(projectId, '⏭️ Bỏ qua ghép — còn cảnh chưa có lồng tiếng; hoàn tất lồng tiếng rồi ghép sau');
     } else if (mode !== 'scenes') {
+      // mode:'concat' skips the scene loop above entirely, so without this the "ghép lại" path
+      // reached finalize without ever having asked whether the owner still wanted it.
+      checkStop(projectId);
       await finalize(projectId, { dir, size, config, variantName });
     }
+    checkStop(projectId);
     // A render during a hold (scene gate 'scenes' / review gate 'review') must not destroy
     // the hold: 'done' here would let the owner think the video finished prematurely.
     const endStatus = ['scenes', 'review'].includes(project.status) ? project.status
@@ -99,7 +103,9 @@ export async function renderOnly(projectId, { mode = 'all', sceneIds = [], confi
     }
   } catch (e) {
     if (e.stopped) {
-      DB.updateProject(projectId, { status: 'paused' }); hub.toProject(projectId, { type: 'status', status: 'paused' });
+      DB.updateProject(projectId, { status: 'paused' });
+      DB.clearStopRequest(projectId); // honoured — a later start must not be cancelled at boot
+      hub.toProject(projectId, { type: 'status', status: 'paused' });
       jlog(projectId, { kind: 'status', msg: '⏹ Đã dừng render theo yêu cầu' });
     } else {
       DB.updateProject(projectId, { status: 'error', error: e.message }); hub.toProject(projectId, { type: 'error', msg: e.message });

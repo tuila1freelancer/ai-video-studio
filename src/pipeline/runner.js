@@ -8,7 +8,7 @@ import { logger } from '../util/log.js';
 import { sleep } from '../util/retry.js';
 import { classifyError } from '../core/errors.js';
 import { buildContext } from './context.js';
-import { requestStop, clearStop, isStopped } from './stop.js';
+import { requestStop, clearStop, checkStop, isStopped } from './stop.js';
 import { op } from './progress.js';
 import { jlog } from './journal.js';
 import { seedEstimatedTiming } from './estimate.js';
@@ -99,8 +99,13 @@ export async function runPipeline(projectId, { resume = false, _auto = 0 } = {})
     }
 
     if (config.autoConcat !== false) await finalize(projectId, { dir, size, config }); // B7 + B8
+    // Between the join and 'done' there used to be no checkpoint at all, so a stop that arrived
+    // during the last stages was simply overwritten by success: the owner pressed Dừng, waited,
+    // and watched the video finish anyway.
+    checkStop(projectId);
     if (config.generateMetadata !== false) await runMetadata(ctx);
     await runPublish(ctx); // B9 — opt-in (config.autoPublish), stages private by default
+    checkStop(projectId); // publishing is the last thing that can be spent; 'done' is a promise
 
     DB.updateProject(projectId, { status: 'done' });
     const fin = DB.getProject(projectId);
@@ -114,6 +119,9 @@ export async function runPipeline(projectId, { resume = false, _auto = 0 } = {})
   } catch (e) {
     if (e.stopped) {
       DB.updateProject(projectId, { status: 'paused' });
+      // The durable flag has done its job the moment the run settles as paused. Leaving it set
+      // would make the next boot cancel a job the owner had since started again.
+      DB.clearStopRequest(projectId);
       hub.toProject(projectId, { type: 'status', status: 'paused' });
       logger.warn('⏹ Đã dừng theo yêu cầu của bạn', { projectId, kind: 'status' });
     } else {

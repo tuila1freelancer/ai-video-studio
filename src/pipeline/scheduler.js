@@ -59,7 +59,12 @@ async function executeInner(job) {
       return { status: 'error', error: p?.error || 'pipeline ended in error' };
     }
     if (job.kind === 'render') {
+      // renderOnly settles the project row itself, so the job has to read it back rather than
+      // assume success — a stopped render used to be filed in the ledger as 'done'.
       await renderOnly(projectId, job.payload);
+      const p = DB.getProject(projectId);
+      if (p?.status === 'paused') return { status: 'cancelled', error: 'stopped by user' };
+      if (p?.status === 'error') return { status: 'error', error: p.error || 'render ended in error' };
       return { status: 'done' };
     }
     return { status: 'error', error: `unknown job kind ${job.kind}` };

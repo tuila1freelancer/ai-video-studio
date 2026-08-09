@@ -2,16 +2,32 @@
 import { spawn } from 'node:child_process';
 import { copyFile } from 'node:fs/promises';
 import { PATHS } from '../config/paths.js';
+// stop.js is dependency-free on purpose, so importing it here does not drag the pipeline (or the
+// database) into the process-spawn path.
+import { stopError } from '../pipeline/stop.js';
 
 // internal spawn wrapper — callers use ffmpeg()/ffmpegAss() below.
-function run(bin, args, { onLog } = {}) {
+//
+// `signal` is how "Dừng" reaches a running encode. A concat can occupy one ffmpeg process for a
+// quarter of an hour, and the pipeline's checkpoints only fire BETWEEN steps — so without this
+// the stop was honoured only once the encode had finished doing the work being cancelled.
+//
+// An abort is reported as a stop, not as a failure: the error carries `.stopped`, which is the
+// tag the orchestrator reads to settle the run as paused. Left as a plain AbortError it would be
+// classified as a crash, shown as "⛔ Pipeline lỗi", and — because it looks retryable — trigger
+// the automatic resume, restarting the very render the owner just stopped.
+function run(bin, args, { onLog, signal } = {}) {
   return new Promise((resolvePromise, reject) => {
-    const ps = spawn(bin, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+    if (signal?.aborted) return reject(stopError());
+    const ps = spawn(bin, args, { stdio: ['ignore', 'pipe', 'pipe'], signal });
     let err = '';
     ps.stdout.on('data', (d) => onLog && onLog(d.toString()));
     ps.stderr.on('data', (d) => { const s = d.toString(); err += s; onLog && onLog(s); });
-    ps.on('error', reject);
-    ps.on('close', (code) => code === 0 ? resolvePromise({ code, err }) : reject(new Error(`${bin} exit ${code}: ${err.slice(-600)}`)));
+    ps.on('error', (e) => reject(signal?.aborted ? stopError() : e));
+    ps.on('close', (code) => {
+      if (signal?.aborted) return reject(stopError());
+      return code === 0 ? resolvePromise({ code, err }) : reject(new Error(`${bin} exit ${code}: ${err.slice(-600)}`));
+    });
   });
 }
 

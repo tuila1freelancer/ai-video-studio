@@ -93,6 +93,23 @@ const MIGRATIONS = [
       }
     },
   },
+  {
+    id: 6,
+    name: 'durable-stop-request',
+    // "Dừng" has to outlive the process. The stop signal used to be a Set in module memory,
+    // so quitting the app erased it — and boot recovery, seeing a job still marked 'running',
+    // requeued it and carried on rendering the video the owner had just stopped.
+    //
+    // Timestamp, not a boolean, so the journal can say WHEN the owner asked. NULL means no
+    // stop is pending; it is cleared the moment a run is started again, and the moment a run
+    // settles as paused (the stop has been honoured).
+    up(db) {
+      const pcols = db.prepare('PRAGMA table_info(projects)').all().map((c) => c.name);
+      if (!pcols.includes('stop_requested_at')) {
+        db.exec('ALTER TABLE projects ADD COLUMN stop_requested_at INTEGER');
+      }
+    },
+  },
 ];
 
 function backupBefore(db) {
