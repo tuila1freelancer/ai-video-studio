@@ -11,7 +11,7 @@ const TARGET_I = -16, TARGET_TP = -1.5, TARGET_LRA = 11;
  * Master a finished video's audio to -16 LUFS / TP <= -1.5 in place.
  * @returns {{lufs:number|null, truePeak:number|null, corrected:boolean}}
  */
-export async function masterAudio(file, { onLog } = {}) {
+export async function masterAudio(file, { onLog, signal } = {}) {
   const m = await measureLoudness(file, { I: TARGET_I, TP: TARGET_TP, LRA: TARGET_LRA });
   if (!m) return { lufs: null, truePeak: null, corrected: false }; // unmeasurable → leave as-is
   const i = parseFloat(m.input_i), tp = parseFloat(m.input_tp);
@@ -25,7 +25,8 @@ export async function masterAudio(file, { onLog } = {}) {
       + `:measured_I=${m.input_i}:measured_TP=${m.input_tp}:measured_LRA=${m.input_lra}`
       + `:measured_thresh=${m.input_thresh}:offset=${m.target_offset}:linear=true`,
     '-c:a', 'aac', '-b:a', '192k', '-ar', '44100', '-ac', '2', '-movflags', '+faststart', out,
-  ], { onLog });
+    // A remux of a whole programme is minutes of work — abortable like the join itself.
+  ], { onLog, signal });
   // audio-only remux sanity: same container duration, then replace the original atomically
   const d0 = await probeDuration(file), d1 = await probeDuration(out);
   if (!d1 || Math.abs(d1 - d0) > 0.5) throw new Error(`master remux đổi thời lượng (${d0.toFixed(1)}s → ${d1.toFixed(1)}s)`);

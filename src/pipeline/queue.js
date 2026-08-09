@@ -4,7 +4,7 @@
 // settings.queue.durable=false falls back to the original in-memory Map path.
 import { runPipeline, renderOnly, regenOne, requestStop } from './runner.js';
 import { submit } from './scheduler.js';
-import { getSetting, cancelQueuedJobs, getProject, getScene } from '../db/index.js';
+import { getSetting, cancelQueuedJobs, clearStopRequest, getProject, getScene, markStopRequested } from '../db/index.js';
 import { withRunContext } from '../util/run-context.js';
 
 const active = new Map(); // projectId -> Promise (legacy fallback path)
@@ -14,6 +14,7 @@ const attributed = (projectId, fn) =>
   withRunContext({ projectId, channelId: getProject(projectId)?.channel_id || null }, fn);
 
 export function startProject(projectId, { resume = false } = {}) {
+  clearStopRequest(projectId); // starting again IS the answer to an earlier stop
   if (durable()) return submit({ kind: 'pipeline', projectId, payload: { resume } }).done;
   if (active.has(projectId)) return active.get(projectId);
   const p = attributed(projectId, () => runPipeline(projectId, { resume })).finally(() => active.delete(projectId));
@@ -23,10 +24,15 @@ export function startProject(projectId, { resume = false } = {}) {
 
 export function stopProject(projectId) {
   cancelQueuedJobs(projectId); // a queued job must not start after the user pressed stop
+  // Written to disk BEFORE the in-process signal, because the case this exists for is the app
+  // dying between the two: a stop that only lived in memory was erased by quitting the app, and
+  // boot recovery then requeued the running job and carried on rendering.
+  markStopRequested(projectId);
   requestStop(projectId);
 }
 
 export function renderProject(projectId, opts) {
+  clearStopRequest(projectId);
   if (durable()) return submit({ kind: 'render', projectId, payload: opts || {} }).done;
   if (active.has(projectId)) return active.get(projectId);
   const p = attributed(projectId, () => renderOnly(projectId, opts)).finally(() => active.delete(projectId));

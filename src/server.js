@@ -27,9 +27,18 @@ license.setAppVersion(VERSION);
 license.startLicenseLoop();
 
 try {
-  const { recoverZombieProjects } = await import('./db/index.js');
+  const { recoverZombieProjects, stopRequestedProjects } = await import('./db/index.js');
   const n = recoverZombieProjects();
   if (n) logger.info(`boot recovery: ${n} zombie 'running' project(s) → paused`);
+  // Re-arm any stop the owner asked for before the app was closed. requeueZombieJobs (below,
+  // inside startScheduler) cancels those jobs outright; this covers the rest — anything that
+  // does reach a checkpoint in this process stops at it instead of running to completion.
+  const { hydrateStops } = await import('./pipeline/stop.js');
+  const pending = stopRequestedProjects();
+  if (pending.length) {
+    hydrateStops(pending);
+    logger.info(`boot recovery: ${pending.length} dự án đã được yêu cầu dừng — giữ nguyên trạng thái dừng`);
+  }
   // After P13's project recovery: requeue jobs orphaned by the dead process and start the
   // scheduler — queued/batched work continues across restarts instead of being stranded.
   const { startScheduler } = await import('./pipeline/scheduler.js');

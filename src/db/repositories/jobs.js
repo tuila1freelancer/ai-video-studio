@@ -88,8 +88,16 @@ export function listJobs({ projectId = null, limit = 50 } = {}) {
  * of a boot crash-loop.
  */
 export function requeueZombieJobs() {
+  // A stop the owner asked for outranks crash recovery. Without this, pressing "Dừng" and then
+  // quitting the app resurrected the very job that was stopped: the flag lived only in process
+  // memory, the row was still 'running', and boot dutifully requeued it. This runs FIRST so
+  // those rows are gone before the blanket requeue below sees them.
+  const stopped = db.prepare(`UPDATE jobs SET status='cancelled', error='stopped by user', finished_at=?
+    WHERE status IN ('running','queued')
+      AND project_id IN (SELECT id FROM projects WHERE stop_requested_at IS NOT NULL)`)
+    .run(Date.now()).changes;
   const dead = db.prepare(`UPDATE jobs SET status='error', error='process died twice during this job', finished_at=?
     WHERE status='running' AND attempts >= 2`).run(Date.now()).changes;
   const requeued = db.prepare(`UPDATE jobs SET status='queued', started_at=NULL WHERE status='running'`).run().changes;
-  return { requeued, dead };
+  return { requeued, dead, stopped };
 }

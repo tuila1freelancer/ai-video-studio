@@ -21,6 +21,7 @@ import { resolveConcatLogo } from '../../media/logo-overlay.js';
 import { resolveWatermark, watermarkFont } from '../../media/watermark.js';
 import { planSoundDesign, usableLibrary } from '../../audio/sound-design.js';
 import { withRetry } from '../../util/retry.js';
+import { abortSignalFor, checkStop, notStopped } from '../stop.js';
 import { step, op, retryHook, progressPlan } from '../progress.js';
 import { renderCurrent, renderFingerprint, fpStamp } from '../fingerprint.js';
 import { resolveOutputDir } from '../helpers.js';
@@ -32,6 +33,12 @@ import { resolveLang } from '../../util/lang.js';
  * @param {{dir:string, size:{w:number,h:number}, config:object}} opts
  */
 export async function finalize(projectId, { dir, size, config, variantName = null }) {
+  // B7 used to carry NO stop checkpoint at all, which made it the longest unstoppable stretch in
+  // the app: clip repairs, the join itself (measured at ~15 minutes on a long video), the audio
+  // master, a QC decode, and an LLM thumbnail. Pressing "Dừng" anywhere in here did nothing, and
+  // because the runner had no checkpoint after finalize either, the run went on to finish as
+  // 'done'. The stop was not late — it was discarded.
+  checkStop(projectId);
   step(projectId, 'b7', 'running', 'Ghép & mix');
   DB.updateProject(projectId, { current_step: 'b7' });
   const project = DB.getProject(projectId);
@@ -77,6 +84,7 @@ export async function finalize(projectId, { dir, size, config, variantName = nul
     const pp = progressPlan(all, config);
     let n = 0;
     for (const sc of rebuild) {
+      checkStop(projectId); // a repair pass can be dozens of renders — one per scene is the checkpoint
       op(projectId, `🎬 Dựng lại cảnh ${sc.idx + 1} (${++n}/${rebuild.length})`);
       const r = await renderAnimationScene(sc, project, clipCfg, {
         dir: renderDir, progressStart: pp.offsets[sc.idx] || 0, progressTotal: pp.total, total: all.length,
@@ -216,6 +224,7 @@ export async function finalize(projectId, { dir, size, config, variantName = nul
 
   // What the previous export was made from, so the concat can charge only for what moved.
   const prevMeta = project.metadata?.concat || null;
+  checkStop(projectId);
   const res = await timed(projectId, 'concat', () => withRetry(async () => {
     const r = await concatScenes(clips, project, {
       dir: renderDir, size, bgmPath, sfxPath, logo: config.logo, watermark: config.watermark,
@@ -228,6 +237,9 @@ export async function finalize(projectId, { dir, size, config, variantName = nul
       // silently reusing an old file there would hide a pipeline that did nothing.
       allowSkip: !!prevMeta,
       transitions: transPlan || false, subtitles,
+      // The join is one ffmpeg process that can run for a quarter of an hour. Checkpoints sit
+      // BETWEEN steps and cannot interrupt it, so the stop reaches the encoder directly.
+      signal: abortSignalFor(projectId),
       onLog: (s) => logger.debug(s, { projectId }),
       onNote: (s) => op(projectId, s),
     });
@@ -237,7 +249,10 @@ export async function finalize(projectId, { dir, size, config, variantName = nul
       throw new Error(`video ghép ngắn bất thường (${Math.round(got || 0)}s / kỳ vọng ~${Math.round(expectDur)}s)`);
     }
     return r;
-  }, { tries: 2, label: 'b7 concat', onRetry: retryHook(projectId, 'b7') }));
+    // `fatal` matters more than it looks: without it, aborting the encoder reads as a failed
+    // attempt and withRetry starts the whole fifteen-minute join again — pressing stop would
+    // have made the app do MORE work.
+  }, { tries: 2, label: 'b7 concat', fatal: notStopped, onRetry: retryHook(projectId, 'b7') }));
 
   // Nothing moved — the export on disk IS the answer. Everything below (audio master, QC decode,
   // thumbnail) would re-do work whose inputs are provably identical, so it is skipped too rather
@@ -249,12 +264,21 @@ export async function finalize(projectId, { dir, size, config, variantName = nul
 
   // Broadcast master (P9's -16 LUFS authority, relocated from the concat graph): measure
   // the mixed program, correct the AUDIO ONLY (-c:v copy — video is never re-encoded).
+  checkStop(projectId);
   let mastered = { lufs: null, truePeak: null, corrected: false };
   try {
     op(projectId, '🎚️ Master âm thanh chuẩn phát sóng (-16 LUFS)…');
-    mastered = await masterAudio(res.path, { onLog: (s) => logger.debug(s, { projectId }) });
+    mastered = await masterAudio(res.path, {
+      signal: abortSignalFor(projectId),
+      onLog: (s) => logger.debug(s, { projectId }),
+    });
     if (mastered.corrected) op(projectId, `🎚️ Đã master: ${mastered.lufs?.toFixed(1)} LUFS · true-peak ${mastered.truePeak?.toFixed(1)} dB`);
-  } catch (e) { logger.warn(`master: ${e.message} — giữ bản mix gốc`, { projectId }); }
+  } catch (e) {
+    // A failed master is cosmetic and never worth failing a video over — but a STOP is not a
+    // failure, and swallowing it here would carry straight on into QC and the thumbnail.
+    if (e.stopped) throw e;
+    logger.warn(`master: ${e.message} — giữ bản mix gốc`, { projectId });
+  }
 
   // ---- B8: final integrity gate — a cheap stream/duration check on the joined video.
   // P38: the heavy per-frame QC (black/white-frame + dead-air scanning, scene-attributable
@@ -283,6 +307,7 @@ export async function finalize(projectId, { dir, size, config, variantName = nul
   // not the video — an unusable reply silently falls back to the deterministic builders that
   // shipped before, which also cover a project with no LLM configured.
   // config.thumbVariants (1-3) renders extra A/B compositions (thumb_*_v1.jpg, _v2.jpg).
+  checkStop(projectId); // an AI thumbnail is an LLM call plus a Chrome shot, up to three times
   let thumb = res.thumb;
   try {
     const guide = visualMode === 'hyperframe' ? resolveGuide(config) : null;
@@ -303,6 +328,7 @@ export async function finalize(projectId, { dir, size, config, variantName = nul
     const made = [];
     let thumbHtml = null;
     for (let v = 0; v < nVar; v++) {
+      checkStop(projectId);
       const outPath = pathFor(v);
       const ai = aiOn ? await generateThumbnailImage({
         title: project.title, hook: thumbTitle, prompt: project.metadata?.thumbnail?.prompt || '',
@@ -322,7 +348,10 @@ export async function finalize(projectId, { dir, size, config, variantName = nul
       DB.updateProject(projectId, { metadata: { ...md, thumbnail: { ...(md.thumbnail || {}), html: thumbHtml } } });
     }
     if (made.length > 1) op(projectId, `🖼️ Đã tạo ${made.length} biến thể thumbnail (A/B) trong thư mục xuất`);
-  } catch { /* keep basic */ }
+  } catch (e) {
+    if (e.stopped) throw e; // packaging may fail silently; a stop may not
+    /* keep basic */
+  }
 
   // The exact timeline this export was assembled on. Everything that has to map a moment in the
   // finished video back to a scene reads THIS — burned captions, the SRT export, the player's
