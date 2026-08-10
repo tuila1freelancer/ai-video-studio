@@ -73,6 +73,23 @@ function assAlpha(opacity) {
 }
 
 /**
+ * The alpha tag to dim one word with.
+ *
+ * `\alpha` is a shorthand that sets all four alpha channels at once, including the OUTLINE alpha —
+ * and under BorderStyle 3 the outline is the box. So dimming an unspoken word also faded the box
+ * behind it, giving a boxed caption a patchwork of opacities that tracked the karaoke. The fill
+ * alone should follow the word, so a box dims only the text sitting in it.
+ *
+ * This does not make a translucent BorderStyle 3 box seamless, and nothing here can: libass draws
+ * a SEPARATE box per override run, the boxes overlap by their outline width, and a translucent
+ * overlap composites twice — a visible seam at every word boundary. Karaoke cannot avoid per-word
+ * overrides, so the box has to stop being a border. That is what the drawn box (./box.js) is for.
+ */
+function wordAlpha(style, opacity) {
+  return `\\${style.effect === 'box' ? '1a' : 'alpha'}${assAlpha(opacity)}`;
+}
+
+/**
  * Neutralise the three things libass reads as markup inside a Dialogue body.
  *
  * `{` and `}` delimit an override block, so an unescaped brace in narration swallows the rest of
@@ -127,9 +144,14 @@ function header(style, { w, h }) {
   const b = borderFor(style);
   const marginH = Math.round(w * (style.marginPct ?? 0.06));
   const marginV = Math.round(h * ((style.bottomPct ?? 12) / 100));
-  const back = style.effect === 'box'
+  // BorderStyle 3 paints its opaque box in OUTLINE colour — measured against a real libass render,
+  // where a box with OutlineColour=red and BackColour=blue comes out red. This was inverted: the
+  // box colour went to BackColour (which is the SHADOW colour in both border styles) while the
+  // outline stayed hardcoded black, so every "box" preset rendered black no matter what it declared.
+  const outline = style.effect === 'box'
     ? toAssColor(style.boxBg || 'rgba(10,10,16,0.85)')
-    : toAssColor('#000000', 0.85);
+    : toAssColor('#000000', 0.92);
+  const back = toAssColor('#000000', 0.85);
   return [
     '[Script Info]',
     'ScriptType: v4.00+',
@@ -149,7 +171,7 @@ function header(style, { w, h }) {
     // the burn's fontsdir (see media/fontdir.js). Asking libass for synthetic bold on top of an
     // already-black face smears it.
     `Style: Cap,${style.font},${style.fontSizePx},${toAssColor(style.color)},${toAssColor(style.baseColor)},`
-      + `${toAssColor('#000000', 0.92)},${back},0,0,0,0,100,100,${Math.round(style.fontSizePx * 0.01)},0,`
+      + `${outline},${back},0,0,0,0,100,100,${Math.round(style.fontSizePx * 0.01)},0,`
       + `${b.borderStyle},${b.outline},${b.shadow},2,${marginH},${marginH},${marginV},1`,
     '',
     '[Events]',
@@ -176,10 +198,10 @@ function karaokeLines(cue, style) {
     if (to - from < 0.01) continue; // a zero-length window would emit an invisible line
     const parts = words.map((wd, j) => {
       const txt = escapeAssText(applyTextCase(wd.word, style.textCase));
-      if (j === i) return `{\\c${act}\\alpha${assAlpha(1)}}${txt}`;
+      if (j === i) return `{\\c${act}${wordAlpha(style, 1)}}${txt}`;
       // .capw.past = .95, .capw (reached, not yet spoken) = .92, .capw.fut = .4
       const op = j < i ? 0.95 : 0.4;
-      return `{\\c${base}\\alpha${assAlpha(op)}}${txt}`;
+      return `{\\c${base}${wordAlpha(style, op)}}${txt}`;
     });
     out.push(dialogue(from, to, parts.join(' ')));
   }
@@ -192,7 +214,7 @@ function staticLine(cue, style, colour, opacity) {
     ? cue.text
     : (cue.words || []).map((wd) => wd.word).join(' ');
   const body = escapeAssText(applyTextCase(text, style.textCase));
-  return dialogue(cue.start, cue.end, `{\\c${toAssColor(colour)}\\alpha${assAlpha(opacity)}}${body}`);
+  return dialogue(cue.start, cue.end, `{\\c${toAssColor(colour)}${wordAlpha(style, opacity)}}${body}`);
 }
 
 /**
