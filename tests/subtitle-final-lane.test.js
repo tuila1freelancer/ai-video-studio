@@ -151,7 +151,12 @@ test('the box preset paints its background through BorderStyle 3', () => {
   const doc = buildAss([CUE], burnStyleFrom({ subtitlePreset: 'boxed-news' }, theme, SIZE), SIZE);
   const style = /^Style: [^\n]+$/m.exec(doc)[0].split(',');
   assert.equal(style[15], '3', 'BorderStyle');
-  assert.equal(style[6], toAssColor('rgba(17,17,17,0.85)'), 'BackColour is the preset box fill');
+  // OutlineColour, not BackColour. This assertion was written from the ASS format description and
+  // it was wrong: rendering a box with OutlineColour=red and BackColour=blue through this build's
+  // libass produces a RED box. BackColour is the shadow colour under both border styles, so the
+  // old mapping tinted the drop shadow and left every box the hardcoded black.
+  assert.equal(style[5], toAssColor('rgba(17,17,17,0.85)'), 'OutlineColour is the preset box fill');
+  assert.equal(style[6], toAssColor('#000000', 0.85), 'BackColour stays the shadow colour');
 });
 
 test('position presets map onto MarginV from the bottom', () => {

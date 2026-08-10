@@ -175,7 +175,12 @@ export function burnStyleFrom(config, theme, { w, h }) {
     weight: cap.weight || 800,
     effect: cap.effect || 'glow',
     boxBg: cap.boxBg || null,
-    textCase: cap.textCase || 'original',
+    // `cap` is the DOM lane's shape, and its no-preset branch is frozen: it returns only
+    // {color, fontSizePx, mode} so old scene pages stay byte-identical (scene-page-golden). So it
+    // has no textCase to give when the owner picked "Tuỳ biến tay" — and reading it alone silently
+    // burned every manual video at 'original' while the panel's preview showed the chosen case.
+    // `ass` resolves the same field straight from the config, which is what that branch is for.
+    textCase: cap.textCase || ass.textCase || 'original',
     mode: cap.mode === 'plain' ? 'plain' : 'karaoke',
     marginPct: 0.06, // .cap{left:6%;right:6%}
   };
