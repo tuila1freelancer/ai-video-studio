@@ -348,3 +348,31 @@ test('measured line breaks are burned as breaks, not handed back to libass', () 
   // without a box there is nothing measured to honour, and the join stays exactly as it was
   assert.doesNotMatch(buildAss([CUE], burnStyleFrom({}, theme, SIZE), SIZE), /\\N/);
 });
+
+// ------------------------------------------------------------------ saved presets
+
+test('a saved preset carries settings, not an id the resolver would have to know', () => {
+  const routes = readFileSync(new URL('../src/api/routes.js', import.meta.url), 'utf8');
+  // stored through the same validator channel defaults use, so a preset cannot smuggle in a
+  // setting the renderer would refuse — it would look saved and then not apply
+  assert.match(routes, /pickSubtitleConfig\(req\.body\?\.config \|\| \{\}\)/);
+  assert.match(routes, /DB\.createStyle\(\{ name, kind: 'subtitle'/);
+  assert.match(routes, /DB\.listStyles\('subtitle'\)/);
+  // a corrupt row must not empty the whole gallery
+  assert.match(routes, /catch \{ \/\* a corrupt row must not empty the gallery \*\/ \}/);
+
+  const cfg = readFileSync(new URL('../public/js/views/config.js', import.meta.url), 'utf8');
+  // clicking a saved preset POURS it back into the panel; a built-in only sets the id
+  assert.match(cfg, /SUB_FIELDS\.forEach\(\(f\) => writeSubField\(f, mine\.config\)\)/);
+  // …with `applying` held, or every field written would fire its own save back at the channel
+  assert.match(cfg, /applying = true;[\s\S]{0,900}?SUB_FIELDS\.forEach\(\(f\) => writeSubField\(f, mine\.config\)\)/);
+});
+
+test('a slider whose resting value is a legal choice only counts once touched', () => {
+  // The burn's default vertical margin is 7% on a landscape frame, so a panel that shipped its
+  // parked 12 would move every caption the first time subtitles were saved.
+  const cfg = readFileSync(new URL('../public/js/views/config.js', import.meta.url), 'utf8');
+  assert.match(cfg, /if \(f\.t === 'color' \|\| f\.off === null\) \{\s*\n\s*if \(el\.dataset\.set !== '1'\) return undefined;/);
+  assert.match(cfg, /if \(f\.off === null\) el\.dataset\.set = has \? '1' : '';/, 'a stored value is a decision');
+  assert.match(cfg, /\{ k: 'subtitleMarginV', el: '#cfgSubMarginV', t: 'num', off: null/);
+});
