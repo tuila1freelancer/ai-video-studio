@@ -202,10 +202,44 @@ export function mountRoutes(app, { version }) {
   });
 
   // ---- subtitle preset catalog for the UI gallery ----
+  // Ten built-ins plus whatever the owner has saved. A saved one is a whole SETTINGS BUNDLE, not
+  // an id the resolver knows, so it travels with its config and the panel applies it on click —
+  // which is also why it works on every channel rather than belonging to one.
   r.get('/subtitle-presets', async (req, res) => {
     const { SUBTITLE_PRESETS } = await import('../subtitles/presets.js');
-    res.json({ presets: SUBTITLE_PRESETS.map(({ id, name, fontStack, weight, activeColor, baseColor, effect, textCase, boxBg }) =>
-      ({ id, name, fontStack, weight, activeColor, baseColor, effect, textCase, boxBg })) });
+    const mine = DB.listStyles('subtitle').map((s) => {
+      let config = {};
+      try { config = JSON.parse(s.prompt || '{}'); } catch { /* a corrupt row must not empty the gallery */ }
+      return {
+        id: s.id, name: s.name, mine: true, config,
+        fontStack: `'${config.subtitleFont || 'Be Vietnam Pro'}', sans-serif`,
+        weight: config.subtitleWeight || 800,
+        activeColor: config.subtitleColor || '#F7B500',
+        baseColor: config.subtitleBaseColor || '#FFFFFF',
+        effect: config.subtitleGlow ? 'glow' : (config.subtitleOutlineWidth ? 'outline' : 'shadow'),
+        textCase: config.subtitleTextCase || 'original',
+        boxBg: config.subtitleBox ? (config.subtitleBoxColor || '#0A0A10') : null,
+      };
+    });
+    res.json({ presets: [...mine, ...SUBTITLE_PRESETS.map(({ id, name, fontStack, weight, activeColor, baseColor, effect, textCase, boxBg }) =>
+      ({ id, name, fontStack, weight, activeColor, baseColor, effect, textCase, boxBg }))] });
+  });
+
+  r.post('/subtitle-presets', async (req, res) => {
+    try {
+      const name = String(req.body?.name || '').trim();
+      if (!name) return res.status(400).json({ error: 'thiếu tên bộ mẫu' });
+      const { pickSubtitleConfig } = await import('./services/subtitle-defaults.js');
+      // through the same door channel defaults go through: a preset must not be able to carry a
+      // setting the renderer would refuse, or it would look saved and then not apply
+      const config = pickSubtitleConfig(req.body?.config || {});
+      const row = DB.createStyle({ name, kind: 'subtitle', prompt: JSON.stringify(config) });
+      res.json({ preset: { id: row.id, name: row.name, mine: true, config } });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  r.delete('/subtitle-presets/:id', (req, res) => {
+    try { DB.deleteStyle(req.params.id); res.json({ ok: true }); } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
   // ---- provider connection test (dynamic config draft from UI) ----

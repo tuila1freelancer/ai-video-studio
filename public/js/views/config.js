@@ -8,6 +8,177 @@ import { icon } from '../ui/icons.js';
 
 const SUB_COLORS = ['#F7B500', '#FFFFFF', '#00E5FF', '#FF5252', '#69F0AE', '#FF80AB', '#E040FB', '#FF6D00', '#40C4FF'];
 
+/**
+ * The subtitle studio's controls, declared once.
+ *
+ * Every one of these has to cross six places to survive — markup, gather, restore, the client
+ * whitelist, the server whitelist, the resolver — and a setting that misses the restore or a
+ * whitelist works for exactly one video and is silently gone from the next. Thirty of them written
+ * out by hand four times over is thirty chances to miss one, so gather and restore are generated
+ * from this table and the whitelist IS this table's keys.
+ *
+ * `off` is the value that means "not set": it is what the control reads when the owner has not
+ * touched it, and it is emitted as `undefined` so the channel's own setting still wins the merge
+ * (mergeConfigLayers skips only undefined — see gatherConfig below).
+ *
+ * `off: null` means the control has no resting value that could stand for "unset" — a margin
+ * slider parked at 12 is indistinguishable from someone choosing 12. Those emit only once touched,
+ * the same rule colour pickers need. It matters: the burn's own default vertical margin is 7% on
+ * a landscape frame, so a panel that shipped its slider's 12 would quietly move every caption up
+ * the moment the subtitle settings were saved.
+ */
+const SUB_FIELDS = [
+  { k: 'subtitleWeight', el: '#cfgSubWeight', t: 'num' },
+  { k: 'subtitleLetterSpacing', el: '#cfgSubLetterSpacing', t: 'num', off: 0, out: '#cfgSubLsL' },
+  { k: 'subtitleScaleX', el: '#cfgSubScaleX', t: 'num', off: 100, out: '#cfgSubSxL' },
+  { k: 'subtitleScaleY', el: '#cfgSubScaleY', t: 'num', off: 100, out: '#cfgSubSyL' },
+  { k: 'subtitleAngle', el: '#cfgSubAngle', t: 'num', off: 0, out: '#cfgSubAngleL' },
+  { k: 'subtitleItalic', el: '#cfgSubItalic', t: 'bool' },
+  { k: 'subtitleUnderline', el: '#cfgSubUnderline', t: 'bool' },
+  { k: 'subtitleStrike', el: '#cfgSubStrike', t: 'bool' },
+
+  { k: 'subtitleBaseColor', el: '#cfgSubBaseColor', t: 'color', dflt: '#FFFFFF' },
+  { k: 'subtitleDimUnread', el: '#cfgSubDimUnread', t: 'pct', off: 40, out: '#cfgSubDimUL' },
+  { k: 'subtitleOutlineColor', el: '#cfgSubOutlineColor', t: 'color', dflt: '#000000' },
+  { k: 'subtitleOutlineWidth', el: '#cfgSubOutlineWidth', t: 'num', off: 0, out: '#cfgSubOwL', auto: 'theo bộ mẫu' },
+  { k: 'subtitleShadowColor', el: '#cfgSubShadowColor', t: 'color', dflt: '#000000' },
+  { k: 'subtitleShadowDepth', el: '#cfgSubShadowDepth', t: 'num', off: 0, out: '#cfgSubSdL', auto: 'theo bộ mẫu' },
+  { k: 'subtitleGlowColor', el: '#cfgSubGlowColor', t: 'color', dflt: '#00E5FF' },
+  { k: 'subtitleGlow', el: '#cfgSubGlow', t: 'num', off: 0, out: '#cfgSubGlowL', auto: 'tắt' },
+
+  { k: 'subtitleBox', el: '#cfgSubBox', t: 'bool' },
+  { k: 'subtitleBoxColor', el: '#cfgSubBoxColor', t: 'color', dflt: '#0A0A10' },
+  { k: 'subtitleBoxOpacity', el: '#cfgSubBoxOpacity', t: 'pct', off: null, dflt: 85, out: '#cfgSubBoxOpL' },
+  { k: 'subtitleBoxRadius', el: '#cfgSubBoxRadius', t: 'num', off: null, dflt: 0, out: '#cfgSubBoxRL' },
+  { k: 'subtitleBoxBorderColor', el: '#cfgSubBoxBorderColor', t: 'color', dflt: '#00E5FF' },
+  { k: 'subtitleBoxBorderWidth', el: '#cfgSubBoxBorderWidth', t: 'num', off: null, dflt: 0, out: '#cfgSubBoxBwL' },
+
+  { k: 'subtitleAlignH', el: '#cfgSubAlignH', t: 'str', off: 'center' },
+  { k: 'subtitleMarginV', el: '#cfgSubMarginV', t: 'num', off: null, dflt: 12, out: '#cfgSubMvL' },
+  { k: 'subtitleMarginH', el: '#cfgSubMarginH', t: 'num', off: null, dflt: 6, out: '#cfgSubMhL' },
+  { k: 'subtitleMaxChars', el: '#cfgSubMaxChars', t: 'num', off: 0 },
+  { k: 'subtitleMaxLines', el: '#cfgSubMaxLines', t: 'num', off: 0 },
+
+  { k: 'subtitleKaraokeStyle', el: '#cfgSubKaraokeStyle', t: 'str', off: 'color' },
+  { k: 'subtitleReveal', el: '#cfgSubReveal', t: 'bool' },
+  { k: 'subtitlePopScale', el: '#cfgSubPopScale', t: 'num', off: null, dflt: 112, out: '#cfgSubPopL' },
+  { k: 'subtitleFadeIn', el: '#cfgSubFadeIn', t: 'num', off: 0, out: '#cfgSubFiL' },
+  { k: 'subtitleFadeOut', el: '#cfgSubFadeOut', t: 'num', off: 0, out: '#cfgSubFoL' },
+];
+
+/** What a field's control currently says, or `undefined` for "the owner has not set this". */
+function readSubField(f) {
+  const el = $(f.el);
+  if (!el) return undefined;
+  if (f.t === 'bool') return el.checked ? true : undefined;
+  // A colour input and an `off: null` slider both sit on a value that is not a decision, so what
+  // counts is whether the owner has touched them.
+  if (f.t === 'color' || f.off === null) {
+    if (el.dataset.set !== '1') return undefined;
+    if (f.t === 'color') return el.value.toUpperCase();
+  }
+  const raw = el.value;
+  if (raw === '' || raw == null) return undefined;
+  const n = f.t === 'pct' ? +raw / 100 : +raw;
+  if (!Number.isFinite(n)) return undefined;
+  // `off` is the control's resting position, not a choice — emitting it would pin the panel's
+  // default over a channel that had said something else.
+  const off = f.t === 'pct' && f.off != null ? f.off / 100 : f.off;
+  return off != null && n === off ? undefined : n;
+}
+
+function writeSubField(f, cfg) {
+  const el = $(f.el);
+  if (!el) return;
+  const v = cfg[f.k];
+  // UNCONDITIONAL, like every other subtitle restore: applyConfig runs on every channel switch,
+  // so a guarded write leaves the previous channel's value sitting in the control.
+  if (f.t === 'bool') el.checked = v === true;
+  else if (f.t === 'color') {
+    el.value = typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v) ? v : (f.dflt || '#FFFFFF');
+    el.dataset.set = typeof v === 'string' ? '1' : '';
+  } else {
+    const n = f.t === 'pct' && Number.isFinite(+v) ? +v * 100 : v;
+    const has = v != null && Number.isFinite(+n);
+    el.value = has ? String(Math.round(+n * 100) / 100) : String(f.dflt ?? f.off ?? '');
+    // a stored value IS a decision — without this the next autosave would drop it again
+    if (f.off === null) el.dataset.set = has ? '1' : '';
+  }
+  syncSubOut(f);
+}
+
+const WEIGHT_NAME = { 100: 'Mảnh', 200: 'Rất nhẹ', 300: 'Nhẹ', 400: 'Thường', 500: 'Vừa', 600: 'Hơi đậm', 700: 'Đậm', 800: 'Rất đậm', 900: 'Đen' };
+
+/**
+ * Offer only the weights this font actually has.
+ *
+ * The burn stages ONE file into fontsdir and picks it by nearest weight (fonts/files.js
+ * resolveFace), so asking for a weight the family does not carry is answered silently with a
+ * different one. A picker listing 100–900 for a font that ships only 400 would be a control that
+ * appears to do something and does not.
+ */
+export function syncSubWeights() {
+  const sel = $('#cfgSubWeight');
+  if (!sel) return;
+  const fam = $('#cfgSubFont')?.value;
+  const entry = (state.fontFamilies || []).find((f) => f.family === fam);
+  const weights = (entry?.weights?.length ? entry.weights : [400, 700]).slice().sort((a, b) => a - b);
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">Theo bộ mẫu</option>'
+    + weights.map((w) => `<option value="${w}">${w} — ${WEIGHT_NAME[w] || ''}</option>`).join('');
+  sel.value = weights.includes(+cur) ? cur : '';
+}
+
+/** Show only the rows that mean anything right now — the box's own settings, the pop scale. */
+function syncSubStudio() {
+  $('#subBoxOpts')?.classList.toggle('hidden', !$('#cfgSubBox')?.checked);
+  $('#subPopRow')?.classList.toggle('hidden', $('#cfgSubKaraokeStyle')?.value !== 'pop');
+}
+
+/**
+ * Put every studio control back to "not set".
+ *
+ * Worth a button of its own because the settings are unset-by-omission: there is no value that
+ * means default, so without this the only way back from an experiment is to remember what each
+ * slider started at.
+ */
+async function resetSubStudio() {
+  const ok = await confirmDialog('Trả mọi tinh chỉnh phụ đề về mặc định? Bộ mẫu đang chọn được giữ nguyên.');
+  if (!ok) return;
+  SUB_FIELDS.forEach((f) => writeSubField(f, {}));
+  syncSubStudio(); updateSubPreview(); updateCfgChips();
+  saveSubtitleDefaults({ now: true });
+  toast('↺ Đã trả tinh chỉnh phụ đề về mặc định', 'success');
+}
+
+/** Every studio field the owner has actually set, plus the four-sided box padding. */
+function gatherSubFields() {
+  const out = {};
+  for (const f of SUB_FIELDS) {
+    const v = readSubField(f);
+    if (v !== undefined) out[f.k] = v;
+  }
+  // Padding is one setting with four numbers, and it only means anything with a box: sending it
+  // otherwise would write a value the owner cannot see the effect of.
+  if (out.subtitleBox) {
+    const side = (id) => Math.max(0, Math.min(200, +($(id)?.value ?? 0) || 0));
+    out.subtitleBoxPadding = {
+      top: side('#cfgSubPadTop'), right: side('#cfgSubPadRight'),
+      bottom: side('#cfgSubPadBottom'), left: side('#cfgSubPadLeft'),
+    };
+  }
+  return out;
+}
+
+/** Keep a slider's number readout honest — including "theo bộ mẫu" for the ones that can be unset. */
+function syncSubOut(f) {
+  if (!f.out) return;
+  const out = $(f.out); const el = $(f.el);
+  if (!out || !el) return;
+  const off = f.t === 'pct' ? f.off : f.off;
+  out.textContent = f.auto && +el.value === (off ?? 0) ? f.auto : el.value;
+}
+
 export function initConfig() {
   // SVG icons on group heads + preset bar (markup keeps emoji as no-JS fallback)
   const GRP_ICONS = { grpFormat: 'film', grpBrand: 'tv', grpSubtitle: 'subtitles', grpAudio: 'music', grpAdvanced: 'settings' };
@@ -101,6 +272,7 @@ export function gatherConfig() {
     subtitleTextCase: $('#cfgSubCase').value || undefined,
     subtitleColor: state.subColor,
     subtitlePosition: { preset: $('#cfgSubPos').value, marginV: 0.12 },
+    ...gatherSubFields(),
     bgmPath: $('#cfgBgm').value || null,
     useDefaultBgm: !!$('#cfgBgm').value,
     ...($('#cfgBrandFont')?.value ? { fonts: { display: $('#cfgBrandFont').value } } : {}),
@@ -179,10 +351,17 @@ function applyConfigInner(cfg = {}) {
     ? (String(cfg.subtitleFont).split(',')[0].replace(/['"]/g, '').trim() || cfg.subtitleFont)
     : 'Be Vietnam Pro';
   $('#cfgSubSize').value = cfg.subtitleFontSize || 80;
+  $('#cfgSubSizeL').textContent = $('#cfgSubSize').value;
   $('#cfgSubCase').value = cfg.subtitleTextCase || '';
   state.subColor = cfg.subtitleColor || '#F7B500';
   buildSubColors();
   $('#cfgSubPos').value = cfg.subtitlePosition?.preset || 'bot';
+  SUB_FIELDS.forEach((f) => writeSubField(f, cfg));
+  const pad = cfg.subtitleBoxPadding || {};
+  [['#cfgSubPadTop', 'top', 14], ['#cfgSubPadRight', 'right', 28],
+    ['#cfgSubPadBottom', 'bottom', 14], ['#cfgSubPadLeft', 'left', 28]]
+    .forEach(([id, side, dflt]) => { if ($(id)) $(id).value = pad[side] ?? dflt; });
+  syncSubStudio();
   if ($('#cfgBrandFont')) $('#cfgBrandFont').value = cfg.fonts?.display || '';
   if ('autoConcat' in cfg) $('#cfgAutoConcat').checked = cfg.autoConcat !== false;
   if ('requireReview' in cfg && $('#cfgReview')) $('#cfgReview').checked = cfg.requireReview === true;
@@ -219,6 +398,24 @@ function wireConfig() {
   // too, and the server keeps the style keys untouched while it does.
   ['#cfgSub', '#cfgSubFont', '#cfgSubSize', '#cfgSubCase', '#cfgSubPos', '#cfgSubMode', '#cfgSubChunk', '#cfgSubWords']
     .forEach((id) => $(id)?.addEventListener('change', () => saveSubtitleDefaults()));
+  // The studio's own controls, wired from the same table that gathers and restores them: one
+  // listener rule, so a new setting cannot arrive without its autosave.
+  SUB_FIELDS.forEach((f) => {
+    const el = $(f.el);
+    if (!el) return;
+    const live = () => { syncSubOut(f); syncSubStudio(); updateSubPreview(); };
+    el.addEventListener('input', live);
+    el.addEventListener('change', () => { live(); saveSubtitleDefaults(); });
+    // A colour input has no "unset" state of its own, so touching it is what marks it chosen —
+    // otherwise every panel would ship whatever colour the picker happened to open on.
+    if (f.t === 'color' || f.off === null) el.addEventListener('input', () => { el.dataset.set = '1'; });
+  });
+  ['#cfgSubPadTop', '#cfgSubPadRight', '#cfgSubPadBottom', '#cfgSubPadLeft'].forEach((id) => {
+    $(id)?.addEventListener('change', () => { updateSubPreview(); saveSubtitleDefaults(); });
+  });
+  $('#cfgSubSize')?.addEventListener('input', () => { $('#cfgSubSizeL').textContent = $('#cfgSubSize').value; });
+  $('#btnSubReset')?.addEventListener('click', resetSubStudio);
+  $('#btnSubPresetSave')?.addEventListener('click', saveSubPreset);
   $('#cfgSub').addEventListener('change', () => $('#subStyle').style.display = $('#cfgSub').checked ? 'block' : 'none');
   $('#cfgSubChunk')?.addEventListener('change', () => $('#subWordsRow').classList.toggle('hidden', $('#cfgSubChunk').value !== 'words'));
   $('#cfgSubWords')?.addEventListener('input', () => { $('#cfgSubWordsL').textContent = $('#cfgSubWords').value; });
@@ -228,6 +425,7 @@ function wireConfig() {
     const fam = $('#cfgSubFont').value;
     const entry = (state.fontFamilies || []).find((f) => f.family === fam);
     $('#cfgSubFontGet')?.classList.toggle('hidden', !entry || entry.ready);
+    syncSubWeights();
     await ensureFontLoaded(fam);
     updateSubPreview();
   });
@@ -319,7 +517,9 @@ export function updateSubLaneHint(cfg = null) {
 // subtitles off sends `enableSubtitles: false` and nothing else changes, so turning them back on
 // restores the same look.
 const SUBTITLE_CFG_KEYS = ['enableSubtitles', 'subtitleMode', 'subtitleChunk', 'subtitleWordsPerCue',
-  'subtitlePreset', 'subtitleFont', 'subtitleFontSize', 'subtitleTextCase', 'subtitleColor', 'subtitlePosition'];
+  'subtitlePreset', 'subtitleFont', 'subtitleFontSize', 'subtitleTextCase', 'subtitleColor', 'subtitlePosition',
+  // …and every control in the studio table, so the list cannot fall behind the panel
+  ...SUB_FIELDS.map((f) => f.k), 'subtitleBoxPadding'];
 
 export function gatherSubtitleConfig() {
   const all = gatherConfig();
@@ -350,11 +550,26 @@ export function saveSubtitleDefaults({ now = false } = {}) {
 
 // The effects the renderer draws, restated in CSS. Kept in the same order and with the same
 // numbers as buildScenePage's capActFx branch so the two cannot drift apart quietly.
-function previewEffect(effect, fs, color, boxBg) {
+function previewEffect(effect, fs, color, boxBg, adv = {}) {
+  // An explicit outline, shadow or glow beats the preset's effect — the same precedence the
+  // renderer uses, and the reason to restate it here rather than keep two ideas of the look.
+  const bits = [];
+  if (adv.outlineWidth) bits.push(`-webkit-text-stroke:${adv.outlineWidth}px ${adv.outlineColor || 'rgba(0,0,0,.92)'}`);
+  if (adv.glow) bits.push(`text-shadow:0 0 ${adv.glow * 1.6}px ${adv.glowColor || color},0 0 ${adv.glow * 0.6}px ${adv.glowColor || color}`);
+  else if (adv.shadowDepth) bits.push(`text-shadow:0 ${adv.shadowDepth}px ${adv.shadowDepth * 1.4}px ${adv.shadowColor || 'rgba(0,0,0,.8)'}`);
+  if (bits.length) return bits.join(';');
   if (effect === 'outline') return `-webkit-text-stroke:${Math.max(1, Math.round(fs * 0.045))}px rgba(0,0,0,.92);text-shadow:0 2px 8px rgba(0,0,0,.85)`;
   if (effect === 'box') return `background:${boxBg || 'rgba(10,10,16,.85)'};padding:.06em .28em;border-radius:.16em;box-decoration-break:clone;text-shadow:none`;
   if (effect === 'shadow') return 'text-shadow:0 2px 0 rgba(0,0,0,.85),0 5px 16px rgba(0,0,0,.7)';
   return `text-shadow:0 0 ${Math.round(fs * 0.5)}px ${color}, 0 0 ${Math.round(fs * 0.18)}px ${color}`;
+}
+
+/** `#RRGGBB` + 0..1 → `rgba()`, so the preview box can honour its opacity like the burn does. */
+function rgba(hex, alpha) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || ''));
+  if (!m) return `rgba(10,10,16,${alpha})`;
+  const [r, g, b] = [0, 2, 4].map((i) => parseInt(m[1].slice(i, i + 2), 16));
+  return `rgba(${r},${g},${b},${alpha})`;
 }
 
 /**
@@ -387,13 +602,61 @@ export function updateSubPreview() {
   const words = txt.split(' ');
   const hit = plain ? -1 : Math.min(words.length - 1, 2); // one word accented, like the renderer
   const align = { bot: 'flex-end', mid: 'center', top: 'flex-start' }[pos] || 'flex-end';
-  p.style.cssText = `margin-top:8px;background:#07070d;border-radius:8px;padding:12px;display:flex;`
-    + `align-items:${align};justify-content:center;min-height:118px;overflow:hidden`;
-  p.innerHTML = `<div style="font-family:'${fam}',sans-serif;font-weight:${preset?.weight || 800};`
-    + `font-size:${fs}px;line-height:1.2;text-align:center">`
-    + words.map((w, i) => `<span style="color:${i === hit ? accent : base};opacity:${i === hit ? 1 : (i < hit ? 0.95 : 0.55)};`
-      + `${previewEffect(effect, fs, i === hit ? accent : base, preset?.boxBg)}">${w}</span>`).join(' ')
+
+  // The studio's own settings, at the same scale the preview draws text — 28% of the frame. A
+  // preview that ignored them is what let the reported bug live: it showed the owner's pick while
+  // the renderer used something else, so it looked right until the video came out.
+  const cfg = gatherSubFields();
+  const k = fs / (+$('#cfgSubSize').value || 80); // the preview's own px-per-config-px
+  const adv = {
+    outlineColor: cfg.subtitleOutlineColor, outlineWidth: (cfg.subtitleOutlineWidth || 0) * k,
+    shadowColor: cfg.subtitleShadowColor, shadowDepth: (cfg.subtitleShadowDepth || 0) * k,
+    glowColor: cfg.subtitleGlowColor, glow: (cfg.subtitleGlow || 0) * k,
+  };
+  const baseCol = cfg.subtitleBaseColor || base;
+  const dimU = cfg.subtitleReveal ? 0 : (cfg.subtitleDimUnread ?? 0.55);
+  const hAlign = { left: 'flex-start', right: 'flex-end' }[cfg.subtitleAlignH] || 'center';
+  const wordFx = (i) => {
+    if (i !== hit) return '';
+    if (cfg.subtitleKaraokeStyle === 'box') return `background:${accent};color:${readableOnHex(accent)};padding:.04em .22em;border-radius:.12em;box-decoration-break:clone`;
+    if (cfg.subtitleKaraokeStyle === 'pop') return `display:inline-block;transform:scale(${(cfg.subtitlePopScale || 112) / 100})`;
+    return '';
+  };
+  const pad = cfg.subtitleBoxPadding || {};
+  const boxCss = cfg.subtitleBox
+    ? `background:${rgba(cfg.subtitleBoxColor || '#0A0A10', cfg.subtitleBoxOpacity ?? 0.85)};`
+      + `border-radius:${(cfg.subtitleBoxRadius || 0) * k}px;`
+      + `padding:${(pad.top || 0) * k}px ${(pad.right || 0) * k}px ${(pad.bottom || 0) * k}px ${(pad.left || 0) * k}px;`
+      + (cfg.subtitleBoxBorderWidth ? `border:${Math.max(1, cfg.subtitleBoxBorderWidth * k)}px solid ${cfg.subtitleBoxBorderColor || '#00E5FF'};` : '')
+    : '';
+
+  // A checkerboard, not a flat near-black: a dark caption box on a dark backdrop is invisible, and
+  // the box's opacity — a setting the owner can now change — cannot be judged against anything
+  // opaque. The squares make both readable at a glance.
+  p.style.cssText = 'margin-top:8px;border-radius:8px;padding:12px;display:flex;'
+    + 'background:#0d1018;background-image:linear-gradient(45deg,#191f2e 25%,transparent 25%,transparent 75%,#191f2e 75%),'
+    + 'linear-gradient(45deg,#191f2e 25%,transparent 25%,transparent 75%,#191f2e 75%);'
+    + 'background-size:22px 22px;background-position:0 0,11px 11px;'
+    + `align-items:${align};justify-content:${hAlign};min-height:118px;overflow:hidden`;
+  p.innerHTML = `<div style="${boxCss}font-family:'${fam}',sans-serif;`
+    + `font-weight:${cfg.subtitleWeight || preset?.weight || 800};`
+    + `font-size:${fs}px;line-height:1.2;text-align:center;`
+    + `${cfg.subtitleItalic ? 'font-style:italic;' : ''}`
+    + `${cfg.subtitleUnderline || cfg.subtitleStrike ? `text-decoration:${[cfg.subtitleUnderline && 'underline', cfg.subtitleStrike && 'line-through'].filter(Boolean).join(' ')};` : ''}`
+    + `${cfg.subtitleLetterSpacing ? `letter-spacing:${cfg.subtitleLetterSpacing * k}px;` : ''}`
+    + `${cfg.subtitleScaleX || cfg.subtitleScaleY || cfg.subtitleAngle ? `transform:scale(${(cfg.subtitleScaleX || 100) / 100},${(cfg.subtitleScaleY || 100) / 100}) rotate(${-(cfg.subtitleAngle || 0)}deg);` : ''}">`
+    + words.map((w, i) => `<span style="color:${i === hit ? accent : baseCol};opacity:${i === hit ? 1 : (i < hit ? 0.95 : dimU)};`
+      + `${previewEffect(effect, fs, i === hit ? accent : baseCol, preset?.boxBg, adv)};${wordFx(i)}">${w}</span>`).join(' ')
     + '</div>';
+}
+
+/** The same luminance rule the burn uses to pick text inside a per-word highlight box. */
+function readableOnHex(hex) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || ''));
+  if (!m) return '#000000';
+  const [r, g, b] = [0, 2, 4].map((i) => parseInt(m[1].slice(i, i + 2), 16) / 255);
+  const lin = (v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b) > 0.36 ? '#000000' : '#FFFFFF';
 }
 
 // ---------------- real-frame preview ----------------
@@ -626,6 +889,7 @@ export async function loadFontFamilies() {
     sf.innerHTML = families.map((f) =>
       `<option value="${esc(f.family)}" style="font-family:'${esc(f.family)}',sans-serif"${f.ready ? '' : ' data-unready="1"'}>${esc(label(f))}</option>`).join('');
     sf.value = cur || 'Be Vietnam Pro';
+    syncSubWeights();
   }
   // draw the options in their own typeface — choosing a font you cannot see is guesswork
   await Promise.all(families.filter((f) => f.ready && f.source !== 'system').slice(0, 12).map((f) => ensureFontLoaded(f.family)));
@@ -664,6 +928,9 @@ function openCfgGroupModal(group) {
   slot.dataset.owner = group.id;
   slot.appendChild(body);
   $('#cfgModalTitle').textContent = GRP_TITLES[group.id] || 'Cấu hình';
+  // All five groups share this one shell, so the extra width has to be put on and taken off with
+  // the body rather than living on .cfgm — the other four are single columns and would look lost.
+  $('#cfgModal').querySelector('.modal')?.classList.toggle('sub-wide', group.id === 'grpSubtitle');
   $('#cfgModal').classList.add('open');
   // the real-frame preview only means anything once there IS a frame
   if (group.id === 'grpSubtitle') syncFramePreviewAvailability();
@@ -789,16 +1056,61 @@ export function renderSubPresetGrid() {
       : `text-shadow:0 0 8px ${p.activeColor}AA;`;
     const txt = p.textCase === 'uppercase' ? 'PHỤ ĐỀ' : p.textCase === 'lowercase' ? 'phụ đề' : 'Phụ đề';
     return `<div class="sub-preset-card${state.subPreset === p.id ? ' sel' : ''}" data-id="${p.id}">
+      ${p.mine ? '<button class="spc-del" title="Xoá bộ mẫu này">×</button>' : ''}
       <div class="spc-demo" style="font-family:${p.fontStack};font-weight:${p.weight};color:${p.activeColor};${fx}">${txt} <span style="color:${p.baseColor};opacity:.75">mẫu</span></div>
-      <div class="spc-name">${esc(p.name)}</div>
+      <div class="spc-name">${p.mine ? '★ ' : ''}${esc(p.name)}</div>
     </div>`;
   }).join('');
   grid.innerHTML = `<div class="sub-preset-card${!state.subPreset ? ' sel' : ''}" data-id="">
       <div class="spc-demo" style="font-weight:800;color:var(--text)">Tự chỉnh</div>
       <div class="spc-name">Tuỳ biến tay</div>
     </div>` + cards;
-  grid.querySelectorAll('.sub-preset-card').forEach((c) => c.addEventListener('click', () => {
-    state.subPreset = c.dataset.id;
+  grid.querySelectorAll('.sub-preset-card').forEach((c) => c.addEventListener('click', async (e) => {
+    if (e.target.closest('.spc-del')) { await deleteSubPreset(c.dataset.id); return; }
+    const mine = state.subPresets.find((p) => p.id === c.dataset.id && p.mine);
+    // A built-in is an ID the resolver understands, so selecting it is the whole action. A saved
+    // one is a bundle of settings the resolver has never heard of, so it has to be POURED BACK
+    // INTO the panel — otherwise the card would highlight and nothing would change.
+    if (mine) {
+      applying = true;
+      try {
+        SUB_FIELDS.forEach((f) => writeSubField(f, mine.config));
+        const p = mine.config.subtitleBoxPadding || {};
+        [['#cfgSubPadTop', 'top', 14], ['#cfgSubPadRight', 'right', 28],
+          ['#cfgSubPadBottom', 'bottom', 14], ['#cfgSubPadLeft', 'left', 28]]
+          .forEach(([id, side, dflt]) => { if ($(id)) $(id).value = p[side] ?? dflt; });
+        if (mine.config.subtitleFont) $('#cfgSubFont').value = mine.config.subtitleFont;
+        if (mine.config.subtitleFontSize) { $('#cfgSubSize').value = mine.config.subtitleFontSize; $('#cfgSubSizeL').textContent = mine.config.subtitleFontSize; }
+        $('#cfgSubCase').value = mine.config.subtitleTextCase || '';
+        state.subColor = mine.config.subtitleColor || state.subColor;
+        buildSubColors(); syncSubWeights(); syncSubStudio();
+      } finally { applying = false; }
+      // the saved bundle names its own base preset, so a look built on "Bản Tin" comes back on it
+      state.subPreset = mine.config.subtitlePreset || '';
+    } else {
+      state.subPreset = c.dataset.id;
+    }
     renderSubPresetGrid(); updateSubPreview(); updateCfgChips(); saveSubtitleDefaults();
   }));
+}
+
+async function deleteSubPreset(id) {
+  const p = state.subPresets.find((x) => x.id === id);
+  if (!p || !await confirmDialog(`Xoá bộ mẫu "${p.name}"?`)) return;
+  try {
+    await api.del(`/subtitle-presets/${id}`);
+    await loadSubtitlePresets();
+    toast(`🗑 Đã xoá bộ mẫu ${p.name}`, 'success');
+  } catch (e) { toast(`✖ Không xoá được: ${e.message}`, 'error'); }
+}
+
+/** Name the current look and keep it — usable on every channel, not just this one. */
+async function saveSubPreset() {
+  const name = await promptDialog('Đặt tên cho bộ mẫu phụ đề này:', '');
+  if (!name || !name.trim()) return;
+  try {
+    const r = await api.post('/subtitle-presets', { name: name.trim(), config: gatherSubtitleConfig() });
+    await loadSubtitlePresets();
+    toast(`💾 Đã lưu bộ mẫu "${r.preset.name}" — dùng lại được ở mọi kênh`, 'success');
+  } catch (e) { toast(`✖ Không lưu được bộ mẫu: ${e.message}`, 'error'); }
 }

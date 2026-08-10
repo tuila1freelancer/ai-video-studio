@@ -116,6 +116,9 @@ test('the panel saves as it is edited, and cannot save while it is being populat
   assert.match(cfg, /applying = true;\s*\n\s*try \{ applyConfigInner\(cfg\); \} finally \{ applying = false; \}/);
   // the on/off switch is deliberately in the autosave list — "tắt phụ đề" is a decision too
   assert.match(cfg, /'#cfgSub', '#cfgSubFont', '#cfgSubSize', '#cfgSubCase', '#cfgSubPos', '#cfgSubMode', '#cfgSubChunk', '#cfgSubWords'\]\s*\n\s*\.forEach\(\(id\) => \$\(id\)\?\.addEventListener\('change', \(\) => saveSubtitleDefaults\(\)\)\);/);
+  // …and the studio's own controls autosave from the table that declares them, rather than a
+  // second hand-kept list that a new setting could quietly miss
+  assert.match(cfg, /SUB_FIELDS\.forEach\(\(f\) => \{[\s\S]{0,600}?saveSubtitleDefaults\(\)/);
   // and the panel never sends an empty font, which is the client half of the same guard
   assert.match(cfg, /subtitleFont: \$\('#cfgSubFont'\)\.value \|\| undefined,/);
   assert.match(cfg, /subtitlePreset: state\.subPreset \|\| '',/);
