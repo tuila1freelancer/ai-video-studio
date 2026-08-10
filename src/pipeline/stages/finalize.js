@@ -217,9 +217,9 @@ export async function finalize(projectId, { dir, size, config, variantName = nul
   if (config.subtitleLane === 'final' && config.enableSubtitles !== false) {
     const theme = themeFromGuide(resolveGuide(config));
     const style = burnStyleFrom(config, theme, size);
-    const { fontsDir, source } = prepareBurnFontDir(style.font, style.weight, renderDir);
+    const { fontsDir, file, source } = prepareBurnFontDir(style.font, style.weight, renderDir);
     op(projectId, `🔤 Phụ đề in ở bước cuối — font "${style.font}" (${source})`);
-    subtitles = { scenes, config, style, fontsDir, shaping: shapingFor(resolveLang(config, scenes)) };
+    subtitles = { scenes, config, style, fontsDir, fontFile: file, shaping: shapingFor(resolveLang(config, scenes)) };
   }
 
   // What the previous export was made from, so the concat can charge only for what moved.

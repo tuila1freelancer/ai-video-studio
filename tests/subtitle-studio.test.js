@@ -11,7 +11,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
-import { buildAss, readableOn, toAssColor } from '../src/subtitles/ass.js';
+import { buildAss, cueText, readableOn, toAssColor } from '../src/subtitles/ass.js';
+import { boxDrawing, captionAnchor, roundedRectPath } from '../src/subtitles/box.js';
 import { burnStyleFrom } from '../src/subtitles/presets.js';
 import { SUBTITLE_KEYS, pickSubtitleConfig } from '../src/api/services/subtitle-defaults.js';
 
@@ -284,4 +285,66 @@ test('the channel writer refuses values that would ruin a render', () => {
   // …and keeps the same values once they are inside the walls
   const good = { subtitleWeight: 700, subtitleAlignH: 'left', subtitleWrap: 2, subtitleBoxPadding: { top: 10, left: 24 } };
   assert.deepEqual(pickSubtitleConfig(good), good);
+});
+
+// ------------------------------------------------------------------ the drawn caption box
+
+test('a rounded rectangle closes, and a radius cannot exceed the shape', () => {
+  assert.equal(roundedRectPath(100, 40, 0), 'm 0 0 l 100 0 l 100 40 l 0 40', 'no radius, no curves');
+  const r = roundedRectPath(200, 80, 20);
+  assert.equal((r.match(/ b /g) || []).length, 4, 'one bezier per corner');
+  assert.match(r, /^m 20 0 /);
+  // a "pill" is asked for by naming a huge radius; it must clamp to half the short side rather
+  // than fold the path inside out
+  assert.match(roundedRectPath(300, 80, 9999), /b 300 80 300 80 260 80/);
+});
+
+test('the box hangs off the same anchor as the text it wraps', () => {
+  // If the box were placed by libass's margins and the text by \pos (or the reverse) they would
+  // drift apart on any alignment but centre. Both read captionAnchor.
+  const style = burnStyleFrom({ subtitleBox: true, subtitleAlignH: 'left', subtitleMarginH: 10, subtitleMarginV: 20 }, theme, SIZE);
+  const a = captionAnchor(style, SIZE);
+  assert.equal(a.x, 192, 'left-aligned text starts at the margin');
+  assert.equal(a.y, 864, '20% up from the bottom');
+  assert.equal(a.an, 1);
+});
+
+test('the drawn box is one shape per cue, under the text', () => {
+  const style = burnStyleFrom({
+    subtitleBox: true, subtitleBoxRadius: 24, subtitleBoxColor: '#101828', subtitleBoxOpacity: 0.9,
+    subtitleBoxPadding: { top: 12, right: 30, bottom: 16, left: 30 },
+  }, theme, SIZE);
+  const metrics = new Map([[cueText(CUE, style), { width: 400, height: 60, breakAfter: [] }]]);
+  const doc = buildAss([CUE], style, SIZE, metrics);
+  const drawn = doc.split('\n').filter((l) => l.includes('\\p1'));
+  assert.equal(drawn.length, 1, 'one background for the whole cue — not one per karaoke word');
+  assert.match(drawn[0], /^Dialogue: 0,/, 'layer 0, beneath the text');
+  assert.match(drawn[0], /\\an7\\pos\(/, 'a shape has no baseline, so it is placed by its corner');
+  // 400 + 30 + 30 wide, 60 + 12 + 16 tall — the straight edges stop a radius short of each corner
+  assert.match(drawn[0], /m 24 0 l 436 0/);
+  assert.match(drawn[0], /l 460 64 b 460 88 460 88 436 88/);
+  // and the text is positioned explicitly too, so libass's margins cannot move it out of the box.
+  // 1004 is the landscape default caption line (7% up from the bottom), and the box top is that
+  // minus the measured height and the top padding — 1004 − 60 − 12 = 932.
+  assert.match(doc, /\\an2\\pos\(960,1004\)/);
+  assert.match(drawn[0], /\\pos\(730,932\)/);
+  // BorderStyle reverts to an outline: a second, square, unpadded box on top would be nonsense
+  assert.equal(styleOf(doc).BorderStyle, '1');
+  assert.match(doc, /^WrapStyle: 2$/m, 'libass must not reflow text the box was measured against');
+});
+
+test('a box with no measurement draws nothing rather than a wrong shape', () => {
+  const style = burnStyleFrom({ subtitleBox: true }, theme, SIZE);
+  assert.doesNotMatch(buildAss([CUE], style, SIZE, new Map()), /\\p1/);
+  assert.equal(boxDrawing(style, null, SIZE), null);
+});
+
+test('measured line breaks are burned as breaks, not handed back to libass', () => {
+  const style = burnStyleFrom({ subtitleBox: true }, theme, SIZE);
+  const metrics = new Map([[cueText(CUE, style), { width: 200, height: 120, breakAfter: [0] }]]);
+  const doc = buildAss([CUE], style, SIZE, metrics);
+  assert.match(doc, /một\\N/, 'the break the measurement chose');
+  assert.doesNotMatch(doc, /một \{/, 'and not a space in its place');
+  // without a box there is nothing measured to honour, and the join stays exactly as it was
+  assert.doesNotMatch(buildAss([CUE], burnStyleFrom({}, theme, SIZE), SIZE), /\\N/);
 });
