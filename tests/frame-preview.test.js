@@ -24,9 +24,11 @@ test('the stamp is placed by the concat\'s own arithmetic, not a lookalike', () 
 });
 
 test('the caption is burned by libass, from the cue really spoken at that moment', () => {
-  assert.match(service, /import \{ buildAss \}/);
+  assert.match(service, /import \{ buildAss[^}]*\}/);
   assert.match(service, /burnStyleFrom/);
   assert.match(service, /prepareBurnFontDir/);
+  // …including the text measurement, or a preview would draw a caption box the video will not
+  assert.match(service, /measureCaptions/);
   assert.match(service, /ass=filename=/);
   assert.match(service, /useAss \? ffmpegAss : ffmpeg/, 'libass lives only in the vendored build');
   // a real cue, not lorem ipsum: the point is to see this video's own words in this font

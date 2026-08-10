@@ -5,7 +5,8 @@ import { ffmpeg, ffmpegAss, probeDuration, probeImageSize } from '../media/ffmpe
 import { logoRect } from '../media/logo-overlay.js';
 import { perimeterExpr, WM_SPEEDS } from '../media/watermark.js';
 import { planOffsets, programCues, XFADE_DUR } from '../subtitles/timeline.js';
-import { buildAss } from '../subtitles/ass.js';
+import { buildAss, cueText } from '../subtitles/ass.js';
+import { measureCaptions } from '../subtitles/box.js';
 import { concatFingerprint, needsVideoFilter, planConcat, TIER_LOG } from './concat-plan.js';
 import { ratioToSize, newId } from '../util/util.js';
 
@@ -103,7 +104,14 @@ export async function concatScenes(sceneVideos, project, {
   if (subtitles?.style && subtitles.style.enabled !== false && subtitles.scenes?.length) {
     const cues = programCues(subtitles.scenes, starts, subtitles.config || {}, total);
     if (cues.length) {
-      const text = buildAss(cues, subtitles.style, { w: ow, h: oh });
+      // A drawn caption background has to be given a size, and ASS cannot measure text. This is
+      // the only place that can measure the RIGHT strings — the cues exist here and nowhere
+      // earlier — and it still runs before the encode, so a failure costs nothing.
+      const metrics = subtitles.style.box
+        ? await measureCaptions(cues.map((c) => cueText(c, subtitles.style)), subtitles.style,
+          subtitles.fontFile || null, { w: ow, h: oh })
+        : null;
+      const text = buildAss(cues, subtitles.style, { w: ow, h: oh }, metrics);
       const path = join(dir, `subs_${newId('')}.ass`);
       writeFileSync(path, text, 'utf8');
       ass = { text, path, fontsDir: subtitles.fontsDir || null, shaping: subtitles.shaping || null };

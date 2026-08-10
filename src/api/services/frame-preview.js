@@ -15,7 +15,8 @@ import * as DB from '../../db/index.js';
 import { ffmpeg, ffmpegAss, probeDuration, probeImageSize } from '../../media/ffmpeg.js';
 import { resolveConcatLogo, logoRect } from '../../media/logo-overlay.js';
 import { burnStyleFrom } from '../../subtitles/presets.js';
-import { buildAss } from '../../subtitles/ass.js';
+import { buildAss, cueText } from '../../subtitles/ass.js';
+import { measureCaptions } from '../../subtitles/box.js';
 import { sceneCues, shiftCues } from '../../subtitles/timeline.js';
 import { prepareBurnFontDir, shapingFor, isSystemFamily } from '../../fonts/files.js';
 import { themeFromGuide, resolveGuide } from '../../styleguide/index.js';
@@ -83,8 +84,9 @@ export async function framePreview(projectId, { t = 1.5, overrides = {} } = {}) 
     const theme = themeFromGuide(resolveGuide(config));
     const style = burnStyleFrom(config, theme, size);
     let fontsDir = null;
+    let fontFile = null;
     try {
-      ({ fontsDir } = prepareBurnFontDir(style.font, style.weight, dir));
+      ({ fontsDir, file: fontFile } = prepareBurnFontDir(style.font, style.weight, dir));
     } catch (e) {
       // A preview must never be the thing that stops the owner working. It does have to say so:
       // a preview drawn in a substitute font is exactly the lie this feature exists to prevent.
@@ -101,7 +103,11 @@ export async function framePreview(projectId, { t = 1.5, overrides = {} } = {}) 
           words: (cue.words || []).map((w) => ({ ...w, start: w.start - off, end: w.end - off })),
         };
         const path = join(dir, `frame_${newId('')}.ass`);
-        writeFileSync(path, buildAss([local], style, { w: size.w, h: size.h }), 'utf8');
+        // the same measurement the burn does, or the preview would draw a box the video will not
+        const metrics = style.box
+          ? await measureCaptions([cueText(local, style)], style, fontFile, size)
+          : null;
+        writeFileSync(path, buildAss([local], style, { w: size.w, h: size.h }, metrics), 'utf8');
         cleanup.push(path);
         const shaping = shapingFor(resolveLang(config, scenes));
         fc.push(`${vbase}setpts=PTS-STARTPTS,ass=filename=${ffQuote(path)}`

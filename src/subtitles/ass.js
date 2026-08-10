@@ -26,6 +26,12 @@
 //   2. `glow` is approximated with a soft outline plus shadow. CSS `text-shadow` blur has no
 //      libass equivalent — outline+shadow is the closest honest match.
 
+import { boxDrawing, captionAnchor } from './box.js';
+import { assAlpha, readableOn, toAssColor } from './color.js';
+
+// re-exported: they were part of this module's surface before ./color.js split them out
+export { toAssColor, readableOn };
+
 const CS = (t) => Math.max(0, Math.round(t * 100)); // ASS works in centiseconds
 
 /** `H:MM:SS.CC` — ASS timestamps are single-digit hour, two-digit centiseconds. */
@@ -35,41 +41,6 @@ export function assTime(t) {
   const m = Math.floor(cs / 6000) % 60;
   const s = Math.floor(cs / 100) % 60;
   return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}.${String(cs % 100).padStart(2, '0')}`;
-}
-
-/**
- * CSS `#RRGGBB` → ASS `&HAABBGGRR`.
- *
- * Two reversals in one value and both are easy to get backwards: the byte order is BGR, not RGB,
- * and the alpha channel is TRANSPARENCY — &H00 is fully opaque, &HFF fully invisible. Everything
- * that looked "washed out" or "wrong colour" in a burned subtitle traces back to this function.
- *
- * @param {string} hex `#RGB`, `#RRGGBB`, or an `rgba()` string
- * @param {number} opacity 0..1 (1 = opaque)
- */
-export function toAssColor(hex, opacity = 1) {
-  let r = 255, g = 255, b = 255, a = opacity;
-  const s = String(hex || '').trim();
-  const rgba = /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+)\s*)?\)$/i.exec(s);
-  if (rgba) {
-    r = +rgba[1]; g = +rgba[2]; b = +rgba[3];
-    if (rgba[4] != null) a = opacity * parseFloat(rgba[4]);
-  } else {
-    const h = s.replace('#', '');
-    const full = h.length === 3 ? h.split('').map((c) => c + c).join('') : h;
-    if (/^[0-9a-f]{6}$/i.test(full)) {
-      r = parseInt(full.slice(0, 2), 16); g = parseInt(full.slice(2, 4), 16); b = parseInt(full.slice(4, 6), 16);
-    }
-  }
-  const alpha = Math.round((1 - Math.max(0, Math.min(1, a))) * 255);
-  const hx = (n) => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, '0').toUpperCase();
-  return `&H${hx(alpha)}${hx(b)}${hx(g)}${hx(r)}`;
-}
-
-/** Inline alpha override (`\alpha`) — same inverted scale as the alpha byte above. */
-function assAlpha(opacity) {
-  const a = Math.max(0, Math.min(255, Math.round((1 - Math.max(0, Math.min(1, opacity))) * 255)));
-  return `&H${a.toString(16).padStart(2, '0').toUpperCase()}&`;
 }
 
 /**
@@ -88,22 +59,6 @@ function assAlpha(opacity) {
 function wordAlpha(style, opacity) {
   const boxed = style.effect === 'box' || style.karaokeStyle === 'box';
   return `\\${boxed ? '1a' : 'alpha'}${assAlpha(opacity)}`;
-}
-
-/**
- * Black or white, whichever is legible on `hex`.
- *
- * The per-word highlight box is painted in the accent the owner already chose, so the text sitting
- * in it needs a colour that contrasts — and asking for one more colour to keep in sync with the
- * accent is a setting that will be wrong more often than right.
- */
-export function readableOn(hex) {
-  const h = String(hex || '').replace('#', '');
-  const full = h.length === 3 ? h.split('').map((ch) => ch + ch).join('') : h;
-  if (!/^[0-9a-f]{6}$/i.test(full)) return '#000000';
-  const [r, g, b] = [0, 2, 4].map((i) => parseInt(full.slice(i, i + 2), 16) / 255);
-  const lin = (v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
-  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b) > 0.36 ? '#000000' : '#FFFFFF';
 }
 
 /**
@@ -230,6 +185,50 @@ function dialogue(start, end, text, layer = 0) {
   return `Dialogue: ${layer},${assTime(start)},${assTime(end)},Cap,,0,0,0,,${text}`;
 }
 
+/**
+ * The exact string that will be burned for a cue, after text case.
+ *
+ * Karaoke rebuilds the line from its word list while a plain cue uses `cue.text`, and the two can
+ * differ over punctuation. The drawn box is sized from a measurement of this string, so "what gets
+ * measured" and "what gets rendered" have to come from one function or the box will not fit.
+ */
+export function cueText(cue, style) {
+  const joined = (cue.words || []).map((wd) => wd.word).join(' ');
+  const raw = style.mode === 'plain' || !joined
+    ? (cue.text != null && cue.text !== '' ? cue.text : joined)
+    : joined;
+  return applyTextCase(raw, style.textCase);
+}
+
+/**
+ * `\an` + `\pos` when a drawn box is in play, '' otherwise.
+ *
+ * A box is a shape at absolute coordinates, so the text it wraps cannot be left to libass's own
+ * margin arithmetic — both are placed from `captionAnchor` instead. Without a box nothing is
+ * emitted, which is what keeps an untouched config byte-identical.
+ */
+function posTag(style, ctx) {
+  if (!style.box || !ctx?.size) return '';
+  const { x, y, an } = captionAnchor(style, ctx.size);
+  return `\\an${an}\\pos(${x},${y})`;
+}
+
+/**
+ * Join a cue's words back into a body, honouring the line breaks the measurement chose.
+ *
+ * Without a drawn box there is nothing to honour and this is a plain `join(' ')` — which is what
+ * keeps an untouched config byte-identical. With one, libass is in `WrapStyle: 2` and would let a
+ * long line run off the frame, so the breaks measured against the real pixel width are inserted
+ * here as `\N`.
+ */
+function joiner(cue, style, ctx) {
+  const breaks = style.box && ctx?.metrics
+    ? new Set(ctx.metrics.get(cueText(cue, style))?.breakAfter || [])
+    : null;
+  if (!breaks?.size) return (parts) => parts.join(' ');
+  return (parts) => parts.reduce((acc, part, i) => acc + (i ? (breaks.has(i - 1) ? '\\N' : ' ') : '') + part, '');
+}
+
 /** `\fad(in,out)` in milliseconds, or '' when neither was asked for. */
 function fadeTag(style) {
   const i = Math.max(0, Math.round(style.fadeIn || 0));
@@ -245,10 +244,10 @@ function fadeTag(style) {
  * halo is a second Dialogue on the layer below carrying the same text with a wide, blurred,
  * coloured border and an invisible fill. Verified on a real render, not inferred.
  */
-function glowLine(start, end, body, style) {
+function glowLine(start, end, body, style, ctx) {
   const colour = toAssColor(style.glowColor || style.color);
   return dialogue(start, end,
-    `{${fadeTag(style)}\\bord${Math.round(style.glow * 1.3)}\\shad0\\blur${style.glow}`
+    `{${posTag(style, ctx)}${fadeTag(style)}\\bord${Math.round(style.glow * 1.3)}\\shad0\\blur${style.glow}`
     + `\\3c${colour}\\4a&HFF&\\1a&HFF&}${body}`, 0);
 }
 
@@ -264,9 +263,9 @@ const haloWord = (txt, opacity) => `{\\r\\1a&HFF&\\4a&HFF&\\3a${assAlpha(opacity
 // One line per word window, each drawing the WHOLE cue with the current word picked out. The
 // window runs from this word's start to the next word's start so the caption never blinks out
 // during the gaps between words.
-function karaokeLines(cue, style) {
+function karaokeLines(cue, style, ctx) {
   const words = (cue.words || []).filter((wd) => wd && wd.word != null);
-  if (!words.length) return staticLine(cue, style, style.color, 1);
+  if (!words.length) return staticLine(cue, style, style.color, 1, ctx);
   const base = toAssColor(style.baseColor);
   const act = toAssColor(style.color);
   const fade = fadeTag(style);
@@ -284,15 +283,19 @@ function karaokeLines(cue, style) {
       op: j === i ? 1 : (j < i ? dimRead : dimUnread),
       active: j === i,
     }));
-    const body = shown.map(({ txt, op, active }) => (active
+    // the measurement decided where the lines break; joining everything with ' ' would hand the
+    // wrapping back to libass, which a drawn box has already been sized against
+    const join = joiner(cue, style, ctx);
+    const body = join(shown.map(({ txt, op, active }) => (active
       ? `{\\c${act}${wordAlpha(style, 1)}${activeTag(style)}}${txt}`
       // `\r` resets the run back to the style, undoing a pop's scale for every other word
-      : `{\\r\\c${base}${wordAlpha(style, op)}}${txt}`)).join(' ');
-    if (style.glow) out.push(glowLine(from, to, shown.map(({ txt, op }) => haloWord(txt, op)).join(' '), style));
-    out.push(dialogue(from, to, `{${fade}}${body}`, style.glow ? 1 : 0));
+      : `{\\r\\c${base}${wordAlpha(style, op)}}${txt}`)));
+    const lead = `{${posTag(style, ctx)}${fade}}`;
+    if (style.glow) out.push(glowLine(from, to, join(shown.map(({ txt, op }) => haloWord(txt, op))), style, ctx));
+    out.push(dialogue(from, to, `${lead}${body}`, style.glow ? 1 : 0));
   }
   // every word window collapsed (degenerate timings) — fall back to a single static line
-  return out.length ? out : staticLine(cue, style, style.baseColor, 1);
+  return out.length ? out : staticLine(cue, style, style.baseColor, 1, ctx);
 }
 
 /**
@@ -314,15 +317,14 @@ function activeTag(style) {
   return '';
 }
 
-function staticLine(cue, style, colour, opacity) {
-  const text = cue.text != null && cue.text !== ''
-    ? cue.text
-    : (cue.words || []).map((wd) => wd.word).join(' ');
-  const body = escapeAssText(applyTextCase(text, style.textCase));
+function staticLine(cue, style, colour, opacity, ctx) {
+  const plain = { ...style, mode: 'plain' };
+  const body = joiner(cue, plain, ctx)(cueText(cue, plain).split(' ').map((w) => escapeAssText(w)));
   const lines = [];
-  if (style.glow) lines.push(glowLine(cue.start, cue.end, haloWord(body, opacity), style));
+  if (style.glow) lines.push(glowLine(cue.start, cue.end, haloWord(body, opacity), style, ctx));
   lines.push(dialogue(cue.start, cue.end,
-    `{${fadeTag(style)}\\c${toAssColor(colour)}${wordAlpha(style, opacity)}}${body}`, style.glow ? 1 : 0));
+    `{${posTag(style, ctx)}${fadeTag(style)}\\c${toAssColor(colour)}${wordAlpha(style, opacity)}}${body}`,
+    style.glow ? 1 : 0));
   return lines;
 }
 
@@ -330,14 +332,24 @@ function staticLine(cue, style, colour, opacity) {
  * @param {Array} cues whole-video cues, already shifted onto the program timeline
  * @param {object} style output of `burnStyleFrom` — never a raw config
  * @param {{w:number,h:number}} size the real output frame
+ * @param {Map<string,object>} [metrics] measured text boxes, keyed by `cueText` — required only
+ *   when the style asks for a drawn background, which has to be given a size
  * @returns {string} a complete .ass document
  */
-export function buildAss(cues, style, { w, h }) {
-  const lines = [header(style, { w, h })];
+export function buildAss(cues, style, { w, h }, metrics = null) {
+  const size = { w, h };
+  const ctx = { size, metrics };
+  const lines = [header(style, size)];
   for (const cue of cues || []) {
     if (!cue || !(cue.end > cue.start)) continue;
-    if (style.mode === 'plain') lines.push(...staticLine(cue, style, style.baseColor, 1));
-    else lines.push(...karaokeLines(cue, style));
+    // the background first: it is a separate event and must be written before the text it sits
+    // behind, since libass draws same-layer events in file order
+    if (style.box && metrics) {
+      const drawing = boxDrawing(style, metrics.get(cueText(cue, style)), size);
+      if (drawing) lines.push(dialogue(cue.start, cue.end, drawing, 0));
+    }
+    if (style.mode === 'plain') lines.push(...staticLine(cue, style, style.baseColor, 1, ctx));
+    else lines.push(...karaokeLines(cue, style, ctx));
   }
   return `${lines.join('\n')}\n`;
 }
