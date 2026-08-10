@@ -83,6 +83,75 @@ export const SUBTITLE_PRESETS = [
 // Distance from the BOTTOM of the frame, in %, for each position preset (harness .cap bottom).
 const POSITION_BOTTOM_PCT = { bot: 12, mid: 45, top: 80 };
 
+// ASS Alignment digits for the bottom row. Vertical placement stays a free distance-from-bottom
+// (MarginV) rather than moving between the 1-9 rows, because that is what every existing project
+// already renders: 'mid' and 'top' are 45% and 80% up from the bottom with Alignment 2, not
+// Alignment 5 and 8. Switching rows would move finished videos; this axis is purely horizontal.
+const ALIGN_H = { left: 1, center: 2, right: 3 };
+
+const num = (v) => (Number.isFinite(+v) && v !== '' && v != null ? +v : undefined);
+/** A length the owner typed against a 1080p frame, scaled onto the real one (as fontSizePx is). */
+const px1080 = (v, { w, h }) => {
+  const n = num(v);
+  return n == null ? undefined : Math.round(n * (Math.min(w, h) / 1080));
+};
+
+/**
+ * The controls that exist only on the burn lane: everything libass can express that the DOM
+ * caption never had a CSS equivalent for, plus the fields that used to be derived from `effect`
+ * and are now the owner's to set.
+ *
+ * Every value here is `undefined` when unset, and every consumer falls back to exactly what it
+ * computed before. That is the contract that lets 46 finished projects re-render unchanged: an
+ * untouched config must produce a byte-identical .ass.
+ */
+export function advancedStyleFrom(config, size) {
+  const c = config || {};
+  const on = (v) => (v === true ? true : undefined); // false and absent both mean "as before"
+  const pad = c.subtitleBoxPadding || {};
+  return {
+    italic: on(c.subtitleItalic),
+    underline: on(c.subtitleUnderline),
+    strike: on(c.subtitleStrike),
+    letterSpacing: px1080(c.subtitleLetterSpacing, size),
+    scaleX: num(c.subtitleScaleX),
+    scaleY: num(c.subtitleScaleY),
+    angle: num(c.subtitleAngle),
+    outlineColor: c.subtitleOutlineColor || undefined,
+    outlineWidth: px1080(c.subtitleOutlineWidth, size),
+    shadowColor: c.subtitleShadowColor || undefined,
+    shadowDepth: px1080(c.subtitleShadowDepth, size),
+    glowColor: c.subtitleGlowColor || undefined,
+    glow: px1080(c.subtitleGlow, size),
+    dimUnread: num(c.subtitleDimUnread),
+    dimRead: num(c.subtitleDimRead),
+    alignH: ALIGN_H[c.subtitleAlignH],
+    marginVPct: num(c.subtitleMarginV),
+    marginHPct: num(c.subtitleMarginH),
+    wrap: [0, 1, 2, 3].includes(num(c.subtitleWrap)) ? num(c.subtitleWrap) : undefined,
+    karaokeStyle: ['color', 'box', 'pop'].includes(c.subtitleKaraokeStyle) ? c.subtitleKaraokeStyle : undefined,
+    reveal: on(c.subtitleReveal),
+    popScale: num(c.subtitlePopScale),
+    fadeIn: num(c.subtitleFadeIn),
+    fadeOut: num(c.subtitleFadeOut),
+    // The drawn caption box. `box: true` switches the background from a border to a real shape,
+    // which is the only way to get independent padding and rounded corners (see ./box.js).
+    box: c.subtitleBox === true ? {
+      color: c.subtitleBoxColor || '#0A0A10',
+      opacity: num(c.subtitleBoxOpacity) ?? 0.85,
+      radius: px1080(c.subtitleBoxRadius, size) ?? 0,
+      borderColor: c.subtitleBoxBorderColor || undefined,
+      borderWidth: px1080(c.subtitleBoxBorderWidth, size) ?? 0,
+      padding: {
+        top: px1080(pad.top, size) ?? 0,
+        right: px1080(pad.right, size) ?? 0,
+        bottom: px1080(pad.bottom, size) ?? 0,
+        left: px1080(pad.left, size) ?? 0,
+      },
+    } : undefined,
+  };
+}
+
 export function getSubtitlePreset(id) {
   if (!id) return null;
   return SUBTITLE_PRESETS.find((p) => p.id === id) || null;
@@ -163,16 +232,22 @@ export function captionStyleFrom(config, theme, { w, h }) {
  * page decide, but a burn has to name a number.
  */
 export function burnStyleFrom(config, theme, { w, h }) {
+  const c = config || {};
   const cap = captionStyleFrom(config, theme, { w, h });
   const ass = assStyleFrom(config);
   return {
+    ...advancedStyleFrom(config, { w, h }),
     enabled: ass.enabled,
     font: familyName(cap.fontFamily) || ass.font,
     fontSizePx: Math.round(cap.fontSizePx || Math.min(w, h) * 0.052),
     bottomPct: cap.bottomPct ?? (h > w ? 10 : 7),
     color: cap.color || theme?.accents?.[0] || '#F7B500',
-    baseColor: cap.baseColor || theme?.ink || '#FFFFFF',
-    weight: cap.weight || 800,
+    // Same frozen-branch problem as textCase below: without a preset `cap` carries none of these,
+    // so manual styling was stuck on white / weight 800 / glow with no way to say otherwise.
+    baseColor: c.subtitleBaseColor || cap.baseColor || theme?.ink || '#FFFFFF',
+    // The weight also picks the FONT FILE (fonts/files.js resolveFace), so an unavailable weight
+    // is answered with the nearest one that exists rather than a synthetic smear.
+    weight: num(c.subtitleWeight) || cap.weight || 800,
     effect: cap.effect || 'glow',
     boxBg: cap.boxBg || null,
     // `cap` is the DOM lane's shape, and its no-preset branch is frozen: it returns only
