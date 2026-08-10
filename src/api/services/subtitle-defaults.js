@@ -25,17 +25,68 @@ import * as DB from '../../db/index.js';
  * `subtitleTextCase: ''` means "theo bộ mẫu" — both are choices the owner can make and both must
  * persist. An empty FONT or COLOUR is not a choice, it is a control that has not loaded.
  */
+const bool = (v) => typeof v === 'boolean';
+const hex = (v) => typeof v === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(v);
+const range = (lo, hi) => (v) => Number.isFinite(+v) && v !== '' && v !== null && +v >= lo && +v <= hi;
+const oneOf = (...allowed) => (v) => allowed.includes(v);
+
 export const SUBTITLE_KEYS = {
-  enableSubtitles: (v) => typeof v === 'boolean',
-  subtitleMode: (v) => v === 'karaoke' || v === 'plain',
-  subtitleChunk: (v) => ['auto', 'sentence', 'words'].includes(v),
-  subtitleWordsPerCue: (v) => Number.isFinite(+v) && +v >= 2 && +v <= 10,
+  enableSubtitles: bool,
+  subtitleMode: oneOf('karaoke', 'plain'),
+  subtitleChunk: oneOf('auto', 'sentence', 'words'),
+  subtitleWordsPerCue: range(2, 10),
   subtitlePreset: (v) => typeof v === 'string',
   subtitleFont: (v) => typeof v === 'string' && v.trim() !== '',
   subtitleFontSize: (v) => Number.isFinite(+v) && +v > 0,
-  subtitleTextCase: (v) => ['', 'original', 'uppercase', 'lowercase', 'titlecase'].includes(v),
-  subtitleColor: (v) => typeof v === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(v),
+  subtitleTextCase: oneOf('', 'original', 'uppercase', 'lowercase', 'titlecase', 'sentence'),
+  subtitleColor: hex,
   subtitlePosition: (v) => !!v && typeof v === 'object' && ['bot', 'mid', 'top'].includes(v.preset),
+
+  // ---- the full studio ----------------------------------------------------
+  // Every range below is a guard against a value that would ruin a render rather than merely look
+  // odd — a negative font weight, a 400% margin, an outline wider than the frame. The panel's own
+  // sliders are narrower; these are the outer walls, so a hand-edited config still cannot burn a
+  // video into nonsense.
+  subtitleWeight: range(100, 1000),
+  subtitleItalic: bool,
+  subtitleUnderline: bool,
+  subtitleStrike: bool,
+  subtitleLetterSpacing: range(-20, 60),
+  subtitleScaleX: range(25, 400),
+  subtitleScaleY: range(25, 400),
+  subtitleAngle: range(-180, 180),
+
+  subtitleBaseColor: hex,
+  subtitleOutlineColor: hex,
+  subtitleOutlineWidth: range(0, 200),
+  subtitleShadowColor: hex,
+  subtitleShadowDepth: range(0, 200),
+  subtitleGlowColor: hex,
+  subtitleGlow: range(0, 100),
+  subtitleDimUnread: range(0, 1),
+  subtitleDimRead: range(0, 1),
+
+  subtitleBox: bool,
+  subtitleBoxColor: hex,
+  subtitleBoxOpacity: range(0, 1),
+  subtitleBoxRadius: range(0, 200),
+  subtitleBoxBorderColor: hex,
+  subtitleBoxBorderWidth: range(0, 60),
+  subtitleBoxPadding: (v) => !!v && typeof v === 'object' && !Array.isArray(v)
+    && ['top', 'right', 'bottom', 'left'].every((k) => v[k] == null || range(0, 300)(v[k])),
+
+  subtitleAlignH: oneOf('left', 'center', 'right'),
+  subtitleMarginV: range(0, 95),
+  subtitleMarginH: range(0, 45),
+  subtitleWrap: oneOf(0, 1, 2, 3),
+  subtitleMaxChars: range(8, 80),
+  subtitleMaxLines: range(1, 4),
+
+  subtitleKaraokeStyle: oneOf('color', 'box', 'pop'),
+  subtitleReveal: bool,
+  subtitlePopScale: range(100, 200),
+  subtitleFadeIn: range(0, 2000),
+  subtitleFadeOut: range(0, 2000),
 };
 
 /** The subtitle settings out of an arbitrary config object, blanks and strangers removed. */
