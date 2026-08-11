@@ -21,7 +21,11 @@ export function initNav() {
     const st = NAV_STYLE[b.dataset.page] || { icn: 'film', tint: '#8b7cff' };
     const ic = b.querySelector('.ic');
     if (ic) { ic.innerHTML = icon(st.icn, 15); ic.style.setProperty('--tint', st.tint); }
-      b.title = b.textContent.trim(); // still the tooltip once labels drop on a narrow window
+    // `data-tip` feeds the CSS tooltip that replaces the label on a narrow window; `title` stays
+    // as the accessible fallback (and is what a screen reader reads).
+    const name = b.textContent.trim();
+    b.title = name;
+    b.dataset.tip = name;
     b.addEventListener('click', () => switchPage(b.dataset.page));
   });
   const logo = document.querySelector('.nav-brand .logo');
@@ -33,63 +37,12 @@ export function initNav() {
   $('#navSettings').innerHTML = `${icon('settings', 15)}<span class="nav-label">AI Setting</span>`;
   $('#navSettings').title = 'AI Setting';
   $('#navSettings').addEventListener('click', openSettings);
+  $('#depWarn')?.addEventListener('click', openSettings);
   const mc = $('#btnManageChannels');
   if (mc) mc.innerHTML = icon('tv', 15);
-  wireProjectName();
   // The collapse toggle and its ⌘B went with the rail: a topbar has no width to give back, and
   // the row already sheds its labels by media query when the window gets narrow.
   try { delete localStorage.navCollapsed; } catch { /* ignore */ }
-}
-
-/**
- * The open project's name, shown and edited where it is read.
- *
- * The server has always accepted a title change (`updateProject`'s allowed list) — there was
- * simply nowhere in the app to make one, so every project kept whatever it was created with and
- * the library filled up with rows nobody could tell apart.
- */
-function wireProjectName() {
-  const btn = $('#projName');
-  if (!btn) return;
-  btn.addEventListener('click', async () => {
-    const { promptDialog } = await import('../ui/dialog.js');
-    const { state } = await import('../state.js');
-    const { api } = await import('../api.js');
-    const cur = state.current;
-    if (!cur) return;
-    const name = await promptDialog({ title: 'Đổi tên dự án', label: 'Tên dự án', value: cur.title || '' });
-    if (name == null) return;
-    const title = String(name).trim();
-    if (!title || title === cur.title) return;
-    try {
-      // `metadata.titleLocked` and not a config key: config feeds the render fingerprints, and a
-      // rename must never make a single clip stale. metadata is the blob for exactly this.
-      const md = { ...(cur.metadata || {}), titleLocked: true };
-      await api.put(`/projects/${cur.id}`, { title, metadata: md });
-      cur.title = title; cur.metadata = md;
-      setProjectName(title);
-      const { toast } = await import('../ui/toast.js');
-      toast(`✏️ Đã đổi tên: ${title}`, 'success');
-      const st = await import('./studio.js');
-      const row = (state.projects || []).find((x) => x.id === cur.id);
-      if (row) row.title = title;
-      st.renderProjectList();
-    } catch (e) {
-      const { toast } = await import('../ui/toast.js');
-      toast(`✖ Không đổi được tên: ${e.message}`, 'error');
-    }
-  });
-}
-
-/** Show (or hide) the open project's name in the topbar. */
-export function setProjectName(title) {
-  const btn = $('#projName');
-  if (!btn) return;
-  const t = String(title || '').trim();
-  btn.classList.toggle('hidden', !t);
-  const span = $('#projNameText');
-  if (span) span.textContent = t;
-  btn.title = t ? `${t} — bấm để đổi tên` : '';
 }
 
 export function switchPage(p) {
@@ -105,8 +58,26 @@ export function switchPage(p) {
   if (okVt) document.startViewTransition(apply); else apply();
 }
 
+/**
+ * Tool status: the detail in AI Setting, and nothing in the topbar unless something is wrong.
+ *
+ * Four permanent green dots told the owner what they already knew every second of every day, and
+ * the row is the scarcest space in the app. Deleting them outright would have been worse though —
+ * a missing Chrome makes every thumbnail and every caption measurement fail, and the only clue
+ * would have been the failure itself. So silence is the normal state and a real gap still shouts.
+ */
 export function renderDeps(d) {
   const map = { ffmpeg: 'ffmpeg', whisper: 'whisper', say: 'TTS', chrome: 'Chrome' };
-  $('#depFoot').innerHTML = Object.entries(map)
-    .map(([k, label]) => `<span class="dep ${d[k] ? 'ok' : 'no'}">${d[k] ? '●' : '○'} ${label}</span>`).join('');
+  const rows = Object.entries(map);
+  const foot = $('#depFoot');
+  if (foot) {
+    foot.innerHTML = rows
+      .map(([k, label]) => `<span class="dep ${d[k] ? 'ok' : 'no'}">${d[k] ? '●' : '○'} ${label}</span>`).join('');
+  }
+  const missing = rows.filter(([k]) => !d[k]).map(([, label]) => label);
+  const warn = $('#depWarn');
+  if (!warn) return;
+  warn.classList.toggle('hidden', !missing.length);
+  warn.textContent = missing.length ? `⚠ Thiếu ${missing.join(', ')}` : '';
+  warn.title = missing.length ? `Thiếu công cụ: ${missing.join(', ')} — bấm để mở AI Setting` : '';
 }
