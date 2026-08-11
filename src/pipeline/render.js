@@ -113,6 +113,22 @@ export async function concatScenes(sceneVideos, project, {
   if (!sceneVideos.length) throw new Error('Không có cảnh nào để ghép');
   const ow = size.w, oh = size.h;
 
+  // The frame an overlay lands on is whatever the CLIPS are — not what the caller believes.
+  //
+  // `size` is the LOGICAL 1080-class canvas the scenes were authored in (ratioToSize). A project
+  // with `resolutionScale: 2` renders its clips at 3840×2160, and nothing below rescales them, so
+  // the finished file is 4K while every caller still hands this function 1920×1080. logoRect then
+  // computed half the width at half the fraction: measured on a finished 4K video, a stamp stored
+  // at cx=0.936 (top right) was drawn at cx=0.468 — the middle of the frame — and the rect
+  // predicted from the 1080 space framed it exactly. The edit-video lane is worse still: it
+  // composites onto the owner's own footage, whose size is nobody's ratio.
+  //
+  // Captions deliberately keep using `size`. An ASS document declares its own PlayRes and libass
+  // scales that space onto the frame, so the 1080-class coordinates render identically at 4K;
+  // moving them would rewrite every project's `assText` digest for no visible change at all.
+  const probed = await probeImageSize(sceneVideos[0]);
+  const fw = probed?.w || ow, fh = probed?.h || oh;
+
   // Durations + timeline.
   const TD = XFADE_DUR;
   const durs = [];
@@ -165,8 +181,8 @@ export async function concatScenes(sceneVideos, project, {
   // made, so anything gating the graph has to gate the hash too.
   const effPlan = useGraph ? plan : null;
   const fp = concatFingerprint({
-    clips: sceneVideos, size, fps: FPS, transitions: effPlan, logo, watermark, assText,
-    masterFade, encoder, bgmPath, sfxPath, bgmVol,
+    clips: sceneVideos, size, frame: { w: fw, h: fh }, fps: FPS, transitions: effPlan, logo, watermark,
+    assText, masterFade, encoder, bgmPath, sfxPath, bgmVol,
   });
   const videoFilter = needsVideoFilter({ logo, watermark, assText, transitions: effPlan, masterFade });
   const { tier, why } = planConcat({ fp, prev: prevFp, prevPath, videoFilter, allowSkip });
@@ -258,14 +274,14 @@ export async function concatScenes(sceneVideos, project, {
       // P26 WYSIWYG shape {cxPct,cyPct,wPct,opacity}: logoRect computes the SAME integers the
       // Brand Kit preview shows — literal scale + overlay coordinates, no runtime expressions.
       const isz = await probeImageSize(logo.path);
-      const rect = logoRect(logo, { W: ow, H: oh, logoW: isz?.w || 1, logoH: isz?.h || 1 });
+      const rect = logoRect(logo, { W: fw, H: fh, logoW: isz?.w || 1, logoH: isz?.h || 1 });
       const op = Math.min(1, Math.max(0.2, Number.isFinite(+logo.opacity) ? +logo.opacity : 0.9));
       fc.push(`[${nextIdx}:v]scale=${rect.lw}:${rect.lh}:flags=lanczos,format=rgba,colorchannelmixer=aa=${op.toFixed(2)}[lg]`,
         `${vbase}[lg]overlay=${rect.x}:${rect.y}[vov]`);
     } else {
       // legacy shape {size(px@1080), position('br'|{xPct,yPct})} — old configs keep rendering
-      const lw = Math.round((logo.size || 110) * (oh / 1080));
-      const pos = logoPos(logo.position || 'br', ow, oh, lw);
+      const lw = Math.round((logo.size || 110) * (fh / 1080));
+      const pos = logoPos(logo.position || 'br', fw, fh, lw);
       fc.push(`[${nextIdx}:v]scale=${lw}:-1[lg]`, `${vbase}[lg]overlay=${pos}[vov]`);
     }
     vbase = '[vov]'; nextIdx++;
@@ -279,17 +295,17 @@ export async function concatScenes(sceneVideos, project, {
   if (!copyVideo && watermark && (watermark.path || (watermark.text && watermark.fontFile))) {
     const wm = watermark;
     const period = WM_SPEEDS[wm.speed] || WM_SPEEDS.slow;
-    const marginPx = Math.round(Math.min(ow, oh) * (wm.marginPct ?? 0.02));
+    const marginPx = Math.round(Math.min(fw, fh) * (wm.marginPct ?? 0.02));
     const op = Math.min(0.8, Math.max(0.1, Number.isFinite(+wm.opacity) ? +wm.opacity : 0.35));
     if (wm.path && existsSync(wm.path)) {
       args.push('-i', wm.path);
-      const wpx = Math.max(16, Math.round((wm.wPct ?? 0.06) * ow));
+      const wpx = Math.max(16, Math.round((wm.wPct ?? 0.06) * fw));
       const { x, y } = perimeterExpr({ period, marginPx }); // overlay vars W/H/w/h
       fc.push(`[${nextIdx}:v]scale=${wpx}:-1:flags=lanczos,format=rgba,colorchannelmixer=aa=${op.toFixed(2)}[wm]`,
         `${vbase}[wm]overlay=x='${x}':y='${y}'[vwm]`);
       vbase = '[vwm]'; nextIdx++;
     } else {
-      const fs = Math.max(14, Math.round(oh * (wm.hPct ?? 0.028)));
+      const fs = Math.max(14, Math.round(fh * (wm.hPct ?? 0.028)));
       // textfile= dodges the whole drawtext escaping minefield (colons/quotes/percent)
       const tf = join(dir, `wm_${newId('')}.txt`);
       writeFileSync(tf, String(wm.text));

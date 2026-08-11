@@ -41,16 +41,26 @@ export function clipStamp(paths) {
  * @returns {{video:string, audio:string, all:string}}
  */
 export function concatFingerprint({
-  clips, size, fps, transitions, logo, watermark, assText, masterFade, encoder,
+  clips, size, frame, fps, transitions, logo, watermark, assText, masterFade, encoder,
   bgmPath, sfxPath, bgmVol,
 }) {
+  // The PHYSICAL frame the overlays are drawn on, folded into the two entries it can move and
+  // nowhere else.
+  //
+  // It belongs in the hash because it is now an input to logoRect and to the watermark geometry:
+  // every 4K video finished before that fix carries a stamp at half size in the middle of the
+  // frame, and without this the re-join would read as "nothing changed" and hand the same wrong
+  // file back. Folding it into `logo`/`wm` rather than adding a top-level key keeps the digest
+  // byte-identical for the projects that stamp nothing at all — which is most of them, and none
+  // of them have anything to re-encode.
+  const px = frame ? [frame.w || 0, frame.h || 0] : null;
   const video = digest({
     clips: clipStamp(clips),
     size: [size?.w || 0, size?.h || 0],
     fps: fps || 0,
     tr: Array.isArray(transitions) ? transitions.map((t) => [t.type, +(t.dur || 0).toFixed(3)]) : !!transitions,
-    logo: logo ? [logo.path, logo.cxPct, logo.cyPct, logo.wPct, logo.opacity, logo.size, logo.position] : null,
-    wm: watermark ? [watermark.path || null, watermark.text || null, watermark.speed, watermark.opacity, watermark.wPct, watermark.hPct, watermark.marginPct] : null,
+    logo: logo ? [logo.path, logo.cxPct, logo.cyPct, logo.wPct, logo.opacity, logo.size, logo.position, px] : null,
+    wm: watermark ? [watermark.path || null, watermark.text || null, watermark.speed, watermark.opacity, watermark.wPct, watermark.hPct, watermark.marginPct, px] : null,
     // the ASS document itself, not its path — the file is rewritten every run
     ass: assText ? digest(assText) : null,
     fade: masterFade !== false,

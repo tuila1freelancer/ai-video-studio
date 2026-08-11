@@ -169,7 +169,13 @@ export async function framePreview(projectId, { t = 1.5, overrides = {} } = {}) 
   if (logo?.path && existsSync(logo.path) && Number.isFinite(+logo.wPct)) {
     args.push('-i', logo.path);
     const isz = await probeImageSize(logo.path);
-    const rect = logoRect(logo, { W: size.w, H: size.h, logoW: isz?.w || 1, logoH: isz?.h || 1 });
+    // …against the clip's OWN pixels, exactly as the concat does it. `size` is the logical
+    // 1080-class canvas; a resolutionScale=2 clip is 3840×2160, and drawing a rect computed in
+    // the smaller space onto the larger frame is what put the stamp at half size in the middle
+    // of the picture. The caption above deliberately stays in `size` — ASS carries its own
+    // PlayRes and libass scales it — so only the overlay needs the physical frame.
+    const fsz = (await probeImageSize(source)) || size;
+    const rect = logoRect(logo, { W: fsz.w, H: fsz.h, logoW: isz?.w || 1, logoH: isz?.h || 1 });
     const op = Math.min(1, Math.max(0.2, Number.isFinite(+logo.opacity) ? +logo.opacity : 0.9));
     fc.push(`[${nextIdx}:v]scale=${rect.lw}:${rect.lh}:flags=lanczos,format=rgba,colorchannelmixer=aa=${op.toFixed(2)}[lg]`,
       `${vbase}[lg]overlay=${rect.x}:${rect.y}[vov]`);
