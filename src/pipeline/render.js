@@ -12,25 +12,61 @@ import { ratioToSize, newId } from '../util/util.js';
 
 const FPS = 30;
 
-// ---- Transition planning (motion doctrine: every boundary FLOWS — a short smooth dissolve
-// is the default hand-off, while 1-2 prominent HERO transitions still punch above it so they
-// keep their impact) ----
+// ---- Transition planning (motion doctrine: every boundary FLOWS — a short dip through black is
+// the default hand-off, while one HERO transition still punches above it) ----
 // Returns one entry per clip boundary: { type: 'cut'|'fade'|'fadeblack'|'zoomin', dur }.
-// Role-driven when the art director stamped [ROLE] briefs (P4): the transition INTO a
-// payoff scene is a zoom-through ('zoomin'), INTO a cta scene / the outro card a clean
-// 'fadeblack', INTO a chapter-break a 'fade'; every OTHER boundary is a short softDur dissolve
-// — smooth, never a jarring hard cut, yet clearly gentler than the 0.45-0.5s hero moments so
-// those still stand out. Videos with no roles anywhere (template/image modes, older projects)
-// keep the legacy uniform fade the owner's "smooth transitions" always produced.
+// Role-driven when the art director stamped [ROLE] briefs (P4): the transition INTO a payoff
+// scene is a zoom-through ('zoomin'); every other boundary dips, a touch longer at the structural
+// ones (intro, chapter-break, cta, outro) than at an ordinary hand-off, so the shape of the video
+// is still legible. Videos with no roles anywhere keep a single uniform dip. See planTransitions
+// for why a dip and not a dissolve — it was measured on real adjacent clips, not chosen by taste.
 const ROLE_RE = /\[ROLE\]\s*(\w+)/i;
 // User-pickable transition styles (P43). 'auto' keeps the storytelling doctrine below — the
 // default, and still the best answer — but the owner can now name one look for the whole video
 // the way the reference app lets him, or 'varied' to rotate deterministically. Every value is a
 // real ffmpeg xfade transition, verified against the vendored build.
+/**
+ * Ceiling on the xfade graph, in clips.
+ *
+ * It used to be 24, on the reasoning that "deep xfade chains keep every input decoder open →
+ * unstable for very long videos". Measured on this machine with 192 real clips (801s of 1080×1920)
+ * the full coupled xfade+acrossfade graph runs in 77s at a 2.6 GB peak and exits clean — there is
+ * no instability to protect against. What the cap did instead was silently disable transitions on
+ * every long-form video this app makes: 29 of 39 finished projects are over 24 clips, so the plan
+ * was computed, fingerprinted and charged for, and then never rendered.
+ *
+ * This is now a backstop far above any real video rather than a working limit, and it lives here
+ * alone — the copies that had drifted into the SFX offsets, the QC duration and the SRT export are
+ * gone, each replaced by planOffsets, which is right whether or not the graph runs.
+ */
+export const MAX_GRAPH_CLIPS = 400;
+
 export const TRANSITION_STYLES = ['auto', 'fade', 'dissolve', 'slideleft', 'circlecrop', 'circleopen', 'smoothleft', 'zoomin', 'pixelize', 'radial', 'wipeleft', 'varied', 'none'];
 const VARIED_CYCLE = ['fade', 'dissolve', 'slideleft', 'circleopen', 'smoothleft', 'zoomin'];
 
-export function planTransitions({ scenes, clipCount, nIntro = 0, nOutro = 0, legacyDur = 0.5, softDur = 0.2, style = 'auto' }) {
+/**
+ * The scene-boundary doctrine.
+ *
+ * The default hand-off is a short DIP THROUGH BLACK rather than a cross-dissolve, and that is a
+ * measured choice, not a taste. Rendering real adjacent clips and sampling across the blend:
+ *
+ *   fade @ 0.2   indistinguishable from a hard cut — both sides share the same radial-gradient
+ *                stage (harness.js), so the only thing dissolving is text
+ *   fade @ 0.6   WORSE. The clip ends on a held climax (the codegen prompt requires it: "the scene
+ *                must END full, not fade to nothing") and the next one is already 0.35–0.5s into
+ *                its entrances, so the midpoint is two headlines superimposed — the exact "text on
+ *                top of text" the prompt calls an instant fail. Longer is not smoother here.
+ *   fadeblack    the only clean middle, because black is a state neither side owns.
+ *
+ * 0.45 is the ceiling, also measured. Leading silence in a clip is 0.19–0.20s and programCues puts
+ * the incoming scene's first cue at `starts[i+1]`, i.e. 0.19s into the window; past 0.45 the dark
+ * point drifts under that cue and the video shows a bright caption floating on black.
+ *
+ * The real cure for a muddy dissolve is upstream — content leaving the frame before the cut, which
+ * is what the hand-off ramp does for newly rendered clips. This is what is available to a video
+ * that can only be re-joined.
+ */
+export function planTransitions({ scenes, clipCount, nIntro = 0, nOutro = 0, legacyDur = 0.4, softDur = 0.35, style = 'auto' }) {
   const n = Math.max(0, clipCount - 1);
   // An explicit style overrides the role doctrine entirely: the owner asked for ONE look.
   if (style && style !== 'auto') {
@@ -48,15 +84,15 @@ export function planTransitions({ scenes, clipCount, nIntro = 0, nOutro = 0, leg
   for (let b = 0; b < n; b++) {
     const inClip = b + 1; // boundary b sits between clips b and b+1
     const sceneIdx = inClip - nIntro; // index into `scenes` of the INCOMING clip
-    if (!anyRole) { plan.push({ type: 'fade', dur: legacyDur }); continue; }
-    if (inClip >= nIntro + scenes.length) { plan.push({ type: 'fadeblack', dur: 0.5 }); continue; } // into the outro card
-    if (sceneIdx < 0) { plan.push({ type: 'fade', dur: 0.4 }); continue; } // out of the intro card
+    if (!anyRole) { plan.push({ type: 'fadeblack', dur: legacyDur }); continue; }
+    if (inClip >= nIntro + scenes.length) { plan.push({ type: 'fadeblack', dur: 0.45 }); continue; } // into the outro card
+    if (sceneIdx < 0) { plan.push({ type: 'fadeblack', dur: 0.45 }); continue; } // out of the intro card
     const sc = scenes[sceneIdx];
-    if (sc?.template === 'chapter-break') { plan.push({ type: 'fade', dur: 0.4 }); continue; }
+    if (sc?.template === 'chapter-break') { plan.push({ type: 'fadeblack', dur: 0.45 }); continue; }
     const role = roles[sceneIdx];
     if (role === 'payoff' && zoomLeft > 0) { zoomLeft--; plan.push({ type: 'zoomin', dur: 0.45 }); continue; }
-    if (role === 'cta') { plan.push({ type: 'fadeblack', dur: 0.5 }); continue; }
-    plan.push({ type: 'fade', dur: softDur }); // smooth hand-off — hero transitions above still punch
+    if (role === 'cta') { plan.push({ type: 'fadeblack', dur: 0.45 }); continue; }
+    plan.push({ type: 'fadeblack', dur: softDur }); // clean hand-off — the hero zoom above still punches
   }
   return plan;
 }
@@ -77,8 +113,7 @@ export async function concatScenes(sceneVideos, project, {
   if (!sceneVideos.length) throw new Error('Không có cảnh nào để ghép');
   const ow = size.w, oh = size.h;
 
-  // Durations + timeline. xfade only for moderate counts (deep xfade chains keep every input
-  // decoder open → unstable for very long videos).
+  // Durations + timeline.
   const TD = XFADE_DUR;
   const durs = [];
   for (const v of sceneVideos) durs.push(await probeDuration(v));
@@ -86,7 +121,7 @@ export async function concatScenes(sceneVideos, project, {
     ? transitions.slice(0, sceneVideos.length - 1)
     : (transitions ? sceneVideos.map(() => ({ type: 'fade', dur: TD })).slice(0, sceneVideos.length - 1) : null);
   const anyBlend = !!plan && plan.some((t) => t.type !== 'cut');
-  const useGraph = anyBlend && sceneVideos.length > 1 && sceneVideos.length <= 24;
+  const useGraph = anyBlend && sceneVideos.length > 1 && sceneVideos.length <= MAX_GRAPH_CLIPS;
   // planOffsets replays this loop's own arithmetic, clamp included, so the caption timeline and
   // the video can never disagree. (transitionLoss sums the PLANNED fade lengths and ignores the
   // per-join clamp — close enough for a QC tolerance, not for placing a subtitle.)
@@ -123,11 +158,17 @@ export async function concatScenes(sceneVideos, project, {
   // that produced it decide whether this is a full encode, a stream copy, an audio-only remux,
   // or nothing at all.
   const assText = ass?.text || null;
+  // The EFFECTIVE plan, not the requested one. A plan the graph will not execute must not move the
+  // fingerprint: while the clip cap was in force, changing the transition style on a long video
+  // moved fp.video, dropped the tier to `encode`, and bought the owner a full re-encode whose
+  // output was pixel-identical. The fingerprint has to describe the video that will actually be
+  // made, so anything gating the graph has to gate the hash too.
+  const effPlan = useGraph ? plan : null;
   const fp = concatFingerprint({
-    clips: sceneVideos, size, fps: FPS, transitions: plan, logo, watermark, assText,
+    clips: sceneVideos, size, fps: FPS, transitions: effPlan, logo, watermark, assText,
     masterFade, encoder, bgmPath, sfxPath, bgmVol,
   });
-  const videoFilter = needsVideoFilter({ logo, watermark, assText, transitions: plan, masterFade });
+  const videoFilter = needsVideoFilter({ logo, watermark, assText, transitions: effPlan, masterFade });
   const { tier, why } = planConcat({ fp, prev: prevFp, prevPath, videoFilter, allowSkip });
   (onNote || onLog)?.(`${TIER_LOG[tier]} — ${why}`);
   if (tier === 'skip') {
@@ -168,7 +209,19 @@ export async function concatScenes(sceneVideos, project, {
       } else {
         const d = Math.min(tr.dur || TD, Math.max(0.2, durs[i] - 0.2), Math.max(0.2, acc - 0.2));
         fc.push(`[${prevV}][vn${i}]xfade=transition=${tr.type}:duration=${d.toFixed(3)}:offset=${(acc - d).toFixed(3)}[vx${i}]`);
-        fc.push(`[${prevA}][${i}:a]acrossfade=d=${d.toFixed(3)}[ax${i}]`);
+        // `qsin` on the way out, no fade at all on the way in.
+        //
+        // acrossfade defaults to linear (`tri`) on both sides, which is amplitude-linear and so
+        // dips about 3 dB in power at the midpoint on uncorrelated material — audible as a sag at
+        // every join. `qsin` is the equal-power pair (in² + out² = 1).
+        //
+        // The incoming side gets `nofade` because the material is asymmetric: the outgoing clip
+        // ends in silence (a 400–650ms breath pad, measured 0.68–0.93s of real trailing silence)
+        // while the incoming clip starts speaking almost immediately — measured leading silence is
+        // only 0.19–0.20s. Fading it up meant every hero boundary chewed 200–300ms off the first
+        // words of the next scene. Entering at full level over its own silence is what a hard cut
+        // already does, so there is no click to introduce.
+        fc.push(`[${prevA}][${i}:a]acrossfade=d=${d.toFixed(3)}:c1=qsin:c2=nofade[ax${i}]`);
         acc += durs[i] - d;
       }
       prevV = `vx${i}`; prevA = `ax${i}`;
