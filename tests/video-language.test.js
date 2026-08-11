@@ -256,7 +256,9 @@ test('lang: "ghép lại" concatenates instead of re-rendering the whole video',
   // the subset filter only ever applied to mode 'scenes', so 'concat' fell through to the full
   // mapPool — on a 95-scene video that is ~95 needless renders to join clips already on disk
   assert.match(ro, /const renderPass = mode !== 'concat';/);
-  assert.match(ro, /if \(renderPass\) \{/, 'the render pool is gated');
+  // The gate is now `renderPass && scenes.length`: 'concat' still skips the pool entirely, and so
+  // does a render pass that found every clip already current — see incremental-render.test.js.
+  assert.match(ro, /if \(renderPass && scenes\.length\) \{/, 'the render pool is gated');
   assert.match(ro, /không render lại/, 'and the owner is told what it did');
   // the unvoiced early-exit belongs to the RENDER path only — a fully-voiced project with clips
   // is perfectly concat-able
