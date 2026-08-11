@@ -17,7 +17,15 @@ const service = src('../src/api/services/frame-preview.js');
 
 test('the stamp is placed by the concat\'s own arithmetic, not a lookalike', () => {
   assert.match(service, /import \{ resolveConcatLogo, logoRect \}/);
-  assert.match(service, /logoRect\(logo, \{ W: size\.w, H: size\.h/);
+  // …and against the SOURCE CLIP's own pixels, which is what "the concat's own arithmetic" means
+  // now. This used to pin `W: size.w`, and that pin was holding a real bug in place: `size` is the
+  // logical 1080-class canvas, so on a resolutionScale=2 project both the preview and the concat
+  // drew a rect computed for 1920×1080 onto a 3840×2160 frame — half the width, at half the
+  // fraction. Measured on a finished 4K video, a stamp stored at cx=0.936 rendered at cx=0.468.
+  assert.match(service, /const fsz = \(await probeImageSize\(source\)\) \|\| size;/);
+  assert.match(service, /logoRect\(logo, \{ W: fsz\.w, H: fsz\.h/);
+  // the caption stays in the logical space on purpose — ASS carries its own PlayRes
+  assert.match(service, /buildAss\(cues, style, \{ w: size\.w, h: size\.h \}/);
   // the same clamp and the same default the concat applies
   assert.match(service, /Math\.min\(1, Math\.max\(0\.2, Number\.isFinite\(\+logo\.opacity\) \? \+logo\.opacity : 0\.9\)\)/);
   assert.match(service, /scale=\$\{rect\.lw\}:\$\{rect\.lh\}:flags=lanczos/);

@@ -110,6 +110,37 @@ test('P26 WYSIWYG render: the logo lands exactly on the logoRect pixels', async 
   }
 });
 
+// The stamp follows the FRAME, not the caller's idea of the frame.
+//
+// `size` is the logical 1080-class canvas every caller passes (ratioToSize). A project with
+// `resolutionScale: 2` renders its clips at double that and the concat never rescales them, so the
+// finished file is 4K while logoRect was still being handed 1920×1080: half the width, at half the
+// fraction. This was measured on a real finished video before it was fixed — a stamp stored at
+// cx=0.936 (top right) drew at cx=0.468, dead centre, and a box drawn from the 1080-space
+// prediction framed it exactly. Here the same mismatch is reproduced in miniature: clips twice the
+// size the caller declares.
+test('the logo follows the clips resolution, not the logical canvas', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'p26s-'));
+  const clip = join(dir, 'clip.mp4'), logo = join(dir, 'logo.png');
+  await ffmpeg(['-f', 'lavfi', '-i', 'color=c=0x003300:s=1280x720:d=2:r=30',
+    '-f', 'lavfi', '-i', 'anullsrc=r=44100:cl=stereo',
+    '-t', '2', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-shortest', clip]);
+  await ffmpeg(['-f', 'lavfi', '-i', 'color=c=red:s=100x100:d=1', '-frames:v', '1', logo]);
+  const fo = { cxPct: 0.75, cyPct: 0.25, wPct: 0.2, opacity: 1 };
+  const out = await concatScenes([clip], { title: 'scaled', outputDir: dir },
+    // the caller declares the LOGICAL canvas, exactly as pipeline/context.js does
+    { dir, size: { w: 640, h: 360 }, logo: { path: logo, ...fo }, transitions: false });
+  const px = await grabFrame(out.path, 1.0, 1280, 720);
+  const want = logoRect(fo, { W: 1280, H: 720, logoW: 100, logoH: 100 }); // {lw:256,lh:256,x:832,y:52}
+  assert.deepEqual(want, { lw: 256, lh: 256, x: 832, y: 52 });
+  const hit = px(want.x + 128, want.y + 128);
+  assert.ok(hit.r > 180 && hit.g < 80, `stamp centre is red, got ${JSON.stringify(hit)}`);
+  // …and NOT where the logical-canvas arithmetic used to put it: that rect was {lw:128,x:416,y:26},
+  // i.e. cx 0.375 instead of 0.75. Its centre must be background now.
+  const wrong = px(416 + 64, 26 + 64);
+  assert.ok(wrong.r < 60 && wrong.g > 20, `nothing at the 1080-space centre, got ${JSON.stringify(wrong)}`);
+});
+
 test('P26 back-compat: the legacy {size, position} logo shape still renders', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'p26l-'));
   const clip = join(dir, 'clip.mp4'), logo = join(dir, 'logo.png');

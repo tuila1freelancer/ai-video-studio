@@ -70,7 +70,7 @@ test('the fingerprint describes the join that will actually happen', () => {
   // capped video.
   const src = readFileSync(new URL('../src/pipeline/render.js', import.meta.url), 'utf8');
   assert.match(src, /const effPlan = useGraph \? plan : null;/);
-  assert.match(src, /concatFingerprint\(\{\s*\n\s*clips: sceneVideos, size, fps: FPS, transitions: effPlan,/);
+  assert.match(src, /concatFingerprint\(\{\s*\n\s*clips: sceneVideos, size, frame: \{ w: fw, h: fh \}, fps: FPS, transitions: effPlan,/);
   assert.match(src, /needsVideoFilter\(\{ logo, watermark, assText, transitions: effPlan, masterFade \}\)/);
 });
 

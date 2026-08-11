@@ -107,6 +107,24 @@ test('the fingerprint splits video work from audio work', () => {
   assert.notEqual(a.video, c.video);
 });
 
+test('the frame the stamp lands on is part of the video identity — but only when there is a stamp', () => {
+  // Every 4K video finished before the stamp followed the real frame carries a logo at half size
+  // in the middle of the picture. Re-joining one has to actually re-stamp it, so the physical
+  // frame is an input to the digest.
+  const logo = { path: '/l.png', cxPct: 0.9, cyPct: 0.1, wPct: 0.08, opacity: 0.9 };
+  const at = (frame) => concatFingerprint({ ...base(), logo, frame });
+  assert.notEqual(at({ w: 1920, h: 1080 }).video, at({ w: 3840, h: 2160 }).video, 'a mis-stamped video must re-stamp');
+  assert.equal(at({ w: 1920, h: 1080 }).video, at({ w: 1920, h: 1080 }).video, 'and a correct one must not');
+  // The frame is folded into the logo/watermark entries rather than added as a top-level key, so a
+  // project that stamps nothing keeps the digest it already had. Most of them do stamp nothing,
+  // and none of them have anything to re-encode over this.
+  assert.equal(
+    concatFingerprint({ ...base(), frame: { w: 3840, h: 2160 } }).video,
+    concatFingerprint(base()).video,
+    'no logo, no watermark → the frame changes nothing',
+  );
+});
+
 test('the burned subtitle text is hashed, not its filename', () => {
   // the .ass file is rewritten on every run, so a path would always look "changed"
   const a = concatFingerprint({ ...base(), assText: 'Dialogue: one' });

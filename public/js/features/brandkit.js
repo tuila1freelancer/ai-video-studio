@@ -42,7 +42,15 @@ export function refreshBrandSummary() {
 }
 
 const arValue = () => $('#cfgAr')?.value || '9:16';
-const frameWH = () => RATIO_SIZE[arValue()] || RATIO_SIZE['9:16'];
+// The stamp is stored as fractions, so the ghost sits in the right place at any resolution — but
+// the px readout under the stage claims to be "the integers ffmpeg receives", and at 4K it was
+// quoting half of them. Follow the resolution the project will actually encode at.
+const resScale = () => ($('#cfgRes')?.value === '2' ? 2 : 1);
+const frameWH = () => {
+  const [w, h] = RATIO_SIZE[arValue()] || RATIO_SIZE['9:16'];
+  const k = resScale();
+  return [w * k, h * k];
+};
 
 let wmRaf = 0; // watermark preview animation handle
 
