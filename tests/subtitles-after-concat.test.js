@@ -100,12 +100,18 @@ test('nothing writes a subtitle onto anything except the assembled programme', (
     .filter((u) => /\bbuildAss\s*\(/.test(readFileSync(u, 'utf8')))
     .map((u) => u.pathname.split('/src/')[1]);
   assert.deepEqual(callers.sort(),
-    // the concat itself, the builder, and the preview that pulls ONE frame back out of the
-    // already-joined video to show what the next join will look like
+    // the concat itself, the builder, and the preview that draws ONE frame the way the next join
+    // will draw it
     ['api/services/frame-preview.js', 'pipeline/render.js', 'subtitles/ass.js'],
     'only the concat and the preview of the concat build an ASS document');
-  assert.match(src('../src/api/services/frame-preview.js'), /project\.video_path/,
-    'and the preview reads the FINISHED video, so it cannot be a per-scene lane in disguise');
+  // This used to demand the preview read `project.video_path`, on the reasoning that reading a
+  // scene clip would make it "a per-scene lane in disguise". That was backwards, and the assertion
+  // held the bug in place: the finished video ALREADY has the captions burned into it, so drawing
+  // them again put two subtitles on the screen. The lane is decided by where the burn happens —
+  // still once, at the concat — not by which file a preview samples a frame from. It reads the
+  // BARE clip precisely so the only styling on screen is the one being previewed.
+  assert.match(src('../src/api/services/frame-preview.js'), /const source = bare \? scene\.video_path : finished;/,
+    'the preview samples the caption-free clip, never the already-burned export');
   // and the concat builds it from the offsets it has just computed, so the caption timeline and
   // the picture cannot disagree
   assert.match(src('../src/pipeline/render.js'), /const cues = programCues\(subtitles\.scenes, starts,/);

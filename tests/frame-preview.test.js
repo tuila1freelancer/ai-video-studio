@@ -32,7 +32,34 @@ test('the caption is burned by libass, from the cue really spoken at that moment
   assert.match(service, /ass=filename=/);
   assert.match(service, /useAss \? ffmpegAss : ffmpeg/, 'libass lives only in the vendored build');
   // a real cue, not lorem ipsum: the point is to see this video's own words in this font
-  assert.match(service, /abs\.find\(\(c\) => t >= c\.start && t <= c\.end\)/);
+  assert.match(service, /cues\.find\(\(c\) => t >= c\.start && t <= c\.end\)/);
+  // …clamped by the SAME function the burn uses, so a cue overrunning its scene slot cannot
+  // preview with more words — and a wider drawn box — than the video will carry
+  assert.match(service, /programCues\(\[scene\], \[start\]/);
+});
+
+test('the preview never draws over a frame that is already stamped', () => {
+  // `project.video_path` has the captions and the logo burned in. Sampling a frame from it and
+  // drawing them again is what put two subtitles on screen; the bare clip is the only source that
+  // shows the config being edited and nothing else.
+  assert.match(service, /const source = bare \? scene\.video_path : finished;/);
+  assert.match(service, /const logo = bare \? resolveConcatLogo\(config, size\) : null;/,
+    'the logo is stamped at concat too, so it doubles the same way');
+  assert.match(service, /if \(bare && config\.enableSubtitles !== false/);
+  // and when there IS no clip left, the fallback says so instead of pretending
+  assert.match(service, /phụ đề và logo đã in sẵn, không xem trước thay đổi được/);
+});
+
+test('the frame is shown at its real program time, not at the cue opening', () => {
+  // `-ss` before `-i` rebases the frame to ~0 and `setpts=PTS-STARTPTS` pinned it exactly there,
+  // so libass always drew the cue in its opening state: karaoke lit word 1 whatever `t` was,
+  // progressive reveal showed one word, and a fade-in rendered the caption invisible.
+  assert.match(service, /setpts=PTS-STARTPTS\+\$\{shown\.toFixed\(3\)\}\/TB/);
+  assert.doesNotMatch(service, /setpts=PTS-STARTPTS,/, 'the un-offset form is the bug');
+  // a silent gap moves to the nearest cue and SAYS so, rather than drawing the scene's first line
+  assert.match(service, /không có phụ đề — đang xem tại/);
+  // and the seek is clamped AFTER the offset, or a cue near the end pushes it past EOF
+  assert.match(service, /Math\.min\(at \+ \(shown - t\), Math\.max\(0, dur - 0\.05\)\)/);
 });
 
 test('the frame is found through the timeline the concat actually assembled', () => {
