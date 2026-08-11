@@ -77,3 +77,40 @@ test('the cover set spends one generation per orientation, not one per platform'
   assert.match(readFileSync(new URL('../src/pipeline/stages/finalize.js', import.meta.url), 'utf8'),
     /const seed = thumbHtml \? \{ \[orientationOf\(size\)\]: thumbHtml \} : \{\};/);
 });
+
+test('cover art is captured at double the platform pixels, as a JPEG', () => {
+  // Every platform re-encodes what it is handed, and the sharpest result comes from giving it more
+  // detail than it keeps. It is a DEVICE scale, not a layout scale: the design is still laid out in
+  // the platform's own coordinate space, so a 96px headline is still 96 authored px — doubling the
+  // viewport instead would halve the relative size of everything the model wrote.
+  const shot = readFileSync(new URL('../src/media/puppeteer.js', import.meta.url), 'utf8');
+  assert.match(shot, /deviceScaleFactor: Math\.max\(1, Math\.min\(4, \+scale \|\| 1\)\)/);
+  // …and the format follows the extension. It was PNG unconditionally while every caller named its
+  // file `.jpg` — untidy at 1×, disqualifying at 2×: measured on the six cover sizes, 1× PNG ran
+  // 225–460 KB while 2× JPEG runs 77–111 KB, and YouTube refuses a thumbnail over 2 MB.
+  assert.match(shot, /const jpeg = \/\\\.jpe\?g\$\/i\.test\(out\);/);
+  assert.match(shot, /jpeg \? \{ type: 'jpeg', quality:/);
+  const tc = readFileSync(new URL('../src/pipeline/thumbnail-codegen.js', import.meta.url), 'utf8');
+  assert.match(tc, /export const COVER_SCALE = 2;/);
+  assert.match(tc, /scale: COVER_SCALE/, 'the video-orientation thumbnail is captured the same way');
+  // the chip must report the file's REAL pixels, not the spec it was authored against
+  assert.match(tc, /px: \{ w: s\.w \* COVER_SCALE, h: s\.h \* COVER_SCALE \}/);
+  assert.match(readFileSync(new URL('../public/js/views/studio.js', import.meta.url), 'utf8'),
+    /2× của \$\{c\.w\}×\$\{c\.h\}/);
+});
+
+test('covers can be looked at, and put where the owner uploads from', () => {
+  const studio = readFileSync(new URL('../public/js/views/studio.js', import.meta.url), 'utf8');
+  // the same viewer the image search uses — "is this actually good" is the same question
+  assert.match(studio, /openImageViewer\(coverList\.map/);
+  // a cover already on this machine has nothing to add to the project's assets
+  assert.match(studio, /\$\('#ivAdd'\)\.classList\.toggle\('hidden', !!it\.path\)/);
+  const routes = readFileSync(new URL('../src/api/routes.js', import.meta.url), 'utf8');
+  assert.match(routes, /r\.post\('\/projects\/:id\/covers\/export'/);
+  // a WKWebView has no File System Access API, so the folder is chosen natively
+  assert.match(routes, /choose folder with prompt/);
+  assert.match(routes, /if \(!dir\) dir = p\.outputDir \|\| DB\.projectDirFor\(p\.id\);/, 'and defaults to the project folder');
+  // six files called cover_youtube.jpg from three videos in one folder is not a set anyone can use
+  assert.match(routes, /\$\{slug\}_anh-bia/);
+  assert.match(routes, /\$\{slug\}_\$\{c\.id\}_\$\{px\.w\}x\$\{px\.h\}\.jpg/);
+});

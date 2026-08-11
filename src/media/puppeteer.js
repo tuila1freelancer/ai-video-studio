@@ -56,12 +56,25 @@ export function screenshotHtml(html, opts = {}) {
   return job;
 }
 
-async function doScreenshot(html, { w, h, outPath } = {}) {
+/**
+ * @param {string} html
+ * @param {{w:number,h:number,outPath?:string,scale?:number,quality?:number}} opts
+ *   `scale` multiplies the DEVICE resolution, never the layout: the page is still laid out at w×h,
+ *   so every authored px keeps its intended relative size, and text/SVG re-rasterise at the higher
+ *   resolution. Setting the viewport to 2w×2h instead would halve the relative size of everything
+ *   the designer wrote — the same distinction the 4K video lane draws between its logical canvas
+ *   and its physical frame.
+ *   The output FORMAT follows the file extension. It used to be PNG unconditionally while every
+ *   caller named its file `.jpg`, which was merely untidy at 1× and becomes a real problem at 2×:
+ *   a 2560×1440 PNG is 5–8 MB and YouTube refuses a thumbnail over 2 MB.
+ */
+async function doScreenshot(html, { w, h, outPath, scale = 1, quality = 92 } = {}) {
   const out = outPath || join(DIRS.tmp, `${newId('poster')}.png`);
+  const jpeg = /\.jpe?g$/i.test(out);
   const browser = await getBrowser();
   const page = await browser.newPage();
   try {
-    await page.setViewport({ width: w, height: h, deviceScaleFactor: 1 });
+    await page.setViewport({ width: w, height: h, deviceScaleFactor: Math.max(1, Math.min(4, +scale || 1)) });
     await page.setContent(html, { waitUntil: 'load', timeout: 20000 });
     // Ensure fonts loaded + two animation frames painted before capture.
     await page.evaluate(async () => {
@@ -69,7 +82,11 @@ async function doScreenshot(html, { w, h, outPath } = {}) {
       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
     });
     await new Promise((r) => setTimeout(r, 200));
-    await page.screenshot({ path: out, type: 'png', captureBeyondViewport: false });
+    await page.screenshot({
+      path: out,
+      captureBeyondViewport: false,
+      ...(jpeg ? { type: 'jpeg', quality: Math.max(60, Math.min(100, Math.round(quality))) } : { type: 'png' }),
+    });
   } finally {
     await page.close().catch(() => {});
   }
