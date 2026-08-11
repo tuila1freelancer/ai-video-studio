@@ -37,8 +37,12 @@ export async function runScript(ctx) {
       op(projectId, `🔗 Viết từ tư liệu đã lấy (${fetched.text.length} ký tự)`);
     } else if (project.input_type === 'url') {
       try {
-        fetched = await fetchLink(project.topic.trim().split(/\s+/)[0]);
-        op(projectId, `🔗 Đã lấy ${fetched.chars} ký tự từ link${fetched.truncated ? ' (bài dài — đã cắt ở mức engine đọc được)' : ''}`);
+        fetched = await fetchLink(project.topic.trim().split(/\s+/)[0], {
+          llm: ai?.llm,
+          onLog: (m) => op(projectId, `🔗 ${m}`),
+        });
+        op(projectId, `🔗 Đã lấy ${fetched.chars} ký tự từ link${fetched.ai ? '' : ' (lọc theo cấu trúc)'}${fetched.truncated ? ' (bài dài — đã cắt ở mức engine đọc được)' : ''}`);
+        if (fetched.note) logger.warn(fetched.note, { projectId });
       } catch (e) { logger.warn(`Lấy nội dung link lỗi: ${e.message}`, { projectId }); }
     }
     // Show Bible: channel persona + anti-repeat ledger, injected additively into the prompt
