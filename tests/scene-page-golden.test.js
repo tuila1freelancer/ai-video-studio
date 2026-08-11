@@ -20,6 +20,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { buildSceneHtml } from '../src/animation/index.js';
+import { renderFingerprint } from '../src/pipeline/fingerprint.js';
 
 const project = { id: 'goldenproj', aspect_ratio: '16:9' };
 const scene = {
@@ -114,4 +115,24 @@ test('the caption layer is present and driven by the config today', () => {
   assert.match(html, /"capMode":"karaoke"/);
   assert.match(html, /"captions":\[\{/, 'cues ride into the page');
   assert.match(html, /\.cap\{[^}]*font-family:'Anton'/, 'and the chosen font styles them');
+});
+
+test('the scene hand-off is opt-in, and opting in invalidates the clips it changes', () => {
+  // The ramp lets the concat blend an emptied frame against an arriving one instead of
+  // superimposing two full ones — but it is baked into the clip, so it must not appear on a
+  // project that did not ask, and asking must re-render.
+  assert.doesNotMatch(page({}), /__scene[^<]*handoff/, 'absent by default');
+  assert.match(page({ hyperframeHandoff: true }), /handoff.*?0\.38/, 'present when asked for');
+
+  // The key name is load-bearing. renderFingerprint hashes CONFIG keys matched by
+  // RENDER_CFG_KEYS (/^(sub|brandKit|hyperframe|…)/), never the harness source — so a name that
+  // did not start with `hyperframe` would leave a video silently mixing ramped and un-ramped
+  // clips, with nothing to detect it.
+  const sc = { id: 's1', idx: 0, duration: 6, template: 'kinetic-statement', props: {} };
+  const proj = { project: { aspect_ratio: '16:9' } };
+  assert.notEqual(
+    renderFingerprint(sc, { ...proj, config: { hyperframeHandoff: true } }),
+    renderFingerprint(sc, { ...proj, config: {} }),
+    'turning the ramp on must make existing clips stale',
+  );
 });

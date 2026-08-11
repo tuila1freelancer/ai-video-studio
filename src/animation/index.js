@@ -142,6 +142,12 @@ export function buildSceneHtml(scene, project, config, extras = {}) {
     brand: placement ? buildBrandLayer(brand, placement, { w, h, theme }) : null,
     captionStyle: captionStyleFrom(config, theme, { w, h }),
     captionsOff: finalLane,
+    // Scene hand-off: the clip's content leaves before the cut and arrives just after it, so the
+    // join blends an empty frame against an arriving one instead of superimposing two full ones.
+    // The key is named `hyperframeHandoff` on purpose — RENDER_CFG_KEYS matches `^hyperframe`, so
+    // turning it on invalidates the clips it changes. A name that did not match would leave a
+    // video silently mixing ramped and un-ramped clips with no way to tell.
+    handoff: config.hyperframeHandoff === true,
     // sentence cues run long — let the caption wrap to 2 lines instead of shrinking to dust
     capWrap: config.subtitleChunk === 'sentence',
     // P30 loud-font contract: the page probes these families after load; a miss surfaces
