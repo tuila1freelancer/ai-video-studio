@@ -41,6 +41,7 @@ const BOILER_RE = /^(?:©|copyright\b|all rights reserved|share (?:this|on)\b|đ
 
 const MAX_TEXT = 24000;  // the master engine's own source cap (content/master-script.js)
 const MAX_IMAGES = 24;
+const AI_BUDGET_MS = 40000; // the longest a "Lấy thông tin" click may wait on the model
 
 // HTML4's Latin-1 block, in code-point order from U+00A0 — which is what makes it worth writing
 // as a list instead of 96 key/value pairs. Accented names are not exotic: `&eacute;` and friends
@@ -135,9 +136,29 @@ export function pickMain(html) {
   return best?.h || body; // a short <article> still beats the whole page
 }
 
+/**
+ * An overlay the CMS APPENDED inside the article container — a popup box, a cookie bar, a
+ * newsletter drawer. Matched on the element's declared ROLE (its class/id), never on its words.
+ *
+ * The AI pass is the real filter and this does not try to be it. This is the floor for when the
+ * model cannot run — rate-limited, offline, switched off — and it was measurably too low:
+ * base.vn/blog ends its `<article>` with a WordPress popup plugin (`ays_pb_*`) whose four blocks
+ * came out as article text, closing the "story" with "This will close in 2000 seconds".
+ *
+ * Only an overlay in the TAIL truncates. A legitimate `class="modal-demo"` figure in the middle of
+ * a story must not delete the rest of it, and appended chrome is by definition at the end.
+ */
+const OVERLAY_RE = /<(?:div|section|aside|dialog)\b[^>]*\b(?:class|id)=["'][^"']*\b(?:ays[_-]?pb[\w-]*|popup|modal|lightbox|overlay|offcanvas|drawer|newsletter|subscribe|cookie[-_]?(?:bar|notice|consent))[\w-]*[^"']*["']/gi;
+export function dropTrailingOverlay(html) {
+  const s = String(html);
+  const floor = s.length * 0.6;
+  for (const m of s.matchAll(OVERLAY_RE)) if (m.index > floor) return s.slice(0, m.index);
+  return s;
+}
+
 /** html → the article's ordered text blocks. The one path fetchLink and the tests both take. */
 export function articleBlocks(html) {
-  return extractBlocks(pickMain(stripChrome(html)));
+  return extractBlocks(dropTrailingOverlay(pickMain(stripChrome(html))));
 }
 
 /**
@@ -333,9 +354,14 @@ export async function refineArticle({ title = '', url = '', blocks, images, llm 
   const { chatJson, llmEnabled } = await import('./llm.js');
   if (!llmEnabled(llm)) return fallback('AI chưa bật — lọc theo cấu trúc trang');
 
-  // A preview is all a classifier needs, and it is what keeps a 370-block page affordable.
-  const list = blocks.map((b, i) => `${i}| ${b.length}c | ${b.slice(0, 110).replace(/\s+/g, ' ')}`).join('\n');
-  const imgList = images.map((c, i) => `${i}| ${c.inArticle ? 'in-body' : 'outside'} | alt="${c.alt}" | ${c.url.slice(0, 110)}`).join('\n') || '(none)';
+  // A preview is all a classifier needs, and its LENGTH is what decides whether a long page is
+  // affordable. Fixed at 110 characters, base.vn's 112 blocks made a 15,000-character prompt;
+  // scaling the preview to the block count keeps every page inside roughly the same budget, and a
+  // 50-character opening is still plenty to tell a paragraph from a newsletter box.
+  const per = Math.max(45, Math.min(110, Math.round(6500 / Math.max(1, blocks.length))));
+  const list = blocks.map((b, i) => `${i}| ${b.length}c | ${b.slice(0, per).replace(/\s+/g, ' ')}`).join('\n');
+  const imgList = images.slice(0, 40)
+    .map((c, i) => `${i}| ${c.inArticle ? 'in-body' : 'outside'} | alt="${c.alt.slice(0, 70)}" | ${c.url.slice(0, 90)}`).join('\n') || '(none)';
   const messages = [
     {
       role: 'system',
@@ -374,9 +400,15 @@ Reply exactly:
     },
   ];
 
+  const t0 = Date.now();
   try {
     const raw = await chatJson(messages, {
       llm,
+      // A human is watching this button. Without a ceiling the retry ladder in chat() backs off
+      // 8s + 20s + 45s per key on a 429, twice over — measured 163 SECONDS on base.vn against a
+      // rate-limited proxy, which reads as the feature being broken rather than the model being
+      // busy. Past the budget the structural result ships, with the reason on screen.
+      budgetMs: AI_BUDGET_MS,
       maxTokens: 700,
       temperature: 0.1,
       // chatJson's validate is a PREDICATE — truthy means the shape is good
@@ -396,7 +428,11 @@ Reply exactly:
     onLog?.(`AI lọc bài: giữ ${idx.length}/${blocks.length} đoạn · ${keepImg.length}/${images.length} ảnh${raw.why ? ` — ${String(raw.why).slice(0, 90)}` : ''}`);
     return { blocks: idx.map((i) => blocks[i]), images: keepImg, ai: true, note: null, kind: raw.kind || 'article' };
   } catch (e) {
-    return fallback(`AI lọc lỗi (${e.message.slice(0, 60)}) — giữ bản lọc theo cấu trúc`);
+    const secs = Math.round((Date.now() - t0) / 1000);
+    const why = /\b429\b|rate.?limit|too many/i.test(e.message)
+      ? 'AI đang bị giới hạn truy cập (429)'
+      : `AI lọc lỗi (${e.message.slice(0, 60)})`;
+    return fallback(`${why} sau ${secs}s — giữ bản lọc theo cấu trúc`);
   }
 }
 
@@ -448,7 +484,7 @@ export async function fetchLink(url, { llm = null, ai = true, onLog = null } = {
 
   // Structure first: it finds the REGION and costs nothing. The model then decides what inside that
   // region is actually the article — the judgement no pattern list can make for the next site.
-  const main = pickMain(stripChrome(html));
+  const main = dropTrailingOverlay(pickMain(stripChrome(html)));
   const found = extractBlocks(main);
   const candidates = imageCandidates(html, finalUrl, main);
   const refined = ai

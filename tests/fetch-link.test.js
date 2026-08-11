@@ -211,3 +211,37 @@ test('inline tags do not leave gaps around punctuation', () => {
   const [b] = extractBlocks('<p>An <a href="#">LLM</a> (a <b>neural net</b>), roughly.</p>');
   assert.equal(b, 'An LLM (a neural net), roughly.');
 });
+
+test('an overlay the CMS appended inside the article is not the end of the article', () => {
+  // base.vn/blog ends its <article> with a WordPress popup plugin (ays_pb_*), so the structural
+  // pass closed the "story" with four support-widget blocks and "This will close in 2000 seconds".
+  // Matched on the element's declared ROLE, never on its words — the AI pass is still the real
+  // filter; this is the floor for when the model is rate-limited, offline or switched off.
+  const body = `<p>${'Nội dung bài viết thật sự, đủ dài để vượt ngưỡng. '.repeat(12)}</p>`;
+  const tail = '<div class="ays_pb_description"><p>Giải đáp các câu hỏi về triển khai, go-live và support cho bạn.</p>'
+    + '<p>This will close in 2000 seconds and it is definitely not part of the article body.</p></div>';
+  const joined = articleBlocks(`<body><article>${body}${tail}</article></body>`).join('\n');
+  assert.match(joined, /Nội dung bài viết thật sự/);
+  assert.doesNotMatch(joined, /This will close|go-live/, 'the popup is chrome, wherever it was injected');
+  // …but an overlay in the MIDDLE must not truncate the rest of the story
+  const mid = `<body><article><p>Mở bài đủ dài để tính là một khối nội dung thật sự của bài viết.</p>`
+    + `<div class="modal-demo"><p>Hộp minh hoạ nằm giữa bài, không được cắt phần còn lại đi.</p></div>`
+    + `${body}</article></body>`;
+  assert.match(articleBlocks(mid).join('\n'), /Nội dung bài viết thật sự/, 'the article continues past it');
+});
+
+test('the model pass is bounded, because a human is waiting on this button', () => {
+  // Measured on base.vn against a rate-limited proxy: chat()'s 429 ladder backs off 8s + 20s + 45s
+  // per key and chatJson runs it twice — 163 SECONDS, which reads as the feature being broken. The
+  // budget brings the same failure back in 33s with the reason on screen.
+  const src = readFileSync(new URL('../src/providers/fetchlink.js', import.meta.url), 'utf8');
+  assert.match(src, /const AI_BUDGET_MS = 40000;/);
+  assert.match(src, /budgetMs: AI_BUDGET_MS,/);
+  assert.match(src, /AI đang bị giới hạn truy cập \(429\)/, 'a rate limit is named as a rate limit');
+  assert.match(src, /sau \$\{secs\}s/, 'and the wait is reported, not hidden');
+  // the ceiling covers the whole ladder, and one request may not outlive it
+  const llm = readFileSync(new URL('../src/providers/llm.js', import.meta.url), 'utf8');
+  assert.match(llm, /budgetMs = Infinity/, 'every existing caller is unchanged by default');
+  assert.match(llm, /timeoutMs: Math\.min\(timeoutMs, Math\.max\(1000, left\(\)\)\)/);
+  assert.match(llm, /const wait = \(ms\) => \(ms < left\(\) \? new Promise/);
+});
