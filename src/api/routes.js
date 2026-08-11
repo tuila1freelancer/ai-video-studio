@@ -1,7 +1,7 @@
 // All REST routes.
 import express from 'express';
 import multer from 'multer';
-import { existsSync, statSync, mkdirSync, unlinkSync, renameSync, writeFileSync, readdirSync, rmSync } from 'node:fs';
+import { existsSync, statSync, mkdirSync, unlinkSync, renameSync, writeFileSync, readdirSync, rmSync, copyFileSync } from 'node:fs';
 import { join, resolve, extname, basename } from 'node:path';
 import * as DB from '../db/index.js';
 import db from '../db/index.js';
@@ -1155,6 +1155,48 @@ export function mountRoutes(app, { version }) {
       const md = p.metadata || {};
       DB.updateProject(p.id, { thumb_path: path, metadata: { ...md, thumbnail: { ...(md.thumbnail || {}), html: edited } } });
       res.json({ path, url: `/api/file?path=${encodeURIComponent(path)}`, html: edited });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  /**
+   * Copy the platform covers somewhere the owner can actually use them.
+   *
+   * They are already written into the project's output folder, so this is not "download" in the
+   * browser sense — it is "put a tidy, clearly-named set where I am about to upload from". The
+   * destination is either a path the caller passes or one chosen in the native folder dialog,
+   * because a WKWebView has no File System Access API to pick one with.
+   */
+  r.post('/projects/:id/covers/export', async (req, res) => {
+    try {
+      const p = DB.getProject(req.params.id);
+      if (!p) return res.status(404).json({ error: 'not found' });
+      const covers = (p.metadata?.covers || []).filter((c) => c?.path && existsSync(c.path));
+      if (!covers.length) return res.status(400).json({ error: 'chưa có ảnh bìa nào — tạo metadata/ảnh bìa trước' });
+      const { execFile } = await import('node:child_process');
+      let dir = String(req.body?.dir || '').trim();
+      if (req.body?.pick) {
+        dir = await new Promise((resolve) => {
+          execFile('osascript', ['-e', 'POSIX path of (choose folder with prompt "Chọn thư mục lưu ảnh bìa")'],
+            (err, out) => resolve(err ? '' : String(out).trim()));
+        });
+        if (!dir) return res.json({ ok: false, cancelled: true });
+      }
+      if (!dir) dir = p.outputDir || DB.projectDirFor(p.id);
+      if (!existsSync(dir) || !statSync(dir).isDirectory()) return res.status(400).json({ error: `thư mục không tồn tại: ${dir}` });
+      // A folder per video, named after it: six files called cover_youtube.jpg from three videos
+      // in one Downloads folder is not a set anyone can use.
+      const slug = String(p.title || 'video').replace(/[^\p{L}\p{N}\- ]/gu, '').replace(/\s+/g, '_').slice(0, 60) || 'video';
+      const outDir = join(dir, `${slug}_anh-bia`);
+      mkdirSync(outDir, { recursive: true });
+      const files = [];
+      for (const c of covers) {
+        const px = c.px || { w: c.w, h: c.h };
+        const name = `${slug}_${c.id}_${px.w}x${px.h}.jpg`;
+        copyFileSync(c.path, join(outDir, name));
+        files.push(name);
+      }
+      execFile('open', [outDir], () => {}); // land the owner in the folder they just filled
+      res.json({ ok: true, dir: outDir, files });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 

@@ -476,9 +476,24 @@ export function renderMeta() {
     }).join('');
     return `<div class="meta-card"><div class="mt">${spec.icon} ${esc(spec.label)}</div>${fields}</div>`;
   }).join('');
-  const covers = (m.covers || []).map((c) => `<a class="cover-chip" href="${fileUrl(c.path)}" target="_blank" rel="noreferrer">
-      <img src="${fileUrl(c.path)}" loading="lazy" decoding="async"><span>${esc(c.label)}<small>${c.w}×${c.h}</small></span></a>`).join('');
-  box.innerHTML = (covers ? `<div class="sec-label">🖼 Ảnh bìa theo nền tảng</div><div class="cover-row">${covers}</div>` : '')
+  // Covers are captured at DOUBLE the platform's pixels, so the chip reports the file's REAL size
+  // and what it is 2× of — a number that disagrees with the file is worse than no number.
+  const kb = (n) => (n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${Math.round(n / 1024)} KB`);
+  const coverList = m.covers || [];
+  const covers = coverList.map((c, i) => {
+    const px = c.px || { w: c.w, h: c.h };
+    const note = c.scale > 1 ? `${px.w}×${px.h} · 2× của ${c.w}×${c.h}` : `${px.w}×${px.h}`;
+    return `<button class="cover-chip" type="button" data-cover="${i}" title="Bấm để xem lớn">
+      <img src="${fileUrl(c.path)}" loading="lazy" decoding="async">
+      <span>${esc(c.label)}<small>${note}${c.bytes ? ` · ${kb(c.bytes)}` : ''}</small></span></button>`;
+  }).join('');
+  box.innerHTML = (covers
+    ? `<div class="sec-label">🖼 Ảnh bìa theo nền tảng</div><div class="cover-row">${covers}</div>
+       <div class="row wrap" style="gap:6px;margin:8px 0 4px">
+         <button class="btn sm" id="btnCoversSave">💾 Lưu vào thư mục dự án</button>
+         <button class="btn sm" id="btnCoversPick">📁 Chọn thư mục…</button>
+       </div>`
+    : '')
     + (cards || `<div class="meta-card"><div class="mt">${esc(m.title || '')}</div>
         <div style="color:var(--muted);white-space:pre-wrap">${esc(m.description || '')}</div>
         <div class="tags">${(m.hashtags || []).map((h) => `<span class="tag-chip">${esc(h)}</span>`).join('')}</div></div>`);
@@ -486,6 +501,25 @@ export function renderMeta() {
     try { await navigator.clipboard.writeText(b.dataset.copy); toast('⧉ Đã sao chép', 'success'); }
     catch { toast('Không sao chép được', 'error'); }
   }));
+  // Look at a cover full size before uploading it — the same viewer the image search uses, because
+  // "is this actually good" is the same question either way.
+  box.querySelectorAll('[data-cover]').forEach((b) => b.addEventListener('click', () => {
+    openImageViewer(coverList.map((c) => {
+      const px = c.px || { w: c.w, h: c.h };
+      return { url: fileUrl(c.path), title: `${c.label} — ${px.w}×${px.h}`, path: c.path };
+    }), +b.dataset.cover);
+  }));
+  const exportCovers = async (body, btn) => {
+    btn.disabled = true;
+    try {
+      const r = await api.post(`/projects/${state.current.id}/covers/export`, body);
+      if (r?.cancelled) return;
+      toast(`💾 Đã lưu ${r.files.length} ảnh bìa → ${r.dir.split('/').pop()}`, 'success');
+    } catch (e) { toast(`✖ ${e.message}`, 'error'); }
+    finally { btn.disabled = false; }
+  };
+  $('#btnCoversSave')?.addEventListener('click', (e) => exportCovers({}, e.currentTarget));
+  $('#btnCoversPick')?.addEventListener('click', (e) => exportCovers({ pick: true }, e.currentTarget));
 }
 
 /** The platform table, fetched once — the panel and the writer must agree on the limits. */
@@ -771,9 +805,12 @@ function openImageViewer(items, startAt) {
   const show = () => {
     const it = items[i];
     $('#ivImg').src = it.thumb && !it.url ? it.thumb : it.url;
-    $('#ivCap').textContent = it.title || it.url;
+    $('#ivCap').textContent = it.title || it.path || it.url;
     $('#ivPos').textContent = `${i + 1}/${items.length}`;
     $('#ivOpen').href = it.url;
+    // A cover already ON this machine has nothing to add to the project's assets, and offering it
+    // would just be a button that downloads a file to where it already is.
+    $('#ivAdd').classList.toggle('hidden', !!it.path);
   };
   const step = (d) => { i = (i + d + items.length) % items.length; show(); };
   modal._step = step;

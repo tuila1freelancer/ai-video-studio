@@ -7,9 +7,31 @@
 //     exact canvas), so a model can style but never break out of the frame or reach the network;
 //   • a failure is NOT loud — a thumbnail is packaging, not the video, so an unusable reply falls
 //     back to the deterministic composition builder that shipped before this feature.
+import { statSync } from 'node:fs';
 import { join } from 'node:path';
 import { chat, llmEnabled } from '../providers/llm.js';
 import { screenshotHtml, chromeAvailable } from '../media/puppeteer.js';
+
+/**
+ * Cover art is captured at DOUBLE the platform's own pixels.
+ *
+ * Every platform re-encodes what it is given, and the sharpest result comes from handing it more
+ * detail than it will keep: 2560×1440 downscaled to 1280×720 by YouTube beats 1280×720 re-encoded
+ * in place, because the resampling has real subpixel data to work from instead of the artefacts of
+ * a single-resolution rasterisation.
+ *
+ * It is a DEVICE scale, not a layout scale — the design is still laid out in the platform's own
+ * coordinate space, so an inset of 4.5% is still 4.5% and a 96px headline is still 96 authored px.
+ * Doubling the viewport instead would halve the relative size of everything the model wrote.
+ *
+ * 2 and not 3: at 2× a JPEG lands around 0.4–0.9 MB, comfortably inside YouTube's 2 MB ceiling,
+ * and Chrome paints one capture in about the same time. 3× buys detail no platform keeps and files
+ * that get refused.
+ */
+export const COVER_SCALE = 2;
+
+/** Bytes on disk, or null — the panel warns when a cover is over a platform's upload ceiling. */
+const statSize = (p) => { try { return statSync(p).size; } catch { return null; } };
 import { fontsCss } from '../animation/harness.js';
 import { userFontsCss } from '../animation/userfonts.js';
 import { orientationOf } from '../publish/platforms.js';
@@ -93,12 +115,12 @@ body{font-family:${f.display || 'Be Vietnam Pro'},Arial,sans-serif;color:${p.ink
  * Split out so the owner can re-render an edited design without paying for another generation.
  * @returns {Promise<string|null>} the written image path.
  */
-export async function renderThumbnailFragment(fragment, { guide, size, outPath, media = [] } = {}) {
+export async function renderThumbnailFragment(fragment, { guide, size, outPath, media = [], scale = COVER_SCALE } = {}) {
   if (!chromeAvailable()) return null;
   const clean = sanitizeThumbFragment(fragment);
   if (clean.length < 40) return null;
   const w = size?.w || 1280, h = size?.h || 720;
-  return screenshotHtml(shell(applyThumbAssets(clean, media), { w, h, guide }), { w, h, outPath });
+  return screenshotHtml(shell(applyThumbAssets(clean, media), { w, h, guide }), { w, h, outPath, scale });
 }
 
 /** The owner's own pictures, offered to the model by NAME (P40 — it was text+CSS only before). */
@@ -191,7 +213,14 @@ export async function generateCoverSet({
       const outPath = join(outDir, `${baseName}_${s.id}.jpg`);
       try {
         await renderThumbnailFragment(frags[orient], { guide, size: { w: s.w, h: s.h }, outPath, media });
-        covers.push({ id: s.id, label: s.label, w: s.w, h: s.h, orient, path: outPath });
+        // `w`/`h` stay the PLATFORM spec — that is what the design was authored for and what the
+        // owner recognises. `px` is what is actually on disk, so the panel can say "2560×1440
+        // (2× của 1280×720)" instead of quietly disagreeing with the file.
+        covers.push({
+          id: s.id, label: s.label, w: s.w, h: s.h, orient, path: outPath,
+          scale: COVER_SCALE, px: { w: s.w * COVER_SCALE, h: s.h * COVER_SCALE },
+          bytes: statSize(outPath),
+        });
       } catch (e) { onLog(`⚠ Ảnh bìa ${s.label}: ${e.message}`); }
     }
   }
@@ -225,7 +254,7 @@ Reply with ONLY the <style> block and the markup.`;
     ], { temperature: 0.9, maxTokens: 4000, llm });
     const fragment = sanitizeThumbFragment(reply);
     if (fragment.length < 80) { onLog('thumbnail AI: reply quá ngắn — dùng bản dựng sẵn'); return null; }
-    const path = await screenshotHtml(shell(applyThumbAssets(fragment, media), { w, h, guide }), { w, h, outPath });
+    const path = await screenshotHtml(shell(applyThumbAssets(fragment, media), { w, h, guide }), { w, h, outPath, scale: COVER_SCALE });
     onLog(`thumbnail AI: đã dựng bản ${variant + 1}`);
     return { path, fragment };
   } catch (e) {

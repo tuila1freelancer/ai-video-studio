@@ -784,3 +784,9 @@ select.input{appearance:none;-webkit-appearance:none;background-image:url("data:
 .pending-bar .pc-warn{display:block;font-size:11px;color:var(--warn-c);margin-top:2px}
 .pending-bar .pc-acts{display:flex;align-items:center;gap:6px;margin-left:auto}
 .pending-bar .pc-acts .btn{white-space:nowrap}
+
+/* The cover chip became a BUTTON (it opens the viewer instead of navigating), so it has to shed
+   the browser's default button chrome and keep looking like the link it replaced. */
+.cover-chip{border:none;background:none;padding:0;font:inherit;text-align:left;cursor:zoom-in}
+.cover-chip img{transition:border-color var(--t-fast)}
+.cover-row{display:flex;gap:10px;flex-wrap:wrap}
