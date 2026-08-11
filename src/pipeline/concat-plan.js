@@ -23,6 +23,35 @@ import { existsSync, statSync } from 'node:fs';
 const digest = (o) => createHash('sha1').update(JSON.stringify(o)).digest('hex').slice(0, 16);
 
 /**
+ * Config keys that change ONLY the final assembly — the join, not the clips.
+ *
+ * This list lives here, next to the fingerprint that consumes their effects, because it has one
+ * job: to be complete. Every key on it means "editing this costs one concat instead of ninety-five
+ * renders", and a key MISSING from it means the opposite of a wrong estimate — it means the change
+ * queue reports "không có gì thay đổi" and the owner cannot apply the edit at all.
+ *
+ * That is not hypothetical. `enableSubtitles` was absent, and it is what finalize checks before
+ * burning captions (`config.subtitleLane === 'final' && config.enableSubtitles !== false`), so
+ * turning subtitles OFF on a finished video was unreachable: the panel accepted it, the plan said
+ * nothing had changed, and the captions stayed. `platformCovers` was absent the same way.
+ *
+ * The per-key `sub*` family is NOT here — it belongs to the clips or the join depending on
+ * `subtitleLane`, which only planChanges knows how to ask.
+ */
+export const CONCAT_CONFIG_KEYS = [
+  // branding, stamped onto the assembled programme
+  'brandKit', 'brandKitOverride', 'logo', 'watermark', 'watermarkText',
+  // the audio bed and how it is built
+  'bgmPath', 'autoBgm', 'useDefaultBgm', 'autoSfx', 'soundDesign', 'bgmVol',
+  // the picture the join itself makes
+  'transitions', 'transitionStyle', 'masterFade', 'concatEncoder',
+  // captions are a concat input on the final lane, and this is the switch that silences them
+  'enableSubtitles',
+  // deliverables made from the finished file
+  'thumbnailAi', 'platformCovers',
+];
+
+/**
  * Identify clips by content, not just by path: a re-rendered scene keeps its filename in some
  * flows, and a stale-but-same-named clip would otherwise read as unchanged.
  */

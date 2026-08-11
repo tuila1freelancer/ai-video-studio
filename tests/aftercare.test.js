@@ -40,12 +40,18 @@ test('diffConfig is what the owner would call "what changed"', () => {
 
 test('a variant costs one join because every setting in it lives in the concat', () => {
   const ac = src('../public/js/features/aftercare.js');
-  const plan = src('../src/api/services/change-plan.js');
+  // The classification moved to pipeline/concat-plan.js, beside the fingerprint that consumes
+  // these keys' effects, because the copy in the service had drifted — it was missing
+  // `enableSubtitles`, which is what finalize checks before burning captions, so turning
+  // subtitles OFF on a finished video reported "không có gì thay đổi" and could not be applied.
+  const plan = src('../src/pipeline/concat-plan.js');
   const VARIANT_KEYS = ['logo', 'brandKit', 'bgmPath', 'autoBgm', 'soundDesign', 'watermark', 'concatEncoder'];
   for (const k of VARIANT_KEYS) {
     assert.ok(ac.includes(k), `the variant list uses ${k}`);
     assert.ok(plan.includes(`'${k}'`), `${k} is classified as concat-level work`);
   }
+  // …and the service reads it from there rather than keeping a second copy to drift again
+  assert.match(src('../src/api/services/change-plan.js'), /import \{ CONCAT_CONFIG_KEYS \} from '\.\.\/\.\.\/pipeline\/concat-plan\.js';/);
   // the overrides are for THIS run only — a second deliverable, not a change of mind
   assert.match(src('../src/pipeline/render-only.js'), /configOverrides \? \{ \.\.\.\(project\.config \|\| \{\}\), \.\.\.configOverrides \}/);
   assert.match(src('../src/api/routes.js'), /variantName: name/);

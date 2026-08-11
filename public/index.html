@@ -258,6 +258,16 @@
         <aside class="s-config" id="sConfig">
           <div class="sec-label">⚙ Config đầu ra</div>
 
+          <!-- The finished video no longer matches its own settings. Sticky, so it stays in view
+               while the owner keeps editing further down the column. -->
+          <div class="pending-bar hidden" id="pendingBar">
+            <div class="pc-body" data-pc-text></div>
+            <div class="pc-acts">
+              <button class="btn xs ghost" data-pc-detail title="Xem chi tiết từng bước và chi phí">Chi tiết</button>
+              <button class="btn sm" data-pc-go></button>
+            </div>
+          </div>
+
           <div class="cfg-preset-bar">
             <select class="input" id="cfgPresetSelect" title="Preset của kênh"><option value="">— Config gốc kênh —</option></select>
             <button class="btn sm" id="btnPresetSave" title="Lưu panel hiện tại thành preset">💾</button>

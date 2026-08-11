@@ -11,6 +11,7 @@ import { renderGallery } from './home.js';
 import { switchPage } from './nav.js';
 import { gatherConfig, applyConfig } from './config.js';
 import { openChangePlan } from '../features/changeplan.js';
+import { initPendingChanges, schedulePendingCheck, resetPendingCheck } from '../features/pending-changes.js';
 import { openSrt } from '../features/srt.js';
 import { confirmDialog, menuDialog, publishDialog, promptDialog } from '../ui/dialog.js';
 
@@ -100,6 +101,7 @@ export function initStudio() {
   $('#btnFetch').addEventListener('click', fetchLink);
   $('#btnImgSearch').addEventListener('click', imageSearch);
   $('#assetInput').addEventListener('change', uploadAssets);
+  initPendingChanges();
   // the fetched article: show it, edit it, drop it
   $('#srcToggle')?.addEventListener('click', () => {
     const t = $('#srcText');
@@ -344,6 +346,9 @@ export async function openProject(id) {
   // …including the article this video was written from, so reopening it shows the material rather
   // than leaving the owner to guess which link it came from.
   setSourceDoc(project.config?.sourceDoc || null);
+  // A different project has a different idea of what is pending — the previous answer describes
+  // somebody else's video and must not survive the switch.
+  resetPendingCheck();
   $('#welcome').classList.add('hidden');
   $('#projView').classList.remove('hidden');
   renderProjectView();
@@ -591,6 +596,9 @@ function onRetryEvent(m) {
 }
 function updateStatusBadge(status) {
   if (state.current) state.current.status = status;
+  // The bar is a claim about a FINISHED file. A run starting invalidates it, and a run finishing
+  // is the moment it should have emptied — without this it kept advertising work already done.
+  schedulePendingCheck({ now: true });
   $('#pvStatus').textContent = badgeText(status); $('#pvStatus').className = 'badge ' + status;
   $('#btnStop').classList.toggle('hidden', status !== 'running');
   // 'review' included: a live WS hold must reveal the continue button without a reload
