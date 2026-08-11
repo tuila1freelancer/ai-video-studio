@@ -8,11 +8,11 @@ import { refreshTasks } from '../features/tasks.js';
 import { renderScenes, refreshScenes, onSceneUpdate, flushSceneUpdates, selectedIds, updateSelCount, regenScene, renderScenes2 } from './scenes.js';
 import { icon } from '../ui/icons.js';
 import { renderGallery } from './home.js';
-import { switchPage } from './nav.js';
+import { switchPage, setProjectName } from './nav.js';
 import { gatherConfig, applyConfig } from './config.js';
 import { openChangePlan } from '../features/changeplan.js';
 import { openSrt } from '../features/srt.js';
-import { confirmDialog, menuDialog, publishDialog } from '../ui/dialog.js';
+import { confirmDialog, menuDialog, publishDialog, promptDialog } from '../ui/dialog.js';
 
 let ws = null;
 export function initWs() { ws = new WS(onWsMessage); }
@@ -117,10 +117,29 @@ export function renderProjectList() {
   state.projects.forEach((p) => {
     const it = el('div', 'pitem' + (state.current && state.current.id === p.id ? ' active' : ''));
     it.innerHTML = `${p.thumb_path ? `<img class="thumb" src="${fileUrl(p.thumb_path)}" loading="lazy" decoding="async">` : '<div class="thumb"></div>'}
-      <div class="meta"><div class="t">${esc(p.title)}</div><div class="s">${badgeText(p.status)} · ${p.aspect_ratio}</div></div>`;
+      <div class="meta"><div class="t">${esc(p.title)}</div><div class="s">${badgeText(p.status)} · ${p.aspect_ratio}</div></div>
+      <button class="pitem-ren" title="Đổi tên">✏️</button>`;
+    it.querySelector('.pitem-ren').addEventListener('click', (e) => { e.stopPropagation(); renameProject(p); });
     it.addEventListener('click', () => openProject(p.id));
     box.appendChild(it);
   });
+}
+
+/** Rename from the list too — the topbar only ever shows the project that is open. */
+async function renameProject(p) {
+  const name = await promptDialog({ title: 'Đổi tên dự án', label: 'Tên dự án', value: p.title || '' });
+  if (name == null) return;
+  const title = String(name).trim();
+  if (!title || title === p.title) return;
+  try {
+    // metadata, not config: a rename must not touch anything a render fingerprint reads
+    const md = { ...(p.metadata || {}), titleLocked: true };
+    await api.put(`/projects/${p.id}`, { title, metadata: md });
+    p.title = title; p.metadata = md;
+    if (state.current?.id === p.id) { state.current.title = title; setProjectName(title); }
+    renderProjectList();
+    toast(`✏️ Đã đổi tên: ${title}`, 'success');
+  } catch (e) { toast(`✖ Không đổi được tên: ${e.message}`, 'error'); }
 }
 
 // Clone the current project into another aspect ratio: voice + captions are reused
@@ -260,6 +279,7 @@ async function publishToFacebook() {
 
 export function startNewProject() {
   state.current = null; state.scenes = []; state.assets = [];
+  setProjectName('');
   $('#welcome').classList.remove('hidden');
   $('#projView').classList.add('hidden');
   $('#topic').value = ''; $('#assetList').innerHTML = ''; $('#imgResults').innerHTML = '';
@@ -297,6 +317,7 @@ export async function openProject(id) {
   switchPage('studio');
   const { project, scenes } = await api.get('/projects/' + id);
   state.current = project; state.scenes = scenes || [];
+  setProjectName(project.title);
   try { localStorage.lastProjectId = id; } catch { /* private mode */ }
   ws.subscribe(id);
   clearJournal();          // never bleed the previous project's lines
