@@ -17,9 +17,21 @@ export function llmEnabled(llm) {
 // rotate to the next one immediately. Transient errors back off and retry the same key.
 const DEAD_KEY = /\b40[13]\b|invalid[_ ]?api[_ ]?key|incorrect api key|quota|credit|insufficient/i;
 
-export async function chat(messages, { json = false, temperature = 0.8, maxTokens = 2048, timeoutMs = 120000, llm = null } = {}) {
+/**
+ * `budgetMs` — a wall-clock ceiling on the WHOLE retry ladder, for callers a human is waiting on.
+ *
+ * The ladder below is built for work that is worth waiting for: on a 429 it backs off 8s, then
+ * 20s, then 45s, per key, per model — and chatJson runs the whole thing twice. Measured on a
+ * rate-limited proxy that is 163 seconds, which is correct for writing a script and absurd for a
+ * button. A caller that passes a budget stops retrying once the next wait would exceed it and
+ * fails fast enough to fall back to something. Default Infinity: every existing caller is
+ * unchanged, deliberately.
+ */
+export async function chat(messages, { json = false, temperature = 0.8, maxTokens = 2048, timeoutMs = 120000, llm = null, budgetMs = Infinity } = {}) {
   const s = llm || aiSettings().llm;
   if (!llmEnabled(s)) throw new Error('LLM not configured');
+  const started = Date.now();
+  const left = () => budgetMs - (Date.now() - started);
   // apiKey may hold SEVERAL keys (newline/comma-separated) — rotate through them; an optional
   // modelFallback is tried with every key after the primary model exhausts all keys.
   const keys = String(s.apiKey).split(/[\n,;]+/).map((k) => k.trim()).filter(Boolean);
@@ -30,22 +42,29 @@ export async function chat(messages, { json = false, temperature = 0.8, maxToken
   for (const model of models) {
     for (const apiKey of keys) {
       for (let attempt = 0; attempt < 4; attempt++) {
+        if (left() <= 0) throw lastErr || new Error('LLM hết thời gian cho phép');
         try {
-          return await chatOnce({ ...s, apiKey, model }, messages, { json, temperature, maxTokens, timeoutMs });
+          // Never let one request outlive the budget it was given.
+          return await chatOnce({ ...s, apiKey, model }, messages, { json, temperature, maxTokens, timeoutMs: Math.min(timeoutMs, Math.max(1000, left())) });
         } catch (e) {
           lastErr = e;
           const msg = String(e.message);
+          const wait = (ms) => (ms < left() ? new Promise((r) => setTimeout(r, ms)) : null);
           // 429 first: a rate limit is NOT a dead key (even when the body mentions "quota") —
           // it clears with time, so back off long and retry the same key.
           if (RATE_LIMIT.test(msg)) {
-            if (attempt < 3) { await new Promise((r) => setTimeout(r, RL_DELAYS[attempt])); continue; }
-            break; // still limited after ~1min of backoff → next key/model
+            const w = attempt < 3 ? wait(RL_DELAYS[attempt]) : null;
+            if (w) { await w; continue; }
+            break; // still limited after ~1min of backoff (or out of budget) → next key/model
           }
           if (DEAD_KEY.test(msg)) break; // dead key → next key now
           if (attempt >= 1) break;       // other transient: 2 tries then move on
-          await new Promise((r) => setTimeout(r, 1800));
+          const w = wait(1800);
+          if (!w) break;
+          await w;
         }
       }
+      if (left() <= 0) break;
     }
   }
   throw lastErr;
@@ -120,16 +139,21 @@ function repairJson(s) {
   while (stack.length) out += stack.pop();
   return out;
 }
-export async function chatJson(messages, { maxTokens = 2048, attempts = 2, temperature = 0.7, validate = null, llm = null } = {}) {
+export async function chatJson(messages, { maxTokens = 2048, attempts = 2, temperature = 0.7, validate = null, llm = null, budgetMs = Infinity } = {}) {
   let lastErr;
+  const started = Date.now();
   const s = llm || aiSettings().llm;
   // Gemini-like proxies choke on response_format:json_object (they reply with a bare fence).
   // Try JSON mode once, then fall back to plain replies — the prompts already demand pure
   // JSON and stripFences+repairJson clean up what comes back. jsonMode:false skips it outright.
   const preferJson = s?.jsonMode !== false;
   for (let i = 0; i < attempts; i++) {
+    // The budget covers BOTH attempts, not each — the second one exists to retry without JSON
+    // mode for proxies that choke on it, and it must not double a caller's wait to do that.
+    const left = budgetMs - (Date.now() - started);
+    if (left <= 0) break;
     try {
-      const out = await chat(messages, { json: preferJson && i === 0, maxTokens, temperature: i ? 0.4 : temperature, llm });
+      const out = await chat(messages, { json: preferJson && i === 0, maxTokens, temperature: i ? 0.4 : temperature, llm, budgetMs: left });
       const raw = stripFences(out);
       const parsed = safeJson(raw, null) ?? safeJson(repairJson(raw), null);
       if (!parsed) throw new Error('LLM returned invalid JSON');
