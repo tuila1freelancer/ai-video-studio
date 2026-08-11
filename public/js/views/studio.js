@@ -652,11 +652,15 @@ export function setSourceDoc(doc) {
   $('#srcText').value = d.text;
   const words = d.text.trim().split(/\s+/).filter(Boolean).length;
   const bits = [`${words.toLocaleString('vi')} từ`, `${d.chars ?? d.text.length} ký tự`];
-  if (d.blocks) bits.push(`${d.blocks} đoạn`);
+  // Show the filtering as a RATIO, not a total: "62/373 đoạn" is the only way to see that the page
+  // furniture actually got thrown away.
+  if (d.blocks) bits.push(d.found && d.found !== d.blocks ? `${d.blocks}/${d.found} đoạn` : `${d.blocks} đoạn`);
   if (d.siteName) bits.push(esc(d.siteName));
+  const how = d.ai ? '🤖 AI đã lọc bỏ phần thừa' : '⚙️ lọc theo cấu trúc trang';
   // Say it out loud when the page was longer than the engine can read — the old extractor cut at
   // 8000 characters mid-sentence and nothing anywhere said a word about it.
-  $('#srcMeta').innerHTML = `${bits.join(' · ')} → AI sẽ viết kịch bản MỚI từ tư liệu này`
+  $('#srcMeta').innerHTML = `${bits.join(' · ')} · ${how} → AI sẽ viết kịch bản MỚI từ tư liệu này`
+    + (d.note ? `<br><b class="warn">⚠ ${esc(d.note)}</b>` : '')
     + (d.truncated ? `<br><b class="warn">⚠ Bài quá dài — đã lấy tối đa engine đọc được${d.dropped ? `, bỏ ${d.dropped} đoạn cuối` : ''}.</b>` : '');
 }
 
@@ -671,8 +675,11 @@ async function fetchLink() {
     if (r.error) throw new Error(r.error);
     if (!r.text?.trim()) throw new Error('trang này không có nội dung bài viết đọc được');
     setSourceDoc(r);
-    if (r.images?.length) showImages(r.images.map((u) => ({ url: u })), 'ảnh trong bài');
-    toast(`Đã lấy ${r.chars} ký tự ✓`, 'success');
+    if (r.images?.length) {
+      showImages(r.images.map((u) => ({ url: u })),
+        r.foundImages && r.foundImages !== r.images.length ? `ảnh trong bài (bỏ ${r.foundImages - r.images.length} ảnh ngoài bài)` : 'ảnh trong bài');
+    } else $('#imgResults').innerHTML = '';
+    toast(`Đã lấy ${r.chars} ký tự ✓${r.ai ? ' (AI đã lọc)' : ''}`, 'success');
   } catch (e) { toast('Không lấy được nội dung: ' + e.message, 'error'); }
   finally { btn.disabled = false; }
 }

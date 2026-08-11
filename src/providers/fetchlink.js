@@ -95,7 +95,7 @@ export function charsetOf(contentType, headBytes) {
 }
 
 /** Strip the page furniture, so no text search can ever reach it. */
-function stripChrome(html) {
+export function stripChrome(html) {
   let out = html.replace(/<!--[\s\S]*?-->/g, ' ');
   for (const tag of CHROME_TAGS) {
     const name = tag.includes('>') ? tag.split('>')[1] : tag;
@@ -220,9 +220,18 @@ export function widestSrc(srcset) {
   return parts.sort((a, b) => b.w - a.w)[0]?.u || null;
 }
 
-/** Every way a page names an image, resolved against the page itself. */
-export function extractImages(html, pageUrl, mainHtml = '') {
-  const push = (set, raw) => {
+/**
+ * Every way a page names an image, resolved against the page itself, WITH the context needed to
+ * judge it: its alt text and whether the tag sat inside the article container at all.
+ *
+ * The judging is the AI pass's job (`refineArticle`). This only has to make sure it is judging the
+ * right things — a URL with no alt text and no idea where it came from is not something anyone,
+ * model or regex, can classify.
+ */
+export function imageCandidates(html, pageUrl, mainHtml = '') {
+  const out = [];
+  const seen = new Set();
+  const push = (raw, { alt = '', inArticle = false, source = 'img' } = {}) => {
     if (!raw) return;
     // An attribute value is HTML, so a query string arrives as `?a=1&amp;b=2`. Handing that to the
     // downloader verbatim fetches a URL whose parameters are named "amp;b" — seen live on a
@@ -236,30 +245,159 @@ export function extractImages(html, pageUrl, mainHtml = '') {
     if (!/^https?:/i.test(abs)) return;
     if (SKIP_IMG.test(new URL(abs).pathname)) return;
     if (/\.svg(\?|$)/i.test(abs)) return; // vector chrome, never article art
-    set.add(upgradeThumb(abs));
+    const url = upgradeThumb(abs);
+    if (seen.has(url)) return;
+    seen.add(url);
+    out.push({ url, alt: alt.slice(0, 140), inArticle, source });
   };
-  const meta = (prop) => metaContent(html, prop);
-  // article images first — they are the ones about the story
-  const inArticle = new Set();
-  const rest = new Set();
-  for (const [scope, set] of [[mainHtml, inArticle], [html, rest]]) {
+  // The article's own lead image, named by the page itself — in-article by definition.
+  push(metaContent(html, 'og:image'), { inArticle: true, source: 'og:image' });
+  push(metaContent(html, 'twitter:image'), { inArticle: true, source: 'twitter:image' });
+  for (const [scope, inArticle] of [[mainHtml, true], [html, false]]) {
     if (!scope) continue;
     for (const m of scope.matchAll(/<(?:img|source)\b[^>]*>/gi)) {
       const tagText = m[0];
+      const alt = decodeEntities(/\balt=["']([^"']*)["']/i.exec(tagText)?.[1] || '').trim();
       const srcset = /\bsrcset=["']([^"']+)["']/i.exec(tagText)?.[1];
-      if (srcset) push(set, widestSrc(srcset)); // a 320w thumbnail is not worth putting in a video
+      if (srcset) push(widestSrc(srcset), { alt, inArticle }); // a 320w thumbnail is not for a video
       for (const attr of ['src', 'data-src', 'data-original', 'data-lazy-src', 'data-srcset']) {
-        push(set, new RegExp(`\\b${attr}=["']([^"']+)["']`, 'i').exec(tagText)?.[1]);
+        push(new RegExp(`\\b${attr}=["']([^"']+)["']`, 'i').exec(tagText)?.[1], { alt, inArticle });
       }
     }
   }
-  // Only the meta tags still need normalising — the two sets above already hold clean, upgraded
-  // URLs. Running them through `push` a second time re-applied the rules to their own output,
-  // which is how an upgraded Wikipedia thumbnail got thrown away by the .svg filter.
-  const metas = new Set();
-  push(metas, meta('og:image'));
-  push(metas, meta('twitter:image'));
-  return [...new Set([...metas, ...inArticle, ...rest])].slice(0, MAX_IMAGES);
+  return out;
+}
+
+/**
+ * The URLs alone, article images first.
+ *
+ * `inArticle` is the difference between an illustration and the sidebar: an image whose tag never
+ * sat inside the article container is a related-story tile, an ad, or a promo, and putting it in a
+ * video about the article is simply wrong. Everything else is a fallback for the case where no
+ * article container was found at all — without it a page we failed to parse would return nothing.
+ */
+export function extractImages(html, pageUrl, mainHtml = '') {
+  const all = imageCandidates(html, pageUrl, mainHtml);
+  const inside = all.filter((c) => c.inArticle);
+  return (inside.length ? inside : all).map((c) => c.url).slice(0, MAX_IMAGES);
+}
+
+/**
+ * Expand "3-58,61,70-94" into indexes. The model answers in ranges because an article body is a
+ * contiguous run with a few intrusions, and a 370-element JSON array is an answer that gets
+ * truncated by a token limit long before it gets wrong.
+ */
+export function parseRanges(spec, max) {
+  const out = new Set();
+  for (const part of String(spec || '').split(',')) {
+    const m = /^\s*(\d+)\s*(?:[-–]\s*(\d+))?\s*$/.exec(part);
+    if (!m) continue;
+    const a = +m[1];
+    const b = m[2] === undefined ? a : +m[2];
+    for (let i = Math.min(a, b); i <= Math.max(a, b) && i < max; i++) if (i >= 0) out.add(i);
+  }
+  return [...out].sort((x, y) => x - y);
+}
+
+/** How much of the candidate text a selection keeps — the guard against a model that answers "1-3". */
+const keptShare = (blocks, idx) => {
+  const total = blocks.reduce((a, b) => a + b.length, 0) || 1;
+  return idx.reduce((a, i) => a + (blocks[i]?.length || 0), 0) / total;
+};
+
+/**
+ * THE AI PASS: which of these blocks are the article, and which pictures belong to it.
+ *
+ * Structure gets close and no closer. Stripping `<nav>`/`<footer>` and scoring containers is how
+ * this file finds the right REGION, but inside that region every site has its own furniture — an
+ * author bio, a newsletter box, "read more" tiles, a subscription pitch, a photo credit, a related
+ * rail rendered as ordinary paragraphs. No pattern list survives contact with the next site, and
+ * the owner is right that a pattern list is what this was.
+ *
+ * The model CLASSIFIES; it never rewrites. It is shown a numbered preview of each block and
+ * answers with the ranges that are the article body, so the text that ships is the ORIGINAL text,
+ * assembled by code. A model asked to echo 24,000 characters back paraphrases, drops paragraphs and
+ * hits its token ceiling; a model asked "which of these 370 are the article" does one cheap pass
+ * and cannot damage a single sentence.
+ *
+ * Two guards, because a wrong answer here is silent data loss:
+ *   - a selection keeping under a quarter of the candidate text is treated as a failed
+ *     classification, not as a very aggressive one
+ *   - any failure at all (no LLM, bad JSON, timeout) keeps the structural result and SAYS so
+ *
+ * @returns {Promise<{blocks:string[], images:object[], ai:boolean, note:string|null}>}
+ */
+export async function refineArticle({ title = '', url = '', blocks, images, llm = null, onLog = null } = {}) {
+  const fallback = (note) => ({ blocks, images: images.filter((c) => c.inArticle).length ? images.filter((c) => c.inArticle) : images, ai: false, note });
+  if (!blocks.length) return fallback(null);
+  const { chatJson, llmEnabled } = await import('./llm.js');
+  if (!llmEnabled(llm)) return fallback('AI chưa bật — lọc theo cấu trúc trang');
+
+  // A preview is all a classifier needs, and it is what keeps a 370-block page affordable.
+  const list = blocks.map((b, i) => `${i}| ${b.length}c | ${b.slice(0, 110).replace(/\s+/g, ' ')}`).join('\n');
+  const imgList = images.map((c, i) => `${i}| ${c.inArticle ? 'in-body' : 'outside'} | alt="${c.alt}" | ${c.url.slice(0, 110)}`).join('\n') || '(none)';
+  const messages = [
+    {
+      role: 'system',
+      content: 'You separate the BODY of a web article from the page furniture around it. Reply with pure JSON only.',
+    },
+    {
+      role: 'user',
+      content: `PAGE: ${title}${url ? `\nURL: ${url}` : ''}
+
+BLOCKS (index | length | preview) — these are candidate text blocks in document order:
+${list}
+
+IMAGES (index | where the tag sat | alt | url):
+${imgList}
+
+Return the blocks that are the ARTICLE ITSELF — the prose and headings a reader came for, in order.
+
+DROP anything that is not the article, even when it reads like prose:
+- navigation, breadcrumbs, category lists, tag lists
+- "related articles", "read more", "most popular", teasers for OTHER stories
+- newsletter and subscription pitches, app-download prompts, survey invitations
+- author bios, editorial disclaimers, photo credits, timestamps standing alone
+- comments, social prompts, share instructions, advertising copy
+- site footers: addresses, copyright, licence notices, contact details
+
+KEEP the article's own headings, list items, quotes and captions — a subheading is part of the body.
+If the page is a LISTING (a homepage or category index) rather than one article, keep only the
+blocks that genuinely describe its subject, and say so in "kind".
+
+For IMAGES keep only pictures that ILLUSTRATE THIS ARTICLE. Drop logos, avatars, author portraits,
+advertising, and thumbnails belonging to other stories. An image whose tag sat outside the body is
+almost never an illustration — keep one only if its alt text clearly describes this article.
+
+Reply exactly:
+{"kind":"article"|"listing","body":"<index ranges, e.g. 4-58,61,70-96>","images":[<indexes>],"why":"<one short sentence>"}`,
+    },
+  ];
+
+  try {
+    const raw = await chatJson(messages, {
+      llm,
+      maxTokens: 700,
+      temperature: 0.1,
+      // chatJson's validate is a PREDICATE — truthy means the shape is good
+      validate: (o) => typeof o?.body === 'string' && o.body.trim().length > 0,
+    });
+    const idx = parseRanges(raw.body, blocks.length);
+    if (!idx.length) return fallback('AI không chọn được đoạn nào — giữ bản lọc theo cấu trúc');
+    const share = keptShare(blocks, idx);
+    if (share < 0.25) {
+      // Not "aggressive" — wrong. A body that is a fifth of its own candidates means the model
+      // misread the list, and shipping that would delete most of the article in silence.
+      return fallback(`AI chỉ giữ ${Math.round(share * 100)}% nội dung — nghi lọc sai, giữ bản theo cấu trúc`);
+    }
+    const keepImg = Array.isArray(raw.images)
+      ? raw.images.map((n) => images[+n]).filter(Boolean)
+      : images.filter((c) => c.inArticle);
+    onLog?.(`AI lọc bài: giữ ${idx.length}/${blocks.length} đoạn · ${keepImg.length}/${images.length} ảnh${raw.why ? ` — ${String(raw.why).slice(0, 90)}` : ''}`);
+    return { blocks: idx.map((i) => blocks[i]), images: keepImg, ai: true, note: null, kind: raw.kind || 'article' };
+  } catch (e) {
+    return fallback(`AI lọc lỗi (${e.message.slice(0, 60)}) — giữ bản lọc theo cấu trúc`);
+  }
 }
 
 /**
@@ -277,10 +415,12 @@ export function metaContent(html, prop) {
 
 /**
  * @param {string} url
+ * @param {{llm?:object|null, ai?:boolean, onLog?:Function}} [opts] `ai:false` skips the model pass
+ *   (the tests, and anyone who wants the structural answer only)
  * @returns {Promise<{title:string, description:string, text:string, images:string[], url:string,
- *   siteName:string, chars:number, truncated:boolean, blocks:number}>}
+ *   siteName:string, chars:number, truncated:boolean, blocks:number, ai:boolean, note:string|null}>}
  */
-export async function fetchLink(url) {
+export async function fetchLink(url, { llm = null, ai = true, onLog = null } = {}) {
   if (!/^https?:\/\//i.test(url || '')) throw new Error('URL không hợp lệ');
   const res = await fetch(url, {
     headers: {
@@ -306,22 +446,35 @@ export async function fetchLink(url) {
   const description = metaContent(html, 'og:description') || metaContent(html, 'description') || '';
   const siteName = metaContent(html, 'og:site_name');
 
+  // Structure first: it finds the REGION and costs nothing. The model then decides what inside that
+  // region is actually the article — the judgement no pattern list can make for the next site.
   const main = pickMain(stripChrome(html));
-  const blocks = extractBlocks(main);
+  const found = extractBlocks(main);
+  const candidates = imageCandidates(html, finalUrl, main);
+  const refined = ai
+    ? await refineArticle({ title, url: finalUrl, blocks: found, images: candidates, llm, onLog })
+    : { blocks: found, images: candidates.filter((c) => c.inArticle).length ? candidates.filter((c) => c.inArticle) : candidates, ai: false, note: null };
+
   // The description is the article's own summary and usually opens it; keep it only when the body
   // does not already say the same thing.
-  const head = description && !blocks.some((b) => b.startsWith(description.slice(0, 40))) ? [description] : [];
-  const { text, truncated, dropped } = joinCapped([...head, ...blocks]);
+  const head = description && !refined.blocks.some((b) => b.startsWith(description.slice(0, 40))) ? [description] : [];
+  const { text, truncated, dropped } = joinCapped([...head, ...refined.blocks]);
 
   return {
     title: title.trim(),
     description: description.trim(),
     text,
-    images: extractImages(html, finalUrl, main),
+    images: refined.images.map((c) => c.url).slice(0, MAX_IMAGES),
     url: finalUrl,
     siteName,
     chars: text.length,
-    blocks: blocks.length,
+    blocks: refined.blocks.length,
+    // what the structural pass offered before the model narrowed it — the owner can see the work
+    found: found.length,
+    foundImages: candidates.length,
+    ai: refined.ai,
+    kind: refined.kind || 'article',
+    note: refined.note,
     truncated,
     dropped,
   };

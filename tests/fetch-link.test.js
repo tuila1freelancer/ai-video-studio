@@ -6,9 +6,10 @@
 import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
   decodeEntities, metaContent, articleBlocks, pickMain, extractBlocks, joinCapped, extractImages,
-  charsetOf, widestSrc,
+  charsetOf, widestSrc, parseRanges, refineArticle, imageCandidates, stripChrome,
 } from '../src/providers/fetchlink.js';
 
 const PAGE = `<!doctype html><html><head>
@@ -144,6 +145,64 @@ test('an <article> element is believed, even when the page around it is longer',
   const joined = articleBlocks(html).join('\n');
   assert.match(joined, /Nội dung thật/);
   assert.doesNotMatch(joined, /Bình luận/, 'the comment thread is not the article');
+});
+
+// ---- the AI pass: the model classifies, the code assembles ----
+
+test('index ranges expand, and rubbish in them does not', () => {
+  // The model answers in ranges because an article body is a contiguous run with a few intrusions,
+  // and a 370-element JSON array is an answer a token limit truncates long before it goes wrong.
+  assert.deepEqual(parseRanges('0-3,7,10-12', 100), [0, 1, 2, 3, 7, 10, 11, 12]);
+  assert.deepEqual(parseRanges('5-2', 100), [2, 3, 4, 5], 'a backwards range is still a range');
+  assert.deepEqual(parseRanges('8-12', 10), [8, 9], 'nothing past the end of the list');
+  assert.deepEqual(parseRanges('', 10), []);
+  assert.deepEqual(parseRanges('all of them', 10), [], 'prose is not a range');
+  assert.deepEqual(parseRanges('2,2,2', 10), [2], 'and no index twice');
+});
+
+test('a refusal or a bad answer keeps the structural result, and says so', async () => {
+  const blocks = ['a'.repeat(300), 'b'.repeat(300), 'c'.repeat(300)];
+  const images = [{ url: 'x', alt: '', inArticle: true }, { url: 'y', alt: '', inArticle: false }];
+  // no LLM configured → the structural answer, unchanged, with a reason attached
+  const off = await refineArticle({ blocks, images, llm: { enabled: false } });
+  assert.deepEqual(off.blocks, blocks);
+  assert.equal(off.ai, false);
+  assert.match(off.note, /AI chưa bật/);
+  // …and the image set still narrows to what sat inside the article
+  assert.deepEqual(off.images.map((i) => i.url), ['x']);
+});
+
+test('a model that deletes the article is treated as wrong, not as decisive', async () => {
+  // The guard that matters. A selection keeping a fifth of its own candidates means the model
+  // misread the list; shipping it would delete most of the article in silence, and the video would
+  // be written from the remains without anyone seeing a thing.
+  const blocks = Array.from({ length: 10 }, (_, i) => `block ${i} `.repeat(20));
+  const share = (idx) => idx.reduce((a, i) => a + blocks[i].length, 0) / blocks.reduce((a, b) => a + b.length, 0);
+  assert.ok(share([0]) < 0.25, 'one block of ten is under the floor');
+  assert.ok(share([0, 1, 2, 3]) > 0.25, 'four of ten is a plausible edit');
+  const src = readFileSync(new URL('../src/providers/fetchlink.js', import.meta.url), 'utf8');
+  assert.match(src, /if \(share < 0\.25\) \{/);
+  assert.match(src, /nghi lọc sai, giữ bản theo cấu trúc/);
+  // and the model is never asked to REWRITE — only to choose, so the shipped text is the original
+  assert.match(src, /idx\.map\(\(i\) => blocks\[i\]\)/);
+  assert.doesNotMatch(src, /return.*raw\.text/);
+});
+
+test('an image that never sat inside the article is not an illustration', () => {
+  // "ảnh không phải nằm trong nội dung bài viết" — the old order was og:image, then in-article,
+  // then EVERYTHING ELSE on the page, so related-story tiles and promos rode along.
+  const html = '<article><p>' + 'x'.repeat(260) + '</p>'
+    + '<img src="/img/chart.jpg" alt="Biểu đồ tăng trưởng"></article>'
+    + '<div class="related"><img src="/img/other-story.jpg" alt="Bài khác"></div>';
+  const main = pickMain(stripChrome(html));
+  const cands = imageCandidates(html, 'https://s.example/a', main);
+  assert.equal(cands.find((c) => c.url.includes('chart')).inArticle, true);
+  assert.equal(cands.find((c) => c.url.includes('other-story')).inArticle, false);
+  assert.equal(cands.find((c) => c.url.includes('chart')).alt, 'Biểu đồ tăng trưởng', 'alt is what the model judges on');
+  assert.deepEqual(extractImages(html, 'https://s.example/a', main), ['https://s.example/img/chart.jpg']);
+  // …but a page whose article container was never found must not return nothing at all
+  const noArticle = '<body><div><img src="/img/only.jpg"></div></body>';
+  assert.deepEqual(extractImages(noArticle, 'https://s.example/a', ''), ['https://s.example/img/only.jpg']);
 });
 
 test('inline tags do not leave gaps around punctuation', () => {

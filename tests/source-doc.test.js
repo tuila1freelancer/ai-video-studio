@@ -80,6 +80,23 @@ test('a search result can be looked at before it is committed to a video', () =>
   }
 });
 
+test('the model decides what is article, and the route gives it a model to decide with', () => {
+  // Structure finds the REGION; inside it every site has its own furniture (author bios,
+  // newsletter boxes, "read more" tiles, photo credits) and no pattern list survives the next
+  // site. Measured on anthropic.com/news: the structural pass ended the "article" with a teaser
+  // for a DIFFERENT story; the model pass ends it on the article's own last sentence.
+  const provider = src('../src/providers/fetchlink.js');
+  assert.match(provider, /export async function refineArticle\(/);
+  assert.match(provider, /chatJson\(messages, \{/);
+  // …and it CLASSIFIES, never rewrites — the shipped text is the original, assembled by code
+  assert.match(provider, /idx\.map\(\(i\) => blocks\[i\]\)/);
+  // the route is the one caller that could not reach a model before, so the button never used it
+  assert.match(src('../src/api/routes.js'), /fetchLink\(req\.body\.url, \{ llm: DB\.aiSettings\(\)\.llm \}\)/);
+  assert.match(src('../src/pipeline/stages/script.js'), /fetchLink\(project\.topic\.trim\(\)\.split\(\/\\s\+\/\)\[0\], \{\s*\n\s*llm: ai\?\.llm,/);
+  // and the panel says which pass produced what it is showing
+  assert.match(src('../public/js/views/studio.js'), /d\.ai \? '🤖 AI đã lọc bỏ phần thừa' : '⚙️ lọc theo cấu trúc trang'/);
+});
+
 test('a search that finds nothing tries a shorter question before giving up', () => {
   // Openverse matches on the whole phrase, so length is fatal, not merely unhelpful. Measured
   // against the live API on 2026-08-11: "large language model neural network" → 0 results,

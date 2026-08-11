@@ -1458,7 +1458,9 @@ export function mountRoutes(app, { version }) {
 
   // ---- helpers: fetch link / image search / metadata ----
   r.post('/fetch-link', async (req, res) => {
-    try { res.json(await fetchLink(req.body.url)); }
+    // The model pass needs a model. Without this the route was the ONE caller that could never use
+    // it, so the Studio button would have kept shipping the structural answer.
+    try { res.json(await fetchLink(req.body.url, { llm: DB.aiSettings().llm })); }
     catch (e) { res.status(500).json({ error: e.message }); }
   });
   r.post('/image-search', async (req, res) => {
