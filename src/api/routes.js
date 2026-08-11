@@ -627,19 +627,31 @@ export function mountRoutes(app, { version }) {
     const { buildSrt, shiftCues } = await import('../pipeline/srt.js');
     const cfg = p.config || {};
     const scenes = DB.getScenes(p.id);
-    // clip list mirrors finalize: the script's scenes and nothing else (P31 — no cards)
-    const clipCount = scenes.length;
-    const TD = 0.5;
-    const useXfade = cfg.transitions === true && clipCount > 1 && clipCount <= 24;
-    let acc = 0;
-    let ordinal = 0; // this scene's index in the clip list
-    const all = [];
-    for (const sc of scenes) {
-      const d = Math.max(1.5, sc.duration || (cfg.sceneDuration || 6));
-      const start = acc - (useXfade ? TD * ordinal : 0);
-      if (Array.isArray(sc.srt_json)) all.push(...shiftCues(sc.srt_json, Math.max(0, start)));
-      acc += d; ordinal++;
+    // Where each scene starts in the FINISHED file.
+    //
+    // This was the last place still guessing: `acc - TD * ordinal` with TD = 0.5, which assumes
+    // every join is half a second when the doctrine's default hand-off is nothing of the sort, and
+    // which carried its own copy of a clip-count cap that had to stay in step with the renderer's.
+    // Both are gone. The stored timeline is what the file on disk was actually assembled on, so it
+    // is preferred; a project that has never been exported falls back to replaying the same
+    // arithmetic the concat would use.
+    const stored = p.metadata?.timeline;
+    let starts;
+    if (Array.isArray(stored) && stored.length === scenes.length) {
+      starts = scenes.map((sc, i) => stored.find((w) => w.sceneId === sc.id)?.start ?? stored[i].start);
+    } else {
+      const { planOffsets } = await import('../subtitles/timeline.js');
+      const { planTransitions } = await import('../pipeline/render.js');
+      const durs = scenes.map((sc) => Math.max(1.5, sc.duration || (cfg.sceneDuration || 6)));
+      const plan = cfg.transitions === true && scenes.length > 1
+        ? planTransitions({ scenes, clipCount: scenes.length, nIntro: 0, nOutro: 0, style: cfg.transitionStyle || 'auto' })
+        : null;
+      ({ starts } = planOffsets(durs, plan));
     }
+    const all = [];
+    scenes.forEach((sc, i) => {
+      if (Array.isArray(sc.srt_json)) all.push(...shiftCues(sc.srt_json, Math.max(0, starts[i] || 0)));
+    });
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="subtitles.srt"`);
     res.send(buildSrt(all));

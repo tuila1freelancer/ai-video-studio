@@ -13,7 +13,7 @@ import { prepareBurnFontDir, shapingFor } from '../../fonts/files.js';
 import { buildThumbnail } from '../visuals.js';
 import { generateThumbnailImage } from '../thumbnail-codegen.js';
 import { llmEnabled } from '../../providers/llm.js';
-import { concatScenes, planTransitions, transitionLoss } from '../render.js';
+import { concatScenes, planTransitions } from '../render.js';
 import { qcFinalVideo } from '../qc.js';
 import { masterAudio } from '../../media/master.js';
 import { makeAmbientBed, probeDuration, makeWhoosh, makeSfxBed, hasDrawtext } from '../../media/ffmpeg.js';
@@ -27,6 +27,7 @@ import { renderCurrent, renderFingerprint, fpStamp } from '../fingerprint.js';
 import { resolveOutputDir } from '../helpers.js';
 import { timed } from '../stats.js';
 import { resolveLang } from '../../util/lang.js';
+import { planOffsets } from '../../subtitles/timeline.js';
 
 /**
  * @param {string} projectId
@@ -114,8 +115,21 @@ export async function finalize(projectId, { dir, size, config, variantName = nul
   const transPlan = config.transitions === true && clips.length > 1
     ? planTransitions({ scenes, clipCount: clips.length, nIntro: 0, nOutro: 0, style: config.transitionStyle || 'auto' })
     : null;
-  // cumulative xfade loss BEFORE scene k's clip starts (clip index == scene order now)
-  const lossBeforeScene = (k) => (transPlan ? transitionLoss(transPlan, k) : 0);
+  // Cumulative xfade loss BEFORE scene k's clip starts (clip index == scene order now), taken
+  // from the SAME function the concat uses to place the clips.
+  //
+  // This used to be `transitionLoss(transPlan, k)`, which sums the PLANNED fade lengths and knows
+  // nothing about the per-join clamp — and, worse, nothing about whether the transitions run at
+  // all. `transPlan` is built unconditionally here while the renderer used to skip the whole xfade
+  // branch above 24 clips, so on every long video each sound effect was placed 0.2s × k early:
+  // forty seconds of drift by scene 200, on the videos the owner actually publishes.
+  // planOffsets replays the concat's own arithmetic, so it is right in both cases.
+  const sceneStarts = planOffsets(scenes.map((s) => s.duration || 0), transPlan).starts;
+  const lossBeforeScene = (k) => {
+    let material = 0;
+    for (let i = 0; i < k; i++) material += scenes[i]?.duration || 0;
+    return Math.max(0, material - (sceneStarts[k] ?? material));
+  };
 
   // Brand identity is read LIVE from the channel unless this project overrode it. The old
   // behaviour used the snapshot taken when the project was created, which is why turning the
@@ -286,9 +300,11 @@ export async function finalize(projectId, { dir, size, config, variantName = nul
   // QC as redundant, and the reference app ships none of it. A broken JOIN still surfaces here.
   if (config.qcGate !== false) {
     op(projectId, '🔬 Kiểm tra video thành phẩm (stream + thời lượng)…');
-    // expected FINAL duration = scene material − xfade overlaps (no synthetic cards, P31)
-    const xfadeLoss = transPlan && clips.length <= 24 ? transitionLoss(transPlan) : 0;
-    const qc = await qcFinalVideo(res.path, { expectDur: expectDur - xfadeLoss, tolerancePct: 8 });
+    // Expected FINAL duration comes from the join itself. It used to be recomputed here as
+    // `expectDur - transitionLoss(...)`, guarded by a clip-count cap copied from the renderer —
+    // a second arithmetic that had to be kept in step with the first, and could not account for
+    // the per-join clamp. `res.duration` IS planOffsets' total, so there is nothing to keep in step.
+    const qc = await qcFinalVideo(res.path, { expectDur: res.duration || expectDur, tolerancePct: 8 });
     writeFileSync(join(dir, 'qc_report.json'), JSON.stringify({
       ...qc,
       loudness: { lufs: mastered.lufs, truePeak: mastered.truePeak, corrected: mastered.corrected },
