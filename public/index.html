@@ -36,27 +36,32 @@
 </head>
 <body>
 <div class="app">
-  <!-- NAV -->
+  <!-- TOPBAR — everything that used to be a 216px left rail. The whole row is the macOS drag
+       region under the shell, so it absorbs the title-bar inset that four separate panes were
+       each padding around before. -->
   <nav class="nav">
     <div class="nav-brand">
       <span class="logo">🎬</span>
       <div class="nav-label">AI Video Studio<small>by TuiLa1Freelancer</small></div>
-      <button class="btn sm ghost" id="btnNavToggle" title="Thu gọn sidebar (⌘B)"></button>
     </div>
-    <div class="row nav-channel" style="padding:0 4px 12px;gap:6px">
-      <select class="input" id="channelSelect" title="Kênh đang làm việc" style="flex:1;font-size:12px"></select>
+    <div class="nav-items">
+      <button class="nav-item active" data-page="home"><span class="ic">🏠</span><span class="nav-label">Trang chủ</span></button>
+      <button class="nav-item" data-page="studio"><span class="ic">🎬</span><span class="nav-label">Tạo Video</span></button>
+      <button class="nav-item" data-page="library"><span class="ic">📚</span><span class="nav-label">Thư viện</span></button>
+      <button class="nav-item" data-page="brandgen"><span class="ic">🎨</span><span class="nav-label">Brand Asset</span></button>
+      <button class="nav-item" data-page="editvideo"><span class="ic">✂️</span><span class="nav-label">Edit Video</span></button>
+      <button class="nav-item" data-page="tutorials"><span class="ic">📖</span><span class="nav-label">Hướng dẫn</span></button>
+    </div>
+    <div class="nav-spacer"></div>
+    <!-- The open project, named and renameable right where it is read. -->
+    <button class="proj-name hidden" id="projName" title="Bấm để đổi tên dự án"><span id="projNameText"></span></button>
+    <div class="row nav-channel" style="gap:6px">
+      <select class="input" id="channelSelect" title="Kênh đang làm việc"></select>
       <button class="btn sm" id="btnManageChannels" title="Quản lý kênh">⚙</button>
     </div>
-    <button class="nav-item active" data-page="home"><span class="ic">🏠</span><span class="nav-label">Trang chủ</span></button>
-    <button class="nav-item" data-page="studio"><span class="ic">🎬</span><span class="nav-label">Tạo Video</span></button>
-    <button class="nav-item" data-page="library"><span class="ic">📚</span><span class="nav-label">Thư viện</span></button>
-    <button class="nav-item" data-page="brandgen"><span class="ic">🎨</span><span class="nav-label">Brand Asset</span></button>
-    <button class="nav-item" data-page="editvideo"><span class="ic">✂️</span><span class="nav-label">Edit Video</span></button>
-    <button class="nav-item" data-page="tutorials"><span class="ic">📖</span><span class="nav-label">Hướng dẫn</span></button>
-    <div class="nav-spacer"></div>
+    <div class="nav-foot" id="depFoot" title="Công cụ hệ thống"></div>
     <button class="license-badge" id="licenseBadge" style="display:none" title="License"></button>
-    <button class="btn block sm" id="navSettings">⚙️ AI Setting</button>
-    <div class="nav-foot" id="depFoot"></div>
+    <button class="btn sm" id="navSettings">⚙️ AI Setting</button>
   </nav>
 
   <!-- CONTENT -->

@@ -48,8 +48,13 @@ export async function runScript(ctx) {
         : generateScript({ topic: project.topic, inputType: project.input_type, fetched, config, ai, memory })),
       { tries: 2, label: 'b2 script', onRetry: retryHook(projectId, 'b2'), fatal: notStopped },
     );
-    // P34: an explicit owner-picked title (assistant click-title) beats the engine's own
-    project.title = (config.titleOverride || script.title || project.title || '').trim() || project.title;
+    // P34: an explicit owner-picked title (assistant click-title) beats the engine's own — and so
+    // does a name typed into the topbar, which sets metadata.titleLocked. A project the owner has
+    // named must never be renamed underneath them, least of all by a regenerated script.
+    const named = project.metadata?.titleLocked === true;
+    project.title = named
+      ? project.title
+      : (config.titleOverride || script.title || project.title || '').trim() || project.title;
     // A regenerated script replaces the whole storyboard — any previous scene-gate approval
     // covered scenes that no longer exist, so it must be revoked (P17: the gate can never
     // silently auto-spend on a never-reviewed storyboard).

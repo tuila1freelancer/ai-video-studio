@@ -138,48 +138,55 @@ select.input{appearance:none;-webkit-appearance:none;background-image:url("data:
 .empty{color:var(--text-3);text-align:center;padding:50px;font-size:13px}
 
 /* ---- 4. SHELL ---- */
-.app{display:flex;height:100vh;overflow:hidden}
-.nav{width:216px;flex-shrink:0;background:var(--bg-1);border-right:1px solid var(--hairline);display:flex;flex-direction:column;padding:calc(14px + var(--pad-titlebar)) 10px 14px;transition:width .22s var(--spring),padding .22s var(--spring)}
-.nav-brand{display:flex;align-items:center;gap:10px;padding:6px 8px 16px;font-weight:700;letter-spacing:.01em;white-space:nowrap}
-.nav-brand .logo{width:32px;height:32px;display:grid;place-items:center;flex-shrink:0;filter:drop-shadow(0 2px 10px rgba(109,92,255,.4))}
-.nav-brand small{display:block;font-size:9.5px;color:var(--text-3);font-weight:600;letter-spacing:.08em}
-.nav-brand #btnNavToggle{margin-left:auto;padding:4px 6px;color:var(--text-3)}
-.nav-brand #btnNavToggle:hover{color:var(--text-1)}
+/* The shell is a COLUMN: one topbar, then the content row. The 216px rail it replaces was the
+   single biggest consumer of horizontal space on the Studio page, which still spends 300px on
+   the input column and 292px on the config column — losing the rail hands all 216px to the work. */
+.app{display:flex;flex-direction:column;height:100vh;overflow:hidden}
+.nav{display:flex;align-items:center;gap:14px;flex-shrink:0;background:var(--bg-1);
+  border-bottom:1px solid var(--hairline);padding:8px 14px;padding-top:calc(8px + var(--pad-titlebar));
+  -webkit-app-region:drag}
+/* every control inside it is clickable again — only the empty strip drags the window */
+.nav button,.nav select,.nav .nav-foot{-webkit-app-region:no-drag}
+.nav-brand{display:flex;align-items:center;gap:9px;font-weight:700;letter-spacing:.01em;white-space:nowrap;flex-shrink:0}
+.nav-brand .logo{width:26px;height:26px;display:grid;place-items:center;flex-shrink:0;filter:drop-shadow(0 2px 10px rgba(109,92,255,.4))}
+.nav-brand small{display:block;font-size:9px;color:var(--text-3);font-weight:600;letter-spacing:.08em}
+.nav-items{display:flex;align-items:center;gap:3px;min-width:0}
+.nav .nav-channel{flex-shrink:0}
+.nav #channelSelect{font-size:12px;max-width:190px;padding:5px 8px}
+.nav #navSettings{flex-shrink:0;white-space:nowrap}
+/* the brand wordmark and the dependency chips are the first things to go when the row runs out */
+@media (max-width:1120px){.nav-brand .nav-label{display:none}}
+@media (max-width:980px){.nav .nav-foot{display:none}}
+@media (max-width:900px){.nav-item .nav-label{display:none}.nav-item{padding:7px 8px;gap:0}}
+
+/* the open project's name, editable in place */
+.proj-name{display:flex;align-items:center;gap:6px;max-width:270px;padding:5px 10px;border:1px solid var(--hairline);
+  border-radius:9px;background:var(--surface-1);color:var(--text-1);font-size:12.5px;font-weight:600;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:text;flex-shrink:1;min-width:0}
+.proj-name:hover{border-color:var(--accent-hi);color:#fff}
+.proj-name::before{content:'🎬';font-size:11px;opacity:.7}
+.proj-name #projNameText{overflow:hidden;text-overflow:ellipsis}
 
 /* colorful icon chips */
 .nav-item .ic{width:26px;height:26px;border-radius:8px;background:color-mix(in srgb,var(--tint,#8b7cff) 15%,transparent);color:var(--tint,#8b7cff);transition:background var(--t-fast)}
 .nav-item:hover .ic{background:color-mix(in srgb,var(--tint,#8b7cff) 26%,transparent)}
 .nav-item.active .ic{background:color-mix(in srgb,var(--tint,#8b7cff) 32%,transparent);color:#fff}
 
-/* collapsed rail (⌘B) */
-.app.nav-collapsed .nav{width:64px;padding-left:7px;padding-right:7px}
-.app.nav-collapsed .nav-label,.app.nav-collapsed .nav-channel,.app.nav-collapsed .nav-foot{display:none}
-.app.nav-collapsed .nav-brand{flex-direction:column;gap:10px;padding:6px 0 14px}
-.app.nav-collapsed .nav-brand #btnNavToggle{margin-left:0}
-.app.nav-collapsed .nav-item{justify-content:center;padding:9px 0;gap:0}
-.app.nav-collapsed .nav-item.active::before{left:-7px}
-.app.nav-collapsed #navSettings{justify-content:center;gap:0;padding:8px 0}
 .credit-card{display:flex;gap:12px;align-items:center;margin-top:26px;padding:14px 16px;border:1px solid var(--hairline);border-radius:14px;background:var(--surface-1);box-shadow:var(--shadow-1)}
 .credit-card .logo{width:38px;height:38px;display:grid;place-items:center;flex-shrink:0;filter:drop-shadow(0 3px 12px rgba(109,92,255,.4))}
-.nav-item{position:relative;display:flex;align-items:center;gap:11px;padding:8px 10px;border:none;background:transparent;color:var(--text-2);border-radius:10px;width:100%;text-align:left;font-size:13px;font-weight:600;transition:background var(--t-fast),color var(--t-fast);margin-bottom:2px;white-space:nowrap;overflow:hidden}
+.nav-item{position:relative;display:flex;align-items:center;gap:8px;padding:7px 11px;border:none;background:transparent;color:var(--text-2);border-radius:10px;text-align:left;font-size:12.5px;font-weight:600;transition:background var(--t-fast),color var(--t-fast);white-space:nowrap;overflow:hidden;flex-shrink:0}
 .nav-item .ic{font-size:15px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
 .nav-item:hover{background:var(--surface-1);color:var(--text-1)}
 .nav-item.active{background:linear-gradient(135deg,rgba(109,92,255,.22),rgba(168,85,247,.14));color:#fff;box-shadow:inset 0 0 0 1px rgba(109,92,255,.35),inset 0 1px 0 rgba(255,255,255,.08)}
-.nav-item.active::before{content:'';position:absolute;left:-10px;top:22%;bottom:22%;width:3px;border-radius:3px;background:var(--grad-brand)}
+.nav-item.active::before{content:'';position:absolute;left:20%;right:20%;bottom:-9px;height:2px;border-radius:2px;background:var(--grad-brand)}
 .nav-spacer{flex:1}
-.nav-foot{font-size:11px;color:var(--text-3);padding:8px;border-top:1px solid var(--hairline)}
-.nav-foot .dep{display:inline-block;margin:2px 4px 0 0}
+.nav-foot{font-size:10.5px;color:var(--text-3);display:flex;gap:2px;flex-shrink:0}
+.nav-foot .dep{display:inline-block;margin:0 3px 0 0}
 .dep.ok{color:var(--ok)} .dep.no{color:var(--err)}
 
 .content{flex:1;overflow:hidden;position:relative;background:radial-gradient(1200px 500px at 70% -10%,rgba(109,92,255,.055),transparent 60%),var(--bg-0)}
-/* native shell: content columns start below the transparent titlebar strip
-   (scrolled content may slide under it — that strip stays the drag area) */
-html.is-shell .gallery{padding-top:calc(30px + var(--pad-titlebar))}
-html.is-shell .s-main{padding-top:calc(22px + var(--pad-titlebar))}
-html.is-shell .s-config{padding-top:calc(16px + var(--pad-titlebar))}
-html.is-shell .s-side .scroll{padding-top:calc(16px + var(--pad-titlebar))}
-html.is-shell .lib{padding-top:calc(24px + var(--pad-titlebar))}
-html.is-shell .center-narrow{padding-top:calc(30px + var(--pad-titlebar))}
+/* Native shell: the topbar carries the whole title-bar inset now. Every content pane used to
+   add it separately, which is why the app looked like it had two headers stacked. */
 .page{position:absolute;inset:0;overflow:auto;display:none}
 .page.active{display:block;animation:pageIn .2s var(--spring)}
 @keyframes pageIn{from{opacity:0;transform:translateY(4px)}}
@@ -665,8 +672,6 @@ html.is-shell .center-narrow{padding-top:calc(30px + var(--pad-titlebar))}
 .license-badge small{font-size:10.5px;color:var(--text-3)}
 .license-badge.warn{border-color:rgba(247,181,0,.4)}
 .license-badge.warn small{color:#f7b500}
-.nav-collapsed .license-badge{align-items:center}
-.nav-collapsed .license-badge small{display:none}
 /* update banner */
 .update-banner{position:fixed;right:20px;bottom:20px;z-index:120;display:flex;align-items:center;gap:10px;
   max-width:min(460px,calc(100vw - 40px));padding:12px 14px;border-radius:14px;
@@ -675,3 +680,10 @@ html.is-shell .center-narrow{padding-top:calc(30px + var(--pad-titlebar))}
 .update-text{flex:1;min-width:0;font-size:13px;line-height:1.45}
 .update-text small{display:block;color:var(--text-3);font-size:11.5px;margin-top:2px;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* rename affordance on a project row — hidden until hover so the list stays calm */
+.pitem{position:relative}
+.pitem-ren{position:absolute;top:5px;right:5px;border:none;background:rgba(0,0,0,.55);color:var(--text-2);
+  border-radius:7px;padding:2px 5px;font-size:11px;cursor:pointer;opacity:0;transition:opacity var(--t-fast)}
+.pitem:hover .pitem-ren{opacity:1}
+.pitem-ren:hover{background:var(--accent);color:#fff}

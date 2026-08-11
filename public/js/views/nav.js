@@ -21,7 +21,7 @@ export function initNav() {
     const st = NAV_STYLE[b.dataset.page] || { icn: 'film', tint: '#8b7cff' };
     const ic = b.querySelector('.ic');
     if (ic) { ic.innerHTML = icon(st.icn, 15); ic.style.setProperty('--tint', st.tint); }
-    b.title = b.textContent.trim(); // tooltip for collapsed rail
+      b.title = b.textContent.trim(); // still the tooltip once labels drop on a narrow window
     b.addEventListener('click', () => switchPage(b.dataset.page));
   });
   const logo = document.querySelector('.nav-brand .logo');
@@ -35,21 +35,61 @@ export function initNav() {
   $('#navSettings').addEventListener('click', openSettings);
   const mc = $('#btnManageChannels');
   if (mc) mc.innerHTML = icon('tv', 15);
-  // collapse toggle: button + ⌘B, persisted
-  const tg = $('#btnNavToggle');
-  if (tg) { tg.innerHTML = icon('panelLeft', 15); tg.addEventListener('click', toggleNav); }
-  document.addEventListener('keydown', (e) => {
-    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'b') { e.preventDefault(); toggleNav(); }
-  });
-  try { if (localStorage.navCollapsed === '1') document.querySelector('.app').classList.add('nav-collapsed'); } catch { /* ignore */ }
+  wireProjectName();
+  // The collapse toggle and its ⌘B went with the rail: a topbar has no width to give back, and
+  // the row already sheds its labels by media query when the window gets narrow.
+  try { delete localStorage.navCollapsed; } catch { /* ignore */ }
 }
 
-export function toggleNav() {
-  const app = document.querySelector('.app');
-  const collapsed = app.classList.toggle('nav-collapsed');
-  try { localStorage.navCollapsed = collapsed ? '1' : '0'; } catch { /* ignore */ }
-  const tg = $('#btnNavToggle');
-  if (tg) tg.title = collapsed ? 'Mở rộng sidebar (⌘B)' : 'Thu gọn sidebar (⌘B)';
+/**
+ * The open project's name, shown and edited where it is read.
+ *
+ * The server has always accepted a title change (`updateProject`'s allowed list) — there was
+ * simply nowhere in the app to make one, so every project kept whatever it was created with and
+ * the library filled up with rows nobody could tell apart.
+ */
+function wireProjectName() {
+  const btn = $('#projName');
+  if (!btn) return;
+  btn.addEventListener('click', async () => {
+    const { promptDialog } = await import('../ui/dialog.js');
+    const { state } = await import('../state.js');
+    const { api } = await import('../api.js');
+    const cur = state.current;
+    if (!cur) return;
+    const name = await promptDialog({ title: 'Đổi tên dự án', label: 'Tên dự án', value: cur.title || '' });
+    if (name == null) return;
+    const title = String(name).trim();
+    if (!title || title === cur.title) return;
+    try {
+      // `metadata.titleLocked` and not a config key: config feeds the render fingerprints, and a
+      // rename must never make a single clip stale. metadata is the blob for exactly this.
+      const md = { ...(cur.metadata || {}), titleLocked: true };
+      await api.put(`/projects/${cur.id}`, { title, metadata: md });
+      cur.title = title; cur.metadata = md;
+      setProjectName(title);
+      const { toast } = await import('../ui/toast.js');
+      toast(`✏️ Đã đổi tên: ${title}`, 'success');
+      const st = await import('./studio.js');
+      const row = (state.projects || []).find((x) => x.id === cur.id);
+      if (row) row.title = title;
+      st.renderProjectList();
+    } catch (e) {
+      const { toast } = await import('../ui/toast.js');
+      toast(`✖ Không đổi được tên: ${e.message}`, 'error');
+    }
+  });
+}
+
+/** Show (or hide) the open project's name in the topbar. */
+export function setProjectName(title) {
+  const btn = $('#projName');
+  if (!btn) return;
+  const t = String(title || '').trim();
+  btn.classList.toggle('hidden', !t);
+  const span = $('#projNameText');
+  if (span) span.textContent = t;
+  btn.title = t ? `${t} — bấm để đổi tên` : '';
 }
 
 export function switchPage(p) {

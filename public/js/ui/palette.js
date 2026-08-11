@@ -2,7 +2,7 @@
 import { $, el, esc } from './dom.js';
 import { icon } from './icons.js';
 import { state } from '../state.js';
-import { switchPage, toggleNav } from '../views/nav.js';
+import { switchPage } from '../views/nav.js';
 import { openProject } from '../views/studio.js';
 import { applyConfig, updateCfgChips } from '../views/config.js';
 import { openSettings } from '../features/settings.js';
@@ -29,7 +29,6 @@ function commands() {
     { icn: 'palette', label: 'Brand Asset', run: () => switchPage('brandgen') },
     { icn: 'scissors', label: 'Edit Video', run: () => switchPage('editvideo') },
     { icn: 'book', label: 'Hướng dẫn', run: () => switchPage('tutorials') },
-    { icn: 'panelLeft', label: 'Thu gọn / mở rộng sidebar', hint: '⌘B', run: toggleNav },
     { icn: 'settings', label: 'AI Setting', run: openSettings },
     { icn: 'mic', label: 'Chọn giọng đọc', run: openVoicePicker },
     { icn: 'tv', label: 'Quản lý kênh', run: () => { renderChannelList(); $('#channelModal').classList.add('open'); } },
