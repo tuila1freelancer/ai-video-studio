@@ -438,6 +438,9 @@ export function initBrandKit() {
     ch.config = r.channel.config;
     closeModal('#brandModal');
     refreshBrandSummary();
+    // The brand kit lives on the CHANNEL, so nothing in the config panel moved and the delegated
+    // listener never fires — but the finished video is now out of date all the same.
+    (await import('./pending-changes.js')).schedulePendingCheck({ now: true });
     toast('🏷 Brand Kit đã lưu — mọi video mới của kênh sẽ tự gắn brand', 'success');
     // …and the video already on screen? finalize reads the brand kit LIVE from the channel, so
     // one join is all it takes — but nothing said so, and the only route to it was knowing that

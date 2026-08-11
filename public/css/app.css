@@ -768,3 +768,19 @@ select.input{appearance:none;-webkit-appearance:none;background-image:url("data:
 .iv-nav.prev{left:8px} .iv-nav.next{right:8px}
 .iv-nav:hover{border-color:var(--accent-hi)}
 .iv-cap{font-size:11px;color:var(--text-3);margin-top:8px;word-break:break-all}
+
+/* ---- pending output changes: a finished video that no longer matches its own settings ---- */
+/* Sticky, because the owner keeps scrolling the column while editing — a bar that scrolls away is
+   a bar they have to remember, which is the problem this replaces. */
+.pending-bar{position:sticky;top:0;z-index:8;display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  margin:0 0 10px;padding:9px 11px;border-radius:10px;
+  border:1px solid rgba(109,92,255,.42);background:linear-gradient(180deg,rgba(109,92,255,.16),rgba(109,92,255,.07));
+  box-shadow:0 4px 18px rgba(0,0,0,.28);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+/* Work that costs renders or API credit does not get to look like the cheap one. */
+.pending-bar.heavy{border-color:rgba(247,181,0,.45);background:linear-gradient(180deg,rgba(247,181,0,.14),rgba(247,181,0,.05))}
+.pending-bar .pc-body{flex:1;min-width:150px;font-size:12px;line-height:1.5;color:var(--text-1)}
+.pending-bar .pc-why{display:block;font-size:11px;color:var(--text-3);margin-top:1px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pending-bar .pc-warn{display:block;font-size:11px;color:var(--warn-c);margin-top:2px}
+.pending-bar .pc-acts{display:flex;align-items:center;gap:6px;margin-left:auto}
+.pending-bar .pc-acts .btn{white-space:nowrap}

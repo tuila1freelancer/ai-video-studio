@@ -11,16 +11,23 @@ import * as DB from '../../db/index.js';
 import { ttsFingerprint, renderCurrent, fpCurrent } from '../../pipeline/fingerprint.js';
 import { aiSettingsFor } from '../../core/config.js';
 import { resolveConcatLogo } from '../../media/logo-overlay.js';
+import { CONCAT_CONFIG_KEYS } from '../../pipeline/concat-plan.js';
 import { ratioToSize } from '../../util/util.js';
 
-// Config keys that change only the FINAL assembly — the join, not the clips. Everything here is
-// applied by concatScenes, which is why editing one costs a concat instead of 95 renders.
-const CONCAT_KEYS = [
-  'brandKit', 'brandKitOverride', 'logo', 'watermark', 'watermarkText',
-  'bgmPath', 'autoBgm', 'useDefaultBgm', 'autoSfx', 'soundDesign',
-  'transitions', 'transitionStyle', 'masterFade', 'concatEncoder', 'thumbnailAi',
-];
+// The list lives beside the fingerprint that consumes their effects (pipeline/concat-plan.js), so
+// there is ONE place to add a key when a new final-stage setting appears. The copy that used to
+// live here had already drifted: it was missing `enableSubtitles` and `platformCovers`.
 const SUB_KEY = /^sub(?!titleLane$)/;
+/** Vietnamese names for the keys the owner actually sees, so the plan does not read like a diff. */
+const KEY_LABEL = {
+  transitions: 'hiệu ứng chuyển cảnh', transitionStyle: 'kiểu chuyển cảnh',
+  masterFade: 'mờ đầu/cuối video', concatEncoder: 'tốc độ encode',
+  bgmPath: 'nhạc nền', autoBgm: 'nhạc nền tự động', useDefaultBgm: 'nhạc nền mặc định',
+  autoSfx: 'hiệu ứng âm thanh', soundDesign: 'thiết kế âm thanh AI', bgmVol: 'âm lượng nhạc nền',
+  enableSubtitles: 'bật/tắt phụ đề', watermarkText: 'chữ watermark',
+  thumbnailAi: 'thumbnail AI', platformCovers: 'ảnh bìa các nền tảng',
+  brandKitOverride: 'nhận diện riêng cho video này',
+};
 
 /** Defaults used until a project has measured its own. Deliberately round, and labelled. */
 const FALLBACK = { render: 22, tts: 6, concat: 90 };
@@ -81,7 +88,7 @@ export function planChanges(projectId, nextConfig = {}) {
   const wmBefore = lastExport.brandKit?.watermark || null;
   const wmAfter = after.brandKit?.watermark || null;
   const wmMoved = JSON.stringify(wmBefore) !== JSON.stringify(wmAfter);
-  const concatChanged = changedKeys(cur, next, (k) => CONCAT_KEYS.includes(k));
+  const concatChanged = changedKeys(cur, next, (k) => CONCAT_CONFIG_KEYS.includes(k));
   // On the final lane the subtitle settings are a CONCAT input, so they belong on this side of
   // the ledger — that reclassification is the entire point of the lane.
   const finalLane = next.subtitleLane === 'final';
@@ -118,8 +125,9 @@ export function planChanges(projectId, nextConfig = {}) {
   const joinReasons = [
     logoMoved && (logoAfter ? 'đóng dấu logo' : 'bỏ logo'),
     wmMoved && (wmAfter?.enabled ? 'đổi watermark' : 'bỏ watermark'),
-    ...concatChanged.filter((k) => k !== 'logo' && k !== 'brandKit').map((k) => `đổi ${k}`),
-    subMoved.length && 'đổi phụ đề (in ở bước cuối)',
+    // …in the owner's words. `đổi concatEncoder` is a diff line, not a reason.
+    ...concatChanged.filter((k) => k !== 'logo' && k !== 'brandKit').map((k) => `đổi ${KEY_LABEL[k] || k}`),
+    subMoved.length && `đổi phụ đề (${subMoved.length} thiết lập, in ở bước cuối)`,
     (ttsStale.length || renderStale.length) && 'ghép lại sau khi dựng cảnh',
   ].filter(Boolean);
   if (joinReasons.length) {
