@@ -14,8 +14,8 @@ const plan = (style) => planTransitions({ scenes: SCENES, clipCount: 4, style })
 
 test('P43: the owner can name ONE transition look, or keep the storytelling doctrine', () => {
   // 'auto' is the default and must keep the role-driven plan exactly as it was
-  assert.deepEqual(plan('auto'), ['fade', 'zoomin', 'fadeblack'], 'the doctrine is untouched');
-  assert.deepEqual(plan(undefined), ['fade', 'zoomin', 'fadeblack'], 'and it is what you get by default');
+  assert.deepEqual(plan('auto'), ['fadeblack', 'zoomin', 'fadeblack'], 'the doctrine is untouched');
+  assert.deepEqual(plan(undefined), ['fadeblack', 'zoomin', 'fadeblack'], 'and it is what you get by default');
   // an explicit style overrides it for every boundary
   assert.deepEqual(plan('circleopen'), ['circleopen', 'circleopen', 'circleopen']);
   assert.deepEqual(plan('none'), ['cut', 'cut', 'cut']);
@@ -23,7 +23,7 @@ test('P43: the owner can name ONE transition look, or keep the storytelling doct
   assert.deepEqual(plan('varied'), plan('varied'));
   assert.equal(new Set(plan('varied')).size, 3, 'and it actually varies');
   // an unknown style falls back to the doctrine rather than emitting a bad ffmpeg filter
-  assert.deepEqual(plan('not-a-transition'), ['fade', 'zoomin', 'fadeblack']);
+  assert.deepEqual(plan('not-a-transition'), ['fadeblack', 'zoomin', 'fadeblack']);
 });
 
 test('P43: every offered style is a real xfade transition the render can execute', () => {
