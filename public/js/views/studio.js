@@ -100,6 +100,19 @@ export function initStudio() {
   $('#btnFetch').addEventListener('click', fetchLink);
   $('#btnImgSearch').addEventListener('click', imageSearch);
   $('#assetInput').addEventListener('change', uploadAssets);
+  // the fetched article: show it, edit it, drop it
+  $('#srcToggle')?.addEventListener('click', () => {
+    const t = $('#srcText');
+    t.classList.toggle('hidden');
+    $('#srcToggle').textContent = t.classList.contains('hidden') ? 'Xem' : 'Ẩn';
+  });
+  $('#srcClear')?.addEventListener('click', () => setSourceDoc(null));
+  // An edit is the owner's decision about what the video is written from, so it has to be what
+  // the pipeline receives — not a display copy of something the server will re-fetch anyway.
+  $('#srcText')?.addEventListener('input', () => {
+    if (state.sourceDoc) state.sourceDoc.text = $('#srcText').value;
+  });
+  initImageViewer();
 }
 
 // ---------------- projects ----------------
@@ -282,6 +295,7 @@ export function startNewProject() {
   $('#welcome').classList.remove('hidden');
   $('#projView').classList.add('hidden');
   $('#topic').value = ''; $('#assetList').innerHTML = ''; $('#imgResults').innerHTML = '';
+  setSourceDoc(null);
   // Back to the CHANNEL's defaults, not to whatever the last project happened to use. Opening a
   // project calls applyConfig with that project's config; without this, "video mới" inherited it
   // silently — so a one-off experiment on one video became the starting point for the next.
@@ -300,6 +314,12 @@ export async function createAndStart() {
   try {
     resetProgress();
     const config = gatherConfig();
+    // Carry the article the owner actually looked at (and may have edited). Without it the stage
+    // re-fetches the URL and writes from whatever the site serves at that second instead.
+    if (state.sourceDoc?.text?.trim()) {
+      const d = state.sourceDoc;
+      config.sourceDoc = { url: d.url || topic, title: d.title || '', text: d.text.trim() };
+    }
     const { project } = await api.post('/projects', { topic, config });
     await loadProjects();
     await openProject(project.id);
@@ -321,6 +341,9 @@ export async function openProject(id) {
   clearJournal();          // never bleed the previous project's lines
   loadJournal(id);         // full persisted history (REST) — fire-and-forget
   applyConfig(project.config || {});
+  // …including the article this video was written from, so reopening it shows the material rather
+  // than leaving the owner to guess which link it came from.
+  setSourceDoc(project.config?.sourceDoc || null);
   $('#welcome').classList.add('hidden');
   $('#projView').classList.remove('hidden');
   renderProjectView();
@@ -606,44 +629,154 @@ function detectType() {
   }
   $('#inputTypeHint').textContent = 'Nhận diện: ' + t + hint;
 }
+// ---------------- fetched source article ----------------
+// The article NEVER goes back into #topic.
+//
+// It used to: the button replaced the URL with `title + text`, which flipped detectInputType from
+// 'url' to 'text'. The master engine picks its mode from that (master-script.js) — a fetched
+// article is mode 'source', "write a NEW script from this research", while >=80 words of plain
+// text is mode 'script', "this is the owner's own script, keep >=90% of its wording". So pressing
+// the button silently changed the product: instead of writing a video from the article, the app
+// narrated the article's own sentences, sliced up. Its own comment says so — "a long article is
+// research material for a NEW script, never a detailed owner script to polish" — the UI was the
+// only thing breaking that rule. The URL stays in #topic; the article gets its own panel.
+export function setSourceDoc(doc) {
+  state.sourceDoc = doc && doc.text ? doc : null;
+  const box = $('#srcDoc');
+  if (!box) return;
+  box.classList.toggle('hidden', !state.sourceDoc);
+  if (!state.sourceDoc) { $('#srcText').value = ''; return; }
+  const d = state.sourceDoc;
+  $('#srcTitle').textContent = d.title || d.url || 'Nội dung đã lấy';
+  $('#srcTitle').title = d.url || '';
+  $('#srcText').value = d.text;
+  const words = d.text.trim().split(/\s+/).filter(Boolean).length;
+  const bits = [`${words.toLocaleString('vi')} từ`, `${d.chars ?? d.text.length} ký tự`];
+  if (d.blocks) bits.push(`${d.blocks} đoạn`);
+  if (d.siteName) bits.push(esc(d.siteName));
+  // Say it out loud when the page was longer than the engine can read — the old extractor cut at
+  // 8000 characters mid-sentence and nothing anywhere said a word about it.
+  $('#srcMeta').innerHTML = `${bits.join(' · ')} → AI sẽ viết kịch bản MỚI từ tư liệu này`
+    + (d.truncated ? `<br><b class="warn">⚠ Bài quá dài — đã lấy tối đa engine đọc được${d.dropped ? `, bỏ ${d.dropped} đoạn cuối` : ''}.</b>` : '');
+}
+
 async function fetchLink() {
   const url = $('#topic').value.trim().split(/\s+/)[0];
   if (!/^https?:/.test(url)) { toast('Dán 1 link http(s) trước.', 'error'); return; }
+  const btn = $('#btnFetch');
+  btn.disabled = true;
   toast('Đang lấy nội dung…');
-  const r = await api.post('/fetch-link', { url });
-  if (r.error) return toast(r.error, 'error');
-  $('#topic').value = (r.title ? r.title + '\n' : '') + (r.text || '');
-  if (r.images?.length) showImages(r.images);
-  toast('Đã lấy nội dung ✓', 'success');
+  try {
+    const r = await api.post('/fetch-link', { url });
+    if (r.error) throw new Error(r.error);
+    if (!r.text?.trim()) throw new Error('trang này không có nội dung bài viết đọc được');
+    setSourceDoc(r);
+    if (r.images?.length) showImages(r.images.map((u) => ({ url: u })), 'ảnh trong bài');
+    toast(`Đã lấy ${r.chars} ký tự ✓`, 'success');
+  } catch (e) { toast('Không lấy được nội dung: ' + e.message, 'error'); }
+  finally { btn.disabled = false; }
 }
+
 async function imageSearch() {
-  const q = $('#topic').value.trim().slice(0, 120) || 'video';
+  // Search the ARTICLE when there is one — the topic box holds a bare URL in that case, and
+  // "https://vnexpress.net/…" is not a search query.
+  const q = (state.sourceDoc?.title || state.sourceDoc?.text || $('#topic').value).trim().slice(0, 120) || 'video';
+  const btn = $('#btnImgSearch');
+  btn.disabled = true;
   toast('Đang tìm ảnh…');
-  const r = await api.post('/image-search', { query: q, count: 6 });
-  if (r.images?.length) { showImages(r.images); toast(`Tìm thấy ${r.images.length} ảnh (${r.source})`, 'success'); }
+  try {
+    const r = await api.post('/image-search', { query: q, count: 12 });
+    if (r.error) throw new Error(r.error);
+    const items = r.items?.length ? r.items : (r.images || []).map((u) => ({ url: u }));
+    if (!items.length) throw new Error('không tìm thấy ảnh nào');
+    showImages(items, r.note ? `${r.source} — ${r.note}` : `${r.source}${r.keywords?.[0] ? ` · “${r.keywords[0]}”` : ''}`);
+    // Gradient placeholders are a legitimate answer, but handing them over without saying why
+    // reads as "there are no pictures of this" instead of "the catalogue is throttling us".
+    if (r.note) toast(`⚠ ${r.note} — đang dùng ảnh nền tạm`, 'error');
+    else toast(`Tìm thấy ${items.length} ảnh (${r.source})`, 'success');
+  } catch (e) { toast('Tìm ảnh lỗi: ' + e.message, 'error'); }
+  finally { btn.disabled = false; }
 }
-function showImages(images) {
-  const box = $('#imgResults'); box.innerHTML = '';
-  images.slice(0, 8).forEach((u) => {
-    const i = el('img'); i.src = u.startsWith('/api') || u.startsWith('http') ? u : fileUrl(u);
-    i.style = 'width:46px;height:46px;object-fit:cover;border-radius:6px;cursor:pointer';
-    i.title = 'Thêm vào assets';
-    // A search hit lives on someone else's server; a scene must be self-contained and offline,
-    // so a remote URL is downloaded ONCE and the project keeps the local path (P40).
-    i.addEventListener('click', async () => {
-      if (!/^https?:/i.test(u)) { state.assets.push(u); return toast('Đã thêm ảnh'); }
-      i.style.opacity = '.4';
-      try {
-        const r = await api.post('/media/download', { url: u });
-        if (r?.error) throw new Error(r.error);
-        state.assets.push(r.path);
-        const tag = el('span', 'badge', esc(String(r.name).slice(0, 14)));
-        $('#assetList')?.appendChild(tag);
-        toast('Đã tải ảnh về máy ✓', 'success');
-      } catch (e) { toast('Không tải được ảnh: ' + e.message, 'error'); }
-      finally { i.style.opacity = ''; }
-    });
-    box.appendChild(i);
+
+/**
+ * Results the owner can actually LOOK at.
+ *
+ * They were 46×46 squares whose only interaction was "click to download into assets" — no way to
+ * see what a picture was before committing it to a video. Tiles are real thumbnails now, clicking
+ * one opens it full size, and adding is its own explicit button.
+ */
+function showImages(items, sourceLabel = '') {
+  const box = $('#imgResults');
+  box.innerHTML = '';
+  if (!items.length) return;
+  if (sourceLabel) box.appendChild(el('div', 'imgres-src', esc(`${items.length} ảnh · ${sourceLabel}`)));
+  const grid = el('div', 'imgres-grid');
+  items.forEach((it) => {
+    const url = it.url;
+    const src = it.thumb || url;
+    const cell = el('div', 'imgres-cell');
+    const img = el('img');
+    img.src = src.startsWith('/api') || /^https?:/.test(src) ? src : fileUrl(src);
+    img.alt = it.title || '';
+    img.loading = 'lazy';
+    // A hit that will not even load is not a candidate — say so instead of showing a broken box.
+    img.addEventListener('error', () => cell.classList.add('dead'));
+    img.addEventListener('click', () => openImageViewer(items, items.indexOf(it)));
+    const add = el('button', 'imgres-add', '+');
+    add.title = 'Thêm vào assets của video';
+    add.addEventListener('click', (e) => { e.stopPropagation(); addImageAsset(url, cell); });
+    cell.append(img, add);
+    grid.appendChild(cell);
+  });
+  box.appendChild(grid);
+}
+
+/**
+ * A search hit lives on someone else's server; a scene must be self-contained and offline, so a
+ * remote URL is downloaded ONCE and the project keeps the local path (P40).
+ */
+async function addImageAsset(url, cell) {
+  if (!/^https?:/i.test(url)) { state.assets.push(url); return toast('Đã thêm ảnh'); }
+  cell?.classList.add('busy');
+  try {
+    const r = await api.post('/media/download', { url });
+    if (r?.error) throw new Error(r.error);
+    state.assets.push(r.path);
+    $('#assetList')?.appendChild(el('span', 'badge', esc(String(r.name).slice(0, 14))));
+    cell?.classList.add('added');
+    toast('Đã tải ảnh về máy ✓', 'success');
+  } catch (e) { toast('Không tải được ảnh: ' + e.message, 'error'); }
+  finally { cell?.classList.remove('busy'); }
+}
+
+/** Full-size viewer: the point of "xem trực tiếp ảnh trong app". Arrows walk the result set. */
+function openImageViewer(items, startAt) {
+  let i = Math.max(0, startAt);
+  const modal = $('#imgViewer');
+  const show = () => {
+    const it = items[i];
+    $('#ivImg').src = it.thumb && !it.url ? it.thumb : it.url;
+    $('#ivCap').textContent = it.title || it.url;
+    $('#ivPos').textContent = `${i + 1}/${items.length}`;
+    $('#ivOpen').href = it.url;
+  };
+  const step = (d) => { i = (i + d + items.length) % items.length; show(); };
+  modal._step = step;
+  modal._add = () => addImageAsset(items[i].url);
+  show();
+  modal.classList.add('open');
+}
+
+export function initImageViewer() {
+  const modal = $('#imgViewer');
+  if (!modal) return;
+  $('#ivPrev').addEventListener('click', () => modal._step?.(-1));
+  $('#ivNext').addEventListener('click', () => modal._step?.(1));
+  $('#ivAdd').addEventListener('click', () => modal._add?.());
+  document.addEventListener('keydown', (e) => {
+    if (!modal.classList.contains('open')) return;
+    if (e.key === 'ArrowLeft') modal._step?.(-1);
+    else if (e.key === 'ArrowRight') modal._step?.(1);
   });
 }
 async function uploadAssets(e) {

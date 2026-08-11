@@ -117,7 +117,20 @@
                 <button class="btn sm" id="btnFetch">🔗 Lấy thông tin</button>
                 <button class="btn sm" id="btnImgSearch">🖼 Tìm ảnh AI</button>
               </div>
-              <div id="imgResults" class="row wrap" style="margin-top:8px"></div>
+              <!-- The fetched article lives HERE, not in #topic. Pasting it back into the topic box
+                   flipped the input type from url to text, and the master engine then treated the
+                   article as the owner's OWN script to preserve word-for-word instead of research
+                   to write a new script from. -->
+              <div id="srcDoc" class="srcdoc hidden">
+                <div class="srcdoc-head">
+                  <span class="srcdoc-title" id="srcTitle"></span>
+                  <button class="btn xs ghost" id="srcToggle" title="Xem / sửa nội dung đã lấy">Xem</button>
+                  <button class="btn xs ghost danger" id="srcClear" title="Bỏ nội dung này">✕</button>
+                </div>
+                <div class="srcdoc-meta" id="srcMeta"></div>
+                <textarea class="input hidden" id="srcText" rows="10" spellcheck="false"></textarea>
+              </div>
+              <div id="imgResults" class="imgres" style="margin-top:8px"></div>
             </div>
 
             <div class="field">
@@ -856,6 +869,23 @@
     <h2>📝 SRT Timeline <button class="x" data-close>×</button></h2>
     <div id="srtList"></div>
     <button class="btn primary block" id="srtSave" style="margin-top:14px">💾 Lưu SRT</button>
+  </div>
+</div>
+
+<!-- IMAGE VIEWER — look at a result before committing it to a video -->
+<div class="modal-bg" id="imgViewer">
+  <div class="modal iv">
+    <h2>🖼 Ảnh <span class="iv-pos" id="ivPos"></span> <button class="x" data-close>×</button></h2>
+    <div class="iv-stage">
+      <button class="iv-nav prev" id="ivPrev" title="Ảnh trước (←)">‹</button>
+      <img id="ivImg" alt="">
+      <button class="iv-nav next" id="ivNext" title="Ảnh sau (→)">›</button>
+    </div>
+    <div class="iv-cap" id="ivCap"></div>
+    <div class="row" style="margin-top:12px">
+      <button class="btn primary" id="ivAdd">+ Thêm vào assets</button>
+      <a class="btn" id="ivOpen" target="_blank" rel="noreferrer noopener">Mở nguồn ↗</a>
+    </div>
   </div>
 </div>
 

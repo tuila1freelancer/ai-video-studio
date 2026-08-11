@@ -734,3 +734,37 @@ select.input{appearance:none;-webkit-appearance:none;background-image:url("data:
 .cover-chip span{font-size:11px;font-weight:600;display:flex;flex-direction:column}
 .cover-chip small{font-size:10px;color:var(--text-3)}
 .cover-chip:hover img{border-color:var(--accent-hi)}
+
+/* ---- fetched source article + image results (studio input column) ---- */
+/* The article got its own panel because putting it back in #topic changed what the master engine
+   thought it was looking at — a URL becomes "research", plain text becomes "the owner's script". */
+.btn.xs{padding:3px 8px;font-size:11px;border-radius:7px;line-height:1.4}
+.srcdoc{margin-top:8px;border:1px solid var(--hairline-2);border-radius:10px;padding:8px 10px;background:var(--surface-1)}
+.srcdoc-head{display:flex;align-items:center;gap:6px}
+.srcdoc-title{flex:1;min-width:0;font-size:12px;font-weight:600;color:var(--text-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.srcdoc-meta{font-size:11px;color:var(--text-3);margin-top:3px;line-height:1.5}
+.srcdoc-meta .warn{color:var(--warn-c)}
+.srcdoc textarea{margin-top:8px;font-size:12px;line-height:1.55;resize:vertical}
+.imgres-src{font-size:11px;color:var(--text-3);margin-bottom:6px}
+/* Real thumbnails, not 46px squares: the owner asked to SEE what came back, and the old grid
+   could only be clicked to download something it never showed. */
+.imgres-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:6px}
+.imgres-cell{position:relative;aspect-ratio:1;border-radius:8px;overflow:hidden;border:1px solid var(--hairline);background:var(--surface-2)}
+.imgres-cell img{width:100%;height:100%;object-fit:cover;cursor:zoom-in;display:block;transition:transform var(--t-fast)}
+.imgres-cell:hover img{transform:scale(1.06)}
+.imgres-cell.dead{display:none}
+.imgres-cell.busy{opacity:.45}
+.imgres-cell.added{border-color:var(--ok-c,#3ecf8e)}
+.imgres-add{position:absolute;right:3px;bottom:3px;width:20px;height:20px;border-radius:50%;border:none;
+  background:rgba(8,8,16,.78);color:#fff;font-size:14px;line-height:1;cursor:pointer;opacity:0;transition:opacity var(--t-fast)}
+.imgres-cell:hover .imgres-add,.imgres-cell.added .imgres-add{opacity:1}
+.imgres-cell.added .imgres-add{background:var(--accent-hi)}
+.modal.iv{max-width:900px}
+.iv-pos{font-size:12px;color:var(--text-3);font-weight:500}
+.iv-stage{position:relative;display:grid;place-items:center;background:#05050b;border-radius:10px;border:1px solid var(--hairline);min-height:180px}
+.iv-stage img{max-width:100%;max-height:62vh;display:block;border-radius:10px}
+.iv-nav{position:absolute;top:50%;transform:translateY(-50%);width:34px;height:34px;border-radius:50%;
+  border:1px solid var(--hairline-2);background:rgba(8,8,16,.72);color:#fff;font-size:20px;line-height:1;cursor:pointer}
+.iv-nav.prev{left:8px} .iv-nav.next{right:8px}
+.iv-nav:hover{border-color:var(--accent-hi)}
+.iv-cap{font-size:11px;color:var(--text-3);margin-top:8px;word-break:break-all}
