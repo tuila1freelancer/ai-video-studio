@@ -8,7 +8,7 @@ import { refreshTasks } from '../features/tasks.js';
 import { renderScenes, refreshScenes, onSceneUpdate, flushSceneUpdates, selectedIds, updateSelCount, regenScene, renderScenes2 } from './scenes.js';
 import { icon } from '../ui/icons.js';
 import { renderGallery } from './home.js';
-import { switchPage, setProjectName } from './nav.js';
+import { switchPage } from './nav.js';
 import { gatherConfig, applyConfig } from './config.js';
 import { openChangePlan } from '../features/changeplan.js';
 import { openSrt } from '../features/srt.js';
@@ -136,7 +136,7 @@ async function renameProject(p) {
     const md = { ...(p.metadata || {}), titleLocked: true };
     await api.put(`/projects/${p.id}`, { title, metadata: md });
     p.title = title; p.metadata = md;
-    if (state.current?.id === p.id) { state.current.title = title; setProjectName(title); }
+    if (state.current?.id === p.id) state.current.title = title;
     renderProjectList();
     toast(`✏️ Đã đổi tên: ${title}`, 'success');
   } catch (e) { toast(`✖ Không đổi được tên: ${e.message}`, 'error'); }
@@ -279,7 +279,6 @@ async function publishToFacebook() {
 
 export function startNewProject() {
   state.current = null; state.scenes = []; state.assets = [];
-  setProjectName('');
   $('#welcome').classList.remove('hidden');
   $('#projView').classList.add('hidden');
   $('#topic').value = ''; $('#assetList').innerHTML = ''; $('#imgResults').innerHTML = '';
@@ -317,7 +316,6 @@ export async function openProject(id) {
   switchPage('studio');
   const { project, scenes } = await api.get('/projects/' + id);
   state.current = project; state.scenes = scenes || [];
-  setProjectName(project.title);
   try { localStorage.lastProjectId = id; } catch { /* private mode */ }
   ws.subscribe(id);
   clearJournal();          // never bleed the previous project's lines

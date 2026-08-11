@@ -32,17 +32,48 @@ test('the collapse toggle went with the rail, everywhere', () => {
   }
 });
 
-test('a project can be named, and naming it locks the name', () => {
-  const html = src('../public/index.html');
-  assert.match(html, /id="projName"/);
-  const nav = src('../public/js/views/nav.js');
-  assert.match(nav, /api\.put\(`\/projects\/\$\{cur\.id\}`, \{ title, metadata: md \}\)/);
+test('a project can be named, from the row that lists it', () => {
+  // The name was briefly a chip in the topbar too. It came out: the row is the scarcest space in
+  // the app, and the project list is where you are already looking when you want to tell two
+  // projects apart. Renaming lives there and nowhere else.
+  assert.doesNotMatch(src('../public/index.html'), /id="projName"/);
+  assert.doesNotMatch(src('../public/js/views/nav.js'), /setProjectName|projName/);
+  const studio = src('../public/js/views/studio.js');
+  assert.match(studio, /async function renameProject\(p\)/);
+  assert.match(studio, /api\.put\(`\/projects\/\$\{p\.id\}`, \{ title, metadata: md \}\)/);
   // metadata, never config: config keys feed renderFingerprint, and a rename must not make a
   // single clip stale.
-  assert.match(nav, /titleLocked: true/);
-  assert.doesNotMatch(nav, /config: \{[^}]*titleLocked/);
-  // renameable from the list too — the topbar only ever shows the project that is open
-  assert.match(src('../public/js/views/studio.js'), /async function renameProject\(p\)/);
+  assert.match(studio, /titleLocked: true/);
+  assert.doesNotMatch(studio, /config: \{[^}]*titleLocked/);
+});
+
+test('the topbar sheds in a fixed order and never loses a control', () => {
+  const css = src('../public/css/app.css');
+  // least useful first: the wordmark, then the page labels, then the settings label
+  assert.match(css, /@media \(max-width:1220px\)\{\.nav-brand \.nav-label\{display:none\}\}/);
+  assert.match(css, /@media \(max-width:1060px\)\{[\s\S]{0,120}\.nav-item \.nav-label\{display:none\}/);
+  assert.match(css, /@media \(max-width:880px\)\{[\s\S]{0,200}#navSettings \.nav-label\{display:none\}/);
+  // an icon-only item must still say what it is, and only where the label is actually gone
+  assert.match(css, /\.nav-item::after\{content:attr\(data-tip\)/);
+  assert.match(src('../public/js/views/nav.js'), /b\.dataset\.tip = name;/);
+  // nothing is removed outright — every control the row starts with is still in it
+  const html = src('../public/index.html');
+  for (const id of ['channelSelect', 'navSettings', 'licenseBadge']) {
+    assert.match(html, new RegExp(`id="${id}"`), `${id} left the topbar`);
+  }
+});
+
+test('tool status is silent until a tool is actually missing', () => {
+  // Four permanent green dots told the owner what they already knew, in the scarcest space in the
+  // app. Deleting them outright would have been worse: a missing Chrome breaks every thumbnail
+  // and every caption measurement, and the failure would have been the only clue.
+  const html = src('../public/index.html');
+  assert.match(html, /class="dep-warn hidden" id="depWarn"/, 'hidden by default');
+  // the detail moved into AI Setting rather than being thrown away
+  assert.match(html, /<div class="sec-label">Công cụ hệ thống<\/div>\s*\n\s*<div class="dep-row" id="depFoot"><\/div>/);
+  const nav = src('../public/js/views/nav.js');
+  assert.match(nav, /warn\.classList\.toggle\('hidden', !missing\.length\)/);
+  assert.match(nav, /\$\('#depWarn'\)\?\.addEventListener\('click', openSettings\)/, 'the warning opens where the detail is');
 });
 
 test('a named project survives a regenerated script', () => {

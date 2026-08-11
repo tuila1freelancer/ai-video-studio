@@ -53,13 +53,13 @@
       <button class="nav-item" data-page="tutorials"><span class="ic">📖</span><span class="nav-label">Hướng dẫn</span></button>
     </div>
     <div class="nav-spacer"></div>
-    <!-- The open project, named and renameable right where it is read. -->
-    <button class="proj-name hidden" id="projName" title="Bấm để đổi tên dự án"><span id="projNameText"></span></button>
     <div class="row nav-channel" style="gap:6px">
       <select class="input" id="channelSelect" title="Kênh đang làm việc"></select>
       <button class="btn sm" id="btnManageChannels" title="Quản lý kênh">⚙</button>
     </div>
-    <div class="nav-foot" id="depFoot" title="Công cụ hệ thống"></div>
+    <!-- Tool status lives in AI Setting now. This stays as a WARNING only: silent is the normal
+         state, but a missing Chrome or ffmpeg has to be visible or renders fail with no clue. -->
+    <button class="dep-warn hidden" id="depWarn" title="Thiếu công cụ hệ thống — bấm để xem"></button>
     <button class="license-badge" id="licenseBadge" style="display:none" title="License"></button>
     <button class="btn sm" id="navSettings">⚙️ AI Setting</button>
   </nav>
@@ -805,6 +805,8 @@
 <div class="modal-bg" id="settingsModal">
   <div class="modal">
     <h2>🤖 AI Setting <button class="x" data-close>×</button></h2>
+    <div class="sec-label">Công cụ hệ thống</div>
+    <div class="dep-row" id="depFoot"></div>
     <div class="sec-label">LLM (kịch bản · metadata)</div>
     <label class="switch-row"><span class="switch"><input type="checkbox" id="setLlmOn"><span class="sl"></span></span> Bật LLM (OpenAI-compatible)</label>
     <div class="field"><label class="label">Base URL</label><input class="input" id="setLlmUrl" placeholder="https://api.openai.com/v1"></div>
