@@ -92,8 +92,12 @@ test('P40: image search works with NO api key — a real catalog, not gradients'
   const s = src('../src/providers/imagesearch.js');
   assert.match(s, /api\.openverse\.org/, 'a keyless web image search exists');
   assert.match(s, /license_type: 'commercial,modification'/, 'only images that are safe to publish');
-  // the phrases must be tried one at a time; concatenating them matches nothing
-  assert.match(s, /for \(const term of \[keywords\?\.\[0\], query\]\.filter\(Boolean\)\)/);
+  // The phrases must be tried one at a time; concatenating them matches nothing. That was the P40
+  // finding and it still holds — but two rungs were not enough, because both of them are usually
+  // full phrases and Openverse matches the whole thing (measured 2026-08-11: five words → 0 hits,
+  // three words → 240). The ladder now shortens as it descends; see searchTerms.
+  assert.match(s, /for \(const term of searchTerms\(query, keywords\)\)/);
+  assert.match(s, /export function searchTerms\(query, keywords = \[\]\)/);
   // and the offline gradient generator stays the LAST resort, not a step everyone pays for
   assert.ok(s.indexOf('api.openverse.org') < s.indexOf('await makeGradientImage('), 'placeholders are generated only after the real search failed');
 });

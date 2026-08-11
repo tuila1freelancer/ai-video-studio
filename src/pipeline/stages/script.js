@@ -26,9 +26,20 @@ export async function runScript(ctx) {
     step(projectId, 'b2', 'running', 'Tạo kịch bản');
     DB.updateProject(projectId, { current_step: 'b2' });
     op(projectId, 'Đang tạo kịch bản…');
+    // The source article: what the owner PULLED and looked at in the Studio wins over a fresh
+    // fetch. They may have edited it, the page may have changed since, and re-fetching would
+    // quietly write the video from something they never saw. A pasted link with no visit to the
+    // button still works — that is the second branch.
     let fetched = null;
-    if (project.input_type === 'url') {
-      try { fetched = await fetchLink(project.topic.trim().split(/\s+/)[0]); } catch (e) { logger.warn(`Lấy nội dung link lỗi: ${e.message}`, { projectId }); }
+    const saved = config.sourceDoc;
+    if (String(saved?.text || '').trim()) {
+      fetched = { title: saved.title || '', text: String(saved.text).trim(), url: saved.url || '', images: [] };
+      op(projectId, `🔗 Viết từ tư liệu đã lấy (${fetched.text.length} ký tự)`);
+    } else if (project.input_type === 'url') {
+      try {
+        fetched = await fetchLink(project.topic.trim().split(/\s+/)[0]);
+        op(projectId, `🔗 Đã lấy ${fetched.chars} ký tự từ link${fetched.truncated ? ' (bài dài — đã cắt ở mức engine đọc được)' : ''}`);
+      } catch (e) { logger.warn(`Lấy nội dung link lỗi: ${e.message}`, { projectId }); }
     }
     // Show Bible: channel persona + anti-repeat ledger, injected additively into the prompt
     const memory = channel ? DB.getChannelMemory(channel.id) : null;
