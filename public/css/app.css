@@ -687,3 +687,20 @@ select.input{appearance:none;-webkit-appearance:none;background-image:url("data:
   border-radius:7px;padding:2px 5px;font-size:11px;cursor:pointer;opacity:0;transition:opacity var(--t-fast)}
 .pitem:hover .pitem-ren{opacity:1}
 .pitem-ren:hover{background:var(--accent);color:#fff}
+
+/* ---- metadata, per platform ---- */
+.meta-card .mf{margin-top:10px}
+.mf-h{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;letter-spacing:.05em;
+  text-transform:uppercase;color:var(--text-3)}
+.mf-n{margin-left:auto;font-variant-numeric:tabular-nums;font-weight:600;letter-spacing:0;text-transform:none}
+.mf-n.ok{color:var(--text-3)} .mf-n.tight{color:#f7b500} .mf-n.over{color:var(--err)}
+.mf-c{border:none;background:transparent;color:var(--text-3);cursor:pointer;font-size:13px;padding:0 2px}
+.mf-c:hover{color:var(--accent-hi)}
+.mf-v{margin-top:3px;font-size:12.5px;color:var(--text-1);white-space:pre-wrap;word-break:break-word}
+.mf-v.chips{display:flex;flex-wrap:wrap;gap:4px}
+.cover-row{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0 16px}
+.cover-chip{display:flex;flex-direction:column;gap:4px;width:132px;text-decoration:none;color:var(--text-2)}
+.cover-chip img{width:100%;border-radius:8px;border:1px solid var(--hairline);background:#000;object-fit:cover;aspect-ratio:16/9}
+.cover-chip span{font-size:11px;font-weight:600;display:flex;flex-direction:column}
+.cover-chip small{font-size:10px;color:var(--text-3)}
+.cover-chip:hover img{border-color:var(--accent-hi)}

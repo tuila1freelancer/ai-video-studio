@@ -28,6 +28,7 @@ import { resolveOutputDir } from '../helpers.js';
 import { timed } from '../stats.js';
 import { resolveLang } from '../../util/lang.js';
 import { planOffsets } from '../../subtitles/timeline.js';
+import { orientationOf } from '../../publish/platforms.js';
 
 /**
  * @param {string} projectId
@@ -364,6 +365,31 @@ export async function finalize(projectId, { dir, size, config, variantName = nul
       DB.updateProject(projectId, { metadata: { ...md, thumbnail: { ...(md.thumbnail || {}), html: thumbHtml } } });
     }
     if (made.length > 1) op(projectId, `🖼️ Đã tạo ${made.length} biến thể thumbnail (A/B) trong thư mục xuất`);
+
+    // ---- cover art at every platform's real pixels ----
+    // A video is posted in more places than it is shot for: a 9:16 video still needs a 1280×720
+    // card for YouTube, and a 16:9 one still needs a 1080×1920 cover for Shorts. One design per
+    // ORIENTATION (a 16:9 layout re-shot at 9:16 becomes a strip across the middle), then every
+    // canvas of that orientation re-shot from it — so at most three generations, not seven.
+    if (aiOn && config.platformCovers !== false) {
+      checkStop(projectId);
+      const { COVER_SIZES } = await import('../../publish/platforms.js');
+      const { generateCoverSet } = await import('../thumbnail-codegen.js');
+      const outDir = project.outputDir;
+      // reuse the design just made for the video's own orientation instead of paying for it twice
+      const seed = thumbHtml ? { [orientationOf(size)]: thumbHtml } : {};
+      const { covers } = await generateCoverSet({
+        title: project.title, hook: thumbTitle, prompt: project.metadata?.thumbnail?.prompt || '',
+        guide, sizes: COVER_SIZES, outDir, baseName: 'cover',
+        language: resolveLang(config, scenes), media: thumbMedia, llm: thumbAi.llm,
+        fragments: seed, onLog: (m) => op(projectId, m),
+      });
+      if (covers.length) {
+        const md2 = DB.getProject(projectId).metadata || {};
+        DB.updateProject(projectId, { metadata: { ...md2, covers } });
+        op(projectId, `🖼️ Ảnh bìa cho ${covers.length} khổ: ${covers.map((c) => c.label).join(' · ')}`);
+      }
+    }
   } catch (e) {
     if (e.stopped) throw e; // packaging may fail silently; a stop may not
     /* keep basic */

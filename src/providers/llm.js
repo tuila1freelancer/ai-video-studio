@@ -4,6 +4,7 @@ import { aiSettings } from '../db/index.js';
 import { wordCount, safeJson } from '../util/util.js';
 import { detectLang, declaredLang, LANG_NAME, langName } from '../util/lang.js';
 import { recordUsage } from '../util/usage.js';
+import { PLATFORMS, checkField } from '../publish/platforms.js';
 
 // llm param (optional) = a resolved settings.llm object (e.g. per-channel override);
 // omitted → global settings, exactly as before.
@@ -513,6 +514,51 @@ export async function generateKeywords(topic) {
  *   contains. Without it the model can only riff on the title, which produced generic tags and
  *   descriptions promising things the video never says (P40 audit finding).
  */
+/**
+ * Force the model's answer through the platform table.
+ *
+ * Asking for a limit is not the same as getting one. Anything past the HARD cap is trimmed on a
+ * word boundary rather than shipped for the platform to cut mid-word, unknown platforms and
+ * unknown fields are dropped, and list fields are normalised — hashtags always carry their `#`,
+ * YouTube tags never do, because those are the forms each site expects to be pasted.
+ */
+export function clampPlatforms(raw) {
+  const out = {};
+  for (const pf of PLATFORMS) {
+    const got = raw?.[pf.id];
+    if (!got || typeof got !== 'object') continue;
+    const row = {};
+    for (const f of pf.fields) {
+      let v = got[f.key];
+      if (v == null) continue;
+      if (f.list) {
+        const items = (Array.isArray(v) ? v : String(v).split(/[,\n]+/))
+          .map((x) => String(x).trim())
+          .filter(Boolean)
+          .map((x) => (f.key === 'tags' ? x.replace(/^#/, '') : `#${x.replace(/^#/, '').replace(/\s+/g, '')}`));
+        // drop from the END until the JOINED string fits — the first items are the ones the model
+        // ranked most relevant, so trimming the tail loses the least
+        const kept = [];
+        for (const it of items) {
+          kept.push(it);
+          if (!checkField(f, kept).ok) { kept.pop(); break; }
+        }
+        row[f.key] = kept;
+      } else {
+        v = String(v).trim();
+        if (v.length > f.limit) {
+          const cut = v.slice(0, f.limit);
+          const sp = cut.lastIndexOf(' ');
+          v = (sp > f.limit * 0.6 ? cut.slice(0, sp) : cut).trim();
+        }
+        row[f.key] = v;
+      }
+    }
+    if (Object.keys(row).length) out[pf.id] = row;
+  }
+  return out;
+}
+
 export async function generateMetadata(project, stylePrompt, { ai, script = '' } = {}) {
   const llm = ai?.llm || null;
   const title = project?.title || project?.topic || 'Video';
@@ -522,35 +568,47 @@ export async function generateMetadata(project, stylePrompt, { ai, script = '' }
     : '';
   if (llmEnabled(llm)) {
     try {
+      // The per-platform brief and the limits come from ONE table (publish/platforms.js), so the
+      // prompt and the panel's character counters can never describe different rules. Asking in
+      // prose for "≤100 chars" and checking nowhere is how an over-long title reached the
+      // clipboard and got truncated by the platform with the keyword cut off.
+      const spec = PLATFORMS.map((pf) => {
+        const fields = pf.fields.map((f) => `    "${f.key}": ${f.list ? '["…"]' : '"…"'}   // ${f.label}, ≤${f.sweet} ký tự${f.hint ? ` (${f.hint})` : ''}`).join('\n');
+        return `  "${pf.id}": {   // ${pf.label} — ${pf.brief}\n${fields}\n  }`;
+      }).join(',\n');
       const p = await chatJson([
-        { role: 'system', content: 'You are a YouTube/Shorts/TikTok SEO expert. Reply with pure JSON.' },
+        { role: 'system', content: 'You are a social SEO editor who writes for each platform in its own voice. Reply with pure JSON.' },
         { role: 'user', content: `${stylePrompt || ''}
-Create multi-platform metadata for the video "${title}".
-${scriptBlock}Write every user-facing text (titles, descriptions, pinned comment) in the SAME LANGUAGE as that video title; tags/hashtags may mix in globally searched terms.
-Output JSON:
-{"youtube":{"title":"click-worthy ≤100 chars, MUST contain the topic's main keyword","description":"2-4 paragraphs; the first 2 lines carry the keywords (the part shown before 'show more'); end with 3-5 hashtags","tags":["10-15 search tags, no # prefix"],"pinnedComment":"1 pinned question inviting viewers to comment"},
-"shorts":{"title":"≤60 chars","hashtags":["#shorts","#..."]},
-"tiktok":{"title":"≤80 chars, hook-style","hashtags":["#..."]}}` },
+Write publishing metadata for the video "${title}".
+${scriptBlock}Write every user-facing text in the SAME LANGUAGE as that video title; tags and hashtags may mix in globally searched terms.
+Each platform gets its OWN wording — do not paste one caption into all of them. Never promise anything the narration does not deliver.
+Output JSON exactly in this shape:
+{
+${spec}
+}` },
       ], { attempts: 2, llm, validate: (x) => typeof x?.youtube?.title === 'string' && x.youtube.title.length > 3 });
-      const yt = p.youtube;
-      // keyword guard: the SEO title must still carry a content word of the real topic —
-      // a clickbait rewrite that drops the topic entirely gets the topic prefixed back
+
+      // Keyword guard: the SEO title must still carry a content word of the real topic — a
+      // clickbait rewrite that drops the subject entirely gets the topic prefixed back.
       const kws = topNouns(title, 3);
-      const flat = (s) => String(s || '').toLowerCase();
-      let seoTitle = String(yt.title).slice(0, 100);
-      if (kws.length && !kws.some((k) => flat(seoTitle).includes(flat(k)))) {
-        seoTitle = `${title.slice(0, 60)} — ${seoTitle}`.slice(0, 100);
+      const flat = (v) => String(v || '').toLowerCase();
+      if (p.youtube && kws.length && !kws.some((k) => flat(p.youtube.title).includes(flat(k)))) {
+        p.youtube.title = `${title.slice(0, 60)} — ${p.youtube.title}`;
       }
-      const hashtags = (p.shorts?.hashtags?.length ? p.shorts.hashtags : (yt.tags || []).map((t) => '#' + String(t).replace(/^#/, '').replace(/\s+/g, ''))).slice(0, 12);
+      const platforms = clampPlatforms(p);
+      const yt = platforms.youtube || {};
       return {
-        title: seoTitle,
-        description: String(yt.description || ''),
-        hashtags,
+        // the flat shape every existing consumer still reads
+        title: yt.title || title,
+        description: yt.description || '',
+        hashtags: platforms.shorts?.hashtags?.length ? platforms.shorts.hashtags
+          : (yt.tags || []).map((t) => '#' + String(t).replace(/^#/, '').replace(/\s+/g, '')).slice(0, 12),
         pinnedComment: yt.pinnedComment || '',
-        platforms: p,
+        platforms,
       };
     } catch { /* fall through to offline */ }
   }
+
   const tags = topNouns(title, 8).map((w) => '#' + w.replace(/\s+/g, ''));
   return {
     title: `${title} | Bạn cần xem ngay!`,
