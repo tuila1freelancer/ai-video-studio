@@ -7,10 +7,12 @@
 //     exact canvas), so a model can style but never break out of the frame or reach the network;
 //   • a failure is NOT loud — a thumbnail is packaging, not the video, so an unusable reply falls
 //     back to the deterministic composition builder that shipped before this feature.
+import { join } from 'node:path';
 import { chat, llmEnabled } from '../providers/llm.js';
 import { screenshotHtml, chromeAvailable } from '../media/puppeteer.js';
 import { fontsCss } from '../animation/harness.js';
 import { userFontsCss } from '../animation/userfonts.js';
+import { orientationOf } from '../publish/platforms.js';
 
 // Composition briefs for the A/B lab — one per variant, so three thumbnails differ by DESIGN
 // rather than by a random re-roll of the same idea.
@@ -143,6 +145,59 @@ Reply with ONLY the complete edited <style> block and markup.` },
  * @returns {Promise<{path,fragment}|null>} the written image + the markup that produced it (kept
  *   so the owner can edit and re-render it), or null when unavailable/unusable.
  */
+/**
+ * Cover art at every size a platform asks for.
+ *
+ * One AI design PER ORIENTATION, then every canvas re-shot from the design that matches it. A
+ * layout authored for 1280×720 does not survive being re-rendered at 1080×1920 — the headline
+ * that filled the frame becomes a strip across the middle — so sharing one design across
+ * orientations is not an option. Sharing one design across sizes of the SAME orientation is,
+ * because the fragment is ordinary CSS and 1200×630 is 1280×720 with slightly different slack.
+ *
+ * That is three generations at most, and usually two: a video only ever needs the orientations
+ * its platforms actually use.
+ *
+ * @param {object[]} sizes entries from publish/platforms.js COVER_SIZES
+ * @returns {Promise<{covers:object[], fragments:object}>} covers carry `{id,label,w,h,path}`
+ */
+export async function generateCoverSet({
+  title, hook = '', prompt = '', guide, sizes, outDir, baseName = 'cover',
+  language = 'vi', media = [], llm = null, fragments = {}, onLog = () => {},
+} = {}) {
+  const wanted = (sizes || []).filter((s) => s && s.w > 0 && s.h > 0);
+  if (!wanted.length) return { covers: [], fragments };
+  const byOrient = new Map();
+  for (const s of wanted) {
+    const o = s.orient || orientationOf(s);
+    if (!byOrient.has(o)) byOrient.set(o, []);
+    byOrient.get(o).push(s);
+  }
+  const covers = [];
+  const frags = { ...fragments };
+  for (const [orient, group] of byOrient) {
+    // the biggest canvas of the group is what the design is authored against, so every smaller
+    // re-shoot is scaling DOWN — text that fits the largest fits the rest
+    const lead = group.slice().sort((a, b) => b.w * b.h - a.w * a.h)[0];
+    if (!frags[orient]) {
+      onLog(`🖼 Thiết kế ảnh bìa ${orient} (${lead.w}×${lead.h})…`);
+      const made = await generateThumbnailImage({
+        title, hook, prompt, guide, size: { w: lead.w, h: lead.h },
+        outPath: join(outDir, `${baseName}_${orient}.jpg`), language, media, llm, onLog,
+      });
+      if (!made?.fragment) { onLog(`⚠ Không thiết kế được ảnh bìa ${orient} — bỏ qua nhóm này`); continue; }
+      frags[orient] = made.fragment;
+    }
+    for (const s of group) {
+      const outPath = join(outDir, `${baseName}_${s.id}.jpg`);
+      try {
+        await renderThumbnailFragment(frags[orient], { guide, size: { w: s.w, h: s.h }, outPath, media });
+        covers.push({ id: s.id, label: s.label, w: s.w, h: s.h, orient, path: outPath });
+      } catch (e) { onLog(`⚠ Ảnh bìa ${s.label}: ${e.message}`); }
+    }
+  }
+  return { covers, fragments: frags };
+}
+
 export async function generateThumbnailImage({
   title, hook = '', prompt = '', guide, size, outPath, language = 'vi', variant = 0, media = [], llm = null, onLog = () => {},
 } = {}) {

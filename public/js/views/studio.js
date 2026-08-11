@@ -417,11 +417,58 @@ export async function renderPublishHistory() {
   }).join('');
 }
 
+/**
+ * Metadata, per platform, where it can be read and copied.
+ *
+ * It used to render one card — a title, a description and a row of hashtags — even though the
+ * generator already produced YouTube/Shorts/TikTok separately, and the per-platform text was only
+ * visible from inside a publish dialog. Now every platform is a card, every field carries the
+ * platform's REAL character limit as a live count, and every field copies with one click.
+ */
 export function renderMeta() {
-  const box = $('#metaCard'); const m = state.current && state.current.metadata;
+  const box = $('#metaCard');
+  const m = state.current && state.current.metadata;
   if (!m) { box.innerHTML = ''; return; }
-  box.innerHTML = `<div class="meta-card"><div class="mt">${esc(m.title || '')}</div><div style="color:var(--muted);white-space:pre-wrap">${esc(m.description || '')}</div>
-    <div class="tags">${(m.hashtags || []).map((h) => `<span class="tag-chip">${esc(h)}</span>`).join('')}</div></div>`;
+  const pf = m.platforms || {};
+  const specs = state.platformSpecs || [];
+  if (!specs.length) { loadPlatformSpecs(); }
+  const cards = specs.filter((spec) => pf[spec.id]).map((spec) => {
+    const row = pf[spec.id];
+    const fields = spec.fields.filter((f) => row[f.key] != null && String(row[f.key]).length).map((f) => {
+      const val = f.list ? (row[f.key] || []).join(f.key === 'tags' ? ', ' : ' ') : String(row[f.key]);
+      const len = val.length;
+      // over the SWEET spot is a nudge, over the hard cap is a problem — two different colours
+      const cls = len > f.limit ? 'over' : (len > f.sweet ? 'tight' : 'ok');
+      return `<div class="mf">
+        <div class="mf-h"><span>${esc(f.label)}</span>
+          <span class="mf-n ${cls}">${len}/${f.limit}</span>
+          <button class="mf-c" data-copy="${esc(val)}" title="Sao chép">⧉</button></div>
+        <div class="mf-v${f.list ? ' chips' : ''}">${f.list
+          ? (row[f.key] || []).map((x) => `<span class="tag-chip">${esc(x)}</span>`).join('')
+          : esc(val)}</div>
+      </div>`;
+    }).join('');
+    return `<div class="meta-card"><div class="mt">${spec.icon} ${esc(spec.label)}</div>${fields}</div>`;
+  }).join('');
+  const covers = (m.covers || []).map((c) => `<a class="cover-chip" href="${fileUrl(c.path)}" target="_blank" rel="noreferrer">
+      <img src="${fileUrl(c.path)}" loading="lazy" decoding="async"><span>${esc(c.label)}<small>${c.w}×${c.h}</small></span></a>`).join('');
+  box.innerHTML = (covers ? `<div class="sec-label">🖼 Ảnh bìa theo nền tảng</div><div class="cover-row">${covers}</div>` : '')
+    + (cards || `<div class="meta-card"><div class="mt">${esc(m.title || '')}</div>
+        <div style="color:var(--muted);white-space:pre-wrap">${esc(m.description || '')}</div>
+        <div class="tags">${(m.hashtags || []).map((h) => `<span class="tag-chip">${esc(h)}</span>`).join('')}</div></div>`);
+  box.querySelectorAll('.mf-c').forEach((b) => b.addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(b.dataset.copy); toast('⧉ Đã sao chép', 'success'); }
+    catch { toast('Không sao chép được', 'error'); }
+  }));
+}
+
+/** The platform table, fetched once — the panel and the writer must agree on the limits. */
+async function loadPlatformSpecs() {
+  if (state.platformSpecs) return;
+  try {
+    state.platformSpecs = (await api.get('/platforms')).platforms || [];
+    renderMeta();
+  } catch { state.platformSpecs = []; }
 }
 // Same topic and config, all generated work discarded — as a NEW project, so the previous
 // attempt survives for comparison and one click can never destroy a finished video (P42).

@@ -201,6 +201,12 @@ export function mountRoutes(app, { version }) {
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
+  // ---- the platform table (limits + cover sizes), so the panel and the writer agree ----
+  r.get('/platforms', async (req, res) => {
+    const { PLATFORMS, COVER_SIZES } = await import('../publish/platforms.js');
+    res.json({ platforms: PLATFORMS, coverSizes: COVER_SIZES });
+  });
+
   // ---- subtitle preset catalog for the UI gallery ----
   // Ten built-ins plus whatever the owner has saved. A saved one is a whole SETTINGS BUNDLE, not
   // an id the resolver knows, so it travels with its config and the panel applies it on click —
