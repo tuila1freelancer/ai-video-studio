@@ -45,10 +45,17 @@ const NEW_PROJECT_DEFAULTS = {
   // P38 backgroundVariety: rotate the backdrop STYLE per scene (spotlight/aurora/grid/…) while the
   // palette + fonts stay LOCKED to the guide; set false to keep one motif across the whole video.
   hyperframe: { styleId: 'tuila1-hud-cyber', density: 'balanced', backgroundVariety: true, model: STRONG_CODEGEN_MODEL },
-  // Cinematic scene transitions ON by default: every boundary flows through a short smooth
-  // dissolve (planTransitions), with 1-2 role-driven hero transitions punching above it. Sits
-  // under every layer, so an explicit request/preset/channel value still wins.
+  // Cinematic scene transitions ON by default: every boundary flows through a short dip through
+  // black (planTransitions), with one role-driven hero transition punching above it. Sits under
+  // every layer, so an explicit request/preset/channel value still wins.
   transitions: true,
+  // The clip hands its content off at the edges, so the join has something to blend. It lives in
+  // the NEW-project defaults for the same reason subtitleLane does, one comment down: this layer
+  // runs only at creation, so the 46 projects that already have clips keep their stored config
+  // and their render fingerprints do not move. Enabling it on an existing project is a deliberate,
+  // priced re-render — a full one, since it changes every clip — and not a side effect of an
+  // upgrade. The concat-side dip already improves those videos without re-rendering anything.
+  hyperframeHandoff: true,
   // B2 script path: 'master' = the master script engine (one master prompt → canonical
   // scenes JSON with per-scene 8-bracket visuals). 'legacy' restores the old generateScript.
   scriptEngine: 'master',

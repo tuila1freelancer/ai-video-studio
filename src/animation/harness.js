@@ -88,6 +88,47 @@ export function fontsCss(families) {
   return faceBlocks().filter((f) => want.has(f.family)).map((f) => f.block).join('\n');
 }
 
+/**
+ * Scene hand-off — emitted as its OWN script, only for a clip that asked for it.
+ *
+ * The clip's CONTENT leaves before the cut and arrives just after it, while the ground — the stage
+ * gradient, the background canvas, the vignette, the grain, the progress bar and the watermark —
+ * never moves. That asymmetry is the whole point: consecutive scenes share a backdrop, so a
+ * cross-dissolve between them was only ever dissolving text over text, and a longer one made the
+ * collision worse rather than softer. Ramping `.hf-cam` (the motif and the scene body, and nothing
+ * else) leaves the join blending an emptied frame against an arriving one, over a ground that is
+ * continuous through the cut. That is the "smooth and natural" the concat alone cannot buy.
+ *
+ * It is a separate script, registered through the public `window.__onSeek`, rather than a branch
+ * inside RUNTIME — RUNTIME is one constant string, so a branch in it would change the bytes of
+ * EVERY scene page including those of projects that never asked (tests/scene-page-golden.test.js).
+ * This way an untouched project's page is identical to the byte and its clips stay valid.
+ *
+ * It runs on REAL time, like the caption and the progress bar. The template layers live in warped
+ * authored coordinates and a hand-off that drifted with the warp would not meet a cut that happens
+ * at a real timestamp. The window fits inside the clip's own silence (measured 0.68–0.93s of
+ * trailing breath pad, 0.19–0.20s leading), so no narration is touched.
+ */
+const HANDOFF = `
+(() => {
+  const S = window.__scene;
+  const cam = document.querySelector('.hf-cam');
+  if (!cam || !S.handoff) return;
+  const dOut = S.handoff.out, dIn = S.handoff.in;
+  window.__onSeek((t) => {
+    const tail = Math.max(0, t - (S.duration - dOut)) / dOut; // 0 → 1 over the last dOut seconds
+    const head = 1 - Math.max(0, Math.min(1, t / dIn));       // 1 → 0 over the first dIn seconds
+    const k = Math.max(0, Math.min(1, Math.max(tail, head)));
+    const e = k * k * (3 - 2 * k); // smoothstep — a linear ramp reads as a mechanical wipe
+    cam.style.opacity = (1 - 0.94 * e).toFixed(4);
+    // concatenation, not template literals: this runtime is itself inside one, so an
+    // interpolation here would be substituted at PAGE BUILD time rather than at seek time
+    cam.style.transform = 'scale(' + (1 + (tail > head ? 0.035 : -0.03) * e).toFixed(4) + ')';
+    cam.style.filter = e > 0.001 ? 'blur(' + (3 * e).toFixed(2) + 'px)' : '';
+  });
+})();
+`;
+
 // The in-page runtime. Kept dependency-free and small.
 const RUNTIME = `
 (() => {
@@ -507,6 +548,9 @@ export function buildScenePage(opts) {
     fontChecks: Array.isArray(opts.fontChecks) ? opts.fontChecks : [],
     theme: { particles: theme.particles, streak: theme.streak, accents: theme.accents },
     live: !!opts.live,
+    // Present only when the hand-off ramp is on, so an untouched project keeps a byte-identical
+    // page (tests/scene-page-golden.test.js) and its clips stay valid.
+    ...(opts.handoff ? { handoff: { out: 0.38, in: 0.28 } } : {}),
   };
   // Creative runtime libraries (P40): only the ones this spec actually reaches for. An explicit
   // opts.libs wins (regen/preview paths that already resolved them); otherwise they are detected
@@ -578,7 +622,7 @@ ${stageHtml}
 ${libScript}${template.script ? `<script>${gsapBundle()}<\/script>
 <script>window.__tplScript=function(gsap,tl,S,rng){${String(template.script).replace(/<\/script/gi, '<\\/script')}
 };<\/script>` : ''}
-<script>${RUNTIME}<\/script>
+<script>${RUNTIME}<\/script>${opts.handoff ? `\n<script>${HANDOFF}<\/script>` : ''}
 </body></html>`;
 }
 
