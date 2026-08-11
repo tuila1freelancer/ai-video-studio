@@ -1,7 +1,10 @@
 // Render entry used by POST /render (mode: all | scenes | concat) — re-renders scene clips
 // (optionally a subset) then, unless mode='scenes', re-finalizes the whole video.
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import * as DB from '../db/index.js';
+import { renderCurrent, renderFingerprint, ttsFingerprint, fpCurrent, fpStamp } from './fingerprint.js';
+import { aiSettingsFor } from '../core/config.js';
 import { hub } from '../ws/hub.js';
 import { ratioToSize } from '../util/util.js';
 import { renderAnimationScene } from '../animation/index.js';
@@ -54,7 +57,53 @@ export async function renderOnly(projectId, { mode = 'all', sceneIds = [], confi
         return;
       }
     }
-    if (renderPass) {
+    // Render only what is no longer current.
+    //
+    // "Render + Ghép" rendered every clip in the project, every time. On a 46-scene 4K video that
+    // is most of an hour to change one scene — and the app already knew better: `renderCurrent`
+    // is the same predicate the pipeline's own resume uses, and finalize uses it again to decide
+    // which clips to repair before burning captions. This path simply never asked.
+    //
+    // Two things make a clip stale, and they are exactly the two the owner named:
+    //   voice — both re-voice paths (stages/tts.js, regen.js) already NULL `video_path` with the
+    //           comment "the clip carries the old voice", so a re-voiced scene has no clip to keep
+    //   HTML  — a new spec/template/props moves `renderFingerprint`, which is what renderCurrent
+    //           compares; a config key that shapes the picture moves it too
+    // So no new stamp is needed: "no clip on disk" OR "fingerprint moved" IS the answer.
+    //
+    // An explicitly SELECTED subset (mode 'scenes') stays unconditional. Picking a scene by hand
+    // is an instruction, not a question, and it is also the escape hatch when a clip is wrong in
+    // a way no hash can see.
+    let skipped = 0;
+    if (renderPass && mode !== 'scenes') {
+      const clipCfg = project.config || config; // a variant's overlay never described the clips
+      const fresh = [];
+      for (const s of scenes) {
+        if (!(s.video_path && existsSync(s.video_path))) { fresh.push(s); continue; }
+        const cur = renderCurrent(s, { config: clipCfg, project }, clipCfg);
+        if (!cur.ok) { fresh.push(s); continue; }
+        // Stamped under an older digest DEFINITION: the clip is fine, our idea of the hash moved.
+        // Carry it forward so this costs one comparison rather than one per run, forever.
+        if (cur.migrate) DB.updateScene(s.id, { fp: fpStamp(s, 'render', cur.want) });
+        skipped++;
+      }
+      scenes = fresh;
+      op(projectId, skipped
+        ? `♻️ ${scenes.length}/${skipped + scenes.length} cảnh cần dựng lại — giữ nguyên ${skipped} cảnh không đổi`
+        : `♻️ Tất cả ${scenes.length} cảnh đều cần dựng lại`);
+      // "Render + Ghép" does not run TTS. A scene whose LINE was edited but never re-voiced would
+      // therefore be skipped here and sound unchanged in the finished video — correctly, since its
+      // clip still matches the audio on disk, but silently. Say it, or the owner reads a no-op as
+      // a bug.
+      const channel = DB.channelOf(projectId);
+      const ai = aiSettingsFor(channel);
+      const unvoicedEdits = allScenes.filter((s) => s.audio_path
+        && !fpCurrent(s, 'tts', ttsFingerprint(s, { config, channel, ai })));
+      if (unvoicedEdits.length) {
+        op(projectId, `⚠️ ${unvoicedEdits.length} cảnh có lời thoại/giọng đã đổi nhưng CHƯA thu âm lại — bước này không tự lồng tiếng, hãy dùng "Voice đã chọn"`);
+      }
+    }
+    if (renderPass && scenes.length) {
       step(projectId, 'b6', 'running', 'Render');
       const rC = parseInt(config.renderConcurrency || 3, 10);
       const pp = progressPlan(allScenes, config);
@@ -66,7 +115,14 @@ export async function renderOnly(projectId, { mode = 'all', sceneIds = [], confi
           onLog: (s) => op(projectId, `cảnh ${sc.idx + 1}: ${s}`),
         });
         const { path, duration, preview } = r;
-        DB.updateScene(sc.id, { video_path: path, duration, status: 'rendered', ...(preview ? { image_path: preview } : {}) });
+        // STAMP the clip. Without this the fresh file keeps the OLD fingerprint, so the skip above
+        // would find the same scene stale on every single run and the incremental pass would never
+        // converge — it would just re-render everything with extra steps. finalize's repair pass
+        // learned this the same way and carries the same note.
+        DB.updateScene(sc.id, {
+          video_path: path, duration, status: 'rendered', ...(preview ? { image_path: preview } : {}),
+          fp: fpStamp(DB.getScene(sc.id), 'render', renderFingerprint(sc, { config: project.config || config, project })),
+        });
         hub.toProject(projectId, { type: 'scene', sceneId: sc.id, idx: sc.idx, status: 'rendered', video: `/api/file?path=${encodeURIComponent(path)}`, ...(preview ? { image: `/api/file?path=${encodeURIComponent(preview)}` } : {}) });
       }, { pool: 'render' }); // same process-wide bound as pipeline renders
       step(projectId, 'b6', 'done');

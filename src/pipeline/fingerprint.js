@@ -82,7 +82,13 @@ function renderCfg(config, { legacy = false } = {}) {
     if (!legacy && k === 'brandKit' && v && typeof v === 'object' && !Array.isArray(v)) {
       const rest = { ...v };
       for (const drop of CONCAT_ONLY_BRAND) delete rest[drop];
-      cfg[k] = rest;
+      // A brand kit that is ONLY a stamp and a watermark contributes NOTHING to a clip, so it must
+      // read as absent rather than as an empty object. `{}` is not `undefined` to a digest: a
+      // project with no brandKit at all whose channel then gained a stamp-only kit would otherwise
+      // find all 46 of its clips stale and re-render them to move a logo. Measured on the live DB
+      // before changing it — 0 of 48 projects carry a brandKit that strips to empty, so no
+      // finished video is invalidated by tightening this.
+      if (Object.keys(rest).length) cfg[k] = rest;
       continue;
     }
     cfg[k] = v;
