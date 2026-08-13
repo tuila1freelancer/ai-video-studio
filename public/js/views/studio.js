@@ -47,8 +47,18 @@ export function initStudio() {
   $('#topic').addEventListener('input', detectType);
   $('#btnStart').addEventListener('click', () => withLock($('#btnStart'), createAndStart));
   $('#btnDelAll').addEventListener('click', async () => {
-    const ok = await confirmDialog({ title: 'Xoá tất cả dự án?', body: 'Toàn bộ dự án của kênh hiện tại sẽ bị xoá khỏi danh sách.', okText: 'Xoá tất cả', danger: true });
-    if (ok) { await api.del('/projects'); startNewProject(); loadProjects(); }
+    // Same rule as the single delete: the files go too, so say so before anything is pressed.
+    const ok = await confirmDialog({
+      title: 'Xoá tất cả dự án?',
+      body: `Toàn bộ ${state.projects.length} dự án của kênh này sẽ bị xoá — kèm TOÀN BỘ file trên ổ đĩa`
+        + ' (kịch bản, giọng đọc, clip từng cảnh, video hoàn chỉnh, ảnh bìa).\n\nKhông khôi phục được.',
+      okText: 'Xoá tất cả vĩnh viễn', cancelText: 'Giữ lại', danger: true,
+    });
+    if (ok) {
+      const r = await api.del('/projects');
+      toast(`🗑 Đã xoá ${r.files || 0} file (${mb(r.bytes || 0)})`, 'success');
+      startNewProject(); loadProjects();
+    }
   });
   $('#btnStop').addEventListener('click', () => api.post(`/projects/${state.current.id}/stop`, {}));
   // On a finished video the button means "apply my edits", which is a different question: show
@@ -133,11 +143,55 @@ export function renderProjectList() {
     const it = el('div', 'pitem' + (state.current && state.current.id === p.id ? ' active' : ''));
     it.innerHTML = `${p.thumb_path ? `<img class="thumb" src="${fileUrl(p.thumb_path)}" loading="lazy" decoding="async">` : '<div class="thumb"></div>'}
       <div class="meta"><div class="t">${esc(p.title)}</div><div class="s">${badgeText(p.status)} · ${p.aspect_ratio}</div></div>
-      <button class="pitem-ren" title="Đổi tên">✏️</button>`;
+      <button class="pitem-ren" title="Đổi tên">✏️</button>
+      <button class="pitem-del" title="Xoá dự án">🗑</button>`;
     it.querySelector('.pitem-ren').addEventListener('click', (e) => { e.stopPropagation(); renameProject(p); });
+    it.querySelector('.pitem-del').addEventListener('click', (e) => { e.stopPropagation(); deleteProject(p); });
     it.addEventListener('click', () => openProject(p.id));
     box.appendChild(it);
   });
+}
+
+const mb = (n) => (n >= 1073741824 ? `${(n / 1073741824).toFixed(2)} GB` : `${Math.round(n / 1048576)} MB`);
+
+/**
+ * Delete ONE project, files and all.
+ *
+ * Deleting takes the files with it (owner's call, 2026-08-12), so the dialog has to name what
+ * goes: a confirmation that says "xoá dự án?" while quietly removing 4 GB of 4K clips is not a
+ * confirmation. The footprint is fetched from the server FIRST — the real file count and the real
+ * bytes, not an estimate — and a running project is refused outright rather than deleted out from
+ * under its own pipeline.
+ */
+async function deleteProject(p) {
+  if (['running', 'queued'].includes(p.status)) {
+    return toast('Dự án đang chạy — bấm Dừng trước khi xoá.', 'error');
+  }
+  let fp = null;
+  try { fp = await api.get(`/projects/${p.id}/footprint`); } catch { /* deleted underneath us */ }
+  const lines = fp ? [
+    `Trạng thái: ${badgeText(fp.status)} · ${fp.scenes} cảnh`,
+    `${fp.clips} clip cảnh${fp.hasVideo ? ' · video hoàn chỉnh' : ''}${fp.covers ? ` · ${fp.covers} ảnh bìa` : ''}`,
+    '',
+    `SẼ XOÁ VĨNH VIỄN ${fp.files} file (${mb(fp.bytes)}) khỏi ổ đĩa.`,
+    'Không khôi phục được. Kịch bản, giọng đọc, clip và video hoàn chỉnh đều mất.',
+  ] : ['Không đọc được dung lượng — vẫn sẽ xoá dự án và toàn bộ file của nó.'];
+  const ok = await confirmDialog({
+    title: `Xoá "${(p.title || 'dự án').slice(0, 60)}"?`,
+    body: lines.join('\n'),
+    okText: 'Xoá vĩnh viễn',
+    cancelText: 'Giữ lại',
+    danger: true,
+  });
+  if (!ok) return;
+  try {
+    const r = await api.del(`/projects/${p.id}`);
+    toast(`🗑 Đã xoá — ${r.files || 0} file (${mb(r.bytes || 0)})`, 'success');
+    // The open project just ceased to exist; leaving its panel on screen would offer buttons
+    // that now act on nothing.
+    if (state.current?.id === p.id) startNewProject();
+    await loadProjects();
+  } catch (e) { toast(`✖ Không xoá được: ${e.message}`, 'error'); }
 }
 
 /** Rename from the list too — the topbar only ever shows the project that is open. */

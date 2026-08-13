@@ -681,8 +681,84 @@ export function mountRoutes(app, { version }) {
       res.json({ projectId: fresh.id, status: 'running' });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
-  r.delete('/projects/:id', (req, res) => { DB.deleteProject(req.params.id); res.json({ ok: true }); });
-  r.delete('/projects', (req, res) => { DB.deleteAllProjects(); res.json({ ok: true }); });
+  /**
+   * What disappears if this project is deleted — asked BEFORE the confirmation is shown.
+   *
+   * Deleting always removes the files now (owner's call), so the dialog has to name them. A
+   * dialog that says "xoá dự án?" while quietly taking 4 GB of 4K clips is not a confirmation.
+   */
+  r.get('/projects/:id/footprint', (req, res) => {
+    const p = DB.getProject(req.params.id);
+    if (!p) return res.status(404).json({ error: 'not found' });
+    const scenes = DB.getScenes(p.id);
+    const files = projectOwnedFiles(p, scenes);
+    let bytes = 0;
+    for (const f of files) { try { bytes += statSync(f).size; } catch { /* already gone */ } }
+    res.json({
+      title: p.title, status: p.status, scenes: scenes.length,
+      clips: scenes.filter((s) => s.video_path && existsSync(s.video_path)).length,
+      hasVideo: !!(p.video_path && existsSync(p.video_path)),
+      covers: (p.metadata?.covers || []).filter((c) => c?.path && existsSync(c.path)).length,
+      dir: DB.projectDirFor(p.id), files: files.length, bytes,
+    });
+  });
+
+  /**
+   * Every file this project OWNS — and nothing it merely shares.
+   *
+   * The working directory is exclusive, so it goes whole. `outputDir` is NOT: several projects of
+   * one channel publish into the same folder, so deleting it would take other people's finished
+   * videos with it. The deliverables there are removed one by one, by name.
+   */
+  function projectOwnedFiles(p, scenes) {
+    const out = [];
+    const dir = DB.projectDirFor(p.id);
+    const walk = (d) => {
+      for (const e of readdirSync(d, { withFileTypes: true })) {
+        const full = join(d, e.name);
+        if (e.isDirectory()) walk(full); else out.push(full);
+      }
+    };
+    try { if (existsSync(dir)) walk(dir); } catch { /* unreadable — report what we have */ }
+    for (const f of [p.video_path, p.thumb_path, ...(p.metadata?.covers || []).map((c) => c?.path)]) {
+      if (f && existsSync(f) && !f.startsWith(dir)) out.push(f);
+    }
+    return [...new Set(out)];
+  }
+
+  r.delete('/projects/:id', (req, res) => {
+    const p = DB.getProject(req.params.id);
+    if (!p) return res.json({ ok: true, removed: 0 }); // already gone is the outcome asked for
+    const removed = purgeProjectFiles(p);
+    DB.deleteProject(p.id);
+    logger.info(`🗑 Đã xoá dự án "${p.title}" — ${removed.files} file, ${(removed.bytes / 1048576).toFixed(0)} MB`, { projectId: p.id });
+    res.json({ ok: true, ...removed });
+  });
+
+  /** Delete the owned files, then the working directory itself. Never a shared output folder. */
+  function purgeProjectFiles(p) {
+    const scenes = DB.getScenes(p.id);
+    const files = projectOwnedFiles(p, scenes);
+    let bytes = 0;
+    let n = 0;
+    for (const f of files) {
+      try { bytes += statSync(f).size; unlinkSync(f); n++; } catch { /* gone or locked — keep going */ }
+    }
+    try { rmSync(DB.projectDirFor(p.id), { recursive: true, force: true }); } catch { /* best effort */ }
+    return { files: n, bytes };
+  }
+
+  r.delete('/projects', (req, res) => {
+    // Consistent with the single delete: "xoá" means the files go too.
+    let files = 0;
+    let bytes = 0;
+    for (const p of DB.listProjects(DB.activeChannelId()) || []) {
+      const r2 = purgeProjectFiles(p);
+      files += r2.files; bytes += r2.bytes;
+    }
+    DB.deleteAllProjects();
+    res.json({ ok: true, files, bytes });
+  });
 
   // ---- canonical scenes JSON export (factory format; DB is the source of truth) ----
   r.get('/projects/:id/scenes-json', async (req, res) => {
