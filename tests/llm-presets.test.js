@@ -250,6 +250,23 @@ test('a new project pins the codegen model its own provider actually serves', as
   assert.equal(mergeConfigLayers({}, { hyperframe: { model: '' } }).hyperframe.model, '');
 });
 
+test('an image provider can be added by name instead of by URL', async () => {
+  const { addEditProvider, removeEditProvider, brandEditConfig } = await import('../src/api/services/brand-gen.js');
+  const added = addEditProvider({ presetId: 'gemini', apiKey: 'AIza-x' });
+  assert.equal(added.label, 'Google Gemini');
+  const cfg = brandEditConfig();
+  assert.equal(cfg.provider.baseUrl, 'https://generativelanguage.googleapis.com/v1beta/openai');
+  assert.equal(cfg.provider.apiKey, 'AIza-x');
+
+  // a provider that edits no images is refused rather than registered and failed later
+  assert.throws(() => addEditProvider({ presetId: 'groq', apiKey: 'k' }), /không sửa được ảnh/);
+  // the hand-typed form still works exactly as before
+  const manual = addEditProvider({ label: 'Riêng', baseUrl: 'https://mine.example/v1/', apiKey: 'k' });
+  assert.equal(manual.label, 'Riêng');
+  removeEditProvider(manual.id);
+  removeEditProvider(added.id);
+});
+
 // ---- what actually reaches the wire ----
 
 const { chat } = await import('../src/providers/llm.js');

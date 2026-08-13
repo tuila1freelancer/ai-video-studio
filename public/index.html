@@ -733,7 +733,10 @@
             <div></div>
           </div>
           <div id="bgProviderForm" class="hidden" style="margin-top:10px;border:1px dashed var(--hairline-2);border-radius:8px;padding:10px">
-            <div class="grid2">
+            <div class="field"><label class="label">Nhà cung cấp</label>
+              <select class="input" id="bgPfPreset"></select>
+              <div class="hint" id="bgPfNote" style="margin-top:5px;line-height:1.7"></div></div>
+            <div class="grid2 hidden" id="bgPfCustom">
               <div><label class="label">Tên hiển thị</label><input class="input" id="bgPfLabel" placeholder="vd: Infinity API"></div>
               <div><label class="label">Base URL</label><input class="input" id="bgPfUrl" placeholder="https://infinityapis.com/v1"></div>
             </div>
