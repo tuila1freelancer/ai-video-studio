@@ -52,12 +52,12 @@ export function syncLlmAccounts(prev, next, incoming) {
   const shown = prev?.llm?.accounts?.[llm.preset]?.apiKey;
   if (shown && typeof incoming?.apiKey === 'string' && incoming.apiKey.includes('••')) llm.apiKey = shown;
   const record = (id, from) => {
-    const entry = { apiKey: from.apiKey || '', model: from.model || '' };
+    const entry = { apiKey: from.apiKey || '', model: from.model || '', codegenModel: from.codegenModel || '' };
     // Only a custom endpoint owns its URL; every other one gets it from the catalogue, and
     // storing it back would make the entry permanently non-empty — so clearing a key could
     // then never actually forget the provider.
     if (id === 'custom') entry.baseUrl = from.baseUrl || '';
-    if (entry.apiKey || entry.model || entry.baseUrl) accounts[id] = entry;
+    if (entry.apiKey || entry.model || entry.baseUrl || entry.codegenModel) accounts[id] = entry;
     else delete accounts[id];
   };
   // (2) the provider being left behind, before the top level is overwritten. Skipped when the
