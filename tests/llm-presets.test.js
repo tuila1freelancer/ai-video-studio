@@ -1,6 +1,8 @@
 // P45: the provider catalogue. A data file's realistic failure mode is a bad paste — a typo'd
 // base URL, a duplicated id, a model list that lost its provider — so these assert the shape
-// as hard as the behaviour. Pure: no database, no network.
+// as hard as the behaviour. The last block stubs fetch to prove what actually reaches the wire,
+// including the case that matters most: an unknown endpoint must send exactly what it always did.
+import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
@@ -82,13 +84,14 @@ test('anything unrecognised is custom, and custom carries no quirks', () => {
   assert.equal(out.extraHeaders, undefined);
   assert.equal(out.jsonMode, undefined);
   assert.equal(out.maxTokensFloor, undefined);
+  assert.equal(out.maxTokensCap, undefined);
 });
 
 test('an install that predates presets picks up its provider without touching settings', () => {
   const legacy = { enabled: true, baseUrl: 'https://api.groq.com/openai/v1', apiKey: 'gsk_x', model: 'llama-3.1-8b-instant' };
   const out = withPreset(legacy);
   assert.equal(out.preset, 'groq');
-  assert.equal(out.maxTokensFloor, 8192, 'the 16000 floor would 400 every call on Groq');
+  assert.equal(out.maxTokensCap, 8192, 'the uncapped 16000 floor would 400 every call on Groq');
   // connection facts are never rewritten
   assert.equal(out.baseUrl, legacy.baseUrl);
   assert.equal(out.apiKey, legacy.apiKey);
@@ -99,7 +102,7 @@ test('an install that predates presets picks up its provider without touching se
 test('a value the user set explicitly always beats the catalogue', () => {
   assert.equal(withPreset({ preset: 'anthropic' }).jsonMode, false);
   assert.equal(withPreset({ preset: 'anthropic', jsonMode: true }).jsonMode, true);
-  assert.equal(withPreset({ preset: 'groq', maxTokensFloor: 4096 }).maxTokensFloor, 4096);
+  assert.equal(withPreset({ preset: 'groq', maxTokensCap: 4096 }).maxTokensCap, 4096);
 });
 
 test('compat resolves per MODEL, not just per provider', () => {
@@ -146,4 +149,88 @@ test('an unknown preset id is safe', () => {
   assert.equal(presetById('nope'), null);
   assert.equal(withPreset({ preset: 'nope', baseUrl: 'https://x.example/v1' }).preset, 'nope');
   assert.equal(codegenModelFor({ preset: 'nope' }), '');
+});
+
+// ---- what actually reaches the wire ----
+
+const { chat } = await import('../src/providers/llm.js');
+
+/** Run one chat() against a stubbed fetch and hand back the request it made. */
+async function capture(llm, opts = {}) {
+  const real = globalThis.fetch;
+  let seen = null;
+  globalThis.fetch = (url, init) => {
+    seen = { url, headers: init.headers, body: JSON.parse(init.body) };
+    return Promise.resolve(new Response(JSON.stringify({ choices: [{ message: { content: 'OK' } }] }), { status: 200 }));
+  };
+  try {
+    await chat([{ role: 'user', content: 'hi' }], { llm: { enabled: true, ...llm }, ...opts });
+  } finally { globalThis.fetch = real; }
+  return seen;
+}
+
+test('an unrecognised endpoint sends exactly what it always sent', () => {
+  // The no-regression net for every module that goes through chat(): the owner's private proxy
+  // and every test fixture in this repo live on this path.
+  return capture({ baseUrl: 'http://fake.local', apiKey: 'k', model: 'fake-m' }).then((req) => {
+    assert.equal(req.url, 'http://fake.local/chat/completions');
+    assert.deepEqual(Object.keys(req.body).sort(), ['max_tokens', 'messages', 'model', 'stream', 'temperature']);
+    assert.equal(req.body.max_tokens, 16000);
+    assert.equal(req.body.stream, false);
+    assert.deepEqual(Object.keys(req.headers).sort(), ['Authorization', 'Content-Type']);
+  });
+});
+
+test('a provider with a completion cap gets the cap, not the 16000 floor', async () => {
+  const req = await capture({ baseUrl: 'https://api.groq.com/openai/v1', apiKey: 'k', model: 'llama-3.1-8b-instant' });
+  assert.equal(req.body.max_tokens, 8192, 'the floor would 400 every call on Groq');
+  // a caller asking for MORE than the cap is still clamped — that is the point
+  const big = await capture({ baseUrl: 'https://api.groq.com/openai/v1', apiKey: 'k', model: 'llama-3.1-8b-instant' }, { maxTokens: 24000 });
+  assert.equal(big.body.max_tokens, 8192);
+});
+
+test('a reasoning model renames the token field and drops temperature', async () => {
+  const openai = { baseUrl: 'https://api.openai.com/v1', apiKey: 'sk' };
+  const cheap = await capture({ ...openai, model: 'gpt-4o-mini' });
+  assert.equal(cheap.body.max_tokens, 16000);
+  assert.equal(typeof cheap.body.temperature, 'number');
+
+  const reasoning = await capture({ ...openai, model: 'gpt-5-mini' });
+  assert.equal(reasoning.body.max_completion_tokens, 16000);
+  assert.equal(reasoning.body.max_tokens, undefined, 'sending both is a 400');
+  assert.equal(reasoning.body.temperature, undefined, 'this line accepts only temperature 1');
+});
+
+test("a provider's own headers ride along with the key", async () => {
+  const req = await capture({ baseUrl: 'https://openrouter.ai/api/v1', apiKey: 'k', model: 'openai/gpt-oss-120b' });
+  assert.equal(req.headers['X-Title'], 'AI Video Studio');
+  assert.equal(req.headers.Authorization, 'Bearer k');
+});
+
+test('a local server answers without a key ever being typed', async () => {
+  const req = await capture({ baseUrl: 'http://localhost:11434/v1', apiKey: '', model: 'qwen3:8b' });
+  assert.equal(req.headers.Authorization, 'Bearer local');
+  assert.equal(req.body.model, 'qwen3:8b');
+});
+
+test('walking to a fallback model re-reads that model\'s rules', async () => {
+  // gpt-4o-mini first (plain max_tokens), then the reasoning line — the second request must not
+  // inherit the first model's answers.
+  const real = globalThis.fetch;
+  const bodies = [];
+  globalThis.fetch = (url, init) => {
+    bodies.push(JSON.parse(init.body));
+    return bodies.length === 1
+      ? Promise.resolve(new Response('nope', { status: 401 }))   // dead key → next model
+      : Promise.resolve(new Response(JSON.stringify({ choices: [{ message: { content: 'OK' } }] }), { status: 200 }));
+  };
+  try {
+    await chat([{ role: 'user', content: 'hi' }], {
+      llm: { enabled: true, baseUrl: 'https://api.openai.com/v1', apiKey: 'sk', model: 'gpt-4o-mini', modelFallback: 'gpt-5-mini' },
+    });
+  } finally { globalThis.fetch = real; }
+  assert.equal(bodies.length, 2);
+  assert.equal(bodies[0].max_tokens, 16000);
+  assert.equal(bodies[1].max_completion_tokens, 16000);
+  assert.equal(bodies[1].max_tokens, undefined);
 });

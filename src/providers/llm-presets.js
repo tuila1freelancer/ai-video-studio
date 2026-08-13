@@ -37,7 +37,8 @@
  * @property {boolean} [modelsVerified] the ids below were confirmed against the live catalogue
  * @property {string|null} codegenModel HyperFrame's model, or null when this provider has no Gemini
  * @property {object} lanes which stages this provider can serve
- * @property {object} [compat] deviations from the OpenAI baseline
+ * @property {object} [compat] deviations from the OpenAI baseline —
+ *   maxTokensCap · maxTokensFloor · maxTokensParam · omitTemperature · jsonMode · extraHeaders
  * @property {Array<{id:string,label:string,compat?:object}>} models
  */
 
@@ -86,8 +87,8 @@ export const LLM_PRESETS = [
     codegenModel: null,
     lanes: { llm: true, image: false, tts: { model: 'playai-tts' } },
     // Groq enforces a per-model completion cap (commonly 8192) and answers 400 rather than
-    // trimming, so the 16000 floor would fail every single call.
-    compat: { maxTokensFloor: 8192 },
+    // trimming, so the uncapped 16000 floor would fail every single call.
+    compat: { maxTokensCap: 8192 },
     models: [
       { id: 'llama-3.1-8b-instant', label: 'rẻ & nhanh' },
       { id: 'openai/gpt-oss-20b', label: 'cân bằng' },
@@ -107,7 +108,7 @@ export const LLM_PRESETS = [
     modelsVerified: true,
     codegenModel: null,
     lanes: { llm: true, image: false, tts: false },
-    compat: { maxTokensFloor: 8192 }, // free tier also caps context at 8k
+    compat: { maxTokensCap: 8192 }, // the free tier also caps context at 8k
     models: [{ id: 'gpt-oss-120b', label: 'mạnh' }],
   },
   {
@@ -164,7 +165,7 @@ export const LLM_PRESETS = [
     modelsVerified: true,
     codegenModel: null,
     lanes: { llm: true, image: false, tts: false },
-    compat: { maxTokensFloor: 8192 },
+    compat: { maxTokensCap: 8192 },
     models: [
       { id: 'deepseek-v4-flash', label: 'rẻ & nhanh' },
       { id: 'deepseek-v4-pro', label: 'mạnh' },
@@ -456,6 +457,9 @@ export function withPreset(s, model = s?.model) {
   if (out.jsonMode === undefined && (mc.jsonMode ?? c.jsonMode) !== undefined) out.jsonMode = mc.jsonMode ?? c.jsonMode;
   if (out.maxTokensFloor === undefined && (mc.maxTokensFloor ?? c.maxTokensFloor) !== undefined) {
     out.maxTokensFloor = mc.maxTokensFloor ?? c.maxTokensFloor;
+  }
+  if (out.maxTokensCap === undefined && (mc.maxTokensCap ?? c.maxTokensCap) !== undefined) {
+    out.maxTokensCap = mc.maxTokensCap ?? c.maxTokensCap;
   }
   out.maxTokensParam = mc.maxTokensParam ?? c.maxTokensParam;
   out.omitTemperature = mc.omitTemperature ?? c.omitTemperature;
