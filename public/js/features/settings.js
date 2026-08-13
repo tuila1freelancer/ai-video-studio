@@ -166,6 +166,7 @@ function llmAccount(id) {
     apiKey: saved?.apiKey || '',
     model: saved?.model || p?.models?.[0]?.id || '',
     baseUrl: saved?.baseUrl || p?.baseUrl || '',
+    codegenModel: saved?.codegenModel || '',
   };
 }
 
@@ -177,6 +178,7 @@ function stashLlmAccount() {
   state.llmAccounts[llmShownPreset] = {
     apiKey: $('#setLlmKey').value,
     model: $('#setLlmModel').value.trim(),
+    codegenModel: $('#setLlmCodegenModel').value.trim(),
     // Only a custom endpoint owns its URL. Storing the catalogue's URL back would make every
     // entry permanently non-empty, and clearing a key could then never forget the provider.
     ...(p?.baseUrl ? {} : { baseUrl: $('#setLlmUrl').value.trim() }),
@@ -197,7 +199,19 @@ function renderLlmPreset() {
   $('#setLlmKey').value = acc.apiKey;
   $('#setLlmKey').placeholder = acc.apiKey ? 'sk-...' : `dán API key của ${p?.label || 'provider'}…`;
   $('#setLlmModel').value = acc.model;
+  $('#setLlmCodegenModel').value = acc.codegenModel;
   llmShownPreset = id;
+
+  // HyperFrame writes the scene graphics as code and only Gemini writes markup that renders.
+  // Codegen also runs with no fallback, so a provider without Gemini does not degrade — it
+  // fails ten attempts deep, mid-render, naming a model the owner never chose. This is the one
+  // place the app can say so before that happens.
+  const hasGemini = /gemini/i.test(acc.codegenModel || p?.codegenModel || '');
+  $('#llmCodegenWarn').innerHTML = hasGemini
+    ? '✅ Khâu dựng đồ hoạ sẽ chạy bằng <strong>' + esc(acc.codegenModel || p.codegenModel) + '</strong>.'
+    : '⚠️ <strong>Nhà cung cấp này không có model Gemini.</strong> Chỉ Gemini dựng được đồ hoạ HyperFrame '
+      + '— hãy chọn Google Gemini hoặc OpenRouter, hoặc nếu endpoint của bạn có phục vụ Gemini dưới tên khác thì nhập tên đó vào ô này.';
+  $('#llmCodegenWarn').style.color = hasGemini ? 'var(--muted)' : 'var(--red)';
 
   $('#btnFetchModels').disabled = !(p?.listsModels ?? true);
   $('#llmModelsOut').textContent = '';
@@ -376,6 +390,7 @@ async function saveSettings() {
       preset: $('#setLlmPreset').value || 'custom',
       baseUrl: $('#setLlmUrl').value.trim(),
       model: $('#setLlmModel').value.trim(),
+      codegenModel: $('#setLlmCodegenModel').value.trim(),
       apiKey: $('#setLlmKey').value,
       // …and every other provider the owner has set up keeps its own credentials, so
       // switching back to one is instant instead of a trip to a dashboard for a new key.

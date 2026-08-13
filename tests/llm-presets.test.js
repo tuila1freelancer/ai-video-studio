@@ -237,6 +237,19 @@ test('an emptied provider is actually forgotten, and a fresh key still wins', ()
   assert.equal(cleared.llm.accounts.gemini.apiKey, 'AIza-OLD', 'and must not touch anyone else');
 });
 
+test('a new project pins the codegen model its own provider actually serves', async () => {
+  const { mergeConfigLayers } = await import('../src/core/config.js');
+  // resolveProjectConfig reads the live settings row, so exercise the layering it relies on:
+  // the codegen pin sits UNDER channel/preset/request, and an empty pin means "no opinion".
+  const withPin = mergeConfigLayers({ hyperframe: { styleId: 's' } }, { hyperframe: { model: 'gemini-3.1-pro-preview' } });
+  assert.equal(withPin.hyperframe.model, 'gemini-3.1-pro-preview');
+  assert.equal(withPin.hyperframe.styleId, 's', 'the pin must not replace the rest of the block');
+  const overridden = mergeConfigLayers({ hyperframe: { styleId: 's' } }, { hyperframe: { model: 'gemini-3.1-pro-preview' } }, { hyperframe: { model: 'ag/mine' } });
+  assert.equal(overridden.hyperframe.model, 'ag/mine', 'a channel/preset/request value still wins');
+  // and visuals.js reads `config.hyperframe?.model ? … : baseLlm`, so '' is the no-opinion case
+  assert.equal(mergeConfigLayers({}, { hyperframe: { model: '' } }).hyperframe.model, '');
+});
+
 // ---- what actually reaches the wire ----
 
 const { chat } = await import('../src/providers/llm.js');

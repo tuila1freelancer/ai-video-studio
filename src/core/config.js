@@ -8,6 +8,7 @@
 // Secrets never leave the server unmasked: maskSecrets() on every egress,
 // applyMaskedUpdate() on every ingest so a '••' round-trip cannot clobber real keys.
 import { aiSettings } from '../db/index.js';
+import { codegenModelFor } from '../providers/llm-presets.js';
 export { maskSecrets, applyMaskedUpdate } from '../util/secrets.js';
 
 // One-level-deep merge: plain-object values merge per key, scalars/arrays replace, later wins.
@@ -34,7 +35,15 @@ function isPlainObject(v) { return v != null && typeof v === 'object' && !Array.
 // override read by visuals.js (config.hyperframe.model → hfAi.llm.model); existing projects keep
 // their stored snapshot, and any provider/channel value still wins. Point it at the codegen model
 // your configured LLM provider actually serves.
-const STRONG_CODEGEN_MODEL = 'ag/gemini-pro-agent';
+// P45: the model is no longer a constant, because the owner may now be on Groq or DeepSeek,
+// where `ag/gemini-pro-agent` does not exist. Measured against every other family, only Gemini
+// writes scene markup that renders — so a preset declares a codegen model ONLY if it actually
+// serves one, and '' means "no opinion, use the general model", which is what the per-project
+// field's own placeholder already promises. An unrecognised endpoint (a private proxy) resolves
+// to the value below, so an existing install is not moved a millimetre.
+function strongCodegenModel() {
+  try { return codegenModelFor(aiSettings().llm); } catch { return ''; }
+}
 
 // Base defaults for NEW projects: HyperFrame — the single visual mode (P36). Sits UNDER every
 // other layer, so channel/preset/request always win; existing projects keep their stored config
@@ -44,7 +53,7 @@ const NEW_PROJECT_DEFAULTS = {
   visualMode: 'hyperframe',
   // P38 backgroundVariety: rotate the backdrop STYLE per scene (spotlight/aurora/grid/…) while the
   // palette + fonts stay LOCKED to the guide; set false to keep one motif across the whole video.
-  hyperframe: { styleId: 'tuila1-hud-cyber', density: 'balanced', backgroundVariety: true, model: STRONG_CODEGEN_MODEL },
+  hyperframe: { styleId: 'tuila1-hud-cyber', density: 'balanced', backgroundVariety: true },
   // Cinematic scene transitions ON by default: every boundary flows through a short dip through
   // black (planTransitions), with one role-driven hero transition punching above it. Sits under
   // every layer, so an explicit request/preset/channel value still wins.
@@ -73,7 +82,11 @@ const NEW_PROJECT_DEFAULTS = {
 
 // Effective config for a new project. `preset` = the channel's default preset row (or null).
 export function resolveProjectConfig({ channel, preset, request } = {}) {
-  return mergeConfigLayers(NEW_PROJECT_DEFAULTS, channel?.config, preset?.config, request);
+  // Resolved at creation, not baked into the constant above, so the codegen model follows
+  // whichever provider is configured TODAY. It sits under every other layer, so a channel,
+  // a preset or the request still wins — and existing projects keep their stored snapshot.
+  const codegen = { hyperframe: { model: strongCodegenModel() } };
+  return mergeConfigLayers(NEW_PROJECT_DEFAULTS, codegen, channel?.config, preset?.config, request);
 }
 
 // AI settings with per-channel overrides layered per section (llm/tts/subtitle/imageGen/imageSearch).
