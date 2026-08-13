@@ -733,7 +733,10 @@
             <div></div>
           </div>
           <div id="bgProviderForm" class="hidden" style="margin-top:10px;border:1px dashed var(--hairline-2);border-radius:8px;padding:10px">
-            <div class="grid2">
+            <div class="field"><label class="label">Nhà cung cấp</label>
+              <select class="input" id="bgPfPreset"></select>
+              <div class="hint" id="bgPfNote" style="margin-top:5px;line-height:1.7"></div></div>
+            <div class="grid2 hidden" id="bgPfCustom">
               <div><label class="label">Tên hiển thị</label><input class="input" id="bgPfLabel" placeholder="vd: Infinity API"></div>
               <div><label class="label">Base URL</label><input class="input" id="bgPfUrl" placeholder="https://infinityapis.com/v1"></div>
             </div>
@@ -832,9 +835,18 @@
     <div class="dep-row" id="depFoot"></div>
     <div class="sec-label">LLM (kịch bản · metadata)</div>
     <label class="switch-row"><span class="switch"><input type="checkbox" id="setLlmOn"><span class="sl"></span></span> Bật LLM (OpenAI-compatible)</label>
-    <div class="field"><label class="label">Base URL</label><input class="input" id="setLlmUrl" placeholder="https://api.openai.com/v1"></div>
-    <div class="field"><label class="label">API Key</label><input class="input" id="setLlmKey" type="password" placeholder="sk-..."></div>
-    <div class="field"><label class="label">Model</label><input class="input" id="setLlmModel" placeholder="gpt-4o-mini"></div>
+    <div class="field"><label class="label">Nhà cung cấp</label>
+      <select class="input" id="setLlmPreset"></select>
+      <div class="hint" id="llmPresetNote" style="margin-top:5px;line-height:1.7"></div></div>
+    <div class="field hidden" id="llmUrlField"><label class="label">Base URL</label><input class="input" id="setLlmUrl" placeholder="https://api.openai.com/v1"></div>
+    <div class="field" id="llmKeyField"><label class="label">API Key</label><input class="input" id="setLlmKey" type="password" placeholder="sk-..."></div>
+    <div class="field"><label class="label">Model</label>
+      <input class="input" id="setLlmModel" list="llmModelList" placeholder="gpt-4o-mini">
+      <datalist id="llmModelList"></datalist>
+      <div class="row" style="margin-top:6px"><button class="btn sm" id="btnFetchModels">↻ Lấy danh sách model</button><span class="hint" id="llmModelsOut"></span></div></div>
+    <div class="field"><label class="label">Model dựng đồ hoạ (HyperFrame)</label>
+      <input class="input" id="setLlmCodegenModel" placeholder="để trống = tự chọn theo nhà cung cấp">
+      <div class="hint" id="llmCodegenWarn" style="margin-top:5px;line-height:1.7"></div></div>
     <div class="row" style="margin-bottom:12px"><button class="btn sm" id="btnTestLlm">🔌 Test LLM</button><span class="hint" id="llmTestResult"></span></div>
     <div class="sec-label">TTS (giọng đọc)</div>
     <div class="field"><label class="label">Nhà cung cấp ưu tiên</label>

@@ -8,6 +8,7 @@
 // Secrets never leave the server unmasked: maskSecrets() on every egress,
 // applyMaskedUpdate() on every ingest so a '••' round-trip cannot clobber real keys.
 import { aiSettings } from '../db/index.js';
+import { codegenModelFor } from '../providers/llm-presets.js';
 export { maskSecrets, applyMaskedUpdate } from '../util/secrets.js';
 
 // One-level-deep merge: plain-object values merge per key, scalars/arrays replace, later wins.
@@ -27,14 +28,20 @@ export function mergeConfigLayers(...layers) {
 function isPlainObject(v) { return v != null && typeof v === 'object' && !Array.isArray(v); }
 
 // P39 (raw-GSAP reference port): HyperFrame visual quality is dominated by the codegen model,
-// not the prompt alone (memory: hyperframe-codegen-model). The reference app defaults to strong
-// models (opus/gemini-pro); our AI-settings default (gpt-4o-mini / ag/gemini-3-flash-agent) is
-// weak. Default codegen to the owner's stable strong proxy model — `ag/gemini-pro-agent` (the
-// only strong model that isn't 429-quota-bound; memory: parity-harness-p0). This is a per-project
-// override read by visuals.js (config.hyperframe.model → hfAi.llm.model); existing projects keep
-// their stored snapshot, and any provider/channel value still wins. Point it at the codegen model
-// your configured LLM provider actually serves.
-const STRONG_CODEGEN_MODEL = 'ag/gemini-pro-agent';
+// not the prompt alone (memory: hyperframe-codegen-model). It reaches the render as a per-project
+// override read by visuals.js (config.hyperframe.model → hfAi.llm.model), so existing projects
+// keep their stored snapshot and any channel/preset/request value still wins.
+//
+// ai-providers amends it: this used to be the constant `ag/gemini-pro-agent`, which exists only
+// on the owner's own proxy — a guaranteed render failure once the provider picker let someone
+// choose Groq. The requirement is unchanged (measured against every other family, only Gemini
+// writes scene markup that renders), so a preset declares a codegen model ONLY when it genuinely
+// serves one. '' means "no opinion, use the general model" — exactly what the per-project field's
+// own placeholder already promises for a blank value — and an endpoint the catalogue does not
+// recognise still resolves to the original model, so a private-proxy install does not move.
+function strongCodegenModel() {
+  try { return codegenModelFor(aiSettings().llm); } catch { return ''; }
+}
 
 // Base defaults for NEW projects: HyperFrame — the single visual mode (P36). Sits UNDER every
 // other layer, so channel/preset/request always win; existing projects keep their stored config
@@ -44,7 +51,7 @@ const NEW_PROJECT_DEFAULTS = {
   visualMode: 'hyperframe',
   // P38 backgroundVariety: rotate the backdrop STYLE per scene (spotlight/aurora/grid/…) while the
   // palette + fonts stay LOCKED to the guide; set false to keep one motif across the whole video.
-  hyperframe: { styleId: 'tuila1-hud-cyber', density: 'balanced', backgroundVariety: true, model: STRONG_CODEGEN_MODEL },
+  hyperframe: { styleId: 'tuila1-hud-cyber', density: 'balanced', backgroundVariety: true },
   // Cinematic scene transitions ON by default: every boundary flows through a short dip through
   // black (planTransitions), with one role-driven hero transition punching above it. Sits under
   // every layer, so an explicit request/preset/channel value still wins.
@@ -73,7 +80,11 @@ const NEW_PROJECT_DEFAULTS = {
 
 // Effective config for a new project. `preset` = the channel's default preset row (or null).
 export function resolveProjectConfig({ channel, preset, request } = {}) {
-  return mergeConfigLayers(NEW_PROJECT_DEFAULTS, channel?.config, preset?.config, request);
+  // Resolved at creation, not baked into the constant above, so the codegen model follows
+  // whichever provider is configured TODAY. It sits under every other layer, so a channel,
+  // a preset or the request still wins — and existing projects keep their stored snapshot.
+  const codegen = { hyperframe: { model: strongCodegenModel() } };
+  return mergeConfigLayers(NEW_PROJECT_DEFAULTS, codegen, channel?.config, preset?.config, request);
 }
 
 // AI settings with per-channel overrides layered per section (llm/tts/subtitle/imageGen/imageSearch).
