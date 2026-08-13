@@ -436,7 +436,7 @@ select.input{appearance:none;-webkit-appearance:none;background-image:url("data:
 /* dialog (confirm/prompt/menu replacements) */
 .dlg{max-width:400px}
 .dlg .dlg-title{font-size:15.5px;font-weight:700;margin-bottom:8px}
-.dlg .dlg-body{font-size:13px;color:var(--text-2);margin-bottom:18px;line-height:1.6}
+.dlg .dlg-body{font-size:13px;color:var(--text-2);margin-bottom:18px;line-height:1.6;white-space:pre-line}
 .dlg .dlg-actions{display:flex;gap:8px;justify-content:flex-end}
 .dlg .dlg-menu{display:flex;flex-direction:column;gap:4px;margin:4px 0 6px}
 .dlg .dlg-menu button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:10px 12px;border:1px solid transparent;background:transparent;color:var(--text-1);border-radius:10px;font-size:13px;font-weight:600;transition:background var(--t-fast)}
@@ -715,8 +715,12 @@ select.input{appearance:none;-webkit-appearance:none;background-image:url("data:
 .pitem{position:relative}
 .pitem-ren{position:absolute;top:5px;right:5px;border:none;background:rgba(0,0,0,.55);color:var(--text-2);
   border-radius:7px;padding:2px 5px;font-size:11px;cursor:pointer;opacity:0;transition:opacity var(--t-fast)}
-.pitem:hover .pitem-ren{opacity:1}
+.pitem-del{position:absolute;top:5px;right:34px;border:none;background:rgba(0,0,0,.55);color:var(--text-2);
+  border-radius:7px;padding:2px 5px;font-size:11px;cursor:pointer;opacity:0;transition:opacity var(--t-fast)}
+.pitem:hover .pitem-ren,.pitem:hover .pitem-del{opacity:1}
 .pitem-ren:hover{background:var(--accent);color:#fff}
+/* Deleting takes the files with it, so the control that does it is red before it is pressed. */
+.pitem-del:hover{background:var(--red,#e5484d);color:#fff}
 
 /* ---- metadata, per platform ---- */
 .meta-card .mf{margin-top:10px}
