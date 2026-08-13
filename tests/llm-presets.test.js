@@ -151,6 +151,28 @@ test('an unknown preset id is safe', () => {
   assert.equal(codegenModelFor({ preset: 'nope' }), '');
 });
 
+// ---- the routes the panel talks to ----
+// Source-anchored, like p42-route-parity: mounting the router for real would need a licensed
+// fixture (licenseGate answers 403 first), and everything with logic is covered functionally
+// above and below this block.
+
+test('the app can list providers and ask one what models it serves', async () => {
+  const { readFileSync } = await import('node:fs');
+  const routes = readFileSync(new URL('../src/api/routes.js', import.meta.url), 'utf8');
+  assert.match(routes, /r\.get\('\/llm\/providers'/);
+  assert.match(routes, /r\.post\('\/llm\/models'/);
+  assert.match(routes, /publicCatalog\(priceFor\)/, 'one rate table, or the picker and the meter drift');
+  assert.match(routes, /data\?\.data \|\| data\?\.models/, 'not every compatible server answers in OpenAI shape');
+  // the masked round-trip must hold on the new route too, or listing models would send '••'
+  const models = routes.slice(routes.indexOf("r.post('/llm/models'"));
+  assert.match(models.slice(0, 900), /String\(b\.apiKey\)\.includes\('••'\)/);
+  // testing a keyless local provider must not be refused for having no key
+  const testRoute = routes.slice(routes.indexOf("r.post('/llm/test'"));
+  const guard = testRoute.indexOf('thiếu Base URL hoặc API Key');
+  assert.ok(testRoute.indexOf('withPreset({') > 0 && testRoute.indexOf('withPreset({') < guard,
+    'the preset must resolve before the key guard runs');
+});
+
 // ---- what actually reaches the wire ----
 
 const { chat } = await import('../src/providers/llm.js');

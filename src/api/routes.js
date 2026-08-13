@@ -142,19 +142,67 @@ export function mountRoutes(app, { version }) {
   r.post('/llm/test', async (req, res) => {
     try {
       const { chat } = await import('../providers/llm.js');
+      const { withPreset } = await import('../providers/llm-presets.js');
       const b = req.body || {};
       const saved = DB.aiSettings().llm || {};
-      const llm = {
+      // Resolved through the preset BEFORE the guard: a local server ignores its key, so
+      // demanding one here would refuse to test the one provider that needs no signup.
+      const llm = withPreset({
         enabled: true,
+        preset: b.preset || undefined,
         baseUrl: String(b.baseUrl || saved.baseUrl || '').trim(),
         // '••' is the masked round-trip value — it means "keep the saved key"
         apiKey: (!b.apiKey || String(b.apiKey).includes('••')) ? saved.apiKey : String(b.apiKey),
         model: String(b.model || saved.model || '').trim(),
-      };
+      });
       if (!llm.baseUrl || !llm.apiKey) return res.status(400).json({ ok: false, message: 'thiếu Base URL hoặc API Key' });
       const t0 = Date.now();
       const reply = await chat([{ role: 'user', content: 'Reply with the single word: OK' }], { maxTokens: 8, temperature: 0, llm, timeoutMs: 30000 });
       res.json({ ok: true, model: llm.model, ms: Date.now() - t0, message: `Kết nối OK — model trả lời "${String(reply).trim().slice(0, 40)}"` });
+    } catch (e) { res.status(200).json({ ok: false, message: e.message.slice(0, 220) }); }
+  });
+
+  // ---- LLM provider catalogue (P45) ----
+  // What the provider picker in AI Setting is built from. Unlike every other settings egress
+  // in this file it is NOT masked: nothing in the catalogue ever came from the user, so there
+  // is no secret to hide. Prices are decorated from core/pricing.js rather than stored in the
+  // catalogue, so the number in the picker and the number in the cost meter are one table.
+  r.get('/llm/providers', async (req, res) => {
+    try {
+      const { publicCatalog } = await import('../providers/llm-presets.js');
+      const { priceFor, PRICING_VERSION } = await import('../core/pricing.js');
+      res.json({ presets: publicCatalog(priceFor), pricingVersion: PRICING_VERSION });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Ask a provider what it actually serves today. Model ids drift constantly, so the catalogue
+  // ships a starting point and this is the truth. It runs server-side for two reasons: the
+  // browser only ever holds a masked key, and a cross-origin call from the page would be
+  // refused by CORS anyway. Failure is HTTP 200 + ok:false, like /llm/test — the panel falls
+  // back to the suggested list instead of showing an error.
+  r.post('/llm/models', async (req, res) => {
+    try {
+      const { withPreset } = await import('../providers/llm-presets.js');
+      const b = req.body || {};
+      const saved = DB.aiSettings().llm || {};
+      const llm = withPreset({
+        preset: b.preset || undefined,
+        baseUrl: String(b.baseUrl || saved.baseUrl || '').trim(),
+        apiKey: (!b.apiKey || String(b.apiKey).includes('••')) ? saved.apiKey : String(b.apiKey),
+      });
+      if (!llm.baseUrl) return res.json({ ok: false, message: 'chưa có Base URL' });
+      const base = llm.baseUrl.replace(/\/+$/, '').replace(/\/chat\/completions$/, '');
+      const out = await fetch(`${base}/models`, {
+        headers: { Authorization: `Bearer ${llm.apiKey || 'none'}`, ...(llm.extraHeaders || {}) },
+        signal: AbortSignal.timeout(15000),
+      });
+      if (!out.ok) return res.json({ ok: false, message: `HTTP ${out.status} — key sai, hoặc provider không cho liệt kê model` });
+      const data = await out.json();
+      // OpenAI answers {data:[{id}]}; a few compatible servers answer {models:[{name}]}.
+      const ids = [...new Set((data?.data || data?.models || [])
+        .map((m) => String(m?.id || m?.name || '').trim()).filter(Boolean))].sort();
+      if (!ids.length) return res.json({ ok: false, message: 'provider không trả về model nào' });
+      res.json({ ok: true, models: ids.slice(0, 400) });
     } catch (e) { res.status(200).json({ ok: false, message: e.message.slice(0, 220) }); }
   });
 
