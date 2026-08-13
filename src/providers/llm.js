@@ -5,11 +5,17 @@ import { wordCount, safeJson } from '../util/util.js';
 import { detectLang, declaredLang, LANG_NAME, langName } from '../util/lang.js';
 import { recordUsage } from '../util/usage.js';
 import { PLATFORMS, checkField } from '../publish/platforms.js';
+import { withPreset } from './llm-presets.js';
 
 // llm param (optional) = a resolved settings.llm object (e.g. per-channel override);
 // omitted → global settings, exactly as before.
+//
+// P45: every entry point resolves through withPreset() first, so the provider's own quirks
+// (token cap, header, JSON mode) arrive without a single one of the ~20 modules that gate on
+// llmEnabled having to change. The predicate itself is untouched — a local server that ignores
+// its key gets one synthesised there, which is why "has a key" still means what it always did.
 export function llmEnabled(llm) {
-  const s = llm || aiSettings().llm;
+  const s = withPreset(llm || aiSettings().llm);
   return !!(s && s.enabled && s.apiKey && s.baseUrl);
 }
 
@@ -28,7 +34,7 @@ const DEAD_KEY = /\b40[13]\b|invalid[_ ]?api[_ ]?key|incorrect api key|quota|cre
  * unchanged, deliberately.
  */
 export async function chat(messages, { json = false, temperature = 0.8, maxTokens = 2048, timeoutMs = 120000, llm = null, budgetMs = Infinity } = {}) {
-  const s = llm || aiSettings().llm;
+  const s = withPreset(llm || aiSettings().llm);
   if (!llmEnabled(s)) throw new Error('LLM not configured');
   const started = Date.now();
   const left = () => budgetMs - (Date.now() - started);
@@ -44,8 +50,10 @@ export async function chat(messages, { json = false, temperature = 0.8, maxToken
       for (let attempt = 0; attempt < 4; attempt++) {
         if (left() <= 0) throw lastErr || new Error('LLM hết thời gian cho phép');
         try {
-          // Never let one request outlive the budget it was given.
-          return await chatOnce({ ...s, apiKey, model }, messages, { json, temperature, maxTokens, timeoutMs: Math.min(timeoutMs, Math.max(1000, left())) });
+          // Never let one request outlive the budget it was given. Re-resolve per model: the
+          // token field and the temperature rule belong to the MODEL, so walking to a fallback
+          // must re-read them rather than carry the primary model's answers along.
+          return await chatOnce({ ...withPreset(s, model), apiKey, model }, messages, { json, temperature, maxTokens, timeoutMs: Math.min(timeoutMs, Math.max(1000, left())) });
         } catch (e) {
           lastErr = e;
           const msg = String(e.message);
@@ -76,15 +84,28 @@ async function chatOnce(s, messages, { json, temperature, maxTokens, timeoutMs }
   // generous floor (the reference app sends 100k for gemini-like backends); providers simply
   // stop earlier when done. Tune with llm.maxTokensFloor if a backend rejects large caps.
   const floor = Number(s.maxTokensFloor) > 0 ? Number(s.maxTokensFloor) : 16000;
+  // …and a CEILING, because a floor cannot lower anything. Groq, DeepSeek and Cerebras enforce
+  // a per-model completion cap and answer 400 rather than trimming, so the generous floor above
+  // — and codegen's 24000 ask — would fail every single call there. Absent by default: an
+  // unknown endpoint keeps the uncapped behaviour this app has always had.
+  const ceiling = Number(s.maxTokensCap) > 0 ? Number(s.maxTokensCap) : Infinity;
+  const cap = Math.min(Math.max(maxTokens, floor), ceiling);
+  // Three more ways a provider can differ from the OpenAI baseline, all supplied by the preset
+  // (providers/llm-presets.js) and all absent by default:
+  //   · the reasoning line renamed max_tokens and accepts only temperature 1
+  //   · OpenRouter wants attribution headers
+  const tokenKey = s.maxTokensParam === 'max_completion_tokens' ? 'max_completion_tokens' : 'max_tokens';
   const body = {
-    model: s.model || 'gpt-4o-mini', messages, temperature, max_tokens: Math.max(maxTokens, floor), stream: false,
+    model: s.model || 'gpt-4o-mini', messages,
+    ...(s.omitTemperature ? {} : { temperature }),
+    [tokenKey]: cap, stream: false,
     ...(json ? { response_format: { type: 'json_object' } } : {}),
   };
   // users often paste the FULL endpoint as baseUrl — normalize so both forms work
   const base = s.baseUrl.replace(/\/+$/, '').replace(/\/chat\/completions$/, '');
   const res = await fetch(`${base}/chat/completions`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${s.apiKey}` },
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${s.apiKey}`, ...(s.extraHeaders || {}) },
     body: JSON.stringify(body),
     signal: AbortSignal.timeout(timeoutMs),
   });
@@ -93,7 +114,7 @@ async function chatOnce(s, messages, { json, temperature, maxTokens, timeoutMs }
   try {
     const data = JSON.parse(text);
     if (data.usage) {
-      recordUsage('llm', { model: body.model, promptTokens: data.usage.prompt_tokens, completionTokens: data.usage.completion_tokens });
+      recordUsage('llm', { provider: s.preset || null, model: body.model, promptTokens: data.usage.prompt_tokens, completionTokens: data.usage.completion_tokens });
     }
     return data.choices?.[0]?.message?.content || '';
   } catch {
@@ -110,7 +131,7 @@ async function chatOnce(s, messages, { json, temperature, maxTokens, timeoutMs }
       } catch { /* partial keep-alive line */ }
     }
     if (!out) throw new Error(`LLM unparseable response: ${text.slice(0, 200)}`);
-    if (usage) recordUsage('llm', { model: body.model, promptTokens: usage.prompt_tokens, completionTokens: usage.completion_tokens });
+    if (usage) recordUsage('llm', { provider: s.preset || null, model: body.model, promptTokens: usage.prompt_tokens, completionTokens: usage.completion_tokens });
     return out;
   }
 }
@@ -142,7 +163,7 @@ function repairJson(s) {
 export async function chatJson(messages, { maxTokens = 2048, attempts = 2, temperature = 0.7, validate = null, llm = null, budgetMs = Infinity } = {}) {
   let lastErr;
   const started = Date.now();
-  const s = llm || aiSettings().llm;
+  const s = withPreset(llm || aiSettings().llm);
   // Gemini-like proxies choke on response_format:json_object (they reply with a bare fence).
   // Try JSON mode once, then fall back to plain replies — the prompts already demand pure
   // JSON and stripFences+repairJson clean up what comes back. jsonMode:false skips it outright.
