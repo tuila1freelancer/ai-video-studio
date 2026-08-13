@@ -303,6 +303,11 @@ function renderProviderFields() {
     ? schema.map((f) => (f.type === 'checkbox'
       // a boolean knob is a switch, not a box you type "true" into (P40: Supertonic autoStart)
       ? `<label class="switch-row"><span class="switch"><input type="checkbox" class="prov-field" data-key="${f.key}"${saved[f.key] ? ' checked' : ''}><span class="sl"></span></span> ${esc(f.label)}</label>`
+      // a closed set of choices is a dropdown, not a string to spell right (P45: TTS presets)
+      : f.type === 'select'
+      ? `<div class="field"><label class="label">${esc(f.label)}</label>
+        <select class="input prov-field" data-key="${f.key}">${(f.options || []).map((o) =>
+          `<option value="${esc(o.value)}"${saved[f.key] === o.value ? ' selected' : ''}>${esc(o.label)}</option>`).join('')}</select></div>`
       : `<div class="field"><label class="label">${esc(f.label)}${f.required ? ' *' : ''}</label>
         <input class="input prov-field" data-key="${f.key}" type="${f.type === 'password' ? 'password' : 'text'}"
           placeholder="${esc(f.placeholder || '')}" value="${esc(saved[f.key] || '')}"></div>`)).join('')
