@@ -11,6 +11,7 @@ import * as DB from '../../db/index.js';
 import { DIRS } from '../../config/paths.js';
 import { chatJson } from '../../providers/llm.js';
 import { editImage } from '../../providers/imagegen.js';
+import { presetById } from '../../providers/llm-presets.js';
 import { verifyTransparentBg } from '../../media/ffmpeg.js';
 import { logger } from '../../util/log.js';
 
@@ -181,8 +182,15 @@ export function createBrand(nameRaw) {
 // PUT /settings replaces ARRAYS wholesale, so a client echoing masked '••' keys inside
 // editProviders would clobber the real ones. Providers are therefore mutated HERE, where
 // the unmasked settings live; the client only ever sends the one new real key.
-export function addEditProvider({ label, baseUrl, apiKey } = {}) {
-  const l = String(label || '').trim(), u = String(baseUrl || '').trim().replace(/\/$/, '');
+export function addEditProvider({ presetId, label, baseUrl, apiKey } = {}) {
+  // A preset (providers/llm-presets.js) carries the label and the endpoint, so the panel only
+  // has to ask for a key — nobody knows offhand where a vendor's images/edits lives, and a
+  // wrong URL surfaces only as a failed generation. Resolved HERE, not in the browser, so the
+  // catalogue stays one source of truth.
+  const preset = presetId && presetId !== 'custom' ? presetById(presetId) : null;
+  if (presetId && presetId !== 'custom' && !preset?.lanes?.image) throw new Error('Nhà cung cấp này không sửa được ảnh');
+  const l = String(preset?.label || label || '').trim();
+  const u = String(preset?.baseUrl || baseUrl || '').trim().replace(/\/$/, '');
   if (!l || !/^https?:\/\//.test(u)) throw new Error('Cần tên hiển thị và Base URL hợp lệ (https://…)');
   if (!String(apiKey || '').trim()) throw new Error('Thiếu API key');
   const ai = DB.aiSettings();

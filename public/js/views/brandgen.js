@@ -64,6 +64,27 @@ async function loadImageProviders() {
       : 'Chưa cấu hình provider tạo ảnh — bấm ＋ để thêm (Base URL + API key, chuẩn OpenAI images/edits).';
   } catch { /* leave defaults */ }
 }
+// ---- the same provider catalogue as AI Setting, filtered to the ones that edit images ----
+// Nobody knows that OpenAI's images/edits lives at https://api.openai.com/v1 — and getting it
+// wrong shows up only as a failed generation. Ask for the key; the app knows the rest.
+let pfPresets = [];
+async function loadPfPresets() {
+  if (pfPresets.length) return;
+  try {
+    pfPresets = ((await api.get('/llm/providers')).presets || []).filter((p) => p.lanes?.image && p.id !== 'custom');
+  } catch { pfPresets = []; /* offline — the custom form still works */ }
+  $('#bgPfPreset').innerHTML = pfPresets.map((p) => `<option value="${esc(p.id)}">${esc(p.label)}</option>`).join('')
+    + '<option value="custom">✏️ Tuỳ chỉnh (tự nhập Base URL)</option>';
+  renderPfPreset();
+}
+function renderPfPreset() {
+  const p = pfPresets.find((x) => x.id === $('#bgPfPreset').value);
+  $('#bgPfCustom').classList.toggle('hidden', !!p);
+  $('#bgPfNote').innerHTML = p
+    ? `${esc(p.note || '')}${p.keyUrl ? `<br><a href="${esc(p.keyUrl)}" target="_blank" rel="noreferrer noopener">🔑 Lấy API key ↗</a>` : ''}`
+    : 'Bất kỳ endpoint nào nói chuẩn OpenAI <code>images/edits</code>.';
+}
+
 async function saveBrandEditPick() {
   await api.put('/settings', {
     imageGen: { brandEdit: { providerId: $('#bgProvider').value, model: $('#bgModel').value.trim() || 'gpt-image-2', size: $('#bgSize').value } },
@@ -225,11 +246,14 @@ export function initBrandGen() {
   $('#bgProvider').addEventListener('change', saveBrandEditPick);
   $('#bgModel').addEventListener('change', saveBrandEditPick);
   $('#bgSize').addEventListener('change', saveBrandEditPick);
-  $('#bgProviderNew').addEventListener('click', () => $('#bgProviderForm').classList.remove('hidden'));
+  $('#bgProviderNew').addEventListener('click', () => { $('#bgProviderForm').classList.remove('hidden'); loadPfPresets(); });
   $('#bgPfCancel').addEventListener('click', () => $('#bgProviderForm').classList.add('hidden'));
+  $('#bgPfPreset').addEventListener('change', renderPfPreset);
   $('#bgPfSave').addEventListener('click', (e) => withLock(e.currentTarget, async () => {
     try {
+      // A preset carries its own label and endpoint, so the form only asks for the key.
       await api.post('/brandgen/providers', {
+        presetId: $('#bgPfPreset').value,
         label: $('#bgPfLabel').value.trim(), baseUrl: $('#bgPfUrl').value.trim(), apiKey: $('#bgPfKey').value,
       });
       $('#bgProviderForm').classList.add('hidden');
