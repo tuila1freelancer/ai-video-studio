@@ -173,6 +173,70 @@ test('the app can list providers and ask one what models it serves', async () =>
     'the preset must resolve before the key guard runs');
 });
 
+test('the settings panel offers the picker without losing what it already had', async () => {
+  const { readFileSync } = await import('node:fs');
+  const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
+  const html = read('../public/index.html');
+  const modal = html.slice(html.indexOf('id="settingsModal"'), html.indexOf('id="srtModal"'));
+  for (const id of ['setLlmOn', 'setLlmUrl', 'setLlmKey', 'setLlmModel', 'btnTestLlm', 'llmTestResult']) {
+    assert.ok(modal.includes(`id="${id}"`), `the panel still needs #${id}`);
+  }
+  for (const id of ['setLlmPreset', 'llmPresetNote', 'llmUrlField', 'llmKeyField', 'btnFetchModels', 'llmModelList']) {
+    assert.ok(modal.includes(`id="${id}"`), `the picker needs #${id}`);
+  }
+  // a datalist, not a select: a select silently blanks a saved model it has no option for,
+  // which would downgrade an owner on a custom model the next time they pressed Save
+  assert.match(modal, /id="setLlmModel" list="llmModelList"/);
+  const js = read('../public/js/features/settings.js');
+  assert.match(js, /btnTestLlm/);                      // p42 depends on this
+  assert.match(js, /preset: \$\('#setLlmPreset'\)\.value/, 'the chosen provider must be saved');
+  assert.match(js, /inferPresetId\(settings\.llm\?\.baseUrl\)/, 'an existing install must be recognised');
+});
+
+// ---- one key per provider, remembered ----
+// Both bugs below actually happened while building this, and both destroy a real API key the
+// owner cannot get back from the app.
+
+const { syncLlmAccounts } = await import('../src/api/routes.js');
+const { applyMaskedUpdate } = await import('../src/util/secrets.js');
+
+/** Exactly what PUT /settings does: merge the masked update, then reconcile the accounts. */
+function save(prev, body) {
+  const next = applyMaskedUpdate(prev, body);
+  syncLlmAccounts(prev, next, body.llm);
+  return next;
+}
+
+test('switching provider remembers the one being left behind', () => {
+  // start: a private proxy, key known only at the top level
+  const start = { llm: { preset: 'custom', baseUrl: 'https://proxy.example/v1', apiKey: 'sk-REAL', model: 'ag/x', enabled: true } };
+
+  // move to Groq and save. The proxy key must be snapshotted before it is overwritten.
+  const onGroq = save(start, { llm: { preset: 'groq', baseUrl: 'https://api.groq.com/openai/v1', apiKey: 'gsk-NEW', model: 'llama-3.1-8b-instant', enabled: true } });
+  assert.equal(onGroq.llm.apiKey, 'gsk-NEW');
+  assert.equal(onGroq.llm.accounts.custom.apiKey, 'sk-REAL', 'the proxy key must survive being switched away from');
+  assert.equal(onGroq.llm.accounts.custom.baseUrl, 'https://proxy.example/v1');
+  assert.equal(onGroq.llm.accounts.groq.apiKey, 'gsk-NEW');
+
+  // come back. The panel shows the proxy key MASKED, and '••' means "keep the saved one" —
+  // but the saved top-level key is Groq's now, so resolving it there hands the proxy Groq's key.
+  const back = save(onGroq, { llm: { preset: 'custom', baseUrl: 'https://proxy.example/v1', apiKey: 'sk-R••', model: 'ag/x', enabled: true } });
+  assert.equal(back.llm.apiKey, 'sk-REAL', 'a masked key must resolve against ITS OWN provider');
+  assert.equal(back.llm.accounts.groq.apiKey, 'gsk-NEW', 'and Groq keeps its own');
+});
+
+test('an emptied provider is actually forgotten, and a fresh key still wins', () => {
+  const saved = { llm: { preset: 'groq', apiKey: 'gsk-OLD', model: 'm', baseUrl: 'https://api.groq.com/openai/v1',
+    accounts: { groq: { apiKey: 'gsk-OLD', model: 'm' }, gemini: { apiKey: 'AIza-OLD', model: 'g' } } } };
+
+  const typed = save(saved, { llm: { preset: 'groq', apiKey: 'gsk-FRESH', model: 'm', baseUrl: 'https://api.groq.com/openai/v1' } });
+  assert.equal(typed.llm.accounts.groq.apiKey, 'gsk-FRESH', 'a typed key beats the remembered one');
+
+  const cleared = save(saved, { llm: { preset: 'groq', apiKey: '', model: '', baseUrl: 'https://api.groq.com/openai/v1' } });
+  assert.equal(cleared.llm.accounts.groq, undefined, 'clearing must forget, not silently keep');
+  assert.equal(cleared.llm.accounts.gemini.apiKey, 'AIza-OLD', 'and must not touch anyone else');
+});
+
 // ---- what actually reaches the wire ----
 
 const { chat } = await import('../src/providers/llm.js');
