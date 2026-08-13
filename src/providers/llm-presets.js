@@ -49,6 +49,17 @@
 // failure ten attempts deep (codegen strips modelFallback, so it cannot degrade quietly).
 const GEMINI_CODEGEN = 'gemini-3.1-pro-preview';
 
+// Owner order 2026-08-12: the LLM picker offers ONLY providers that can serve Gemini, because
+// the script and the HyperFrame graphics run on the same setting and a non-Gemini choice makes
+// the second one fail. Thirteen catalogue entries that served nothing but a non-Gemini LLM lane
+// were deleted outright (Cerebras · Mistral · DeepSeek · xAI · Moonshot · Z.ai · Fireworks ·
+// Novita · Nebius · SambaNova · Anthropic · Ollama · LM Studio) — all of them still reachable
+// through "Tuỳ chỉnh" for anyone who wants one.
+//
+// Three others stay in the catalogue with `lanes.llm: false`: Groq, Together and OpenAI are the
+// only presets serving the IMAGE or TTS lanes, and deleting them would take a working picker
+// down with a rule about a different lane. They no longer appear under the LLM provider list.
+
 /** @type {LlmPreset[]} */
 export const LLM_PRESETS = [
   // ---- free / has a real free tier ----
@@ -58,7 +69,7 @@ export const LLM_PRESETS = [
     tier: 'free',
     baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
     keyUrl: 'https://aistudio.google.com/apikey',
-    note: 'Miễn phí thật, không cần thẻ. Là lựa chọn tốt nhất vì HyperFrame chỉ dựng đẹp bằng Gemini.',
+    note: 'Miễn phí, không cần thẻ. Lựa chọn tốt nhất.',
     noCard: true,
     listsModels: true,
     modelsVerified: true,
@@ -80,12 +91,13 @@ export const LLM_PRESETS = [
     tier: 'free',
     baseUrl: 'https://api.groq.com/openai/v1',
     keyUrl: 'https://console.groq.com/keys',
-    note: 'Miễn phí, không cần thẻ, nhanh nhất. Không có Gemini nên không dựng được HyperFrame.',
+    note: 'Chỉ dùng cho giọng đọc.',
     noCard: true,
     listsModels: true,
     modelsVerified: true,
     codegenModel: null,
-    lanes: { llm: true, image: false, tts: { model: 'playai-tts' } },
+    // llm: false — no Gemini, so it cannot serve the script/HyperFrame lane. Kept for its TTS.
+    lanes: { llm: false, image: false, tts: { model: 'playai-tts' } },
     // Groq enforces a per-model completion cap (commonly 8192) and answers 400 rather than
     // trimming, so the uncapped 16000 floor would fail every single call.
     compat: { maxTokensCap: 8192 },
@@ -97,27 +109,12 @@ export const LLM_PRESETS = [
     ],
   },
   {
-    id: 'cerebras',
-    label: 'Cerebras',
-    tier: 'free',
-    baseUrl: 'https://api.cerebras.ai/v1',
-    keyUrl: 'https://cloud.cerebras.ai',
-    note: 'Miễn phí 1 triệu token/ngày, không cần thẻ. Kho model nhỏ.',
-    noCard: true,
-    listsModels: true,
-    modelsVerified: true,
-    codegenModel: null,
-    lanes: { llm: true, image: false, tts: false },
-    compat: { maxTokensCap: 8192 }, // the free tier also caps context at 8k
-    models: [{ id: 'gpt-oss-120b', label: 'mạnh' }],
-  },
-  {
     id: 'openrouter',
     label: 'OpenRouter',
     tier: 'free',
     baseUrl: 'https://openrouter.ai/api/v1',
     keyUrl: 'https://openrouter.ai/keys',
-    note: 'Một key dùng được mọi model, gồm cả Gemini. Có model ":free" miễn phí.',
+    note: 'Một key cho mọi model, có Gemini.',
     noCard: true,
     listsModels: true,
     modelsVerified: true,
@@ -133,177 +130,37 @@ export const LLM_PRESETS = [
       { id: `google/${GEMINI_CODEGEN}`, label: 'mạnh nhất — dựng đồ hoạ' },
     ],
   },
-  {
-    id: 'mistral',
-    label: 'Mistral',
-    tier: 'free',
-    baseUrl: 'https://api.mistral.ai/v1',
-    keyUrl: 'https://console.mistral.ai/api-keys',
-    note: 'Có bậc miễn phí sau khi xác minh số điện thoại.',
-    noCard: true,
-    listsModels: true,
-    modelsVerified: true,
-    codegenModel: null,
-    lanes: { llm: true, image: false, tts: false },
-    // The `-latest` aliases are Mistral's own stable pointers — a pinned version id goes stale.
-    models: [
-      { id: 'ministral-8b-latest', label: 'rẻ & nhanh' },
-      { id: 'mistral-small-latest', label: 'cân bằng' },
-      { id: 'mistral-medium-latest', label: 'mạnh' },
-    ],
-  },
 
-  // ---- cheap, pay as you go ----
-  {
-    id: 'deepseek',
-    label: 'DeepSeek',
-    tier: 'cheap',
-    baseUrl: 'https://api.deepseek.com',
-    keyUrl: 'https://platform.deepseek.com/api_keys',
-    note: 'Rất rẻ, viết văn tốt. Cần nạp tiền trước, không có bậc miễn phí.',
-    listsModels: true,
-    modelsVerified: true,
-    codegenModel: null,
-    lanes: { llm: true, image: false, tts: false },
-    compat: { maxTokensCap: 8192 },
-    models: [
-      { id: 'deepseek-v4-flash', label: 'rẻ & nhanh' },
-      { id: 'deepseek-v4-pro', label: 'mạnh' },
-    ],
-  },
-  {
-    id: 'xai',
-    label: 'xAI (Grok)',
-    tier: 'cheap',
-    baseUrl: 'https://api.x.ai/v1',
-    keyUrl: 'https://console.x.ai',
-    note: 'Giá tăng gấp đôi khi hội thoại vượt 200k token.',
-    listsModels: true,
-    modelsVerified: true,
-    codegenModel: null,
-    lanes: { llm: true, image: false, tts: false },
-    models: [
-      { id: 'grok-4.3', label: 'rẻ hơn' },
-      { id: 'grok-4.6', label: 'mạnh' },
-    ],
-  },
-  {
-    id: 'moonshot',
-    label: 'Moonshot (Kimi)',
-    tier: 'cheap',
-    baseUrl: 'https://api.moonshot.ai/v1',
-    keyUrl: 'https://platform.kimi.ai/console/api-keys',
-    note: 'Cửa sổ ngữ cảnh rất dài — hợp với video dài, kịch bản dán nguyên bài.',
-    listsModels: true,
-    modelsVerified: true,
-    codegenModel: null,
-    lanes: { llm: true, image: false, tts: false },
-    models: [
-      { id: 'kimi-k2.6', label: 'cân bằng' },
-      { id: 'kimi-k3', label: 'mạnh, ngữ cảnh 1M' },
-    ],
-  },
-  {
-    id: 'zai',
-    label: 'Z.ai (GLM)',
-    tier: 'cheap',
-    baseUrl: 'https://api.z.ai/api/paas/v4',
-    keyUrl: 'https://z.ai/manage-apikey/apikey-list',
-    note: 'GLM-5.2 mạnh mà rẻ; có gói thuê bao riêng nếu dùng nhiều.',
-    listsModels: true,
-    modelsVerified: true,
-    codegenModel: null,
-    lanes: { llm: true, image: false, tts: false },
-    models: [
-      { id: 'glm-5-turbo', label: 'rẻ & nhanh' },
-      { id: 'glm-5.2', label: 'mạnh' },
-    ],
-  },
+  // ---- kept for the image / TTS lanes only ----
   {
     id: 'together',
     label: 'Together AI',
     tier: 'cheap',
     baseUrl: 'https://api.together.ai/v1',
     keyUrl: 'https://api.together.ai/settings/api-keys',
-    note: 'Nhiều model mở. Phải nạp tối thiểu $5. Bấm ↻ để lấy đúng tên model.',
+    note: 'Chỉ dùng cho ảnh và giọng đọc.',
     listsModels: true,
     modelsVerified: false,
     codegenModel: null,
-    lanes: { llm: true, image: { model: 'black-forest-labs/FLUX.1-schnell' }, tts: { model: 'cartesia/sonic' } },
+    // llm: false — no Gemini. Kept for the image and TTS lanes it is the only preset serving.
+    lanes: { llm: false, image: { model: 'black-forest-labs/FLUX.1-schnell' }, tts: { model: 'cartesia/sonic' } },
     models: [
       { id: 'openai/gpt-oss-20b', label: 'rẻ & nhanh' },
       { id: 'openai/gpt-oss-120b', label: 'mạnh' },
     ],
   },
   {
-    id: 'fireworks',
-    label: 'Fireworks AI',
-    tier: 'cheap',
-    baseUrl: 'https://api.fireworks.ai/inference/v1',
-    keyUrl: 'https://fireworks.ai/account/api-keys',
-    note: 'Tên model dạng accounts/…/models/…. Bấm ↻ để lấy đúng tên.',
-    listsModels: true,
-    modelsVerified: false,
-    codegenModel: null,
-    lanes: { llm: true, image: false, tts: false },
-    models: [
-      { id: 'accounts/fireworks/models/gpt-oss-20b', label: 'rẻ & nhanh' },
-      { id: 'accounts/fireworks/models/gpt-oss-120b', label: 'mạnh' },
-    ],
-  },
-  {
-    id: 'novita',
-    label: 'Novita AI',
-    tier: 'cheap',
-    baseUrl: 'https://api.novita.ai/openai/v1',
-    keyUrl: 'https://novita.ai/settings/key-management',
-    note: 'Tài khoản mới có phiếu dùng thử. Bấm ↻ để lấy đúng tên model.',
-    listsModels: true,
-    modelsVerified: false,
-    codegenModel: null,
-    lanes: { llm: true, image: false, tts: false },
-    models: [{ id: 'deepseek/deepseek-v3.2', label: 'rẻ' }],
-  },
-  {
-    id: 'nebius',
-    label: 'Nebius Token Factory',
-    tier: 'cheap',
-    baseUrl: 'https://api.tokenfactory.nebius.com/v1',
-    keyUrl: 'https://tokenfactory.nebius.com',
-    note: 'Đăng nhập bằng Google/GitHub, có ít credit dùng thử. Bấm ↻ để lấy tên model.',
-    listsModels: true,
-    modelsVerified: false,
-    codegenModel: null,
-    lanes: { llm: true, image: false, tts: false },
-    models: [{ id: 'deepseek-ai/DeepSeek-V3.2', label: 'rẻ' }],
-  },
-  {
-    id: 'sambanova',
-    label: 'SambaNova',
-    tier: 'cheap',
-    baseUrl: 'https://api.sambanova.ai/v1',
-    keyUrl: 'https://cloud.sambanova.ai/apis',
-    note: 'Có bậc miễn phí nhưng chỉ 20 lượt/ngày — đủ thử, không đủ dựng video.',
-    listsModels: true,
-    modelsVerified: false,
-    codegenModel: null,
-    lanes: { llm: true, image: false, tts: false },
-    // Unnamespaced and capitalised, unlike everyone else in this list.
-    models: [{ id: 'Meta-Llama-3.3-70B-Instruct', label: 'mạnh' }],
-  },
-
-  // ---- premium ----
-  {
     id: 'openai',
     label: 'OpenAI',
     tier: 'premium',
     baseUrl: 'https://api.openai.com/v1',
     keyUrl: 'https://platform.openai.com/api-keys',
-    note: 'Chuẩn mực, nhưng đắt và thẻ Việt Nam hay bị từ chối.',
+    note: 'Chỉ dùng cho ảnh và giọng đọc.',
     listsModels: true,
     modelsVerified: true,
     codegenModel: null,
-    lanes: { llm: true, image: { model: 'gpt-image-2' }, tts: { model: 'gpt-4o-mini-tts' } },
+    // llm: false — no Gemini. Kept for the image and TTS lanes.
+    lanes: { llm: false, image: { model: 'gpt-image-2' }, tts: { model: 'gpt-4o-mini-tts' } },
     models: [
       { id: 'gpt-4o-mini', label: 'rẻ & quen thuộc' },
       // The reasoning line renamed the token field and accepts only temperature 1 — model
@@ -313,57 +170,6 @@ export const LLM_PRESETS = [
       { id: 'gpt-5.4-mini', label: 'mạnh', compat: { maxTokensParam: 'max_completion_tokens', omitTemperature: true } },
     ],
   },
-  {
-    id: 'anthropic',
-    label: 'Anthropic (Claude)',
-    tier: 'premium',
-    baseUrl: 'https://api.anthropic.com/v1',
-    keyUrl: 'https://platform.claude.com/settings/keys',
-    note: 'Viết rất tốt, giá cao. Lớp tương thích OpenAI của họ bỏ qua chế độ JSON.',
-    listsModels: true,
-    modelsVerified: true,
-    codegenModel: null,
-    lanes: { llm: true, image: false, tts: false },
-    // Anthropic documents that its OpenAI-compatible layer ignores response_format outright,
-    // so asking for JSON mode buys nothing and costs a wasted first attempt.
-    compat: { jsonMode: false },
-    models: [
-      { id: 'claude-sonnet-4-6', label: 'cân bằng' },
-      { id: 'claude-opus-5', label: 'mạnh nhất' },
-    ],
-  },
-
-  // ---- on the owner's own machine ----
-  {
-    id: 'ollama',
-    label: 'Ollama (máy của bạn)',
-    tier: 'local',
-    baseUrl: 'http://localhost:11434/v1',
-    keyUrl: 'https://ollama.com/download',
-    note: 'Chạy offline, không tốn tiền. Cần "ollama pull" model trước; bấm ↻ để xem model đã tải.',
-    noCard: true,
-    keyless: true,
-    listsModels: true,
-    modelsVerified: false,
-    codegenModel: null,
-    lanes: { llm: true, image: false, tts: false },
-    models: [],
-  },
-  {
-    id: 'lmstudio',
-    label: 'LM Studio (máy của bạn)',
-    tier: 'local',
-    baseUrl: 'http://localhost:1234/v1',
-    keyUrl: 'https://lmstudio.ai',
-    note: 'Chạy offline. Phải bật server ở tab Developer của LM Studio trước.',
-    noCard: true,
-    keyless: true,
-    listsModels: true,
-    modelsVerified: false,
-    codegenModel: null,
-    lanes: { llm: true, image: false, tts: false },
-    models: [],
-  },
 
   // ---- anything else ----
   {
@@ -371,7 +177,7 @@ export const LLM_PRESETS = [
     label: '✏️ Tuỳ chỉnh (tự nhập Base URL)',
     tier: 'custom',
     baseUrl: '',
-    note: 'Bất kỳ endpoint nào nói chuẩn OpenAI chat-completions — proxy riêng, gateway nội bộ…',
+    note: 'Endpoint chuẩn OpenAI — proxy riêng, gateway nội bộ.',
     listsModels: true,
     modelsVerified: false,
     // An unrecognised endpoint keeps the model this app has always pinned for codegen, so an
@@ -389,6 +195,9 @@ export const LLM_PRESETS = [
 //                string cannot work for everyone.
 //   hyperbolic — its documentation moved twice and every published URL 404s today.
 // Any of the three still works through the "Tuỳ chỉnh" entry.
+
+/** A server on this machine — it wants the header, not a real key. */
+const LOCAL_ENDPOINT = /^https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])(:\d+)?(\/|$)/i;
 
 const BY_ID = new Map(LLM_PRESETS.map((p) => [p.id, p]));
 const CUSTOM = BY_ID.get('custom');
@@ -469,7 +278,11 @@ export function withPreset(s, model = s?.model) {
   // written to the database: a stored fake key would show up masked ('loca••') in the panel
   // and the UI would have to lie about it. This is what keeps llmEnabled's meaning — and all
   // ~20 modules that gate on it — unchanged for a provider that needs no key.
-  if (!out.apiKey && p.keyless) out.apiKey = 'local';
+  //
+  // The rule is the ENDPOINT's, not the catalogue's. The named local presets (Ollama, LM Studio)
+  // went with the Gemini-only cut, but a gateway on your own machine still ignores keys — and
+  // that is now reached through "Tuỳ chỉnh", where no catalogue flag can describe it.
+  if (!out.apiKey && (p.keyless || LOCAL_ENDPOINT.test(String(out.baseUrl || '')))) out.apiKey = 'local';
   return out;
 }
 

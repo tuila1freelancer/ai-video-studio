@@ -118,14 +118,16 @@ export async function loadLlmPresets() {
   try {
     state.llmPresets = (await api.get('/llm/providers')).presets || [];
   } catch { state.llmPresets = []; /* offline — the picker degrades to the custom entry */ }
+  // The LLM picker offers ONLY what can serve the LLM lane. Groq/Together/OpenAI stay in the
+  // catalogue for the image and TTS pickers but have no Gemini, and the script and the HyperFrame
+  // graphics run off this one setting — offering a provider that makes the second half fail is
+  // not a choice, it is a trap.
+  const forLlm = state.llmPresets.filter((p) => p.lanes?.llm);
   const html = Object.entries(TIER_LABELS).map(([tier, label]) => {
-    const rows = state.llmPresets.filter((p) => p.tier === tier);
+    const rows = forLlm.filter((p) => p.tier === tier);
     if (!rows.length) return '';
     return `<optgroup label="${esc(label)}">${rows.map((p) =>
-      // Only a provider that serves Gemini can drive HyperFrame, and that is the one thing
-      // worth flagging in the list itself. Not on "Tuỳ chỉnh": an arbitrary endpoint keeps the
-      // model this app has always pinned, which is a legacy default, not a promise.
-      `<option value="${esc(p.id)}">${esc(p.label)}${p.codegenModel && p.id !== 'custom' ? ' · dựng được đồ hoạ' : ''}</option>`).join('')}</optgroup>`;
+      `<option value="${esc(p.id)}">${esc(p.label)}</option>`).join('')}</optgroup>`;
   }).join('');
   $('#setLlmPreset').innerHTML = html || '<option value="custom">✏️ Tuỳ chỉnh (tự nhập Base URL)</option>';
 }
@@ -208,17 +210,16 @@ function renderLlmPreset() {
   // place the app can say so before that happens.
   const hasGemini = /gemini/i.test(acc.codegenModel || p?.codegenModel || '');
   $('#llmCodegenWarn').innerHTML = hasGemini
-    ? '✅ Khâu dựng đồ hoạ sẽ chạy bằng <strong>' + esc(acc.codegenModel || p.codegenModel) + '</strong>.'
-    : '⚠️ <strong>Nhà cung cấp này không có model Gemini.</strong> Chỉ Gemini dựng được đồ hoạ HyperFrame '
-      + '— hãy chọn Google Gemini hoặc OpenRouter, hoặc nếu endpoint của bạn có phục vụ Gemini dưới tên khác thì nhập tên đó vào ô này.';
+    ? 'Dựng đồ hoạ bằng <strong>' + esc(acc.codegenModel || p.codegenModel) + '</strong>.'
+    : '⚠️ Chưa có model Gemini — nhập tên model Gemini mà endpoint của bạn phục vụ.';
   $('#llmCodegenWarn').style.color = hasGemini ? 'var(--muted)' : 'var(--red)';
 
   $('#btnFetchModels').disabled = !(p?.listsModels ?? true);
   $('#llmModelsOut').textContent = '';
   const badges = [];
-  if (p?.noCard && !p?.keyless) badges.push('🎁 dùng được ngay, không cần thẻ');
-  if (p?.keyless) badges.push('💻 không cần API key');
-  if (p && !p.modelsVerified && p.models?.length) badges.push('↻ nên bấm lấy danh sách model cho chắc');
+  if (p?.noCard && !p?.keyless) badges.push('🎁 không cần thẻ');
+  if (p?.keyless) badges.push('💻 không cần key');
+  if (p && !p.modelsVerified && p.models?.length) badges.push('↻ nên lấy lại danh sách model');
   $('#llmPresetNote').innerHTML = [
     p?.note ? esc(p.note) : '',
     badges.join(' · '),

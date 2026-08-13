@@ -12,7 +12,15 @@ import {
 const TIERS = new Set(['free', 'cheap', 'premium', 'local', 'custom']);
 
 test('every preset is well formed', () => {
-  assert.ok(LLM_PRESETS.length >= 15, 'the catalogue should be worth having a picker for');
+  // Owner order 2026-08-12: the LLM picker offers ONLY Gemini-capable providers, because the
+  // script and the HyperFrame graphics run off one setting and a non-Gemini choice makes the
+  // second half fail. Thirteen LLM-only entries were deleted; three stay for the image/TTS lanes
+  // with lanes.llm:false. So the catalogue is deliberately SMALL now — what has to hold is that
+  // every provider still offered for the LLM lane can actually serve it.
+  for (const p of LLM_PRESETS.filter((x) => x.lanes?.llm)) {
+    assert.ok(p.codegenModel, `${p.id} is offered for the LLM lane without a Gemini codegen model`);
+  }
+  assert.deepEqual(LLM_PRESETS.filter((x) => x.lanes?.llm).map((x) => x.id), ['gemini', 'openrouter', 'custom']);
   const ids = new Set();
   for (const p of LLM_PRESETS) {
     assert.ok(p.id && !ids.has(p.id), `duplicate or missing id: ${p.id}`);
@@ -100,8 +108,10 @@ test('an install that predates presets picks up its provider without touching se
 });
 
 test('a value the user set explicitly always beats the catalogue', () => {
-  assert.equal(withPreset({ preset: 'anthropic' }).jsonMode, false);
-  assert.equal(withPreset({ preset: 'anthropic', jsonMode: true }).jsonMode, true);
+  // Gemini's OpenAI layer answers a json_object request with a bare fence, so the catalogue
+  // turns JSON mode off — and the owner can still turn it back on.
+  assert.equal(withPreset({ preset: 'gemini' }).jsonMode, false);
+  assert.equal(withPreset({ preset: 'gemini', jsonMode: true }).jsonMode, true);
   assert.equal(withPreset({ preset: 'groq', maxTokensCap: 4096 }).maxTokensCap, 4096);
 });
 
@@ -115,12 +125,18 @@ test('compat resolves per MODEL, not just per provider', () => {
   assert.equal(withPreset(openai, 'gpt-5-mini').omitTemperature, true);
 });
 
-test('a keyless local provider gets a key at read time, never in the database', () => {
-  const saved = { enabled: true, preset: 'ollama', baseUrl: 'http://localhost:11434/v1', apiKey: '' };
+test('a server on this machine gets a key at read time, never in the database', () => {
+  // The named local presets (Ollama, LM Studio) went with the Gemini-only cut, so the rule moved
+  // to where it was always true anyway: the ENDPOINT. A gateway on your own machine wants the
+  // Authorization header, not a real key, and it is now reached through "Tuỳ chỉnh" where no
+  // catalogue flag could describe it.
+  const saved = { enabled: true, preset: 'custom', baseUrl: 'http://127.0.0.1:20128/v1', apiKey: '' };
   assert.equal(withPreset(saved).apiKey, 'local');
   assert.equal(saved.apiKey, '', 'the stored blob stays honest');
-  // a provider that DOES need a key is left empty, so llmEnabled still refuses it
-  assert.equal(withPreset({ preset: 'groq', apiKey: '' }).apiKey, '');
+  assert.equal(withPreset({ preset: 'custom', baseUrl: 'http://localhost:9999/v1', apiKey: '' }).apiKey, 'local');
+  // a REMOTE endpoint with no key is left empty, so llmEnabled still refuses it
+  assert.equal(withPreset({ preset: 'custom', baseUrl: 'https://api.example.com/v1', apiKey: '' }).apiKey, '');
+  assert.equal(withPreset({ preset: 'gemini', apiKey: '' }).apiKey, '');
 });
 
 test('OpenRouter sends its attribution headers, and a caller can still add its own', () => {
@@ -324,7 +340,7 @@ test("a provider's own headers ride along with the key", async () => {
 });
 
 test('a local server answers without a key ever being typed', async () => {
-  const req = await capture({ baseUrl: 'http://localhost:11434/v1', apiKey: '', model: 'qwen3:8b' });
+  const req = await capture({ baseUrl: 'http://localhost:11434/v1', apiKey: '', model: 'qwen3:8b', preset: 'custom' });
   assert.equal(req.headers.Authorization, 'Bearer local');
   assert.equal(req.body.model, 'qwen3:8b');
 });
