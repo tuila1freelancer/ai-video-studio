@@ -28,19 +28,17 @@ export function mergeConfigLayers(...layers) {
 function isPlainObject(v) { return v != null && typeof v === 'object' && !Array.isArray(v); }
 
 // P39 (raw-GSAP reference port): HyperFrame visual quality is dominated by the codegen model,
-// not the prompt alone (memory: hyperframe-codegen-model). The reference app defaults to strong
-// models (opus/gemini-pro); our AI-settings default (gpt-4o-mini / ag/gemini-3-flash-agent) is
-// weak. Default codegen to the owner's stable strong proxy model — `ag/gemini-pro-agent` (the
-// only strong model that isn't 429-quota-bound; memory: parity-harness-p0). This is a per-project
-// override read by visuals.js (config.hyperframe.model → hfAi.llm.model); existing projects keep
-// their stored snapshot, and any provider/channel value still wins. Point it at the codegen model
-// your configured LLM provider actually serves.
-// P45: the model is no longer a constant, because the owner may now be on Groq or DeepSeek,
-// where `ag/gemini-pro-agent` does not exist. Measured against every other family, only Gemini
-// writes scene markup that renders — so a preset declares a codegen model ONLY if it actually
-// serves one, and '' means "no opinion, use the general model", which is what the per-project
-// field's own placeholder already promises. An unrecognised endpoint (a private proxy) resolves
-// to the value below, so an existing install is not moved a millimetre.
+// not the prompt alone (memory: hyperframe-codegen-model). It reaches the render as a per-project
+// override read by visuals.js (config.hyperframe.model → hfAi.llm.model), so existing projects
+// keep their stored snapshot and any channel/preset/request value still wins.
+//
+// ai-providers amends it: this used to be the constant `ag/gemini-pro-agent`, which exists only
+// on the owner's own proxy — a guaranteed render failure once the provider picker let someone
+// choose Groq. The requirement is unchanged (measured against every other family, only Gemini
+// writes scene markup that renders), so a preset declares a codegen model ONLY when it genuinely
+// serves one. '' means "no opinion, use the general model" — exactly what the per-project field's
+// own placeholder already promises for a blank value — and an endpoint the catalogue does not
+// recognise still resolves to the original model, so a private-proxy install does not move.
 function strongCodegenModel() {
   try { return codegenModelFor(aiSettings().llm); } catch { return ''; }
 }

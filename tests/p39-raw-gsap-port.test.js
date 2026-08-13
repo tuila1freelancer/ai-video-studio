@@ -11,7 +11,7 @@ import { viewportBlock } from '../src/hyperframe/prompt.js';
 
 const src = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 
-// P45 amends this pillar (owner's call 2026-08-13). The pin used to be the constant
+// ai-providers amends this pillar (owner's call 2026-08-13). The pin used to be the constant
 // `ag/gemini-pro-agent`, which exists only on the owner's own proxy — fine while that was the
 // only endpoint anyone used, a guaranteed render failure the moment the provider picker let
 // someone choose Groq. The requirement it encoded is unchanged: codegen must run on a strong
