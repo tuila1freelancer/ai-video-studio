@@ -232,11 +232,29 @@ ffmpeg (libass), whisper.cpp + the `ggml-small.bin` model, Chrome for Testing, `
 ## ⚙️ AI configuration (optional)
 
 Go to **⚙️ AI Setting** in the app to plug in:
-- **LLM**: Base URL + API Key + model (OpenAI-compatible — cheap proxies work; several keys rotate, `modelFallback` optional).
-- **TTS**: choose `say` (offline) / Edge / Vbee / LarVoice / OpenAI / ElevenLabs + voice.
+
+- **LLM**: pick a provider from the list and paste a key. The base URL, the suggested models and
+  that provider's quirks come with it; `↻ Lấy danh sách model` asks the provider what it serves
+  right now. Every provider keeps its own key and model, so switching between them is free.
+  Choose **Tuỳ chỉnh** to type a base URL by hand — any OpenAI-compatible endpoint works, several
+  keys separated by newlines rotate, and `modelFallback` is still an optional hidden knob.
+- **TTS**: choose `say` (offline) / Edge / Vbee / LarVoice / ElevenLabs, or the OpenAI-compatible
+  voice with a provider picked from the same list.
 - **Subtitles**: `align` (recommended — whisper timing with 100%-accurate script text) or `estimate` / `whisper`.
 
 With nothing plugged in it still runs fully using the macOS voice + ffmpeg.
+
+**Which provider to pick.** Free with no card: **Google Gemini** (AI Studio), **Groq**,
+**Cerebras**, **OpenRouter**'s `:free` models. Cheap pay-as-you-go: **DeepSeek**, **Z.ai**,
+**Moonshot**, **Together**. Offline and free forever: **Ollama** / **LM Studio** on your own
+machine. Prices shown next to each model come from `src/core/pricing.js`, the same table the cost
+meter bills against — they are estimates, and they go stale, so treat them as a guide.
+
+> **HyperFrame needs Gemini.** Scene graphics are written as code, and measured against every
+> other family only Gemini produces markup that renders. A provider without Gemini is fine for
+> scripts and metadata but cannot drive HyperFrame, and AI Setting says so when you pick one.
+> Gemini and OpenRouter both serve one; anything else needs a second key, or a codegen model
+> named by hand if your endpoint serves Gemini under another name.
 
 ---
 

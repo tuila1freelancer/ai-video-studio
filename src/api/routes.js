@@ -203,7 +203,7 @@ export function mountRoutes(app, { version }) {
     } catch (e) { res.status(200).json({ ok: false, message: e.message.slice(0, 220) }); }
   });
 
-  // ---- LLM provider catalogue (P45) ----
+  // ---- LLM provider catalogue (ai-providers) ----
   // What the provider picker in AI Setting is built from. Unlike every other settings egress
   // in this file it is NOT masked: nothing in the catalogue ever came from the user, so there
   // is no secret to hide. Prices are decorated from core/pricing.js rather than stored in the

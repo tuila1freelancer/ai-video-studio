@@ -18,7 +18,7 @@ export function initSettings() {
     const i = e.target;
     if (i.tagName === 'INPUT' && i.type === 'password' && i.value.includes('••')) i.select();
   });
-  // P45: switching provider rewrites the base URL, the key link and the model suggestions.
+  // ai-providers: switching provider rewrites the base URL, the key link and the model suggestions.
   $('#setLlmPreset')?.addEventListener('change', () => { stashLlmAccount(); renderLlmPreset(); });
   $('#btnFetchModels')?.addEventListener('click', fetchLlmModels);
   // P42: check the LLM endpoint before saving it, not mid-render
@@ -102,7 +102,7 @@ export async function loadVoices() {
   $('#setTtsProvider').innerHTML = state.providers
     .map((p) => `<option value="${p.id}">${esc(p.name)}${p.free ? ' · miễn phí' : ''}</option>`).join('');
 }
-// ---- LLM provider picker (P45) ----
+// ---- LLM provider picker (ai-providers) ----
 // Typing a base URL from memory was the single biggest thing standing between "installed" and
 // "actually using the AI stages". The catalogue lives on the server (providers/llm-presets.js);
 // this only renders it.
@@ -303,7 +303,7 @@ function renderProviderFields() {
     ? schema.map((f) => (f.type === 'checkbox'
       // a boolean knob is a switch, not a box you type "true" into (P40: Supertonic autoStart)
       ? `<label class="switch-row"><span class="switch"><input type="checkbox" class="prov-field" data-key="${f.key}"${saved[f.key] ? ' checked' : ''}><span class="sl"></span></span> ${esc(f.label)}</label>`
-      // a closed set of choices is a dropdown, not a string to spell right (P45: TTS presets)
+      // a closed set of choices is a dropdown, not a string to spell right (ai-providers: TTS presets)
       : f.type === 'select'
       ? `<div class="field"><label class="label">${esc(f.label)}</label>
         <select class="input prov-field" data-key="${f.key}">${(f.options || []).map((o) =>

@@ -1,4 +1,4 @@
-// P45: the provider catalogue. A data file's realistic failure mode is a bad paste — a typo'd
+// ai-providers: the provider catalogue. A data file's realistic failure mode is a bad paste — a typo'd
 // base URL, a duplicated id, a model list that lost its provider — so these assert the shape
 // as hard as the behaviour. The last block stubs fetch to prove what actually reaches the wire,
 // including the case that matters most: an unknown endpoint must send exactly what it always did.

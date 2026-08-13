@@ -10,7 +10,7 @@ import { withPreset } from './llm-presets.js';
 // llm param (optional) = a resolved settings.llm object (e.g. per-channel override);
 // omitted → global settings, exactly as before.
 //
-// P45: every entry point resolves through withPreset() first, so the provider's own quirks
+// ai-providers: every entry point resolves through withPreset() first, so the provider's own quirks
 // (token cap, header, JSON mode) arrive without a single one of the ~20 modules that gate on
 // llmEnabled having to change. The predicate itself is untouched — a local server that ignores
 // its key gets one synthesised there, which is why "has a key" still means what it always did.
