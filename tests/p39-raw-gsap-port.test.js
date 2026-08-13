@@ -6,13 +6,33 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { resolveProjectConfig } from '../src/core/config.js';
+import * as DB from '../src/db/index.js';
 import { viewportBlock } from '../src/hyperframe/prompt.js';
 
 const src = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 
-test('P39 pillar 3: new projects default codegen to the strong proxy model', () => {
-  const cfg = resolveProjectConfig({});
-  assert.equal(cfg.hyperframe.model, 'ag/gemini-pro-agent', 'strong stable proxy model is the codegen default');
+// ai-providers amends this pillar (owner's call 2026-08-13). The pin used to be the constant
+// `ag/gemini-pro-agent`, which exists only on the owner's own proxy — fine while that was the
+// only endpoint anyone used, a guaranteed render failure the moment the provider picker let
+// someone choose Groq. The requirement it encoded is unchanged: codegen must run on a strong
+// GEMINI model, because nothing else writes scene markup that renders. It is now resolved from
+// the configured provider instead of hardcoded, and an unrecognised endpoint still gets the
+// original value, so the owner's own install is untouched.
+test('P39 pillar 3: a new project pins the codegen model its provider actually serves', () => {
+  const settings = (llm) => DB.setSetting('ai', { ...DB.aiSettings(), llm });
+
+  settings({ preset: 'gemini', baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai', apiKey: 'k', model: 'gemini-2.5-flash-lite' });
+  assert.match(resolveProjectConfig({}).hyperframe.model, /gemini/i, 'Gemini serves a strong Gemini model');
+
+  // an endpoint the catalogue does not know: keep the model this app has always pinned
+  settings({ preset: 'custom', baseUrl: 'http://127.0.0.1:20128/v1', apiKey: 'k', model: 'ag/x' });
+  assert.equal(resolveProjectConfig({}).hyperframe.model, 'ag/gemini-pro-agent');
+
+  // a provider with no Gemini at all states no opinion, and codegen falls back to the general
+  // model rather than demanding one the provider would 404 on
+  settings({ preset: 'groq', baseUrl: 'https://api.groq.com/openai/v1', apiKey: 'k', model: 'llama-3.1-8b-instant' });
+  assert.equal(resolveProjectConfig({}).hyperframe.model, '');
+
   // still just a per-project override — a channel/preset/request value wins
   const over = resolveProjectConfig({ request: { hyperframe: { model: 'custom/x' } } });
   assert.equal(over.hyperframe.model, 'custom/x', 'an explicit request model overrides the default');

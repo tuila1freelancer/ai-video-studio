@@ -16,7 +16,10 @@ export function setSetting(key, value) {
 }
 
 export const DEFAULT_SETTINGS = {
-  llm: { baseUrl: 'https://api.openai.com/v1', apiKey: '', model: 'gpt-4o-mini', enabled: false },
+  // `preset` names the provider (providers/llm-presets.js) and only pre-fills the panel — the
+  // request is still built from baseUrl. An install that predates it infers its provider from
+  // the saved URL, so nothing has to be migrated for that provider's quirks to start applying.
+  llm: { preset: 'openai', baseUrl: 'https://api.openai.com/v1', apiKey: '', model: 'gpt-4o-mini', enabled: false },
   // 'edge' = Microsoft neural voices (free, needs internet, auto-falls back to say offline).
   // 'auto' voices resolve per-scene from the detected text language — never a wrong-language voice.
   tts: { provider: 'edge', edgeVoice: 'auto', voice: 'auto', rate: 175, apiKey: '', voiceId: '', model: '' },
