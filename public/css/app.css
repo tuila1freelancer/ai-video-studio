@@ -385,7 +385,9 @@ select.input{appearance:none;-webkit-appearance:none;background-image:url("data:
 .hero .btn.big{padding:12px 22px}
 
 /* home: animated gradient mesh (GPU-only transforms) + headline + command bar */
-#page-home{position:relative}
+/* The mesh anchors to `.page`, which is already `position:absolute` — an `#page-home{position:
+   relative}` here would win on specificity and cost the page its `inset:0` height, leaving it to
+   grow to its content while `.content{overflow:hidden}` clips the gallery with nothing to scroll. */
 .home-mesh{position:absolute;inset:0;overflow:hidden;pointer-events:none}
 .home-mesh i{position:absolute;width:560px;height:560px;border-radius:50%;filter:blur(95px);opacity:.15;will-change:transform}
 .home-mesh .m1{background:#6d5cff;top:-240px;left:14%;animation:meshA 26s ease-in-out infinite alternate}
