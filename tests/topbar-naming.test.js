@@ -20,9 +20,8 @@ test('the shell is a column with one topbar, and the panes stop padding around t
   for (const pane of ['.s-main', '.s-config', '.lib', '.gallery']) {
     assert.doesNotMatch(css, new RegExp(`html\\.is-shell \\${pane}\\{padding-top:calc`), `${pane} still pads for the titlebar`);
   }
-  // …and the topbar is the drag region, with its own controls opted back out
-  assert.match(css, /-webkit-app-region:drag/);
-  assert.match(css, /\.nav button,\.nav select,\.nav \.nav-foot\{-webkit-app-region:no-drag\}/);
+  // The topbar is still the drag region, but NOT via `-webkit-app-region` — see shell-chrome.test.js.
+  assert.doesNotMatch(css, /-webkit-app-region\s*:/, 'WKWebView ignores it; the strip in main.swift drags');
 });
 
 test('the collapse toggle went with the rail, everywhere', () => {

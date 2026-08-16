@@ -142,11 +142,11 @@ select.input{appearance:none;-webkit-appearance:none;background-image:url("data:
    single biggest consumer of horizontal space on the Studio page, which still spends 300px on
    the input column and 292px on the config column — losing the rail hands all 216px to the work. */
 .app{display:flex;flex-direction:column;height:100vh;overflow:hidden}
+/* The top `--pad-titlebar` of this padding must stay free of controls: the native shell covers it
+   with a drag strip (shell/main.swift, TitlebarDragView) because WKWebView ignores
+   `-webkit-app-region`, so that band is the only way to move the window. */
 .nav{display:flex;align-items:center;gap:14px;flex-shrink:0;background:var(--bg-1);
-  border-bottom:1px solid var(--hairline);padding:8px 14px;padding-top:calc(8px + var(--pad-titlebar));
-  -webkit-app-region:drag}
-/* every control inside it is clickable again — only the empty strip drags the window */
-.nav button,.nav select,.nav .nav-foot{-webkit-app-region:no-drag}
+  border-bottom:1px solid var(--hairline);padding:8px 14px;padding-top:calc(8px + var(--pad-titlebar))}
 .nav-brand{display:flex;align-items:center;gap:9px;font-weight:700;letter-spacing:.01em;white-space:nowrap;flex-shrink:0}
 .nav-brand .logo{width:26px;height:26px;display:grid;place-items:center;flex-shrink:0;filter:drop-shadow(0 2px 10px rgba(109,92,255,.4))}
 .nav-brand small{display:block;font-size:9px;color:var(--text-3);font-weight:600;letter-spacing:.08em}

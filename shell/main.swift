@@ -4,6 +4,29 @@
 import Cocoa
 import WebKit
 
+// Height of the strip below, in points. Must stay equal to the web UI's `--pad-titlebar`, which is
+// pure padding at the top of the topbar — the strip covers no control.
+let TITLEBAR_INSET: CGFloat = 40
+
+// The window's only drag handle. `-webkit-app-region:drag` is a Chromium extension that WKWebView
+// ignores, and `fullSizeContentView` makes the titlebar band hit-test straight through to the web
+// view (which reports `mouseDownCanMoveWindow == false`) — so without this the window cannot be
+// moved from anywhere at all. The traffic lights live in the titlebar view above and stay clickable.
+final class TitlebarDragView: NSView {
+  override func mouseDown(with event: NSEvent) {
+    guard let window = window else { return }
+    guard event.clickCount < 2 else {
+      switch UserDefaults.standard.string(forKey: "AppleActionOnDoubleClick") {
+      case "Minimize": window.miniaturize(nil)
+      case "None": break
+      default: window.zoom(nil)
+      }
+      return
+    }
+    window.performDrag(with: event)
+  }
+}
+
 final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, WKUIDelegate {
   var window: NSWindow!
   var webView: WKWebView!
@@ -20,9 +43,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
 
   func setupWindow() {
     let frame = NSRect(x: 0, y: 0, width: 1280, height: 840)
-    // fullSizeContentView + transparent titlebar: the web sidebar runs under the traffic
-    // lights (Linear/Arc-style chrome). The overlaid titlebar strip stays natively
-    // draggable; the web UI reserves its top 40px via html.is-shell → --pad-titlebar.
+    // fullSizeContentView + transparent titlebar: the web topbar runs under the traffic
+    // lights (Linear/Arc-style chrome). The web UI reserves its top 40px via
+    // html.is-shell → --pad-titlebar, and TitlebarDragView below makes that band drag.
     window = NSWindow(contentRect: frame,
       styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
       backing: .buffered, defer: false)
@@ -51,7 +74,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     // inside this app — the same page in a normal browser worked fine, which is what made it
     // look like a web bug for so long.
     webView.uiDelegate = self
-    window.contentView = webView
+
+    // The web view can no longer BE the content view: the drag strip has to sit above it.
+    let content = NSView(frame: frame)
+    content.addSubview(webView)
+    let dragStrip = TitlebarDragView(frame: NSRect(
+      x: 0, y: frame.height - TITLEBAR_INSET, width: frame.width, height: TITLEBAR_INSET))
+    dragStrip.autoresizingMask = [.width, .minYMargin] // stays pinned to the top on resize
+    content.addSubview(dragStrip)
+    window.contentView = content
     window.makeKeyAndOrderFront(nil)
     loadSplash("Đang khởi động AI Video Studio…")
   }
