@@ -178,3 +178,8 @@ from the studio's own database — every number is real production data.
 - Scenes with rendered clips (active projects): 0 · Jobs: 0 done / 0 error / 0 cancelled
 - AI usage: 0 calls · 0 tokens in / 0 out · 0 TTS chars · est. $0.00
 - Published: — · Calendar-driven runs: —
+## 2026-08-16
+- Videos: 1 created · 15 completed — “5 Money Habits That Quietly Make You Rich” · “Mật Khẩu Mạnh Là Chưa Đủ: Bật Ngay Xác Thực Hai Lớp” · “Xe Điện Hay Xe Xăng: Tính Đúng Chi Phí 5 Năm” · “Vì Sao Áo Dài Trở Thành Biểu Tượng Của Việt Nam?” · “5 Con Số Về Rác Nhựa Sẽ Khiến Bạn Bỏ Ngay Đồ Dùng 1 Lần”
+- Scenes with rendered clips (active projects): 102 · Jobs: 23 done / 1 error / 0 cancelled
+- AI usage: 347 calls · 3093k tokens in / 747k out · 11.4k TTS chars · est. $10.60
+- Published: — · Calendar-driven runs: —
