@@ -123,6 +123,21 @@ open "AI Video Studio.app"
 ```
 The app auto-starts the backend, then shows the native window.
 
+**Platforms.** One target: **macOS 11+ on Apple Silicon**. `npm run release` builds exactly
+`AI-Video-Studio-v<x>-macos-arm64.zip` — there is no second platform, and there cannot be one
+without a second shell: the launcher is Swift against Cocoa + WebKit. What ships inside the
+bundle, verified by `file` on the artifacts themselves:
+
+| Piece | Arch | Note |
+|---|---|---|
+| launcher, `vendor/node` (22.x), `better-sqlite3` | arm64 | Intel Macs cannot run this bundle at all |
+| `vendor/ffmpeg`, `vendor/ffprobe` | **x86_64** | static libass build; **needs Rosetta 2**, and is 4–7× slower than a native ffmpeg, so `paths.js` prefers a Homebrew one when the machine has it |
+| Chrome | — | **not bundled**; falls back to `/Applications/Google Chrome.app`, and without it scene rendering and thumbnails have no engine |
+| whisper + model | — | not bundled (547 MB); downloaded on demand from Settings |
+
+Unless `APPLE_SIGNING_IDENTITY` + the notarytool credentials are set, the release is ad-hoc signed
+only and Gatekeeper blocks the first launch until the buyer right-clicks → Open.
+
 **Dev:**
 ```bash
 npm install              # needs Node 22 (e.g.: /opt/homebrew/opt/node@22/bin)
