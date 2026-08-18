@@ -50,7 +50,9 @@ test('a fresh clip is stamped, or the skip never converges', () => {
   // THE trap. Rendering without stamping leaves the new file next to the OLD fingerprint, so the
   // next run finds the same scene stale and rebuilds it again — an incremental pass that
   // re-renders everything, with extra steps. finalize's repair carries the identical note.
-  assert.match(renderOnly, /fp: fpStamp\(DB\.getScene\(sc\.id\), 'render', renderFingerprint\(sc, \{ config: project\.config \|\| config, project \}\)\)/);
+  // now `stampRendered`: the same digest, plus the typesetter version beside it — the digest
+  // alone cannot say WHICH harness drew the clip (see typeset-repair.test.js).
+  assert.match(renderOnly, /fp: stampRendered\(DB\.getScene\(sc\.id\), renderFingerprint\(sc, \{ config: project\.config \|\| config, project \}\)\)/);
   // and the round trip really is stable: stamp what you rendered, and it reads as current
   const cfg = PROJECT.config;
   const before = scene();

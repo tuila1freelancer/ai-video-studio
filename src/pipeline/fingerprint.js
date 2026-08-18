@@ -166,3 +166,22 @@ export function fpCurrent(scene, key, expected) {
 export function fpStamp(scene, key, value) {
   return { ...(scene.fp || {}), [key]: value };
 }
+
+/**
+ * Which typesetter drew this clip.
+ *
+ * The render digest cannot answer that: it hashes the scene's props and the config keys, never the
+ * harness, so a clip drawn before `__fitVietnamese` existed and one drawn after are identical to
+ * it — deliberately, because putting the harness in the digest would invalidate every clip of
+ * every video, English ones included, on any harness edit at all.
+ *
+ * So the version rides beside the digest, written only where a clip is actually produced. It is
+ * what lets the Vietnamese repair scan say "already done" instead of offering the same 7 scenes
+ * forever.
+ */
+export const TYPESET_VERSION = 1;
+
+/** Stamp a scene that just had its clip written. */
+export function stampRendered(scene, digest) {
+  return { ...(scene.fp || {}), render: digest, typeset: TYPESET_VERSION };
+}

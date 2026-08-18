@@ -9,6 +9,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { typesetRisk, atRiskScenes } from '../src/pipeline/vietnamese-scan.js';
+import { TYPESET_VERSION } from '../src/pipeline/fingerprint.js';
 
 const src = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const scene = (props, id = 's1', idx = 0) => ({ id, idx, props });
@@ -85,4 +86,28 @@ test('the button only exists when there is something to repair', () => {
   assert.match(studio, /ghi đè file hiện tại/, 'and says the video on disk is replaced');
   assert.match(studio, /Không gọi AI, không đổi thiết kế/);
   assert.match(src('../public/index.html'), /id="btnTypeset"/);
+});
+
+test('a clip already drawn by the fixed typesetter is not offered again', () => {
+  // The render digest cannot answer "which typesetter drew this": it hashes scene props and config
+  // keys, never the harness — deliberately, because hashing the harness would invalidate every
+  // clip of every video, English included, on any harness edit at all. So the version rides beside
+  // the digest, written only where a clip is actually produced.
+  const bad = { id: 's', idx: 0, props: { html: '<b>ĐÀ NẴNG</b>', css: '.b{line-height:0.8}' } };
+  assert.ok(typesetRisk(bad));
+  assert.equal(typesetRisk({ ...bad, fp: { typeset: TYPESET_VERSION } }), null);
+  // a pre-existing fp blob from before the stamp existed still counts as unrepaired
+  assert.ok(typesetRisk({ ...bad, fp: { render: 'abc', tts: 'def' } }));
+});
+
+test('the stamp is written wherever a clip is written, and nowhere else', () => {
+  // Three sites produce a clip: the pipeline render stage, the render-only lane, and finalize's
+  // missing-clip repair. The migrate branches only correct a digest whose DEFINITION moved — they
+  // touch no file, so they must keep the plain stamp or they would claim a repair that never ran.
+  for (const f of ['../src/pipeline/render-only.js', '../src/pipeline/stages/render.js', '../src/pipeline/stages/finalize.js']) {
+    assert.match(src(f), /fp: stampRendered\(/, `${f} does not stamp the typesetter`);
+  }
+  assert.match(src('../src/pipeline/render-only.js'), /if \(cur\.migrate\) DB\.updateScene\(s\.id, \{ fp: fpStamp\(s, 'render', cur\.want\) \}\);/);
+  assert.match(src('../src/pipeline/fingerprint.js'), /export const TYPESET_VERSION = 1;/);
+  assert.match(src('../src/pipeline/fingerprint.js'), /return \{ \.\.\.\(scene\.fp \|\| \{\}\), render: digest, typeset: TYPESET_VERSION \};/);
 });

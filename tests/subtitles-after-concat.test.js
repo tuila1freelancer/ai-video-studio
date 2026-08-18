@@ -86,7 +86,8 @@ test('finalize rebuilds a clip it cannot vouch for before printing on it', () =>
   assert.match(fin, /renderAnimationScene\(sc, project, clipCfg, \{/);
   // …and the repair STAMPS what it made. Leaving the old fingerprint next to a new file would
   // make the very next join find the same scene stale and rebuild it all over again.
-  assert.match(fin, /fp: fpStamp\(sc, 'render', renderFingerprint\(sc, \{ config: clipCfg, project \}\)\)/);
+  // `stampRendered` — same digest, plus which typesetter drew the clip (typeset-repair.test.js)
+  assert.match(fin, /fp: stampRendered\(sc, renderFingerprint\(sc, \{ config: clipCfg, project \}\)\)/);
 });
 
 test('nothing writes a subtitle onto anything except the assembled programme', () => {

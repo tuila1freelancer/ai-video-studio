@@ -13,7 +13,7 @@ import { qcSceneClip } from '../qc.js';
 import { checkStop } from '../stop.js';
 import { step, op, progressPlan } from '../progress.js';
 import { mapPool } from '../helpers.js';
-import { renderFingerprint, renderCurrent, fpCurrent, fpStamp } from '../fingerprint.js';
+import { renderFingerprint, renderCurrent, fpCurrent, fpStamp, stampRendered } from '../fingerprint.js';
 import { timed } from '../stats.js';
 
 /** @param {import('../context.js').PipelineContext} ctx */
@@ -35,7 +35,7 @@ export async function runRender(ctx) {
     }));
     const { path, duration, preview } = r;
     DB.updateScene(sc.id, { video_path: path, duration, status: 'rendered', error: null, ...(preview ? { image_path: preview } : {}),
-      fp: fpStamp(sc, 'render', renderFingerprint(sc, ctx)) });
+      fp: stampRendered(sc, renderFingerprint(sc, ctx)) });
     hub.toProject(projectId, { type: 'scene', sceneId: sc.id, idx: sc.idx, status: 'rendered',
       video: `/api/file?path=${encodeURIComponent(path)}`, ...(preview ? { image: `/api/file?path=${encodeURIComponent(preview)}` } : {}) });
   };
