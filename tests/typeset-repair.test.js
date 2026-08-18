@@ -64,12 +64,15 @@ test('a subset render can finish the job, and says why it may', () => {
   // inspecting them next. The repair already knows its whole list, and two queued jobs would
   // leave a window where the video on disk mixes repaired and unrepaired clips.
   const ro = src('../src/pipeline/render-only.js');
-  assert.match(ro, /const doJoin = mode !== 'scenes' \|\| join;/);
-  assert.match(ro, /variantName = null, join = false \}/);
+  assert.match(ro, /const doJoin = mode !== 'scenes' \|\| alsoJoin;/);
+  // named `alsoJoin` because this module imports `join` from node:path: a parameter called
+  // `join` shadows it for the whole function and the render loop calls a boolean.
+  assert.doesNotMatch(ro, /, join = false \}/, 'never shadow the path helper');
+  assert.match(ro, /variantName = null, alsoJoin = false \}/);
   assert.doesNotMatch(ro, /if \(mode !== 'scenes' && stillUnvoiced\)/, 'the old gate must be gone, not shadowed');
   const routes = src('../src/api/routes.js');
   assert.match(routes, /r\.get\('\/projects\/:id\/typeset-scan'/);
-  assert.match(routes, /mode: 'scenes', sceneIds: at\.map\(\(x\) => x\.id\), join: true/);
+  assert.match(routes, /mode: 'scenes', sceneIds: at\.map\(\(x\) => x\.id\), alsoJoin: true/);
   // a run in flight is refused rather than queued on top of itself
   assert.match(routes, /if \(\['running', 'queued'\]\.includes\(p\.status\)\) return res\.status\(409\)/);
 });
