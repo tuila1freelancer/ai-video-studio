@@ -38,10 +38,19 @@ const strip = (html) => html.replace(/<style>[\s\S]*?(?=\*\{margin:0)/, '<style>
 const hash = (html) => createHash('sha256').update(strip(html)).digest('hex').slice(0, 32);
 const page = (config) => buildSceneHtml(scene, project, config, { total: 3 });
 
+// Re-frozen 2026-08-18 for `__fitVietnamese`. The page moved DELIBERATELY: the runtime gained a
+// typesetting repair that gives Vietnamese stacked marks the room the line box denies them.
+//
+// The header above says a page shift means "every clip stops matching its own render fingerprint".
+// That was never true — `renderFingerprint` hashes scene props and config KEYS, not the page — and
+// the distinction matters here: nothing re-renders on its own, so an existing video keeps its
+// broken clips until something asks for them again. That is what the repair action is for. The
+// pass is deliberately NOT behind a config key: it is a correctness repair, and a flag would mean
+// every project that predates it renders Vietnamese wrong until somebody remembers to tick a box.
 const GOLDEN = {
-  plain: 'da463c0288d19a62c4324dacc6bf4289',
-  styled: 'd794ad317c9772c61f99c59c1e60cb6f',
-  off: 'f7324101760f18adb424e2bdbbdad5bb',
+  plain: 'b85cde27bcb8152803fed7df8b3f9c4d',
+  styled: 'b29fbdb953ec4f942239b8138d475d35',
+  off: 'c9c12bc6d43d4d4d2fedb44d16f80973',
 };
 const STYLED = {
   enableSubtitles: true, subtitlePreset: 'bold-impact', subtitleFont: 'Anton', subtitleFontSize: 80,
