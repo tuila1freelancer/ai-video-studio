@@ -17,6 +17,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { buildSceneHtml } from '../src/animation/index.js';
+import { scriptTextRule } from '../src/hyperframe/prompt.js';
 
 const harness = readFileSync(new URL('../src/animation/harness.js', import.meta.url), 'utf8');
 
@@ -88,4 +89,26 @@ test('the pass ships inside the scene page', () => {
   assert.match(html, /window\.__fitVietnamese = /);
   // the escapes must survive the template literal as ESCAPES, not as literal combining marks
   assert.match(html, /\\u0300\\u0301\\u0303/);
+});
+
+test('the codegen prompt finally names Vietnamese as a tall-mark script', () => {
+  // The function had branches for Devanagari, Thai and CJK from the start. Vietnamese fell
+  // through every one of them because it is written in Latin letters — so the model was never
+  // told, and wrote line-height:0.8 on uppercase headlines.
+  const vi = scriptTextRule('Điều gì xảy ra khi rơi vào hố đen vũ trụ?');
+  assert.match(vi, /SCRIPT RULE \(Vietnamese\)/);
+  assert.match(vi, /line-height ≥1\.35/);
+  assert.match(vi, /NEVER overflow:hidden/);
+  assert.match(vi, /background-clip:text/, 'the mechanism that actually broke the reported frame');
+  assert.match(vi, /padding:0\.22em/);
+  // …and an English scene still gets nothing, so its prompt — and its output — are unchanged
+  assert.equal(scriptTextRule('What happens when you fall into a black hole?'), '');
+  assert.equal(scriptTextRule(''), '');
+});
+
+test('the rule fires on the marks, not on a word list', () => {
+  // Detection is by combining mark after NFD, so it covers a Vietnamese proper noun inside an
+  // otherwise English narration, and cannot be fooled by a topic that happens to avoid diacritics.
+  assert.match(scriptTextRule('We flew to Đà Nẵng last week'), /SCRIPT RULE \(Vietnamese\)/);
+  assert.equal(scriptTextRule('We flew to Da Nang last week'), '', 'no marks, no rule');
 });
