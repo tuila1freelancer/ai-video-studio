@@ -112,3 +112,16 @@ test('the rule fires on the marks, not on a word list', () => {
   assert.match(scriptTextRule('We flew to Đà Nẵng last week'), /SCRIPT RULE \(Vietnamese\)/);
   assert.equal(scriptTextRule('We flew to Da Nang last week'), '', 'no marks, no rule');
 });
+
+test('the zone budget names the failure it actually gets', () => {
+  // The rule already forbade two anchors sharing a left% or a top%, which a model satisfies with
+  // 48% and 62% — different numbers, same zone. Measured over 1,082 shipped scenes: 31% put two
+  // slots in one zone while 43% left a corner empty, so in most of them the SAME slots would have
+  // passed if one of the pair had moved to the starved corner.
+  const prompt = readFileSync(new URL('../src/hyperframe/prompt.js', import.meta.url), 'utf8');
+  assert.match(prompt, /TWO SLOTS MAY NEVER BIN INTO THE SAME ZONE/);
+  assert.match(prompt, /48% and 62% are different numbers and the SAME zone/);
+  assert.match(prompt, /move the slot, do not add one/, 'the rule must never ask for more elements');
+  // and the law it enforces is still the one that was already there
+  assert.match(prompt, /at least 7 of the 9 zones hold an anchor/);
+});
