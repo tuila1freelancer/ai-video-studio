@@ -75,6 +75,7 @@ export function initStudio() {
     } catch (e) { toast('Không duyệt được: ' + (e?.message || e), 'error'); }
   }));
   $('#btnRender').addEventListener('click', () => withLock($('#btnRender'), () => renderScenes2('all')));
+  $('#btnTypeset').addEventListener('click', () => withLock($('#btnTypeset'), repairTypeset));
   $('#btnRenderAll').addEventListener('click', () => withLock($('#btnRenderAll'), () => renderScenes2('all')));
   $('#btnRenderSel').addEventListener('click', () => withLock($('#btnRenderSel'), () => renderScenes2('scenes', selectedIds())));
   $('#btnRegenVoiceSel').addEventListener('click', () => selectedIds().forEach((id) => regenScene(id, 'voice')));
@@ -409,6 +410,43 @@ export async function openProject(id) {
   renderProjectList();
 }
 
+/**
+ * The Vietnamese repair button appears only when there is something to repair.
+ *
+ * The scan reads the code already stored on each scene, so it costs no render and cannot be wrong
+ * about a video it has not looked at — and it names the SCENES, which is why the button can
+ * promise a number instead of "re-render everything and see".
+ */
+async function syncTypesetButton(p) {
+  const btn = $('#btnTypeset');
+  btn.classList.add('hidden');
+  if (!['done', 'paused', 'review'].includes(p.status)) return;
+  try {
+    const r = await api.get(`/projects/${p.id}/typeset-scan`);
+    if (state.current?.id !== p.id || !r?.atRisk) return; // the owner may have moved on
+    btn.innerHTML = `${icon('subtitles', 14)} Sửa lỗi tiếng Việt (${r.atRisk} cảnh)`;
+    btn.classList.remove('hidden');
+  } catch { /* a scan that cannot run must not break the panel */ }
+}
+
+async function repairTypeset() {
+  const p = state.current; if (!p) return;
+  const r = await api.get(`/projects/${p.id}/typeset-scan`);
+  if (!r?.atRisk) { toast('Không có cảnh nào cần sửa.', 'success'); return; }
+  const ok = await confirmDialog({
+    title: 'Sửa lỗi chữ tiếng Việt',
+    body: `${r.atRisk}/${r.scenes} cảnh được dựng trước khi có bản vá — dấu bị cắt hoặc hai dòng đè nhau.\n\n`
+      + 'Sẽ DỰNG LẠI đúng những cảnh đó rồi GHÉP LẠI video (ghi đè file hiện tại).\n'
+      + 'Không gọi AI, không đổi thiết kế — chỉ chữa phần chữ.',
+    okText: 'Dựng lại',
+  });
+  if (!ok) return;
+  const res = await api.post(`/projects/${p.id}/repair-typeset`, {});
+  if (res?.error) { toast(res.error, 'error'); return; }
+  toast(`🔤 Đang dựng lại ${res.atRisk} cảnh rồi ghép`, 'success');
+  $('#btnTypeset').classList.add('hidden');
+}
+
 export function renderProjectView() {
   const p = state.current; if (!p) return;
   $('#pvTitle').textContent = p.title;
@@ -424,6 +462,7 @@ export function renderProjectView() {
     ? `${icon('refresh', 14)} Áp dụng thay đổi`
     : `${icon('play', 14)} Tiếp tục`;
   renderSceneGate(p);
+  syncTypesetButton(p);
   // reset pipeline visuals from scene statuses
   resetPipeFromState();
   renderScenes();

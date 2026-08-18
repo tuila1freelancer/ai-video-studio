@@ -14,7 +14,7 @@ import { jlog } from './journal.js';
 import { mapPool } from './helpers.js';
 import { finalize } from './stages/finalize.js';
 
-export async function renderOnly(projectId, { mode = 'all', sceneIds = [], configOverrides = null, variantName = null }) {
+export async function renderOnly(projectId, { mode = 'all', sceneIds = [], configOverrides = null, variantName = null, join = false }) {
   clearStop(projectId);
   const project = DB.getProject(projectId);
   if (!project) throw new Error('project not found');
@@ -38,6 +38,11 @@ export async function renderOnly(projectId, { mode = 'all', sceneIds = [], confi
     // scene missing a clip (its own missing-clip pass), so nothing is skipped by doing less here.
     const renderPass = mode !== 'concat';
     if (mode === 'scenes' && sceneIds.length) scenes = scenes.filter((s) => sceneIds.includes(s.id));
+    // A subset normally stops at the clips: picking scenes by hand means inspecting them next.
+    // `join` is for the caller that already knows the whole list it wants and wants the video at
+    // the end of it — two queued jobs would give the owner two progress bars and a window in
+    // between where the video on disk is a mix of repaired and unrepaired clips.
+    const doJoin = mode !== 'scenes' || join;
     // Scenes-first order: an unvoiced scene only carries an ESTIMATED duration — rendering
     // it would bake a silent clip cut to the estimate, which the real TTS then invalidates.
     // Voice first (continue past the scene gate or regen-voice), render after.
@@ -134,9 +139,9 @@ export async function renderOnly(projectId, { mode = 'all', sceneIds = [], confi
     // scene carries a real voice. Otherwise a partially-voiced gate hold would ship a
     // half-silent "final" video.
     const stillUnvoiced = DB.getScenes(projectId).some((s) => !s.audio_path);
-    if (mode !== 'scenes' && stillUnvoiced) {
+    if (doJoin && stillUnvoiced) {
       op(projectId, '⏭️ Bỏ qua ghép — còn cảnh chưa có lồng tiếng; hoàn tất lồng tiếng rồi ghép sau');
-    } else if (mode !== 'scenes') {
+    } else if (doJoin) {
       // mode:'concat' skips the scene loop above entirely, so without this the "ghép lại" path
       // reached finalize without ever having asked whether the owner still wanted it.
       checkStop(projectId);
@@ -146,7 +151,7 @@ export async function renderOnly(projectId, { mode = 'all', sceneIds = [], confi
     // A render during a hold (scene gate 'scenes' / review gate 'review') must not destroy
     // the hold: 'done' here would let the owner think the video finished prematurely.
     const endStatus = ['scenes', 'review'].includes(project.status) ? project.status
-      : (mode !== 'scenes' && stillUnvoiced ? 'paused' : 'done');
+      : (doJoin && stillUnvoiced ? 'paused' : 'done');
     DB.updateProject(projectId, { status: endStatus });
     if (endStatus !== 'done') {
       hub.toProject(projectId, { type: 'status', status: endStatus });

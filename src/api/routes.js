@@ -704,6 +704,37 @@ export function mountRoutes(app, { version }) {
   });
 
   /**
+   * Which clips of this project were typeset before the Vietnamese repair existed?
+   *
+   * `__fitVietnamese` fixes the page at render time and nothing re-renders on its own, so a
+   * finished video keeps its broken clips until something asks for them again. The answer is
+   * derived from the stored scene code, so it names the SCENES rather than condemning the video:
+   * 773 of 1331 finished scenes needed the repair, and re-rendering only those is 42% less work.
+   */
+  r.get('/projects/:id/typeset-scan', async (req, res) => {
+    const p = DB.getProject(req.params.id);
+    if (!p) return res.status(404).json({ error: 'not found' });
+    const { atRiskScenes } = await import('../pipeline/vietnamese-scan.js');
+    const scenes = DB.getScenes(p.id);
+    const at = atRiskScenes(scenes);
+    res.json({ title: p.title, scenes: scenes.length, atRisk: at.length, items: at });
+  });
+
+  // Re-render exactly those clips and join. `join: true` because the subset mode normally stops
+  // at the clips — leaving the video on disk a mix of repaired and unrepaired ones.
+  r.post('/projects/:id/repair-typeset', async (req, res) => {
+    const p = DB.getProject(req.params.id);
+    if (!p) return res.status(404).json({ error: 'not found' });
+    if (['running', 'queued'].includes(p.status)) return res.status(409).json({ error: 'đang chạy' });
+    const { atRiskScenes } = await import('../pipeline/vietnamese-scan.js');
+    const at = atRiskScenes(DB.getScenes(p.id));
+    if (!at.length) return res.json({ ok: true, atRisk: 0, started: false });
+    Pipeline.renderProject(p.id, { mode: 'scenes', sceneIds: at.map((x) => x.id), join: true })
+      .catch((e) => logger.error(e.message, { projectId: p.id }));
+    res.json({ ok: true, atRisk: at.length, started: true });
+  });
+
+  /**
    * Every file this project OWNS — and nothing it merely shares.
    *
    * The working directory is exclusive, so it goes whole. `outputDir` is NOT: several projects of

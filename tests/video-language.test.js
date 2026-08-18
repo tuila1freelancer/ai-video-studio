@@ -265,7 +265,11 @@ test('lang: "ghép lại" concatenates instead of re-rendering the whole video',
   assert.match(ro, /const unvoiced = renderPass \? scenes\.filter\(\(s\) => !s\.audio_path\) : \[\];/);
   // but the half-silent-video guard stays exactly as it was
   assert.match(ro, /const stillUnvoiced = DB\.getScenes\(projectId\)\.some\(\(s\) => !s\.audio_path\);/);
-  assert.match(ro, /if \(mode !== 'scenes' && stillUnvoiced\)/);
+  // …now spelled through `doJoin`, because a subset render may opt into the join (the Vietnamese
+  // repair knows its whole list up front). The guard itself is unchanged: no join while a scene
+  // is unvoiced, or finalize's missing-clip pass would ship a half-silent "final".
+  assert.match(ro, /const doJoin = mode !== 'scenes' \|\| join;/);
+  assert.match(ro, /if \(doJoin && stillUnvoiced\)/);
   // and finalize still repairs any scene missing a clip, so nothing is skipped by rendering less
   assert.match(src('../src/pipeline/stages/finalize.js'), /missing-clip repair|thiếu clip|!existsSync\(s\.video_path/);
 });
