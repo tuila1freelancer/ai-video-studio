@@ -231,6 +231,96 @@ const RUNTIME = `
     pbar.style.width = (p*100).toFixed(3) + '%';
   };
 
+  // Vietnamese typesetting repair — runs before AND after __fitText, and is idempotent.
+  //
+  // A capital carrying a stacked mark reaches up to 44% higher above the baseline than a Latin
+  // capital (measured on every vendored face), so a line-height tuned for Latin leaves the mark
+  // OUTSIDE the line box. Three things then go wrong and all three shipped: background-clip:text
+  // paints only inside the box, so the mark is never painted at all; two lines collide, because
+  // the box is shorter than the ink; an overflow:hidden wrapper cuts the mark off.
+  //
+  // Every number comes from the element's OWN resolved font via measureText, never a constant:
+  // the safe line-height runs from 1.18 (Anton) to 1.41 (Nunito).
+  // grave, acute, tilde, hook-above, breve, circumflex, horn — the marks that sit ABOVE
+  var VN_HIGH = /[\\u0300\\u0301\\u0303\\u0309\\u0306\\u0302\\u031B]/;
+  var VN_LOW = /[\\u0323]/; // dot below
+  const vnMetrics = (el, text) => {
+    const cs = getComputedStyle(el);
+    const fs = parseFloat(cs.fontSize) || 0;
+    if (!fs) return null;
+    const cv = window.__vnCanvas || (window.__vnCanvas = document.createElement('canvas').getContext('2d'));
+    cv.font = cs.fontStyle + ' ' + cs.fontWeight + ' ' + fs + 'px ' + cs.fontFamily;
+    // measureText knows nothing about text-transform, and CAPITALS are the tall case
+    const tf = cs.textTransform;
+    const shown = tf === 'uppercase' ? text.toUpperCase() : tf === 'lowercase' ? text.toLowerCase() : text;
+    const m = cv.measureText(shown);
+    const lhPx = cs.lineHeight === 'normal'
+      ? m.fontBoundingBoxAscent + m.fontBoundingBoxDescent
+      : parseFloat(cs.lineHeight);
+    const leading = lhPx - (m.fontBoundingBoxAscent + m.fontBoundingBoxDescent);
+    return {
+      cs: cs, fs: fs, lhPx: lhPx,
+      // how far the ink pokes out of the line box, top and bottom
+      over: Math.max(0, m.actualBoundingBoxAscent - (m.fontBoundingBoxAscent + leading / 2)),
+      under: Math.max(0, m.actualBoundingBoxDescent - (m.fontBoundingBoxDescent + leading / 2)),
+      // the smallest line-height at which two consecutive lines cannot touch
+      safeLh: (m.actualBoundingBoxAscent + m.actualBoundingBoxDescent) / fs,
+    };
+  };
+
+  window.__fitVietnamese = () => {
+    const leaves = [];
+    const walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    for (let n = walk.nextNode(); n; n = walk.nextNode()) {
+      const t = n.nodeValue;
+      if (!t || !t.trim()) continue;
+      const norm = t.normalize('NFD');
+      if (!VN_HIGH.test(norm) && !VN_LOW.test(norm)) continue;
+      const el = n.parentElement;
+      if (el && leaves.indexOf(el) < 0) leaves.push(el);
+    }
+    for (const el of leaves) {
+      const text = el.textContent || '';
+      const m = vnMetrics(el, text);
+      if (!m) continue;
+      const d = el.dataset;
+      if (d.vnPadT === undefined) {
+        d.vnPadT = m.cs.paddingTop; d.vnPadB = m.cs.paddingBottom;
+        d.vnMarT = m.cs.marginTop; d.vnMarB = m.cs.marginBottom;
+      }
+      const padT = parseFloat(d.vnPadT) || 0, padB = parseFloat(d.vnPadB) || 0;
+      // 1. two or more lines that could touch — the only case worth changing the layout for.
+      //    A single tight line is left exactly as designed; steps 2 and 3 fix it invisibly.
+      const lines = Math.max(1, Math.round((el.clientHeight - padT - padB) / m.lhPx));
+      if (lines > 1 && m.safeLh > m.lhPx / m.fs + 0.001) el.style.lineHeight = m.safeLh.toFixed(3);
+      // 2. paint room for the marks. Padding grows the box; a cancelling negative margin keeps the
+      //    composition where the designer put it (measured: the glyphs move 0.10px).
+      const after = vnMetrics(el, text) || m;
+      const over = Math.ceil(after.over), under = Math.ceil(after.under);
+      const clip = after.cs.webkitBackgroundClip || after.cs.backgroundClip || '';
+      if (clip.indexOf('text') >= 0 && (over > 0 || under > 0)) {
+        el.style.paddingTop = (padT + over) + 'px';
+        el.style.marginTop = ((parseFloat(d.vnMarT) || 0) - over) + 'px';
+        el.style.paddingBottom = (padB + under) + 'px';
+        el.style.marginBottom = ((parseFloat(d.vnMarB) || 0) - under) + 'px';
+      }
+      // 3. a wrapper that clips the mark. Only a TEXT-TIGHT box is relaxed — a panel with
+      //    overflow:hidden is hiding something on purpose (a bar fill, an ::after streak), and
+      //    opening it would leak that instead of fixing this.
+      let a = el;
+      for (let hop = 0; hop < 3 && a && a !== document.body; hop++) {
+        const acs = getComputedStyle(a);
+        if (acs.overflow === 'hidden' || acs.overflowY === 'hidden') {
+          const r = el.getBoundingClientRect(), ar = a.getBoundingClientRect();
+          const tight = a.clientHeight <= after.lhPx * 1.6;
+          const cuts = (r.top - over) < ar.top - 1 || (r.bottom + under) > ar.bottom + 1;
+          if (tight && cuts) { a.style.overflow = 'visible'; a.style.overflowY = 'visible'; }
+        }
+        a = a.parentElement;
+      }
+    }
+  };
+
   // fitText guard-rail (ported idea: HyperFrames fitTextFontSize): a single-line label whose
   // box can't hold its text — or that outgrows 88% of the frame — shrinks its font in 2px
   // steps to a floor, then may wrap as the last resort. Mechanical insurance against
@@ -370,7 +460,11 @@ const RUNTIME = `
       }
       if (document.fonts && document.fonts.ready) await document.fonts.ready;
     } catch(e){}
+    // twice: once so __fitText measures real line boxes, once so the paint room matches the font
+    // size __fitText settled on. The pass is idempotent by design — it stashes the originals.
+    try { window.__fitVietnamese(); } catch(e){}
     try { window.__fitText(); } catch(e){}
+    try { window.__fitVietnamese(); } catch(e){}
     try { window.__deoverlap(); } catch(e){}
     try { window.__safeZone(); } catch(e){}
     try { window.__margins(); } catch(e){}
