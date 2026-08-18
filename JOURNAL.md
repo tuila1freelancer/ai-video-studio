@@ -188,3 +188,8 @@ from the studio's own database — every number is real production data.
 - Scenes with rendered clips (active projects): 0 · Jobs: 0 done / 0 error / 0 cancelled
 - AI usage: 0 calls · 0 tokens in / 0 out · 0 TTS chars · est. $0.00
 - Published: — · Calendar-driven runs: —
+## 2026-08-18
+- Videos: 5 created · 5 completed — “Học Nhanh Gấp Đôi Với 6 Kỹ Thuật Khoa Học” · “Điều Gì Xảy Ra Khi Rơi Vào Hố Đen Vũ Trụ?” · “Con Đường Tơ Lụa: Huyết Mạch Thay Đổi Văn Minh Á-Âu” · “AI Agent Là Gì? Hiểu Rõ Bản Chất Trong 60 Giây” · “Lãi Kép: Bắt Đầu Tuổi 25 Thắng Áp Đảo Tuổi 35 Như Thế Nào?”
+- Scenes with rendered clips (active projects): 347 · Jobs: 11 done / 3 error / 3 cancelled
+- AI usage: 536 calls · 5876k tokens in / 1172k out · 49.5k TTS chars · est. $22.87
+- Published: — · Calendar-driven runs: —
