@@ -153,7 +153,8 @@ function kwTreatment(guide, ctx) {
   // solid, or chrome/neon on a light bg (where they'd wash out) → clean high-contrast ink
   return `color:${guide.palette.ink};text-shadow:${softShadow}`;
 }
-function isLightHex(hex) {
+// exported so the repair scanner can ask the same question the CSS asks
+export function isLightHex(hex) {
   const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || '')); if (!m) return false;
   const v = parseInt(m[1], 16);
   return (0.2126 * ((v >> 16) & 255) + 0.7152 * ((v >> 8) & 255) + 0.0722 * (v & 255)) > 150;
