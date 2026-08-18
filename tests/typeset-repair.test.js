@@ -73,7 +73,12 @@ test('a subset render can finish the job, and says why it may', () => {
   assert.doesNotMatch(ro, /if \(mode !== 'scenes' && stillUnvoiced\)/, 'the old gate must be gone, not shadowed');
   const routes = src('../src/api/routes.js');
   assert.match(routes, /r\.get\('\/projects\/:id\/typeset-scan'/);
-  assert.match(routes, /mode: 'scenes', sceneIds: at\.map\(\(x\) => x\.id\), alsoJoin: true/);
+  assert.match(routes, /mode: 'scenes', sceneIds: at\.map\(\(x\) => x\.id\), alsoJoin: true,/);
+  // …and it must not redesign the artwork on the way past. finalize regenerates the thumbnail and
+  // all six platform covers on every join — 7 LLM calls, ~$0.09 a video, replacing a cover the
+  // owner may already have uploaded. configOverrides is never written back, so this is one run.
+  assert.match(routes, /configOverrides: \{ thumbnailAi: false \}/);
+  assert.match(src('../src/pipeline/stages/finalize.js'), /const aiOn = config\.thumbnailAi !== false/, 'the key that gates it');
   // a run in flight is refused rather than queued on top of itself
   assert.match(routes, /if \(\['running', 'queued'\]\.includes\(p\.status\)\) return res\.status\(409\)/);
 });

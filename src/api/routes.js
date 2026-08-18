@@ -729,8 +729,14 @@ export function mountRoutes(app, { version }) {
     const { atRiskScenes } = await import('../pipeline/vietnamese-scan.js');
     const at = atRiskScenes(DB.getScenes(p.id));
     if (!at.length) return res.json({ ok: true, atRisk: 0, started: false });
-    Pipeline.renderProject(p.id, { mode: 'scenes', sceneIds: at.map((x) => x.id), alsoJoin: true })
-      .catch((e) => logger.error(e.message, { projectId: p.id }));
+    // `thumbnailAi: false` for THIS run only (configOverrides is never written back): finalize
+    // redesigns the thumbnail and all six platform covers on every join, which on a repair means
+    // paying the LLM to replace artwork the owner may already have uploaded — measured at ~$0.09
+    // and 7 calls per video. Redrawing the clips must not redesign the cover.
+    Pipeline.renderProject(p.id, {
+      mode: 'scenes', sceneIds: at.map((x) => x.id), alsoJoin: true,
+      configOverrides: { thumbnailAi: false },
+    }).catch((e) => logger.error(e.message, { projectId: p.id }));
     res.json({ ok: true, atRisk: at.length, started: true });
   });
 
