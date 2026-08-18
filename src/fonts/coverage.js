@@ -9,7 +9,7 @@
 // Only cmap formats 4 and 12 are read. Between them they cover every font this app can be handed;
 // a face whose cmap is neither reports "unknown" and is believed, because refusing a font we
 // merely failed to parse would be worse than the bug this closes.
-import { readFileSync } from 'node:fs';
+import { readFileSync, statSync } from 'node:fs';
 
 /**
  * A handful of characters per script — enough to catch a subset that stops at Latin, small enough
@@ -101,13 +101,31 @@ export function glyphProbe(file) {
   };
 }
 
+/**
+ * Answers are cached per (file, mtime, script). `fontLibrary()` runs on every settings request and
+ * a face is megabytes; the cache holds only the short answer, never the buffer.
+ */
+const answers = new Map();
+const stamp = (file) => {
+  try { const st = statSync(file); return `${file}|${st.size}|${st.mtimeMs}`; } catch { return `${file}|0|0`; }
+};
+
 /** The probe characters this file cannot draw. Empty means covered; null means unreadable. */
 export function missingFor(file, script) {
   const probes = SCRIPT_PROBES[script];
   if (!probes) return [];
+  const key = `${stamp(file)}|${script}`;
+  if (answers.has(key)) return answers.get(key);
   const has = glyphProbe(file);
-  if (!has) return null;
-  return probes.filter((ch) => !has(ch.codePointAt(0)));
+  const out = has ? probes.filter((ch) => !has(ch.codePointAt(0))) : null;
+  if (answers.size > 512) answers.clear();
+  answers.set(key, out);
+  return out;
+}
+
+/** Every script this file can actually draw — for a font nobody has declared anything about. */
+export function scriptsOf(file) {
+  return Object.keys(SCRIPT_PROBES).filter((s) => (missingFor(file, s) || []).length === 0);
 }
 
 /** Unreadable counts as covered — see the header. */
