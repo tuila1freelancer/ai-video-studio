@@ -7,6 +7,7 @@
 // The rules mirror exactly what the repair pass changes, so a scene it would not touch is not
 // re-rendered: no marks in the graphics text, no work to do.
 import { isLightHex } from '../animation/templates/hyperframe.js';
+import { TYPESET_VERSION } from './fingerprint.js';
 
 /** A combining mark that sits above the letter, or the dot below — after NFD. */
 const MARK = /[̛̣̀́̃̉̆̂]/;
@@ -28,6 +29,9 @@ function drawnText(props) {
  * audit, plus the one the harness itself owns.
  */
 export function typesetRisk(scene) {
+  // Already drawn by a typesetter that knows about the marks — the render digest cannot say this,
+  // because it never hashed the harness. Without it the scan would offer the same scenes forever.
+  if ((scene?.fp?.typeset || 0) >= TYPESET_VERSION) return null;
   let props = scene?.props;
   if (typeof props === 'string') { try { props = JSON.parse(props); } catch { return null; } }
   if (!props) return null;

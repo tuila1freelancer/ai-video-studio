@@ -3,7 +3,7 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import * as DB from '../db/index.js';
-import { renderCurrent, renderFingerprint, ttsFingerprint, fpCurrent, fpStamp } from './fingerprint.js';
+import { renderCurrent, renderFingerprint, ttsFingerprint, fpCurrent, fpStamp, stampRendered } from './fingerprint.js';
 import { aiSettingsFor } from '../core/config.js';
 import { hub } from '../ws/hub.js';
 import { ratioToSize } from '../util/util.js';
@@ -128,7 +128,7 @@ export async function renderOnly(projectId, { mode = 'all', sceneIds = [], confi
         // learned this the same way and carries the same note.
         DB.updateScene(sc.id, {
           video_path: path, duration, status: 'rendered', ...(preview ? { image_path: preview } : {}),
-          fp: fpStamp(DB.getScene(sc.id), 'render', renderFingerprint(sc, { config: project.config || config, project })),
+          fp: stampRendered(DB.getScene(sc.id), renderFingerprint(sc, { config: project.config || config, project })),
         });
         hub.toProject(projectId, { type: 'scene', sceneId: sc.id, idx: sc.idx, status: 'rendered', video: `/api/file?path=${encodeURIComponent(path)}`, ...(preview ? { image: `/api/file?path=${encodeURIComponent(preview)}` } : {}) });
       }, { pool: 'render' }); // same process-wide bound as pipeline renders

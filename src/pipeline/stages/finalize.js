@@ -23,7 +23,7 @@ import { planSoundDesign, usableLibrary } from '../../audio/sound-design.js';
 import { withRetry } from '../../util/retry.js';
 import { abortSignalFor, checkStop, notStopped } from '../stop.js';
 import { step, op, retryHook, progressPlan } from '../progress.js';
-import { renderCurrent, renderFingerprint, fpStamp } from '../fingerprint.js';
+import { renderCurrent, renderFingerprint, fpStamp, stampRendered } from '../fingerprint.js';
 import { resolveOutputDir } from '../helpers.js';
 import { timed } from '../stats.js';
 import { resolveLang } from '../../util/lang.js';
@@ -96,7 +96,7 @@ export async function finalize(projectId, { dir, size, config, variantName = nul
       // so the very next join would find the same scene stale and rebuild it all over again.
       DB.updateScene(sc.id, {
         video_path: r.path, duration: r.duration, status: 'rendered', error: null,
-        fp: fpStamp(sc, 'render', renderFingerprint(sc, { config: clipCfg, project })),
+        fp: stampRendered(sc, renderFingerprint(sc, { config: clipCfg, project })),
       });
     }
   }
