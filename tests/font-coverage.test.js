@@ -8,6 +8,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
 import { glyphProbe, missingFor, coversScript, SCRIPT_PROBES } from '../src/fonts/coverage.js';
+import { fontLibrary, familiesForLanguage } from '../src/fonts/registry.js';
+import { allFaces, normFamily } from '../src/fonts/files.js';
 
 const ttf = (name) => join(process.cwd(), 'vendor', 'fonts', 'ttf', name);
 
@@ -44,4 +46,31 @@ test('the Vietnamese probe leads with the stacked marks', () => {
   // tallest thing the typesetter has to leave room for.
   for (const ch of 'ẴỘẶẾỮ') assert.ok(SCRIPT_PROBES.vietnamese.includes(ch), `${ch} must be probed`);
   assert.ok(SCRIPT_PROBES.vietnamese.length >= 12);
+});
+
+test('every script the registry offers is one the file can actually draw', () => {
+  // The check that would have caught Archivo Black on the day it was added. It runs over whatever
+  // is on disk, so a future vendored family, or one of the owner's own uploads, is covered too.
+  const faces = allFaces();
+  const lib = fontLibrary();
+  for (const f of lib) {
+    const mine = faces.filter((x) => x.key === normFamily(f.family));
+    if (!mine.length) continue; // downloadable / system — no file to read, the hand list stands
+    for (const script of f.scripts) {
+      for (const face of mine) {
+        assert.ok(coversScript(face.path, script),
+          `${f.family} is offered for ${script} but ${face.path.split('/').pop()} is missing ${JSON.stringify(missingFor(face.path, script))}`);
+      }
+    }
+  }
+});
+
+test('Archivo Black is no longer offered for a Vietnamese video', () => {
+  const entry = fontLibrary().find((f) => f.family === 'Archivo Black');
+  assert.ok(entry, 'still in the catalogue — it is a good Latin face');
+  assert.deepEqual(entry.scripts, ['latin']);
+  const vi = familiesForLanguage('vi');
+  const rank = vi.findIndex((f) => f.family === 'Archivo Black');
+  const ready = vi.filter((f) => f.ready && f.scripts.includes('vietnamese')).length;
+  assert.ok(rank >= ready, 'a face that cannot draw the language must rank below every one that can');
 });

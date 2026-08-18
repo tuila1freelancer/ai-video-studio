@@ -18,7 +18,8 @@
 // CJK sits deliberately on `system`. A single Noto Sans SC face is 5–20 MB; vendoring the set
 // would dwarf the entire repository, while macOS already carries PingFang, Hiragino and Apple SD
 // Gothic Neo where both renderers can see them.
-import { vendoredFaces, uploadedFaces, isDownloaded, isSystemFamily, normFamily, SYSTEM_FAMILIES } from './files.js';
+import { vendoredFaces, uploadedFaces, isDownloaded, isSystemFamily, normFamily, SYSTEM_FAMILIES, allFaces } from './files.js';
+import { coversScript, scriptsOf } from './coverage.js';
 
 /**
  * Script coverage, used to put the right families in front of the owner for the video's
@@ -39,7 +40,9 @@ export const CATALOGUE = [
   { family: 'Oswald', weights: [700], scripts: LVC, google: 'Oswald' },
   { family: 'Anton', weights: [400], scripts: LV, google: 'Anton' },
   { family: 'Nunito', weights: [900], scripts: LVC, google: 'Nunito' },
-  { family: 'Archivo Black', weights: [400], scripts: LV, google: 'Archivo Black' },
+  // Latin only, and measured: Google Fonts serves no Vietnamese subset for it, so the file is
+  // missing every tone-marked letter. `fontLibrary` re-checks this against the file regardless.
+  { family: 'Archivo Black', weights: [400], scripts: L, google: 'Archivo Black' },
   { family: 'JetBrains Mono', weights: [500, 700], scripts: LVC, google: 'JetBrains Mono' },
 
   // --- downloadable: display + headline faces that carry a video ---
@@ -107,18 +110,36 @@ export function scriptForLanguage(lang) {
  *
  * @returns {Array<{family:string, source:string, ready:boolean, scripts:string[], weights:number[]}>}
  */
+/**
+ * A declared script survives only if every file we might hand the renderer can draw it.
+ *
+ * `every`, not `some`: a family with three weights whose bold alone lacks the script would
+ * otherwise pass here and substitute at the one weight the headline uses. Families with no file
+ * on disk (downloadable, system) keep the hand-written list — there is nothing to read.
+ */
+function verifiedScripts(key, declared, faces) {
+  const mine = faces.filter((f) => f.key === key);
+  if (!mine.length) return declared;
+  return declared.filter((s) => mine.every((f) => coversScript(f.path, s)));
+}
+
 export function fontLibrary() {
+  const faces = allFaces();
   const vendored = new Set(vendoredFaces().map((f) => f.key));
   const uploads = uploadedFaces();
   const uploaded = new Map(uploads.map((f) => [f.key, f]));
   const out = [];
-  const push = (family, entry, extra) => out.push({
-    family,
-    scripts: entry?.scripts || ['latin'],
-    weights: entry?.weights || [400],
-    google: entry?.google || null,
-    ...extra,
-  });
+  const push = (family, entry, extra) => {
+    const key = normFamily(family);
+    out.push({
+      family,
+      scripts: entry ? verifiedScripts(key, entry.scripts || ['latin'], faces)
+        : (faces.find((f) => f.key === key) ? scriptsOf(faces.find((f) => f.key === key).path) : ['latin']),
+      weights: entry?.weights || [400],
+      google: entry?.google || null,
+      ...extra,
+    });
+  };
 
   for (const entry of CATALOGUE) {
     const key = normFamily(entry.family);
