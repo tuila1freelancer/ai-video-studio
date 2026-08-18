@@ -166,6 +166,15 @@ export function scriptTextRule(voiceText) {
   if (/[ऀ-ॿ]/.test(t)) return '\nSCRIPT RULE (Devanagari): matras extend far above/below the baseline — every text element needs line-height ≥1.8 and padding-top ~0.2em; NEVER overflow:hidden on text.';
   if (/[฀-๿]/.test(t)) return '\nSCRIPT RULE (Thai): stacked tone marks need line-height ≥1.7 and extra top padding; NEVER overflow:hidden on text.';
   if (/[぀-ヿ一-鿿가-힯]/.test(t)) return '\nSCRIPT RULE (CJK): avoid aggressive letter-spacing on body text; character wrapping is natural; keep display weights ≥500 so strokes stay crisp.';
+  // Vietnamese was the gap this function had all along: it is written in Latin letters, so it
+  // never looked like a "tall-mark script" — and a capital carrying a stacked mark (Ẵ Ộ Ặ Ế Ữ)
+  // measures 17–44% higher than a Latin capital on every face this app ships.
+  if (/[\u0300\u0301\u0303\u0309\u0323\u0306\u0302\u031B]/.test(t.normalize('NFD'))) {
+    return '\nSCRIPT RULE (Vietnamese): capitals carrying a stacked mark (Ẵ Ộ Ặ Ế Ữ) reach up to 44% higher above the baseline than Latin capitals, and UPPERCASE display text is where that bites.'
+      + ' Every text element needs line-height ≥1.35 (never below 1.25, never 1 or 0.9).'
+      + ' NEVER overflow:hidden on a box that holds text.'
+      + ' If you use background-clip:text for a gradient headline, the gradient only paints INSIDE the box — add padding:0.22em 0 0.10em or the marks are simply never drawn.';
+  }
   return '';
 }
 
