@@ -729,7 +729,7 @@ export function mountRoutes(app, { version }) {
     const { atRiskScenes } = await import('../pipeline/vietnamese-scan.js');
     const at = atRiskScenes(DB.getScenes(p.id));
     if (!at.length) return res.json({ ok: true, atRisk: 0, started: false });
-    Pipeline.renderProject(p.id, { mode: 'scenes', sceneIds: at.map((x) => x.id), join: true })
+    Pipeline.renderProject(p.id, { mode: 'scenes', sceneIds: at.map((x) => x.id), alsoJoin: true })
       .catch((e) => logger.error(e.message, { projectId: p.id }));
     res.json({ ok: true, atRisk: at.length, started: true });
   });
