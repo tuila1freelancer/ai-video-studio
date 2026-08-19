@@ -193,3 +193,8 @@ from the studio's own database — every number is real production data.
 - Scenes with rendered clips (active projects): 347 · Jobs: 11 done / 3 error / 3 cancelled
 - AI usage: 536 calls · 5876k tokens in / 1172k out · 49.5k TTS chars · est. $22.87
 - Published: — · Calendar-driven runs: —
+## 2026-08-19
+- Videos: 0 created · 13 completed — “Quy Tắc 50/30/20: Cách Chia Lương Thông Minh Không Hết Tiền” · “5 Thói Quen Buổi Sáng Kích Hoạt Năng Lượng Đỉnh Cao” · “3 Câu Hỏi Bắt Buộc Trước Khi Mua Chung Cư” · “Kỹ Thuật Pomodoro: Hack Tập Trung Sâu Cho Não Bộ” · “Bí Quyết Cơm Rang Tơi Săn Chuẩn Vị Quán”
+- Scenes with rendered clips (active projects): 86 · Jobs: 13 done / 0 error / 0 cancelled
+- AI usage: 13 calls · 84.5k tokens in / 3.7k out · 0 TTS chars · est. $0.03
+- Published: — · Calendar-driven runs: —
