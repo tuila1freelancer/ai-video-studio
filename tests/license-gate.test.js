@@ -91,7 +91,9 @@ test('the gate stands in front of every route, not the ones somebody remembered'
 test('the version has one source', () => {
   // It used to be spelled out in server.js, package.json and the Info.plist, so a release could
   // ship three different answers to "what version am I?".
-  assert.match(src('../src/server.js'), /JSON\.parse\(readFileSync\(join\(__dirname, '\.\.', 'package\.json'\), 'utf8'\)\)\.version/);
+  // Read off ROOT, not this file's own directory: a release collapses the whole server into one
+  // file at the payload root, where "one directory up" points outside the payload entirely.
+  assert.match(src('../src/server.js'), /JSON\.parse\(readFileSync\(join\(ROOT, 'package\.json'\), 'utf8'\)\)\.version/);
   assert.ok(!/const VERSION = '\d/.test(src('../src/server.js')));
   assert.match(src('../shell/build-app.sh'), /package\.json/);
 });

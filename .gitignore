@@ -3,6 +3,8 @@ data/
 vendor/
 *.log
 .DS_Store
+# Build artefacts, including dist/private/*.map — the release sourcemap, which would undo the
+# whole point of shipping bytecode if it ever left this machine.
 dist/
 AI Video Studio.app/
 shell/build/
