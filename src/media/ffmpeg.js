@@ -1,7 +1,10 @@
 // ffmpeg / ffprobe helpers.
 import { spawn } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { copyFile } from 'node:fs/promises';
-import { PATHS } from '../config/paths.js';
+import { join } from 'node:path';
+import { DIRS, PATHS } from '../config/paths.js';
 // stop.js is dependency-free on purpose, so importing it here does not drag the pipeline (or the
 // database) into the process-spawn path.
 import { stopError } from '../pipeline/stop.js';
@@ -16,17 +19,37 @@ import { stopError } from '../pipeline/stop.js';
 // tag the orchestrator reads to settle the run as paused. Left as a plain AbortError it would be
 // classified as a crash, shown as "⛔ Pipeline lỗi", and — because it looks retryable — trigger
 // the automatic resume, restarting the very render the owner just stopped.
+//
+// The filtergraph never travels as an argument. `ps -ax -o command` shows every argv of a running
+// process to any account on the machine, and our graph IS the transition doctrine — dip lengths,
+// xfade offsets, the audio seam. `-filter_complex_script` takes the same string from a file that
+// lives only as long as the encode.
+export function detachFilterGraph(args) {
+  const i = args.indexOf('-filter_complex');
+  if (i < 0 || typeof args[i + 1] !== 'string') return { args, cleanup: () => {} };
+  mkdirSync(DIRS.tmp, { recursive: true });
+  const file = join(DIRS.tmp, `fg-${randomBytes(8).toString('hex')}.txt`);
+  writeFileSync(file, args[i + 1], 'utf8');
+  const next = args.slice();
+  next.splice(i, 2, '-filter_complex_script', file);
+  return { args: next, cleanup: () => rmSync(file, { force: true }) };
+}
+
 function run(bin, args, { onLog, signal } = {}) {
   return new Promise((resolvePromise, reject) => {
     if (signal?.aborted) return reject(stopError());
-    const ps = spawn(bin, args, { stdio: ['ignore', 'pipe', 'pipe'], signal });
+    const graph = detachFilterGraph(args);
+    const done = (fn) => (v) => { graph.cleanup(); fn(v); };
+    const resolveOnce = done(resolvePromise);
+    const rejectOnce = done(reject);
+    const ps = spawn(bin, graph.args, { stdio: ['ignore', 'pipe', 'pipe'], signal });
     let err = '';
     ps.stdout.on('data', (d) => onLog && onLog(d.toString()));
     ps.stderr.on('data', (d) => { const s = d.toString(); err += s; onLog && onLog(s); });
-    ps.on('error', (e) => reject(signal?.aborted ? stopError() : e));
+    ps.on('error', (e) => rejectOnce(signal?.aborted ? stopError() : e));
     ps.on('close', (code) => {
-      if (signal?.aborted) return reject(stopError());
-      return code === 0 ? resolvePromise({ code, err }) : reject(new Error(`${bin} exit ${code}: ${err.slice(-600)}`));
+      if (signal?.aborted) return rejectOnce(stopError());
+      return code === 0 ? resolveOnce({ code, err }) : rejectOnce(new Error(`${bin} exit ${code}: ${err.slice(-600)}`));
     });
   });
 }

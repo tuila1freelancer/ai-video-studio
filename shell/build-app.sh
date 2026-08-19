@@ -83,6 +83,21 @@ else
   echo "⚠ shell/AppIcon.icns chưa có — chạy: npm run icon:build"
 fi
 
+# Strip everything a running app never reads. Two reasons, one command: 519 dependency READMEs
+# are 30 MB of download, and together they are a printed inventory of the stack for anyone opening
+# the bundle. Licence texts stay — MIT and friends require them to travel with the code.
+scrub_payload() {
+  local dir="$1"
+  find "$dir" \( -name '.DS_Store' -o -name '*.map' -o -name '*.ts' -o -name '*.flow' \
+    -o -name '*.test.js' -o -name '*.spec.js' -o -name '.npmignore' -o -name '.travis.yml' \
+    -o -name '.eslintrc*' -o -name '.editorconfig' \) -type f -delete 2>/dev/null || true
+  # Markdown, except anything that is a licence.
+  find "$dir" -type f \( -iname '*.md' -o -iname '*.markdown' \) \
+    ! -iname '*licen[cs]e*' ! -iname 'copying*' ! -iname 'notice*' -delete 2>/dev/null || true
+  find "$dir" -type d \( -name 'test' -o -name 'tests' -o -name '__tests__' \
+    -o -name 'example' -o -name 'examples' \) -prune -exec rm -rf {} + 2>/dev/null || true
+}
+
 if [ "$MODE" = "dist" ]; then
   echo "copying runtime + app payload…"
   APPDIR="$APP/Contents/Resources/app"
@@ -109,6 +124,8 @@ if [ "$MODE" = "dist" ]; then
   for v in ffmpeg gsap libs fonts; do
     [ -d "vendor/$v" ] && cp -R "vendor/$v" "$APPDIR/vendor/$v"
   done
+
+  scrub_payload "$APPDIR"
 
   # Sanity: the payload has to be able to answer for itself.
   [ -f "$APPDIR/src/server.js" ] || { echo "✖ payload thiếu src/server.js"; exit 1; }
