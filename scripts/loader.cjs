@@ -5,8 +5,10 @@
 // that quietly recompiled from source would mean shipping the source again without anyone
 // noticing. Every failure below therefore stops the process and says why.
 //
-// MUST be started with --no-lazy. The cache was produced under that flag, and V8 hands back
-// nothing at all when the two sides disagree.
+// MUST be started with the flags recorded in app.jsc.json. V8 hashes them into the cached data,
+// and a mismatch is either an outright rejection or — for --no-flush-bytecode — a process that
+// serves happily for minutes and then throws SyntaxError out of a route handler, because V8 threw
+// the bytecode away and tried to recompile it from a source made of spaces.
 'use strict';
 const { createDecipheriv, createHash } = require('node:crypto');
 const { readFileSync } = require('node:fs');
@@ -30,6 +32,11 @@ try {
 if (meta.v8 !== process.versions.v8) {
   die(`bytecode dựng cho V8 ${meta.v8}, runtime này là V8 ${process.versions.v8} — dựng lại bản phát hành`);
 }
+
+// Checked before anything runs, so a missing flag is a refusal at boot rather than a failure an
+// hour into a render.
+const missing = (meta.flags || []).filter((f) => !process.execArgv.includes(f));
+if (missing.length) die(`thiếu cờ V8: ${missing.join(' ')} — launcher phải chạy node với đúng các cờ này`);
 
 let cachedData = readFileSync(join(HERE, 'app.jsc'));
 

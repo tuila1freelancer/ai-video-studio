@@ -23,7 +23,7 @@ test('the dist payload ships bytecode, and the launcher can start it', () => {
   // or the environment, both of which `ps` prints back to whoever asks.
   assert.doesNotMatch(build, /cp -R src public/, 'src/ must not travel');
   assert.match(build, /--key "\$APP_KEY"/);
-  assert.match(build, /let NODE_ARGS = \["--no-lazy", "loader\.cjs"\]/);
+  assert.match(build, /let NODE_ARGS = \[\$NODE_FLAGS_SWIFT "loader\.cjs"\]/);
   assert.match(swift, /p\.arguments = NODE_ARGS/);
   assert.match(swift, /stdinPipe\.fileHandleForWriting\.write\(Data\(\(APP_KEY \+ "\\n"\)\.utf8\)\)/);
   assert.doesNotMatch(swift, /env\["APP_KEY"\]/, 'the key must never reach the environment');
@@ -62,7 +62,9 @@ test('a shipped build has no Inspect Element', () => {
 });
 
 test('the dist payload is scrubbed, and licences survive the scrub', () => {
-  assert.match(build, /^\s*scrub_payload "\$APPDIR"$/m, 'the dist block must call the scrub');
+  // Resources, not just Resources/app: the vendored Node runtime shipped 141 markdown files and
+  // 90 sourcemaps until the audit caught that the scrub stopped at the payload boundary.
+  assert.match(build, /^\s*scrub_payload "\$APP\/Contents\/Resources"$/m, 'the dist block must call the scrub');
 
   const dir = mkdtempSync(join(tmpdir(), 'avs-scrub-'));
   try {

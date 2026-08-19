@@ -251,12 +251,12 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
   try {
     await page.setViewport({ width: w, height: h, deviceScaleFactor: 1 });
     await page.setContent(html, { waitUntil: 'load', timeout: 20000 });
-    const init = await page.evaluate(() => window.__init());
+    const init = await page.evaluate('window.__init()');
     if (init.tplErr) {
       defects.push(`your script threw at runtime: "${init.tplErr}". Use gsap/tl (tl.to/tl.from/tl.fromTo/tl.set, gsap.set, gsap.timeline) or the FX.* helpers; do not reference undefined variables or functions.`);
       return { ok: false, defects, warnings };
     }
-    const tlDur = await page.evaluate(() => (window.__tl ? window.__tl.totalDuration() : 0));
+    const tlDur = await page.evaluate('window.__tl ? window.__tl.totalDuration() : 0');
 
     // sample scene-open, each beat's ENTRANCE (t0) + peak + gap, and the tail
     const endT = +(dur - 0.1).toFixed(2);
@@ -286,7 +286,7 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
       else map.set(k, { ...data, n: 1 });
     };
     for (const t of T) {
-      const { W, H, els, overlaps = [], occluded = [], centerCover = 0, zones = null, zoneEls = null } = await page.evaluate((tt, probe) => { window.__seek(tt); return eval(probe); }, t, PROBE);
+      const { W, H, els, overlaps = [], occluded = [], centerCover = 0, zones = null, zoneEls = null } = await page.evaluate(`window.__seek(${t}); ${PROBE}`);
       maxCenterCover = Math.max(maxCenterCover, centerCover);
       if (zones && zones.length === 9) {
         // spread score = total absolute deviation from an even 1/9 per cell (0 = perfectly even)

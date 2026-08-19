@@ -37,7 +37,7 @@ export async function renderScenePage(opts) {
     try {
       await page.setViewport({ width: w, height: h, deviceScaleFactor: 1 });
       await page.setContent(html, { waitUntil: 'load', timeout: 30000 });
-      const init = await withTimeout(page.evaluate(() => window.__init()), 20000, '__init');
+      const init = await withTimeout(page.evaluate('window.__init()'), 20000, '__init');
       if (init && init.tplErr) logger.warn(`Cảnh animation: script template lỗi (chỉ render CSS): ${init.tplErr}`);
       if (init && init.fontMiss && init.fontMiss.length) {
         // Never a silent substitute — the owner picked these families explicitly. This probe has
@@ -83,7 +83,7 @@ export async function renderScenePage(opts) {
       const midFrame = Math.floor(frames / 2);
       for (let i = 0; i < frames; i++) {
         const t = i / fps;
-        await withTimeout(page.evaluate((tt) => window.__seek(tt), t), FRAME_TIMEOUT_MS, `seek f${i}`);
+        await withTimeout(page.evaluate(`window.__seek(${t})`), FRAME_TIMEOUT_MS, `seek f${i}`);
         const buf = await withTimeout(
           page.screenshot({ type: 'jpeg', quality: JPEG_QUALITY, optimizeForSpeed: true }),
           FRAME_TIMEOUT_MS, `shot f${i}`,
@@ -120,9 +120,9 @@ export async function renderPreviewFrame(html, { w, h, t, outPath }) {
   try {
     await page.setViewport({ width: w, height: h, deviceScaleFactor: 1 });
     await page.setContent(html, { waitUntil: 'load', timeout: 30000 });
-    const init = await withTimeout(page.evaluate(() => window.__init()), 20000, 'preview __init');
+    const init = await withTimeout(page.evaluate('window.__init()'), 20000, 'preview __init');
     if (init && init.tplErr) logger.warn(`preview template script failed: ${init.tplErr}`);
-    await page.evaluate((tt) => window.__seek(tt), t);
+    await page.evaluate(`window.__seek(${t})`);
     const buf = await page.screenshot({ type: 'jpeg', quality: 90 });
     writeFileSync(outPath, buf);
     return outPath;

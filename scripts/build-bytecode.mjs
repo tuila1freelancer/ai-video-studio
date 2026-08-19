@@ -8,13 +8,12 @@
 //
 //   1. V8 accepts cached data against a placeholder source of the SAME LENGTH — that is what lets
 //      the real text stay behind. Same length, or the cache is rejected.
-//   2. It only works if `--no-lazy` is set on BOTH sides. Compiled lazily, every function that was
-//      not called during load is compiled from the placeholder at first call and dies on
-//      "Unexpected end of input". Compiled with --no-lazy and RUN without it, the cache yields
-//      nothing at all and the loader gets `undefined` instead of a function.
+//   2. It only works if the V8 flags match on BOTH sides — see bytecode-flags.mjs for the list and
+//      what each one prevents. A mismatch is either a rejected cache or, for --no-flush-bytecode,
+//      a process that works for minutes and then throws SyntaxError out of nowhere.
 //
-// Hence: this script re-execs itself under the vendored runtime with --no-lazy, and the loader it
-// writes records the V8 build so a mismatched runtime is caught at boot instead of at 3am.
+// Hence: this script re-execs itself under the vendored runtime with those flags, and records both
+// them and the V8 build in app.jsc.json so the loader refuses a mismatch at boot rather than at 3am.
 //
 // With --key the bytecode is encrypted on disk. Bytecode alone does NOT hide text: every string
 // literal sits in V8's constant pool, and a byte scan of the real app.jsc pulls the whole codegen
@@ -28,6 +27,7 @@ import Module from 'node:module';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
+import { V8_FLAGS } from './bytecode-flags.mjs';
 
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -46,8 +46,8 @@ const keyHex = arg('key', '');
 if (keyHex && !/^[0-9a-f]{64}$/i.test(keyHex)) throw new Error('--key phải là 32 byte hex');
 
 // The runtime that ships is the runtime that must compile: cached data is tied to the V8 build.
-if (process.execPath !== VENDOR_NODE || !process.execArgv.includes('--no-lazy')) {
-  const r = spawnSync(VENDOR_NODE, ['--no-lazy', fileURLToPath(import.meta.url), ...process.argv.slice(2)],
+if (process.execPath !== VENDOR_NODE || V8_FLAGS.some((f) => !process.execArgv.includes(f))) {
+  const r = spawnSync(VENDOR_NODE, [...V8_FLAGS, fileURLToPath(import.meta.url), ...process.argv.slice(2)],
     { stdio: 'inherit' });
   process.exit(r.status ?? 1);
 }
@@ -75,6 +75,7 @@ writeFileSync(join(outDir, 'app.jsc.json'), `${JSON.stringify({
   sourceLength: wrapped.length,
   v8: process.versions.v8,
   node: process.versions.node,
+  flags: V8_FLAGS,
   encrypted: Boolean(keyHex),
   // Not a security measure — a corrupt download should say so rather than crash mid-boot.
   sha256,
@@ -86,3 +87,4 @@ console.log(`bytecode:  ${relative(ROOT, jsc)}  (${(statSync(jsc).size / 1024).t
 console.log(`source:    ${(source.length / 1024).toFixed(0)} KB of JavaScript, none of it shipped`);
 console.log(`on disk:   ${keyHex ? 'AES-256-GCM — key arrives over stdin, never stored' : 'PLAINTEXT bytecode (no --key: strings -el reads the doctrine)'}`);
 console.log(`runtime:   node ${process.versions.node} / V8 ${process.versions.v8} — must match at run time`);
+console.log(`flags:     ${V8_FLAGS.join(' ')} — the launcher must pass exactly these`);

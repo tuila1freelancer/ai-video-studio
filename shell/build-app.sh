@@ -57,6 +57,8 @@ else
   # compiled into the launcher and handed to the backend over stdin — not argv, not the environment,
   # both of which `ps` will print back to the customer.
   APP_KEY="$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")"
+  # One list, read from the module that also compiles with it — the two can never drift apart.
+  NODE_FLAGS_SWIFT="$(node -e "import('./scripts/bytecode-flags.mjs').then(m=>console.log(m.V8_FLAGS.map(f=>JSON.stringify(f)).join(', ')+','))")"
   cat > shell/build/Config.swift <<EOF
 import Foundation
 // Everything is relative to the bundle: a distributed app knows nothing about the machine it was
@@ -65,9 +67,9 @@ private let RES = Bundle.main.resourcePath ?? "."
 let NODE_PATH = RES + "/node/bin/node"
 let PROJECT_ROOT = RES + "/app"
 let AVS_PORT = "$AVS_PORT"
-// --no-lazy is not a tuning flag: the bytecode was produced under it, and V8 hands back nothing at
-// all when the two sides disagree.
-let NODE_ARGS = ["--no-lazy", "loader.cjs"]
+// Not tuning flags. The bytecode was produced under exactly these (see scripts/bytecode-flags.mjs)
+// and V8 hashes them into the cache; the loader refuses to boot without them.
+let NODE_ARGS = [$NODE_FLAGS_SWIFT "loader.cjs"]
 let APP_KEY = "$APP_KEY"
 let EXTRA_ENV: [String: String] = [
   "AVS_DIST": "1",
