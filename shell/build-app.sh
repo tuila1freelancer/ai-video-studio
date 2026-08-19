@@ -113,6 +113,12 @@ if [ "$MODE" = "dist" ]; then
   APPDIR="$APP/Contents/Resources/app"
   mkdir -p "$APPDIR"
   cp -R vendor/node "$APP/Contents/Resources/node"
+  # npm never runs inside the app — the build uses the copy in vendor/, not this one. Dropping it
+  # takes 17 MB off every download along with 141 markdown files and 90 sourcemaps.
+  rm -rf "$APP/Contents/Resources/node/lib/node_modules/npm" \
+         "$APP/Contents/Resources/node/lib/node_modules/corepack" \
+         "$APP/Contents/Resources/node/bin/npm" "$APP/Contents/Resources/node/bin/npx" \
+         "$APP/Contents/Resources/node/bin/corepack" "$APP/Contents/Resources/node/include"
   cp package.json package-lock.json "$APPDIR/"
 
   # The UI ships as one minified file rather than 36 browsable modules. WKWebView must be handed
@@ -148,7 +154,8 @@ if [ "$MODE" = "dist" ]; then
     [ -d "vendor/$v" ] && cp -R "vendor/$v" "$APPDIR/vendor/$v"
   done
 
-  scrub_payload "$APPDIR"
+  # Everything under Resources, so the vendored runtime is held to the same rule as the payload.
+  scrub_payload "$APP/Contents/Resources"
 
   # Sanity: the payload has to be able to answer for itself.
   [ -f "$APPDIR/app.jsc" ] || { echo "✖ payload thiếu app.jsc"; exit 1; }

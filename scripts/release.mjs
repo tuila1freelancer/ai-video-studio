@@ -15,7 +15,7 @@
 //   APPLE_SIGNING_IDENTITY, APPLE_ID, APPLE_TEAM_ID, APPLE_APP_PASSWORD   optional, for notarising
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -100,8 +100,23 @@ try {
   }
 
   // ---- 4. build ----------------------------------------------------------------------------
+  // build-app.sh bundles src/ into one file, compiles it to V8 bytecode, encrypts it with a key
+  // it generates and compiles into the launcher, and bundles the UI. Nothing readable ships.
   console.log('· dựng bundle self-contained…');
   run('bash', ['shell/build-app.sh', '--dist']);
+
+  // The sourcemap is the only way to read a customer's crash report, and it is overwritten by the
+  // next build — so it gets the version in its name and stays here, outside the zip and outside git.
+  const mapSrc = join(ROOT, 'dist', 'private', 'server.cjs.map');
+  const mapKept = join(ROOT, 'dist', 'private', `server-v${version}.cjs.map`);
+  if (existsSync(mapSrc)) {
+    renameSync(mapSrc, mapKept);
+    console.log(`  ✓ sourcemap giữ riêng: dist/private/server-v${version}.cjs.map (KHÔNG gửi cho ai)`);
+  }
+
+  // ---- 4b. the release refuses to ship readable code -----------------------------------------
+  console.log('· kiểm tra bản dựng không còn mã nguồn…');
+  run('node', ['scripts/audit-release.mjs', '--app', APP]);
 
   // ---- 5. sign ------------------------------------------------------------------------------
   const identity = process.env.APPLE_SIGNING_IDENTITY;
