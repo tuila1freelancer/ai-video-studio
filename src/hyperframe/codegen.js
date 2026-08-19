@@ -5,11 +5,11 @@
 // Output format is DELIMITER-FENCED, not JSON: weak models constantly break JSON when a string
 // field holds code full of quotes/newlines. Fences let the model write CSS/HTML/JS verbatim (zero
 // escaping), which all but eliminates parse failures. JSON is still accepted as a fallback.
-import { chat } from '../providers/llm.js';
 import { buildTemplate, makeCtx } from '../animation/templates.js';
 import { getTheme } from '../animation/themes.js';
 import { extractBeats, cinematicDirection } from './beats.js';
-import { buildCodegenPrompt, overlayBlock } from './prompt.js';
+import { overlayBlock } from './prompt.js';
+import { openDoctrine } from './doctrine.js';
 import { lintSpec } from './lint.js';
 import { renderValidate } from './validate.js';
 import { detectLang, langAdjective } from '../util/lang.js';
@@ -151,7 +151,12 @@ export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, on
   if (consistent) modeBlocks.push(consistentScenesBlock(guide));
   const media = (Array.isArray(imageFullAssets) ? imageFullAssets : []).filter((a) => a?.name && a?.uri);
   if (media.length) modeBlocks.push(imageFullBlock(media));
-  const messages = buildCodegenPrompt({ scene, beats, direction, guide, w, h, duration, idx, total, density, creativeDirection, hookVisual, captionsOn, modeBlocks, diversitySalt, language: lang });
+  // The prompt and the conversation belong to the doctrine, not to this loop — so moving them
+  // behind the store later is a second implementation, not surgery here.
+  const doctrine = openDoctrine(
+    { scene, beats, direction, guide, w, h, duration, idx, total, density, creativeDirection, hookVisual, captionsOn, modeBlocks, diversitySalt, language: lang },
+    { ai },
+  );
 
   let lastErrors = null;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -160,9 +165,7 @@ export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, on
       // temperature ladder: precise while fixing (0.45), one notch warmer late in the run
       // (≥6) so a stuck design can escape its local minimum instead of repeating itself.
       const temperature = attempt === 1 ? 0.7 : attempt >= 6 ? 0.65 : 0.45;
-      // P39: full-page raw-GSAP specs are bigger than the old FX-constrained ones — give the
-      // model room (the reference app sends 100k; providers stop early when done).
-      raw = await chat(messages, { maxTokens: 24000, temperature, llm: ai?.llm || null });
+      raw = await doctrine.ask({ temperature });
     } catch (e) {
       lastErrors = [`LLM error: ${String(e.message).slice(0, 80)}`];
       onLog(`cảnh ${idx + 1}: LLM lỗi (lần ${attempt}/${maxAttempts}) — thử lại`);
@@ -182,8 +185,7 @@ export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, on
       // Unparseable reply must NOT kill the scene — cost it one attempt and re-instruct the format.
       lastErrors = ['reply did not match the required format'];
       onLog(`cảnh ${idx + 1}: reply sai định dạng (lần ${attempt}/${maxAttempts}) — thử lại`);
-      messages.length = 2; // bounded history (see below) — one standing format reminder
-      messages.push({ role: 'user', content: 'Your reply did not match the format. Reply with EXACTLY the three fenced blocks and nothing else:\n@@@CSS@@@\n(css)\n@@@HTML@@@\n(html)\n@@@SCRIPT@@@\n(js)\n@@@END@@@' });
+      doctrine.reaskFormat();
       continue;
     }
     normalizeSpec(clean, { guide, duration, language: lang }); // reclaim attempts from mechanical mistakes
@@ -235,15 +237,9 @@ export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, on
     }
     lastErrors = allIssues;
     onLog(`cảnh ${idx + 1}: spec chưa đạt (lần ${attempt}/${maxAttempts}) — ${allIssues.join(' | ').slice(0, 240)}`);
-    // Keep the conversation BOUNDED across up to 10 attempts: system + original brief +
-    // ONLY the latest attempt/fix pair. Older failures add tokens, not signal — the fix
-    // note always carries the full current issue list.
-    messages.length = 2;
-    messages.push({ role: 'assistant', content: `@@@CSS@@@\n${clean.css}\n@@@HTML@@@\n${clean.html}\n@@@SCRIPT@@@\n${clean.script}\n@@@END@@@`.slice(0, 5000) });
-    messages.push({
-      role: 'user',
-      content: `Your scene has problems that must be fixed:\n- ${allIssues.join('\n- ')}\nReturn the corrected scene in the same @@@CSS@@@/@@@HTML@@@/@@@SCRIPT@@@/@@@END@@@ fenced format — keep what worked, fix only the listed issues.`,
-    });
+    // The conversation stays bounded across up to 10 attempts — system + brief + only the latest
+    // attempt/fix pair. Older failures add tokens, not signal.
+    doctrine.reaskIssues(clean, allIssues);
   }
   // P39: geometry is advisory, so the only way to exhaust every attempt is a scene that stays
   // STRUCTURALLY broken (unparseable / syntax error / threw at runtime / renders blank) each time.
