@@ -135,6 +135,24 @@ bundle, verified by `file` on the artifacts themselves:
 | Chrome | — | **not bundled**; falls back to `/Applications/Google Chrome.app`, and without it scene rendering and thumbnails have no engine |
 | whisper + model | — | not bundled (547 MB); downloaded on demand from Settings |
 
+**Nothing readable ships.** `src/` does not travel. The release bundles 167 modules into one file,
+compiles it to V8 bytecode, and encrypts that with a per-build key compiled into the launcher and
+handed to the backend over stdin — so the payload is `app.jsc` plus a 50-line loader, and a byte
+scan of the finished `.app` finds no trace of the codegen doctrine. The UI ships as one minified
+file and DevTools is off outside development. `npm run release` refuses to publish a build that
+fails `scripts/audit-release.mjs`, which reads the assembled bundle rather than the source.
+
+Two consequences worth knowing before you debug a customer report:
+
+- The **sourcemap** lands in `dist/private/server-v<x>.cjs.map` and never leaves this machine. Without
+  it a crash report is a stack trace into a single minified line — keep it for every version shipped.
+- **Page-side code must be a string.** `page.evaluate(fn)` serialises by reading the function's own
+  source, and under bytecode that source is spaces. `tests/page-eval-strings.test.js` enforces it.
+
+What this does not protect: a debugger attached to the running process, and the prompts themselves —
+the customer supplies the LLM endpoint, so their provider's dashboard shows every one verbatim. See
+`docs/prompt-doctrine-service.md`.
+
 Unless `APPLE_SIGNING_IDENTITY` + the notarytool credentials are set, the release is ad-hoc signed
 only and Gatekeeper blocks the first launch until the buyer right-clicks → Open.
 

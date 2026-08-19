@@ -39,8 +39,11 @@ test('P39 pillar 3: a new project pins the codegen model its provider actually s
 });
 
 test('P39 pillar 3: codegen sends generous token headroom for full-page specs', () => {
-  const s = src('../src/hyperframe/codegen.js');
-  assert.match(s, /maxTokens:\s*24000/, 'codegen requests 24k tokens (was 6500)');
+  // The ceiling moved with the model call into doctrine.js, so that the store implementation of
+  // the same interface inherits it rather than re-deciding it.
+  const s = src('../src/hyperframe/doctrine.js');
+  assert.match(s, /const MAX_TOKENS = 24000;/, 'codegen requests 24k tokens (was 6500)');
+  assert.match(s, /maxTokens: MAX_TOKENS/);
 });
 
 test('P39 pillar 4: per-scene + master + colorkey encodes are reference-grade (crf 18)', () => {
