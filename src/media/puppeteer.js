@@ -50,6 +50,17 @@ export async function closeBrowser() {
 
 // Serialize screenshots — concurrent heavy paints on one browser race the capture.
 let queue = Promise.resolve();
+// Page-side code travels as a STRING, never as a function.
+//
+// Puppeteer serialises a function by calling `fn.toString()` and parsing the result. A release runs
+// from V8 bytecode against a blank placeholder source, so toString() returns spaces — the exact
+// length of the original and nothing else — and every page.evaluate(fn) dies on "Passed function
+// cannot be serialized!". Only a real render through a real release finds this.
+const SETTLED = `(async () => {
+  try { if (document.fonts && document.fonts.ready) await document.fonts.ready; } catch {}
+  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+})()`;
+
 export function screenshotHtml(html, opts = {}) {
   const job = queue.then(() => doScreenshot(html, opts));
   queue = job.catch(() => {});
@@ -77,10 +88,7 @@ async function doScreenshot(html, { w, h, outPath, scale = 1, quality = 92 } = {
     await page.setViewport({ width: w, height: h, deviceScaleFactor: Math.max(1, Math.min(4, +scale || 1)) });
     await page.setContent(html, { waitUntil: 'load', timeout: 20000 });
     // Ensure fonts loaded + two animation frames painted before capture.
-    await page.evaluate(async () => {
-      try { if (document.fonts && document.fonts.ready) await document.fonts.ready; } catch { /* ignore */ }
-      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
-    });
+    await page.evaluate(SETTLED);
     await new Promise((r) => setTimeout(r, 200));
     await page.screenshot({
       path: out,

@@ -14,6 +14,7 @@ import { fileURLToPath } from 'node:url';
 
 const REPO = dirname(dirname(fileURLToPath(import.meta.url)));
 const NODE = join(REPO, 'vendor', 'node', 'bin', 'node');
+const { V8_FLAGS } = await import('../scripts/bytecode-flags.mjs');
 
 // One compile, shared by every case below.
 const dir = mkdtempSync(join(tmpdir(), 'avs-jsc-'));
@@ -27,7 +28,7 @@ execFileSync(process.execPath, [
 test.after(() => rmSync(dir, { recursive: true, force: true }));
 
 test('a function V8 never compiled at load still runs from the placeholder source', () => {
-  const out = execFileSync(NODE, ['--no-lazy', join(dir, 'loader.cjs')], { encoding: 'utf8' });
+  const out = execFileSync(NODE, [...V8_FLAGS, join(dir, 'loader.cjs')], { encoding: 'utf8' });
   const got = JSON.parse(out);
   assert.equal(got.deep, 'DOCTRINE-CANARY-9f2b', 'lazy compilation from a blank source would throw here');
   // The CJS wrapper has to arrive intact, or half the app's path handling breaks at runtime.
@@ -47,11 +48,24 @@ test('bytecode hides the code and keeps the strings — which is why A4 exists',
   assert.equal(jsc.includes(Buffer.from('console.log(JSON.stringify')), false);
 });
 
-test('booting without --no-lazy stops, and says so', () => {
-  const r = spawnSync(NODE, [join(dir, 'loader.cjs')], { encoding: 'utf8' });
-  assert.equal(r.status, 1, 'a flag mismatch must be fatal, never a silent half-boot');
-  assert.match(r.stderr, /AVS_BOOT_FAILED/);
-  assert.match(r.stderr, /--no-lazy/, 'the message must name the likeliest cause');
+test('booting with the wrong V8 flags stops, and names the missing one', () => {
+  for (const flag of V8_FLAGS) {
+    const r = spawnSync(NODE, [...V8_FLAGS.filter((f) => f !== flag), join(dir, 'loader.cjs')], { encoding: 'utf8' });
+    assert.equal(r.status, 1, `dropping ${flag} must be fatal, never a silent half-boot`);
+    assert.match(r.stderr, /AVS_BOOT_FAILED/);
+    // --no-lazy is caught by V8 rejecting the cache; --no-flush-bytecode only shows up minutes
+    // later under GC, so the loader has to check the recorded list itself.
+    assert.match(r.stderr, new RegExp(`${flag}|--no-lazy`), `the message must name ${flag}`);
+  }
+});
+
+test('the flag list the payload records is the one the launcher passes', () => {
+  const recorded = JSON.parse(readFileSync(join(dir, 'app.jsc.json'), 'utf8')).flags;
+  assert.deepEqual(recorded, V8_FLAGS);
+  const build = readFileSync(join(REPO, 'shell', 'build-app.sh'), 'utf8');
+  assert.match(build, /NODE_FLAGS_SWIFT="\$\(node -e "import\('\.\/scripts\/bytecode-flags\.mjs'\)/,
+    'Config.swift must read the same list, not a copy of it');
+  assert.match(build, /let NODE_ARGS = \[\$NODE_FLAGS_SWIFT "loader\.cjs"\]/);
 });
 
 test('a damaged app.jsc stops, and says so', () => {
@@ -61,7 +75,7 @@ test('a damaged app.jsc stops, and says so', () => {
   bad.fill(0, 64, 256); // corrupt the payload, keep the length
   writeFileSync(jsc, bad);
   try {
-    const r = spawnSync(NODE, ['--no-lazy', join(dir, 'loader.cjs')], { encoding: 'utf8' });
+    const r = spawnSync(NODE, [...V8_FLAGS, join(dir, 'loader.cjs')], { encoding: 'utf8' });
     assert.equal(r.status, 1);
     assert.match(r.stderr, /AVS_BOOT_FAILED/);
   } finally {
@@ -100,7 +114,7 @@ test('encryption is what actually removes the text from disk', () => {
 });
 
 test('the key arrives on stdin, and the app runs', () => {
-  const out = execFileSync(NODE, ['--no-lazy', join(encDir, 'loader.cjs')], {
+  const out = execFileSync(NODE, [...V8_FLAGS, join(encDir, 'loader.cjs')], {
     encoding: 'utf8',
     input: `${KEY}\n`,
   });
@@ -108,7 +122,7 @@ test('the key arrives on stdin, and the app runs', () => {
 });
 
 test('a wrong key is fatal, and so is a tampered file', () => {
-  const wrong = spawnSync(NODE, ['--no-lazy', join(encDir, 'loader.cjs')], {
+  const wrong = spawnSync(NODE, [...V8_FLAGS, join(encDir, 'loader.cjs')], {
     encoding: 'utf8',
     input: `${'b'.repeat(64)}\n`,
   });
@@ -123,7 +137,7 @@ test('a wrong key is fatal, and so is a tampered file', () => {
   bad[bad.length - 20] ^= 0xff;
   writeFileSync(jsc, bad);
   try {
-    const tampered = spawnSync(NODE, ['--no-lazy', join(encDir, 'loader.cjs')], {
+    const tampered = spawnSync(NODE, [...V8_FLAGS, join(encDir, 'loader.cjs')], {
       encoding: 'utf8', input: `${KEY}\n`,
     });
     assert.equal(tampered.status, 1);
@@ -135,7 +149,7 @@ test('a wrong key is fatal, and so is a tampered file', () => {
 });
 
 test('no key at all is refused rather than guessed at', () => {
-  const r = spawnSync(NODE, ['--no-lazy', join(encDir, 'loader.cjs')], { encoding: 'utf8', input: '' });
+  const r = spawnSync(NODE, [...V8_FLAGS, join(encDir, 'loader.cjs')], { encoding: 'utf8', input: '' });
   assert.equal(r.status, 1);
   assert.match(r.stderr, /khoá giải mã không hợp lệ/);
 });

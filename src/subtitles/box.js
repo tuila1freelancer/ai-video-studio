@@ -25,6 +25,54 @@ import { assAlpha, toAssColor } from './color.js';
  * approximation and it is very slightly tighter than a true quarter-circle — invisible at any
  * radius a caption uses, and it keeps the path to four curves.
  */
+// Page-side code travels as a STRING, never as a function.
+//
+// Puppeteer serialises a function by calling `fn.toString()` and parsing the result; a release runs
+// from V8 bytecode against a blank placeholder source, so toString() returns nothing but spaces and
+// page.evaluate(fn) dies on "Passed function cannot be serialized!". Arguments go in by
+// JSON.stringify for the same reason — the string form of evaluate() takes no argument list.
+const measureSource = (texts, lim) => `(async () => {
+  const texts_ = ${JSON.stringify(texts)};
+  const lim = ${JSON.stringify(lim)};
+  try { if (document.fonts?.ready) await document.fonts.ready; } catch {}
+  const span = document.createElement('span');
+  span.className = 'm';
+  document.body.appendChild(span);
+  const measure = (s) => { span.textContent = s; return span.getBoundingClientRect(); };
+  const out = [];
+  for (const text of texts_) {
+    const words = text.split(' ');
+    // greedy fill: keep adding words while the line still fits, then break. ASS ScaleX
+    // stretches glyphs after layout, so the budget shrinks by the same factor.
+    const budget = lim.maxWidth / lim.scaleX;
+    const lines = [];
+    const breakAfter = [];
+    let cur = [];
+    words.forEach((word, i) => {
+      const next = [...cur, word];
+      const tooWide = measure(next.join(' ')).width > budget;
+      const tooLong = lim.maxChars > 0 && next.join(' ').length > lim.maxChars;
+      if (cur.length && (tooWide || tooLong) && lines.length + 1 < lim.maxLines) {
+        lines.push(cur.join(' '));
+        breakAfter.push(i - 1);
+        cur = [word];
+      } else {
+        cur = next;
+      }
+    });
+    if (cur.length) lines.push(cur.join(' '));
+    const rects = lines.map((l) => measure(l));
+    out.push({
+      text,
+      width: Math.max(...rects.map((r) => r.width)),
+      height: rects.reduce((a, r) => a + r.height, 0),
+      breakAfter,
+    });
+  }
+  span.remove();
+  return out;
+})()`;
+
 export function roundedRectPath(w, h, radius) {
   const r = Math.max(0, Math.min(Math.round(radius), Math.floor(Math.min(w, h) / 2)));
   if (!r) return `m 0 0 l ${w} 0 l ${w} ${h} l 0 ${h}`;
@@ -120,45 +168,7 @@ export async function measureCaptions(texts, style, fontFile, size) {
         + `${style.letterSpacing ? `letter-spacing:${style.letterSpacing}px;` : ''}}`,
     ].join('\n');
     await page.setContent(`<style>${css}</style><body></body>`, { waitUntil: 'load', timeout: 20000 });
-    const raw = await page.evaluate(async (texts_, lim) => {
-      try { if (document.fonts?.ready) await document.fonts.ready; } catch { /* ignore */ }
-      const span = document.createElement('span');
-      span.className = 'm';
-      document.body.appendChild(span);
-      const measure = (s) => { span.textContent = s; return span.getBoundingClientRect(); };
-      const out = [];
-      for (const text of texts_) {
-        const words = text.split(' ');
-        // greedy fill: keep adding words while the line still fits, then break. ASS ScaleX
-        // stretches glyphs after layout, so the budget shrinks by the same factor.
-        const budget = lim.maxWidth / lim.scaleX;
-        const lines = [];
-        const breakAfter = [];
-        let cur = [];
-        words.forEach((word, i) => {
-          const next = [...cur, word];
-          const tooWide = measure(next.join(' ')).width > budget;
-          const tooLong = lim.maxChars > 0 && next.join(' ').length > lim.maxChars;
-          if (cur.length && (tooWide || tooLong) && lines.length + 1 < lim.maxLines) {
-            lines.push(cur.join(' '));
-            breakAfter.push(i - 1);
-            cur = [word];
-          } else {
-            cur = next;
-          }
-        });
-        if (cur.length) lines.push(cur.join(' '));
-        const rects = lines.map((l) => measure(l));
-        out.push({
-          text,
-          width: Math.max(...rects.map((r) => r.width)),
-          height: rects.reduce((a, r) => a + r.height, 0),
-          breakAfter,
-        });
-      }
-      span.remove();
-      return out;
-    }, wanted, limits);
+    const raw = await page.evaluate(measureSource(wanted, limits));
     // ASS ScaleX/Y stretch the glyphs AFTER layout, so they multiply the measurement rather than
     // being expressible in the CSS above.
     const sx = limits.scaleX;
