@@ -150,8 +150,10 @@ Two consequences worth knowing before you debug a customer report:
   source, and under bytecode that source is spaces. `tests/page-eval-strings.test.js` enforces it.
 
 What this does not protect: a debugger attached to the running process, and the prompts themselves —
-the customer supplies the LLM endpoint, so their provider's dashboard shows every one verbatim. See
-`docs/prompt-doctrine-service.md`.
+the customer supplies the LLM endpoint, so their provider's dashboard shows every one verbatim. That
+second one is an **accepted risk** (owner, 2026-08-19): the requirement is that no source ships, and
+no source ships. `docs/prompt-doctrine-service.md` records what closing it would have cost and the
+one condition that would make it worth revisiting.
 
 Unless `APPLE_SIGNING_IDENTITY` + the notarytool credentials are set, the release is ad-hoc signed
 only and Gatekeeper blocks the first launch until the buyer right-clicks → Open.

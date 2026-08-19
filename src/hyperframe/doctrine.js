@@ -5,10 +5,10 @@
 // and does nothing at all about the fact that the customer supplies the LLM endpoint and can read
 // every prompt verbatim in their own provider's dashboard.
 //
-// Closing that needs the doctrine to run somewhere the customer does not control: the app sends the
-// scene brief, the store builds the prompt and calls the model with the VENDOR's key, and only the
-// spec comes back. This module exists so that change is a second implementation of one small
-// interface rather than surgery on the re-ask loop. See docs/prompt-doctrine-service.md.
+// The owner weighed that and accepted it (2026-08-19) — the requirement is that no source ships, and
+// none does. This module stays anyway, because the boundary is right on its own terms: the re-ask
+// loop has no business knowing what a prompt looks like or which provider answers it. If the sales
+// model ever changes, docs/prompt-doctrine-service.md is the spec for a second implementation.
 //
 // The interface is a SESSION, not a function, because getting a scene right takes up to ten rounds
 // of "here is what is wrong, fix it" — and whoever owns the prompt has to own that conversation.

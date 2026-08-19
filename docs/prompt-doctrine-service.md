@@ -1,11 +1,22 @@
-# Đưa doctrine lên server — đặc tả để thi công (giai đoạn B)
+# Đưa doctrine lên server — ĐÃ CÂN NHẮC VÀ KHÔNG LÀM
 
-**Trạng thái:** mới là thiết kế. Chưa có endpoint nào tồn tại, chưa có client nào được viết.
-Chỗ nối phía app đã có sẵn: `src/hyperframe/doctrine.js`.
+> **Quyết định của chủ, 2026-08-19: KHÔNG thi công.**
+> Yêu cầu thật là *"miễn không lộ source"*, và giai đoạn A đã đạt: bản phát hành không còn một
+> dòng mã nguồn nào đọc được. Việc prompt hiện trong dashboard LLM của chính khách là **rủi ro
+> được chấp nhận có ý thức**, không phải việc còn dang dở.
+>
+> Giữ tài liệu này vì lý do kỹ thuật vẫn đúng, và vì điều kiện để đảo quyết định là một con số
+> cụ thể chứ không phải cảm tính: **nếu mô hình bán hàng đổi sang credit/thuê bao** (chủ trả tiền
+> LLM), thì rào cản chính ở mục 2 biến mất và việc này đáng làm lại. Chừng nào khách còn mang key
+> riêng, đừng mở lại.
+>
+> Chỗ nối phía app (`src/hyperframe/doctrine.js`) **vẫn giữ**. Nó không tốn gì lúc chạy, và nó là
+> ranh giới đúng dù có bao giờ dùng đến hay không: vòng lặp re-ask không việc gì phải biết prompt
+> trông thế nào.
 
 ---
 
-## 1. Vì sao vẫn cần, dù giai đoạn A đã xong
+## 1. Lỗ mà giai đoạn A không chạm tới được
 
 Giai đoạn A đã làm bản phát hành không còn mã nguồn đọc được: `src/*.js` 161 → 0 file, bytecode được
 mã hoá AES-256-GCM, khoá đi qua stdin. Quét 2.191 file trong bản `.app` không tìm ra một mẩu doctrine
@@ -20,7 +31,7 @@ cần biết gì về kỹ thuật.
 
 Chỉ có một cách bịt: **prompt không bao giờ rời máy chủ của anh**.
 
-## 2. Cái phải đổi cùng — và đây là quyết định kinh doanh
+## 2. Vì sao dừng ở đây — và đây là lý do kinh doanh, không phải kỹ thuật
 
 Nếu server của anh dựng prompt rồi gọi LLM bằng **khoá của khách**, thì prompt lại xuất hiện trong
 dashboard của khách. Không giải quyết được gì.
@@ -34,7 +45,9 @@ dashboard của khách. Không giải quyết được gì.
 | Sinh nội dung chạy offline | Sinh nội dung cần mạng (render vẫn offline) |
 | Anh không chịu chi phí biến đổi | Chi phí LLM tỉ lệ thuận với lượng dùng |
 
-**Chưa quyết ở đây.** Thi công B chỉ bắt đầu khi anh chốt mô hình bán hàng.
+**Đây chính là chỗ quyết định dừng.** Chủ giữ mô hình "khách mang key riêng", nên không có
+đường nào để prompt rời khỏi máy khách mà vẫn kín. Đổi mô hình bán hàng để bịt một lỗ mà chủ đã
+chấp nhận là đánh đổi sai chiều.
 
 ## 3. Phần nào chuyển, phần nào ở lại
 
@@ -153,7 +166,7 @@ có một chuẩn đối chiếu rõ ràng để so.
 | Chi phí LLM vượt doanh thu | `creditsSpent` chốt theo token thực, kiểm tra số dư **trước** khi gọi model |
 | Video cũ render lại sau khi hết hạn | Render lại cảnh không cần LLM (`mode:'scenes'`) — đường đó phải luôn chạy được offline |
 
-## 7. Thứ tự làm
+## 7. Thứ tự làm — CHỈ dùng nếu quyết định ở đầu tài liệu bị đảo
 
 1. Chốt mô hình bán hàng (mục 2). Mọi thứ dưới đây phụ thuộc vào nó.
 2. Store: scope `doctrine` + xác minh license token + bảng credit.
