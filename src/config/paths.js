@@ -6,7 +6,24 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-export const ROOT = resolve(__dirname, '..', '..');
+
+// One climb, two layouts. Running from the repo this file sits at src/config/paths.js; in a release
+// the whole server is a single file at the payload root. Anchoring on the directory that actually
+// holds package.json AND public/ lands on the right root in both, with nothing to configure — and
+// ROOT is what finds vendor/ffmpeg, so getting it wrong silently downgrades a customer to whatever
+// ffmpeg their machine happens to have.
+function findAppRoot(from) {
+  let dir = from;
+  for (let i = 0; i < 6; i += 1) {
+    if (existsSync(join(dir, 'package.json')) && existsSync(join(dir, 'public'))) return dir;
+    const up = dirname(dir);
+    if (up === dir) break;
+    dir = up;
+  }
+  return resolve(from, '..', '..');
+}
+
+export const ROOT = findAppRoot(__dirname);
 export const DATA_DIR = process.env.AVS_DATA_DIR || join(ROOT, 'data');
 export const VENDOR_DIR = join(ROOT, 'vendor');
 
