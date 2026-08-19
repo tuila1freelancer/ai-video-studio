@@ -1,4 +1,4 @@
-// One NAMED regression test per protected behavior (P1–P19 + P36, docs/architecture.md §7).
+// One NAMED regression test per protected behavior (P1–P19 + P36, README.md Architecture §7).
 // A refactor may RELOCATE a behavior — update the anchor here — but a silently deleted
 // guard/constant turns exactly one of these red. Functional where cheap, source-anchored
 // where a functional test would need live providers.
