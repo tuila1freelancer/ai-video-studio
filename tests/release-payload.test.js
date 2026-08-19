@@ -17,6 +17,20 @@ const src = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const swift = src('../shell/main.swift');
 const build = src('../shell/build-app.sh');
 
+test('the dist payload ships bytecode, and the launcher can start it', () => {
+  // The three halves of one contract: no src/ in the payload, --no-lazy on the command line
+  // (without it V8 hands the loader nothing), and the key delivered over stdin rather than argv
+  // or the environment, both of which `ps` prints back to whoever asks.
+  assert.doesNotMatch(build, /cp -R src public/, 'src/ must not travel');
+  assert.match(build, /--key "\$APP_KEY"/);
+  assert.match(build, /let NODE_ARGS = \["--no-lazy", "loader\.cjs"\]/);
+  assert.match(swift, /p\.arguments = NODE_ARGS/);
+  assert.match(swift, /stdinPipe\.fileHandleForWriting\.write\(Data\(\(APP_KEY \+ "\\n"\)\.utf8\)\)/);
+  assert.doesNotMatch(swift, /env\["APP_KEY"\]/, 'the key must never reach the environment');
+  // And the build refuses to ship a payload that still has source in it.
+  assert.match(build, /payload vẫn còn mã nguồn trong src\//);
+});
+
 test('a shipped build has no Inspect Element', () => {
   assert.doesNotMatch(swift, /setValue\(true,\s*forKey:\s*"developerExtrasEnabled"\)/,
     'an unconditional `true` here ships the inspector to every customer');

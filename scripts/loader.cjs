@@ -8,7 +8,7 @@
 // MUST be started with --no-lazy. The cache was produced under that flag, and V8 hands back
 // nothing at all when the two sides disagree.
 'use strict';
-const { createHash } = require('node:crypto');
+const { createDecipheriv, createHash } = require('node:crypto');
 const { readFileSync } = require('node:fs');
 const { join } = require('node:path');
 const Module = require('node:module');
@@ -31,7 +31,34 @@ if (meta.v8 !== process.versions.v8) {
   die(`bytecode dựng cho V8 ${meta.v8}, runtime này là V8 ${process.versions.v8} — dựng lại bản phát hành`);
 }
 
-const cachedData = readFileSync(join(HERE, 'app.jsc'));
+let cachedData = readFileSync(join(HERE, 'app.jsc'));
+
+if (meta.encrypted) {
+  // The key comes down stdin from the launcher: not beside the ciphertext on disk, and not in the
+  // environment where `ps -E` would print it back. Recovering it means disassembling the launcher
+  // or attaching a debugger — which is the honest ceiling for anything running on the user's own
+  // machine, and the reason the doctrine moves server-side in phase B.
+  if (process.stdin.isTTY) die('thiếu khoá giải mã — app này phải được mở từ AI Video Studio.app');
+  let keyHex = '';
+  try {
+    keyHex = readFileSync(0, 'utf8').trim();
+  } catch (e) {
+    die(`không đọc được khoá giải mã: ${e.message}`);
+  }
+  if (!/^[0-9a-f]{64}$/i.test(keyHex)) die('khoá giải mã không hợp lệ');
+  try {
+    const iv = cachedData.subarray(0, 12);
+    const tag = cachedData.subarray(12, 28);
+    const body = cachedData.subarray(28);
+    const decipher = createDecipheriv('aes-256-gcm', Buffer.from(keyHex, 'hex'), iv);
+    decipher.setAuthTag(tag);
+    cachedData = Buffer.concat([decipher.update(body), decipher.final()]);
+  } catch {
+    // GCM authenticates: a wrong key and a tampered file are the same failure, and both are fatal.
+    die('không giải mã được app.jsc — sai khoá hoặc file đã bị sửa');
+  }
+}
+
 // Checked BEFORE V8 sees it: handed a truncated or half-written app.jsc, V8 does not return an
 // error, it takes the process down with a signal. A half-finished download must report itself.
 const digest = createHash('sha256').update(cachedData).digest('hex');

@@ -118,7 +118,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
   func startBackend() {
     let p = Process()
     p.executableURL = URL(fileURLWithPath: NODE_PATH)
-    p.arguments = ["src/server.js"]
+    p.arguments = NODE_ARGS
     p.currentDirectoryURL = URL(fileURLWithPath: PROJECT_ROOT)
     var env = ProcessInfo.processInfo.environment
     env["AVS_PORT"] = AVS_PORT
@@ -127,8 +127,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     // shell can change what the bundle thinks it is.
     for (k, v) in EXTRA_ENV { env[k] = v }
     p.environment = env
-    do { try p.run(); backend = p }
-    catch { loadSplash("Không khởi động được backend: \(error.localizedDescription)") }
+    // The key that unlocks the bytecode goes down stdin and nowhere else. Passed as an argument or
+    // in the environment, `ps` would hand it straight back to whoever asked.
+    let stdinPipe = Pipe()
+    p.standardInput = stdinPipe
+    do {
+      try p.run()
+      backend = p
+      if !APP_KEY.isEmpty { stdinPipe.fileHandleForWriting.write(Data((APP_KEY + "\n").utf8)) }
+      // Closed either way: the loader reads stdin to EOF, so leaving it open hangs the boot.
+      try? stdinPipe.fileHandleForWriting.close()
+    } catch {
+      loadSplash("Không khởi động được backend: \(error.localizedDescription)")
+    }
   }
 
   func waitForHealthThenLoad(attempt: Int) {

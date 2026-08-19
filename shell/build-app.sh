@@ -40,6 +40,8 @@ import Foundation
 let NODE_PATH = "$NODE_PATH"
 let PROJECT_ROOT = "$ROOT"
 let AVS_PORT = "$AVS_PORT"
+let NODE_ARGS = ["src/server.js"]
+let APP_KEY = ""
 let EXTRA_ENV: [String: String] = [:]
 EOF
 else
@@ -51,6 +53,10 @@ else
     exit 1
   fi
   echo "node:    vendor/node/bin/node ($("$ROOT/vendor/node/bin/node" -v))"
+  # One key per build, generated here and never written to disk beside the thing it unlocks. It is
+  # compiled into the launcher and handed to the backend over stdin — not argv, not the environment,
+  # both of which `ps` will print back to the customer.
+  APP_KEY="$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")"
   cat > shell/build/Config.swift <<EOF
 import Foundation
 // Everything is relative to the bundle: a distributed app knows nothing about the machine it was
@@ -59,6 +65,10 @@ private let RES = Bundle.main.resourcePath ?? "."
 let NODE_PATH = RES + "/node/bin/node"
 let PROJECT_ROOT = RES + "/app"
 let AVS_PORT = "$AVS_PORT"
+// --no-lazy is not a tuning flag: the bytecode was produced under it, and V8 hands back nothing at
+// all when the two sides disagree.
+let NODE_ARGS = ["--no-lazy", "loader.cjs"]
+let APP_KEY = "$APP_KEY"
 let EXTRA_ENV: [String: String] = [
   "AVS_DIST": "1",
   "AVS_DATA_DIR": (NSHomeDirectory() as NSString).appendingPathComponent("Library/Application Support/AI Video Studio"),
@@ -103,7 +113,16 @@ if [ "$MODE" = "dist" ]; then
   APPDIR="$APP/Contents/Resources/app"
   mkdir -p "$APPDIR"
   cp -R vendor/node "$APP/Contents/Resources/node"
-  cp -R src public package.json package-lock.json "$APPDIR/"
+  cp -R public package.json package-lock.json "$APPDIR/"
+
+  # src/ does NOT travel. It is bundled to one file, compiled to V8 bytecode, and encrypted; the
+  # payload gets app.jsc + a loader and no readable JavaScript. The sourcemap lands in dist/private
+  # and stays on this machine — without it a customer's crash report is one minified line.
+  echo "bundling + compiling to bytecode…"
+  node scripts/build-bundle.mjs --out shell/build/payload --map-out dist/private
+  node scripts/build-bytecode.mjs --in shell/build/payload/server.cjs --out shell/build/payload --key "$APP_KEY"
+  cp shell/build/payload/app.jsc shell/build/payload/app.jsc.json shell/build/payload/loader.cjs "$APPDIR/"
+  rm -rf shell/build/payload
 
   # Production dependencies only, installed into a staging tree so the dev node_modules (with its
   # test tooling) never leaks into a customer's download.
@@ -128,8 +147,13 @@ if [ "$MODE" = "dist" ]; then
   scrub_payload "$APPDIR"
 
   # Sanity: the payload has to be able to answer for itself.
-  [ -f "$APPDIR/src/server.js" ] || { echo "✖ payload thiếu src/server.js"; exit 1; }
+  [ -f "$APPDIR/app.jsc" ] || { echo "✖ payload thiếu app.jsc"; exit 1; }
+  [ -f "$APPDIR/loader.cjs" ] || { echo "✖ payload thiếu loader.cjs"; exit 1; }
   [ -d "$APPDIR/node_modules/better-sqlite3" ] || { echo "✖ payload thiếu better-sqlite3"; exit 1; }
+  # The whole point of the exercise, asserted rather than hoped for.
+  if find "$APPDIR/src" -name '*.js' 2>/dev/null | grep -q .; then
+    echo "✖ payload vẫn còn mã nguồn trong src/"; exit 1
+  fi
 fi
 
 cat > "$APP/Contents/Info.plist" <<EOF

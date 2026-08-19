@@ -76,3 +76,66 @@ test('the loader owns no path back to source', () => {
   // Three guards, three exits: unreadable metadata, wrong V8, rejected cache, no wrapper.
   assert.equal((loader.match(/die\(/g) || []).length >= 4, true);
 });
+
+// ---------------------------------------------------------------------------
+// Encrypted payload — what a release actually ships
+// ---------------------------------------------------------------------------
+
+const KEY = 'a'.repeat(64);
+const encDir = mkdtempSync(join(tmpdir(), 'avs-jsc-enc-'));
+execFileSync(process.execPath, [
+  join(REPO, 'scripts', 'build-bytecode.mjs'),
+  '--in', join(REPO, 'tests', 'fixtures', 'bytecode-probe.cjs'),
+  '--out', encDir, '--key', KEY,
+], { stdio: 'pipe' });
+
+test.after(() => rmSync(encDir, { recursive: true, force: true }));
+
+test('encryption is what actually removes the text from disk', () => {
+  const jsc = readFileSync(join(encDir, 'app.jsc'));
+  // The same canary that survives plain bytecode as UTF-16 is gone in both encodings.
+  assert.equal(jsc.includes(Buffer.from('DOCTRINE-CANARY-9f2b', 'latin1')), false);
+  assert.equal(jsc.includes(Buffer.from('DOCTRINE-CANARY-9f2b', 'utf16le')), false);
+  assert.equal(JSON.parse(readFileSync(join(encDir, 'app.jsc.json'), 'utf8')).encrypted, true);
+});
+
+test('the key arrives on stdin, and the app runs', () => {
+  const out = execFileSync(NODE, ['--no-lazy', join(encDir, 'loader.cjs')], {
+    encoding: 'utf8',
+    input: `${KEY}\n`,
+  });
+  assert.equal(JSON.parse(out).deep, 'DOCTRINE-CANARY-9f2b');
+});
+
+test('a wrong key is fatal, and so is a tampered file', () => {
+  const wrong = spawnSync(NODE, ['--no-lazy', join(encDir, 'loader.cjs')], {
+    encoding: 'utf8',
+    input: `${'b'.repeat(64)}\n`,
+  });
+  assert.equal(wrong.status, 1);
+  assert.match(wrong.stderr, /sai khoá hoặc file đã bị sửa/);
+
+  // GCM authenticates, so a flipped byte and a wrong key are the same refusal — which is what
+  // keeps a patched app.jsc from booting at all.
+  const jsc = join(encDir, 'app.jsc');
+  const good = readFileSync(jsc);
+  const bad = Buffer.from(good);
+  bad[bad.length - 20] ^= 0xff;
+  writeFileSync(jsc, bad);
+  try {
+    const tampered = spawnSync(NODE, ['--no-lazy', join(encDir, 'loader.cjs')], {
+      encoding: 'utf8', input: `${KEY}\n`,
+    });
+    assert.equal(tampered.status, 1);
+    assert.equal(tampered.signal, null);
+    assert.match(tampered.stderr, /AVS_BOOT_FAILED/);
+  } finally {
+    writeFileSync(jsc, good);
+  }
+});
+
+test('no key at all is refused rather than guessed at', () => {
+  const r = spawnSync(NODE, ['--no-lazy', join(encDir, 'loader.cjs')], { encoding: 'utf8', input: '' });
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /khoá giải mã không hợp lệ/);
+});
