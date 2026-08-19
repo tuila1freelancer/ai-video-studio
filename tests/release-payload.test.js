@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { detachFilterGraph } from '../src/media/ffmpeg.js';
 import { ffmpeg } from '../src/media/ffmpeg.js';
 
@@ -29,6 +29,28 @@ test('the dist payload ships bytecode, and the launcher can start it', () => {
   assert.doesNotMatch(swift, /env\["APP_KEY"\]/, 'the key must never reach the environment');
   // And the build refuses to ship a payload that still has source in it.
   assert.match(build, /payload vẫn còn mã nguồn trong src\//);
+});
+
+test('the UI ships as one file, with no preload hints pointing at files that are gone', async () => {
+  const { mkdtempSync: mk } = await import('node:fs');
+  const out = join(mk(join(tmpdir(), 'avs-fe-')), 'public');
+  try {
+    execFileSync(process.execPath, [
+      new URL('../scripts/build-frontend.mjs', import.meta.url).pathname, '--out', out,
+    ], { stdio: 'pipe' });
+    const html = readFileSync(join(out, 'index.html'), 'utf8');
+    // 23 of the 24 hints named modules that no longer exist; each one left in would be a 404 on
+    // first paint. main.js keeps its hint because it is still the entry.
+    const preloads = html.match(/rel="modulepreload" href="([^"]+)"/g) || [];
+    assert.deepEqual(preloads, ['rel="modulepreload" href="js/main.js"']);
+    assert.match(html, /<script type="module" src="js\/main\.js"><\/script>/);
+    const bundled = readFileSync(join(out, 'js', 'main.js'), 'utf8');
+    assert.doesNotMatch(bundled, /^\s*\/\//m, 'minified: no comments survive');
+    assert.equal(bundled.includes('renderFingerprint and ttsFingerprint know'), false,
+      'the one engine comment that leaked into the frontend goes with them');
+  } finally {
+    rmSync(dirname(out), { recursive: true, force: true });
+  }
 });
 
 test('a shipped build has no Inspect Element', () => {
