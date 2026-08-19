@@ -113,7 +113,11 @@ if [ "$MODE" = "dist" ]; then
   APPDIR="$APP/Contents/Resources/app"
   mkdir -p "$APPDIR"
   cp -R vendor/node "$APP/Contents/Resources/node"
-  cp -R public package.json package-lock.json "$APPDIR/"
+  cp package.json package-lock.json "$APPDIR/"
+
+  # The UI ships as one minified file rather than 36 browsable modules. WKWebView must be handed
+  # runnable JavaScript, so this is opacity, not secrecy — and the UI is not where the value is.
+  node scripts/build-frontend.mjs --out "$APPDIR/public"
 
   # src/ does NOT travel. It is bundled to one file, compiled to V8 bytecode, and encrypted; the
   # payload gets app.jsc + a loader and no readable JavaScript. The sourcemap lands in dist/private

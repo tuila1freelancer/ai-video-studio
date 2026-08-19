@@ -67,9 +67,11 @@ test('the distributable bundle carries its own runtime, and refuses to build wit
 
 test('the bundle ships what the app needs and leaves out what it does not', () => {
   const build = src('../shell/build-app.sh');
-  // src/ stopped travelling: it is bundled, compiled to bytecode and encrypted into app.jsc.
-  assert.match(build, /cp -R public package\.json package-lock\.json/);
+  // Neither src/ nor public/ travels as a source tree any more: the server is bundled, compiled
+  // to bytecode and encrypted into app.jsc; the UI is bundled into one minified js/main.js.
+  assert.match(build, /cp package\.json package-lock\.json "\$APPDIR\/"/);
   assert.match(build, /cp shell\/build\/payload\/app\.jsc [^\n]*loader\.cjs "\$APPDIR\/"/);
+  assert.match(build, /build-frontend\.mjs --out "\$APPDIR\/public"/);
   assert.match(build, /ci --omit=dev/, 'production dependencies only');
   assert.match(build, /for v in ffmpeg gsap libs fonts; do/);
   // vendor/whisper is 547 MB of speech model used only for transcribing imported footage.
