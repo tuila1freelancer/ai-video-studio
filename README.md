@@ -11,6 +11,7 @@ A **macOS** desktop app that automatically generates videos from a **topic / det
 
 
 <!-- Một file duy nhất, cố ý: toàn bộ kiến thức của dự án nằm ở đây, không có thư mục docs/.
+     Ngoại lệ duy nhất là JOURNAL.md — do launchd tự ghi và tự commit, KHÔNG gộp vào đây.
      Anchor được ghi tường minh (<a id>) nên mục lục không phụ thuộc vào cách renderer sinh slug. -->
 <details>
 <summary><b>Mục lục</b> — 36 mục</summary>
@@ -731,6 +732,11 @@ All projects, media, and the DB live in `data/` (gitignored). Each project has i
 `data/projects/<id>/{audio,srt,html,render,output}` + the canonical `scenes.json` artifact.
 `JOURNAL.md` is the daily production log — real stats appended from the live DB by a scheduled
 `scripts/journal.mjs` run (see `scripts/install-journal-schedule.sh`); don't edit it by hand.
+
+**It is the one file deliberately kept outside this one, and it stays that way.** A launchd job
+(`com.tuila1freelancer.avs-journal`) appends to it and commits it unattended, so folding it in here
+would point a daily automatic commit at the project's main document. Machine-written, therefore
+separate — that is the whole rule.
 
 ---
 
