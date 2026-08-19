@@ -58,7 +58,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     window.minSize = NSSize(width: 960, height: 640)
 
     let cfg = WKWebViewConfiguration()
-    cfg.preferences.setValue(true, forKey: "developerExtrasEnabled")
+    // Inspect Element in a shipped build hands the customer the whole frontend and every API call.
+    cfg.preferences.setValue(EXTRA_ENV["AVS_DIST"] != "1", forKey: "developerExtrasEnabled")
     // Tag the document so CSS can reserve titlebar space only inside the native shell.
     let shellFlag = WKUserScript(
       source: "document.documentElement.classList.add('is-shell');",
