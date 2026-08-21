@@ -1,9 +1,9 @@
 {
   "name": "ai-video-studio",
   "version": "1.0.0",
-  "description": "AI Video Studio — tạo video tự động (dài tuỳ ý) cho macOS. Node 22 backend + native WKWebView shell.",
+  "description": "AI Video Studio \u2014 t\u1ea1o video t\u1ef1 \u0111\u1ed9ng (d\u00e0i tu\u1ef3 \u00fd) cho macOS. Node 22 backend + native WKWebView shell.",
   "type": "module",
-  "main": "src/server.js",
+  "main": "shell/electron/main.cjs",
   "engines": {
     "node": ">=20"
   },
@@ -21,7 +21,10 @@
     "whisper:build": "node scripts/build-whisper-model.mjs",
     "node:fetch": "node scripts/fetch-node.mjs",
     "shell:build:dist": "bash shell/build-app.sh --dist",
-    "release": "node scripts/release.mjs"
+    "release": "node scripts/release.mjs",
+    "win:build": "node scripts/build-windows.mjs",
+    "electron:mac": "electron-builder --mac --publish never",
+    "electron:dev": "electron shell/electron/main.cjs"
   },
   "dependencies": {
     "better-sqlite3": "^12.4.1",
@@ -32,6 +35,58 @@
     "ws": "^8.18.0"
   },
   "devDependencies": {
+    "electron": "^42.9.3",
+    "electron-builder": "^26.15.3",
     "esbuild": "^0.28.2"
+  },
+  "build": {
+    "appId": "com.tuila1freelancer.aivideostudio",
+    "productName": "AI Video Studio",
+    "directories": {
+      "output": "dist/electron",
+      "buildResources": "shell"
+    },
+    "files": [
+      "src/**/*",
+      "public/**/*",
+      "shell/electron/**/*",
+      "package.json",
+      "!**/*.map",
+      "!**/node_modules/**/test/**",
+      "!**/node_modules/**/*.md"
+    ],
+    "asar": true,
+    "asarUnpack": [
+      "**/node_modules/better-sqlite3/**"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "${productName}-${version}-win-${arch}-setup.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "AI Video Studio"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dir",
+          "arch": [
+            "arm64"
+          ]
+        }
+      ],
+      "category": "public.app-category.video"
+    }
   }
 }
