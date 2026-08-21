@@ -1429,9 +1429,20 @@ export function mountRoutes(app, { version }) {
       const { execFile } = await import('node:child_process');
       let dir = String(req.body?.dir || '').trim();
       if (req.body?.pick) {
+        // The native folder chooser differs per OS. Anywhere without one, the caller still gets a
+        // usable answer: the UI falls back to typing a path, which is why this resolves '' instead
+        // of throwing — a missing picker must not make exporting covers impossible.
         dir = await new Promise((resolve) => {
-          execFile('osascript', ['-e', 'POSIX path of (choose folder with prompt "Chọn thư mục lưu ảnh bìa")'],
-            (err, out) => resolve(err ? '' : String(out).trim()));
+          const done = (err, out) => resolve(err ? '' : String(out).trim());
+          if (process.platform === 'darwin') {
+            execFile('osascript', ['-e', 'POSIX path of (choose folder with prompt "Chọn thư mục lưu ảnh bìa")'], done);
+          } else if (process.platform === 'win32') {
+            execFile('powershell', ['-NoProfile', '-STA', '-Command',
+              'Add-Type -AssemblyName System.Windows.Forms; $d = New-Object System.Windows.Forms.FolderBrowserDialog;'
+              + ' $d.Description = "Chọn thư mục lưu ảnh bìa"; if ($d.ShowDialog() -eq "OK") { $d.SelectedPath }'], done);
+          } else {
+            execFile('zenity', ['--file-selection', '--directory', '--title=Chọn thư mục lưu ảnh bìa'], done);
+          }
         });
         if (!dir) return res.json({ ok: false, cancelled: true });
       }
