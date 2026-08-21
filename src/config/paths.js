@@ -28,54 +28,96 @@ export const DATA_DIR = process.env.AVS_DATA_DIR || join(ROOT, 'data');
 export const VENDOR_DIR = join(ROOT, 'vendor');
 
 // The original app we are replacing — reuse its heavy binaries (whisper model, Chrome) if present.
+// macOS-only by construction: it is an .app bundle path.
 const ORIG_APP = '/Applications/AI VIDEO Tool.app/Contents/Resources/_up_/binaries';
 
-function which(cmd) {
-  try { return execSync(`/usr/bin/which ${cmd}`, { encoding: 'utf8' }).trim() || null; }
-  catch { return null; }
+// Everything below resolves against a PLATFORM rather than assuming macOS. The pipeline itself is
+// portable Node — it was only ever these few lookups that pinned the app to one operating system.
+// Passing the platform in (instead of reading process.platform inline) is what makes the Windows
+// branch testable from a Mac: the resolver is a pure function of (platform, env, what exists).
+function whichOn(platform, cmd) {
+  try {
+    const out = platform === 'win32'
+      ? execSync(`where ${cmd}`, { encoding: 'utf8' })
+      : execSync(`/usr/bin/which ${cmd}`, { encoding: 'utf8' });
+    return out.split(/\r?\n/).map((s) => s.trim()).find(Boolean) || null;
+  } catch { return null; }
 }
 function firstExisting(...candidates) {
   for (const c of candidates) { if (c && existsSync(c)) return c; }
   return null;
 }
 
-export const PATHS = {
+/** @param {string} platform @param {Record<string,string|undefined>} env */
+export function resolvePaths(platform = process.platform, env = process.env) {
+  const win = platform === 'win32';
+  const exe = (n) => (win ? `${n}.exe` : n);
+  const which = (cmd) => whichOn(platform, cmd);
+  // A path from the macOS-only reference bundle is worse than nothing off macOS: it can never
+  // exist, and listing it just makes the candidate chain lie about where things come from.
+  const orig = (...parts) => (platform === 'darwin' ? join(ORIG_APP, ...parts) : null);
+
   // Main ffmpeg = FASTEST available (native-arch Homebrew first — the vendored static build is
   // x86_64-only and runs under Rosetta on Apple Silicon, ~4-7× slower for encodes).
-  ffmpeg: process.env.AVS_FFMPEG || firstExisting(
-    '/opt/homebrew/bin/ffmpeg', '/usr/local/bin/ffmpeg', '/usr/bin/ffmpeg',
-    join(VENDOR_DIR, 'ffmpeg', 'ffmpeg'),
-    join(ORIG_APP, 'ffmpeg', 'ffmpeg')
-  ) || which('ffmpeg'),
-  ffprobe: process.env.AVS_FFPROBE || firstExisting(
-    '/opt/homebrew/bin/ffprobe', '/usr/local/bin/ffprobe', '/usr/bin/ffprobe',
-    join(VENDOR_DIR, 'ffmpeg', 'ffprobe'),
-    join(ORIG_APP, 'ffmpeg', 'ffprobe')
-  ) || which('ffprobe'),
-  // libass-capable build (subtitles/ass filters) — only needed by image-mode subtitle burn.
-  ffmpegAss: process.env.AVS_FFMPEG_ASS || firstExisting(
-    join(VENDOR_DIR, 'ffmpeg', 'ffmpeg'),
-    join(ORIG_APP, 'ffmpeg', 'ffmpeg')
-  ),
-  say: process.env.AVS_SAY || firstExisting('/usr/bin/say'),
-  whisperCli: process.env.AVS_WHISPER || firstExisting(
-    join(VENDOR_DIR, 'whisper', 'whisper-cli'),
-    join(ORIG_APP, 'whisper', 'whisper-cli')
-  ) || which('whisper-cli'),
-  // Biggest model wins. Transcript quality is the ceiling for the edit-video lane (P40), where
-  // there is no script to align against — ggml-small mangles Vietnamese diacritics badly. Drop a
-  // larger ggml file into vendor/whisper/models/ and it is picked up with no config change.
-  whisperModel: process.env.AVS_WHISPER_MODEL || firstExisting(
-    ...['large-v3-turbo', 'large-v3', 'large-v2', 'large', 'medium', 'small', 'base']
-      .flatMap((m) => [join(VENDOR_DIR, 'whisper', 'models', `ggml-${m}.bin`), join(ORIG_APP, 'whisper', 'models', `ggml-${m}.bin`)])
-  ),
-  chrome: process.env.AVS_CHROME || firstExisting(
+  const systemFfmpeg = win
+    ? ['C:\\ffmpeg\\bin\\ffmpeg.exe', 'C:\\Program Files\\ffmpeg\\bin\\ffmpeg.exe']
+    : ['/opt/homebrew/bin/ffmpeg', '/usr/local/bin/ffmpeg', '/usr/bin/ffmpeg'];
+  const systemFfprobe = win
+    ? ['C:\\ffmpeg\\bin\\ffprobe.exe', 'C:\\Program Files\\ffmpeg\\bin\\ffprobe.exe']
+    : ['/opt/homebrew/bin/ffprobe', '/usr/local/bin/ffprobe', '/usr/bin/ffprobe'];
+
+  // Chrome ships in a different place on every OS; the vendored Chrome-for-Testing layout also
+  // differs (an .app on macOS, a plain folder elsewhere).
+  const chromeCandidates = win ? [
+    join(VENDOR_DIR, 'chrome', 'chrome.exe'),
+    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+    'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+    join(env.LOCALAPPDATA || '', 'Google', 'Chrome', 'Application', 'chrome.exe'),
+  ] : platform === 'darwin' ? [
     join(VENDOR_DIR, 'chrome', 'Google Chrome for Testing.app', 'Contents', 'MacOS', 'Google Chrome for Testing'),
-    join(ORIG_APP, 'chrome', 'Google Chrome for Testing.app', 'Contents', 'MacOS', 'Google Chrome for Testing'),
+    orig('chrome', 'Google Chrome for Testing.app', 'Contents', 'MacOS', 'Google Chrome for Testing'),
     '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-    '/Applications/Chromium.app/Contents/MacOS/Chromium'
-  ),
-};
+    '/Applications/Chromium.app/Contents/MacOS/Chromium',
+  ] : [
+    join(VENDOR_DIR, 'chrome', 'chrome'),
+    '/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser',
+  ];
+
+  return {
+    ffmpeg: env.AVS_FFMPEG || firstExisting(
+      ...systemFfmpeg,
+      join(VENDOR_DIR, 'ffmpeg', exe('ffmpeg')),
+      orig('ffmpeg', 'ffmpeg')
+    ) || which('ffmpeg'),
+    ffprobe: env.AVS_FFPROBE || firstExisting(
+      ...systemFfprobe,
+      join(VENDOR_DIR, 'ffmpeg', exe('ffprobe')),
+      orig('ffmpeg', 'ffprobe')
+    ) || which('ffprobe'),
+    // libass-capable build (subtitles/ass filters) — only needed by image-mode subtitle burn.
+    ffmpegAss: env.AVS_FFMPEG_ASS || firstExisting(
+      join(VENDOR_DIR, 'ffmpeg', exe('ffmpeg')),
+      orig('ffmpeg', 'ffmpeg')
+    ),
+    // /usr/bin/say is macOS text-to-speech. There is no equivalent to point at elsewhere, so the
+    // provider simply reports itself unavailable — the channel's real voice comes from LarVoice.
+    say: env.AVS_SAY || (platform === 'darwin' ? firstExisting('/usr/bin/say') : null),
+    whisperCli: env.AVS_WHISPER || firstExisting(
+      join(VENDOR_DIR, 'whisper', exe('whisper-cli')),
+      orig('whisper', 'whisper-cli')
+    ) || which('whisper-cli'),
+    // Biggest model wins. Transcript quality is the ceiling for the edit-video lane (P40), where
+    // there is no script to align against — ggml-small mangles Vietnamese diacritics badly. Drop a
+    // larger ggml file into vendor/whisper/models/ and it is picked up with no config change.
+    whisperModel: env.AVS_WHISPER_MODEL || firstExisting(
+      ...['large-v3-turbo', 'large-v3', 'large-v2', 'large', 'medium', 'small', 'base']
+        .flatMap((m) => [join(VENDOR_DIR, 'whisper', 'models', `ggml-${m}.bin`), orig('whisper', 'models', `ggml-${m}.bin`)])
+    ),
+    chrome: env.AVS_CHROME || firstExisting(...chromeCandidates),
+  };
+}
+
+export const PATHS = resolvePaths();
 
 // Runtime directory layout
 export const DIRS = {
