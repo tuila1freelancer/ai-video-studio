@@ -14,6 +14,7 @@ import { openChangePlan } from '../features/changeplan.js';
 import { initPendingChanges, schedulePendingCheck, resetPendingCheck } from '../features/pending-changes.js';
 import { openSrt } from '../features/srt.js';
 import { confirmDialog, menuDialog, publishDialog, promptDialog } from '../ui/dialog.js';
+import { renderThumbPanel } from './thumbnail.js';
 
 let ws = null;
 export function initWs() { ws = new WS(onWsMessage); }
@@ -468,6 +469,7 @@ export function renderProjectView() {
   renderScenes();
   renderFinal();
   renderMeta();
+  renderThumbPanel();
   renderPublishHistory();
 }
 
