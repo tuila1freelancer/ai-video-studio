@@ -42,6 +42,15 @@ const COMPOSITIONS = [
   'Bottom-weighted: a huge headline anchored low-left over a rich graphic field, with one accent rule and generous air above.',
   'Centre punch: one enormous centred hook phrase, radial light behind it, the supporting element small and off to one side.',
   'Split frame: a bold kicker band across the top, the headline in the lower two-thirds, and a strong graphic block occupying the opposite half.',
+  'Before/after: one hard vertical seam down the middle — left side muted, cluttered, cool; right side accent-lit, clean, ordered. Headline straddles the seam.',
+  'Giant numeral: one enormous number bleeding off the top-right edge at low opacity, the headline tucked into the negative space it leaves.',
+  'Forbidden mark: a thick accent circle-with-slash sitting over the wrong thing, headline filling the opposite half.',
+  'Arrow focus: a heavy accent arrow driving from the headline into one highlighted detail, everything else dimmed back.',
+  'Chat frame: two stylised chat bubbles — a short bad question, a wall of reply — with the headline above them.',
+  'Two-column compare: two labelled panels side by side, one accent-lit and one muted, headline as a band across the top.',
+  'Spotlight object: a single small glowing focal object dead centre with deep vignette, the headline wrapping around it in two lines.',
+  'Diagonal band: the headline riding a strong diagonal accent band across the frame, graphic texture behind it.',
+  'Stacked words: three words stacked as three full-width lines, each line a different weight and colour, filling most of the canvas.',
 ];
 
 const SYS = `You design VIDEO THUMBNAILS as a single static HTML page rendered once by headless Chrome into one image.
@@ -50,6 +59,9 @@ THIS IS A STILL IMAGE, NOT A SCENE. No animation, no <script>, no GSAP, no @keyf
 
 WHAT MAKES A THUMBNAIL WORK (obey all of it):
 - ONE idea, readable at 120px wide on a phone. Big type, brutal contrast, a single focal subject.
+- SIZE FLOOR: the headline must span at least 45% of the canvas WIDTH and at least 25% of its HEIGHT. A thumbnail whose text hides in one corner has failed before anyone read it.
+- NEVER write technical or English labels as decoration — no "NEXT_TOKEN_P", no "VECTOR_SPACE 12,288 DIMS", no "ATTENTION_WEIGHT a = 0.942", no fake telemetry, no code identifiers. The audience is a beginner; jargon pushes them away. Small print must be plain Vietnamese that a newcomer understands, or must not exist.
+- At most TWO small supporting text elements besides the headline. Zero is better than two.
 - The headline is 3–6 words, in the video's language, spelled and accented correctly. It is NOT the full title — it is the hook.
 - Build a real composition with CSS: gradients, glows, blurred light blobs, geometric blocks, thick rules, inline SVG, layered panels. Depth comes from overlapping shapes and shadows.
 - Every pixel of text must sit inside the safe area you are given, never touching an edge, never clipped, never overlapping other text.
