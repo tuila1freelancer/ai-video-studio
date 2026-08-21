@@ -1276,6 +1276,15 @@ export function mountRoutes(app, { version }) {
     const { EXPORT_PRESETS } = await import('../pipeline/export-presets.js');
     res.json({ presets: Object.entries(EXPORT_PRESETS).map(([id, p]) => ({ id, ...p })) });
   });
+  // A thumbnail is codegen, not chat: it renders through headless Chrome from model-written
+  // markup, so it takes the codegen model like scene visuals do — never the general chat model.
+  const thumbLlmFor = (proj) => {
+    const base = DB.aiSettings().llm;
+    if (!base) return base;
+    return { ...base, model: proj?.config?.thumbnailModel || proj?.config?.hyperframe?.model || base.codegenModel || base.model };
+  };
+  const fileUrlOf = (fp) => `/api/file?path=${encodeURIComponent(fp)}`;
+
   // ---- thumbnail operations (P40) — the reference exposes regen/edit/preview; we only ever
   // produced one at the end of a render, with no way to look at it, retry it or hand-tune it.
   r.get('/projects/:id/thumbnail', (req, res) => {
@@ -1318,14 +1327,19 @@ export function mountRoutes(app, { version }) {
           guide, size, outPath,
           language: resolveLang(p.config, DB.getScenes(p.id)),
           variant: Math.max(0, Math.min(2, parseInt(req.body?.variant, 10) || 0)),
-          media, llm: DB.aiSettings().llm,
+          media, llm: thumbLlmFor(p),
         });
         if (!ai) return res.status(400).json({ error: 'AI chưa dựng được thumbnail — kiểm tra LLM trong AI Setting' });
         ({ path } = ai);
         html = ai.fragment;
       }
       DB.updateProject(p.id, { thumb_path: path, metadata: { ...md, thumbnail: { ...(md.thumbnail || {}), html } } });
-      res.json({ path, url: `/api/file?path=${encodeURIComponent(path)}`, html });
+      const version = DB.addThumbnail({
+        projectId: p.id, path, html,
+        source: req.body?.html ? 'hand' : 'ai',
+        composition: req.body?.html ? null : Math.max(0, parseInt(req.body?.variant, 10) || 0),
+      });
+      res.json({ path, url: fileUrlOf(path), html, version });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
@@ -1345,7 +1359,7 @@ export function mountRoutes(app, { version }) {
       const { normalizeAssets } = await import('../pipeline/brand-assets.js');
       const { heroMediaUri } = await import('../util/asset-uri.js');
       const guide = resolveGuide(p.config || {});
-      const edited = await editThumbnailFragment(current, prompt, { guide, llm: DB.aiSettings().llm });
+      const edited = await editThumbnailFragment(current, prompt, { guide, llm: thumbLlmFor(p) });
       if (!edited) return res.status(422).json({ error: 'AI chưa sửa được — thử mô tả cụ thể hơn' });
       const media = normalizeAssets(p.config?.assets).slice(0, 4)
         .map((a) => ({ name: a.name, uri: heroMediaUri(a.path) })).filter((m) => m.uri);
@@ -1356,8 +1370,46 @@ export function mountRoutes(app, { version }) {
       if (!path) return res.status(422).json({ error: 'bản sửa không dựng được' });
       const md = p.metadata || {};
       DB.updateProject(p.id, { thumb_path: path, metadata: { ...md, thumbnail: { ...(md.thumbnail || {}), html: edited } } });
-      res.json({ path, url: `/api/file?path=${encodeURIComponent(path)}`, html: edited });
+      const version = DB.addThumbnail({ projectId: p.id, path, html: edited, source: 'ai-edit', instruction: prompt });
+      res.json({ path, url: fileUrlOf(path), html: edited, version });
     } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  // ---- thumbnail VERSIONS: every design a project has ever had, and the way back to any of them.
+  r.get('/projects/:id/thumbnails', (req, res) => {
+    const p = DB.getProject(req.params.id);
+    if (!p) return res.status(404).json({ error: 'not found' });
+    const rows = DB.listThumbnails(p.id).map((v) => ({
+      ...v,
+      url: v.path && existsSync(v.path) ? fileUrlOf(v.path) : null,
+      missing: !!(v.path && !existsSync(v.path)),
+      current: v.path === p.thumb_path,
+    }));
+    res.json({ versions: rows, current: p.thumb_path || null });
+  });
+
+  // Make one past version the project's thumbnail again. The image is already on disk — going
+  // back costs nothing and re-renders nothing, which is the whole point of keeping versions.
+  r.post('/projects/:id/thumbnails/:tid/use', (req, res) => {
+    const p = DB.getProject(req.params.id);
+    if (!p) return res.status(404).json({ error: 'not found' });
+    const v = DB.getThumbnail(req.params.tid);
+    if (!v || v.project_id !== p.id) return res.status(404).json({ error: 'không có phiên bản này' });
+    if (!v.path || !existsSync(v.path)) return res.status(410).json({ error: 'ảnh của phiên bản này không còn trên đĩa' });
+    const md = p.metadata || {};
+    DB.updateProject(p.id, { thumb_path: v.path, metadata: { ...md, thumbnail: { ...(md.thumbnail || {}), html: v.html || md.thumbnail?.html || null } } });
+    res.json({ ok: true, path: v.path, url: fileUrlOf(v.path), html: v.html || null });
+  });
+
+  // Drop a version from the list. The file stays on disk: deleting a row is tidying the shelf,
+  // not destroying an export the owner may have already posted somewhere.
+  r.delete('/projects/:id/thumbnails/:tid', (req, res) => {
+    const p = DB.getProject(req.params.id);
+    if (!p) return res.status(404).json({ error: 'not found' });
+    const v = DB.getThumbnail(req.params.tid);
+    if (!v || v.project_id !== p.id) return res.status(404).json({ error: 'không có phiên bản này' });
+    if (v.path === p.thumb_path) return res.status(409).json({ error: 'không xoá được phiên bản đang dùng — chọn bản khác trước' });
+    res.json({ ok: DB.deleteThumbnail(v.id) });
   });
 
   /**

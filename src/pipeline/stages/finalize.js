@@ -363,7 +363,17 @@ export async function finalize(projectId, { dir, size, config, variantName = nul
       // paying for another generation (POST /projects/:id/thumbnail/regen with { html }).
       if (v === 0 && ai?.fragment) thumbHtml = ai.fragment;
       const p = ai?.path || await buildThumbnail(thumbTitle, firstImg, nVar > 1 ? { w: 1280, h: 720 } : size, outPath, { guide, variant: v });
-      if (p) made.push(p);
+      if (p) {
+        made.push(p);
+        // Each variant is a version the owner can come back to. Without this row the other two
+        // designs are just orphan files in the output folder with no way to pick them.
+        try {
+          DB.addThumbnail({
+            projectId, path: p, html: ai?.fragment || null,
+            source: ai ? 'ai' : 'template', composition: v,
+          });
+        } catch { /* a bookkeeping failure must never fail the render */ }
+      }
     }
     if (made[0]) thumb = made[0];
     if (thumbHtml) {
