@@ -796,3 +796,19 @@ select.input{appearance:none;-webkit-appearance:none;background-image:url("data:
 .cover-chip{border:none;background:none;padding:0;font:inherit;text-align:left;cursor:zoom-in}
 .cover-chip img{transition:border-color var(--t-fast)}
 .cover-row{display:flex;gap:10px;flex-wrap:wrap}
+
+/* ---- thumbnail panel: the current cover, four ways to change it, every past version ---- */
+.thumb-panel{margin-top:14px;padding:14px;border:1px solid var(--line,#1f2937);border-radius:14px;background:var(--card,#0f172a)}
+.tp-head{display:flex;align-items:baseline;gap:10px;margin-bottom:10px}
+.tp-current{display:block;width:100%;max-width:420px;border-radius:10px;border:1px solid var(--line,#1f2937)}
+.tp-acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.tp-strip{display:flex;gap:10px;overflow-x:auto;padding:12px 2px 2px;margin-top:12px;border-top:1px solid var(--line,#1f2937)}
+.tp-ver{flex:0 0 190px;margin:0;border:1px solid var(--line,#1f2937);border-radius:10px;overflow:hidden;background:rgba(255,255,255,.02)}
+.tp-ver.is-current{border-color:var(--accent,#22d3ee);box-shadow:0 0 0 1px var(--accent,#22d3ee) inset}
+.tp-ver img{display:block;width:100%;aspect-ratio:16/9;object-fit:cover}
+.tp-gone{display:grid;place-items:center;aspect-ratio:16/9;font-size:11px;opacity:.5}
+.tp-ver figcaption{display:flex;flex-direction:column;gap:3px;padding:7px 8px;font-size:11px}
+.tp-tag{font-weight:600;opacity:.85}
+.tp-note{opacity:.6;font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tp-cur{color:var(--accent,#22d3ee)}
+.tp-vacts{display:flex;gap:6px;align-items:center;margin-top:3px}
