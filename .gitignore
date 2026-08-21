@@ -8,3 +8,6 @@ vendor/
 dist/
 AI Video Studio.app/
 shell/build/
+
+# Electron build output — 99 MB artifacts, rebuilt on demand
+dist/electron/
