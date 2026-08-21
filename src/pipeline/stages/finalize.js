@@ -328,20 +328,26 @@ export async function finalize(projectId, { dir, size, config, variantName = nul
   let thumb = res.thumb;
   try {
     const guide = visualMode === 'hyperframe' ? resolveGuide(config) : null;
-    const nVar = Math.max(1, Math.min(3, parseInt(config.thumbVariants, 10) || 1));
+    const nVar = Math.max(1, Math.min(3, parseInt(config.thumbVariants, 10) || 3));
     // The master script's thumbnail title (short, mobile-readable, written FOR the thumb)
     // beats the long video title when present.
     const thumbTitle = (project.metadata?.thumbnail?.title || project.title || '').trim() || project.title;
     const base = join(project.outputDir, `thumb_${Date.now()}.jpg`);
     const pathFor = (v) => base.replace(/(\.\w+)$/, v === 0 ? '$1' : `_v${v}$1`);
     const thumbAi = DB.aiSettings();
+    // A thumbnail is codegen, not chat: the same finding that governs scene visuals applies here —
+    // the design is only as good as the model writing the markup. Route it to the codegen model
+    // (per-video override first, then the channel's), never the general chat model.
+    const thumbLlm = thumbAi.llm
+      ? { ...thumbAi.llm, model: config.thumbnailModel || config.hyperframe?.model || thumbAi.llm.codegenModel || thumbAi.llm.model }
+      : thumbAi.llm;
     // The owner's own pictures are offered to the thumbnail designer too (P40) — the same
     // {{asset:NAME}} contract the scenes use, so there is only one convention to learn.
     const { normalizeAssets } = await import('../brand-assets.js');
     const { heroMediaUri } = await import('../../util/asset-uri.js');
     const thumbMedia = normalizeAssets(config.assets).slice(0, 4)
       .map((a) => ({ name: a.name, uri: heroMediaUri(a.path) })).filter((m) => m.uri);
-    const aiOn = config.thumbnailAi !== false && llmEnabled(thumbAi.llm);
+    const aiOn = config.thumbnailAi !== false && llmEnabled(thumbLlm);
     const made = [];
     let thumbHtml = null;
     for (let v = 0; v < nVar; v++) {
@@ -351,7 +357,7 @@ export async function finalize(projectId, { dir, size, config, variantName = nul
         title: project.title, hook: thumbTitle, prompt: project.metadata?.thumbnail?.prompt || '',
         guide, size: nVar > 1 ? { w: 1280, h: 720 } : size, outPath,
         language: resolveLang(config, scenes),
-        variant: v, media: thumbMedia, llm: thumbAi.llm, onLog: (m) => logger.info(m, { projectId, stage: 'b7' }),
+        variant: v, media: thumbMedia, llm: thumbLlm, onLog: (m) => logger.info(m, { projectId, stage: 'b7' }),
       }) : null;
       // Keep the markup of the FIRST design: the owner can edit and re-render it later without
       // paying for another generation (POST /projects/:id/thumbnail/regen with { html }).
@@ -381,7 +387,7 @@ export async function finalize(projectId, { dir, size, config, variantName = nul
       const { covers } = await generateCoverSet({
         title: project.title, hook: thumbTitle, prompt: project.metadata?.thumbnail?.prompt || '',
         guide, sizes: COVER_SIZES, outDir, baseName: 'cover',
-        language: resolveLang(config, scenes), media: thumbMedia, llm: thumbAi.llm,
+        language: resolveLang(config, scenes), media: thumbMedia, llm: thumbLlm,
         fragments: seed, onLog: (m) => op(projectId, m),
       });
       if (covers.length) {
