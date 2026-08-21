@@ -812,3 +812,5 @@ select.input{appearance:none;-webkit-appearance:none;background-image:url("data:
 .tp-note{opacity:.6;font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tp-cur{color:var(--accent,#22d3ee)}
 .tp-vacts{display:flex;gap:6px;align-items:center;margin-top:3px}
+
+.tp-covers{border-top:1px solid var(--line,#1f2937);margin-top:12px}

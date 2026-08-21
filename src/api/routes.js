@@ -1375,6 +1375,55 @@ export function mountRoutes(app, { version }) {
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
+  // Re-design the platform covers. They used to be generated once, inside finalize, and never
+  // again — so a bad cover set could only be fixed by re-rendering the whole video. Seeding from
+  // the thumbnail the owner already approved means the six canvases inherit a design they liked
+  // instead of six fresh rolls of the dice.
+  r.post('/projects/:id/covers/regen', async (req, res) => {
+    try {
+      const p = DB.getProject(req.params.id);
+      if (!p) return res.status(404).json({ error: 'not found' });
+      const llm = thumbLlmFor(p);
+      if (!llm) return res.status(400).json({ error: 'chưa cấu hình LLM trong AI Setting' });
+      const { generateCoverSet } = await import('../pipeline/thumbnail-codegen.js');
+      const { COVER_SIZES, orientationOf } = await import('../publish/platforms.js');
+      const { resolveGuide } = await import('../styleguide/index.js');
+      const { resolveOutputDir } = await import('../pipeline/helpers.js');
+      const { normalizeAssets } = await import('../pipeline/brand-assets.js');
+      const { heroMediaUri } = await import('../util/asset-uri.js');
+      const md = p.metadata || {};
+      const outDir = resolveOutputDir(p.id, p.config || {}, DB.projectDirFor(p.id));
+      mkdirSync(outDir, { recursive: true });
+      const media = normalizeAssets(p.config?.assets).slice(0, 4)
+        .map((a) => ({ name: a.name, uri: heroMediaUri(a.path) })).filter((m) => m.uri);
+      // Reuse the approved design for its own orientation unless the caller asks for a clean slate.
+      const seedHtml = req.body?.fresh ? null : (md.thumbnail?.html || null);
+      const size = ratioToSize(p.aspect_ratio || '16:9');
+      const fragments = seedHtml ? { [orientationOf(size)]: seedHtml } : {};
+      // `only: ['youtube']` redoes ONE ratio. Redesigning all six because one is wrong throws away
+      // five the owner may already be happy with — and costs six generations to fix one.
+      const only = Array.isArray(req.body?.only) ? req.body.only.filter(Boolean) : null;
+      const sizes = only?.length ? COVER_SIZES.filter((s) => only.includes(s.id)) : COVER_SIZES;
+      if (!sizes.length) return res.status(400).json({ error: `không có khổ nào khớp: ${only?.join(', ')}` });
+      const { covers } = await generateCoverSet({
+        title: p.title, hook: req.body?.hook || md.thumbnail?.title || '',
+        prompt: req.body?.prompt || md.thumbnail?.prompt || '',
+        guide: resolveGuide(p.config || {}), sizes, outDir, baseName: 'cover',
+        language: resolveLang(p.config, DB.getScenes(p.id)), media, llm, fragments,
+        onLog: (m) => logger.info(m, { projectId: p.id }),
+      });
+      if (!covers.length) return res.status(422).json({ error: 'AI chưa dựng được ảnh bìa nào' });
+      // A partial redo MERGES: the ratios that were not asked for keep the covers they had.
+      const prev = (DB.getProject(p.id).metadata || {}).covers || [];
+      const merged = only?.length
+        ? [...prev.filter((c) => !only.includes(c.id)), ...covers].sort(
+          (a, b) => COVER_SIZES.findIndex((s) => s.id === a.id) - COVER_SIZES.findIndex((s) => s.id === b.id))
+        : covers;
+      DB.updateProject(p.id, { metadata: { ...(DB.getProject(p.id).metadata || {}), covers: merged } });
+      res.json({ ok: true, covers: merged.map((c) => ({ ...c, url: c.path ? fileUrlOf(c.path) : null })) });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
   // ---- thumbnail VERSIONS: every design a project has ever had, and the way back to any of them.
   r.get('/projects/:id/thumbnails', (req, res) => {
     const p = DB.getProject(req.params.id);

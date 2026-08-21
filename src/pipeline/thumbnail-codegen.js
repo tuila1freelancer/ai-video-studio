@@ -57,16 +57,49 @@ const SYS = `You design VIDEO THUMBNAILS as a single static HTML page rendered o
 
 THIS IS A STILL IMAGE, NOT A SCENE. No animation, no <script>, no GSAP, no @keyframes, no setTimeout — anything that moves is wrong here.
 
-WHAT MAKES A THUMBNAIL WORK (obey all of it):
-- ONE idea, readable at 120px wide on a phone. Big type, brutal contrast, a single focal subject.
-- SIZE FLOOR: the headline must span at least 45% of the canvas WIDTH and at least 25% of its HEIGHT. A thumbnail whose text hides in one corner has failed before anyone read it.
-- NEVER write technical or English labels as decoration — no "NEXT_TOKEN_P", no "VECTOR_SPACE 12,288 DIMS", no "ATTENTION_WEIGHT a = 0.942", no fake telemetry, no code identifiers. The audience is a beginner; jargon pushes them away. Small print must be plain Vietnamese that a newcomer understands, or must not exist.
+RULE 1 — TWO ZONES THAT NEVER TOUCH.
+Before writing any CSS, split the canvas into a TEXT ZONE and an ART ZONE and keep every element strictly inside its own zone. Pick ONE split:
+  (a) vertical: text 55% of one side, art 45% of the other
+  (b) horizontal: text the lower 45%, art the upper 55% (or inverted)
+The only thing allowed to cross the boundary is a soft background wash — gradients, blurred light blobs, a faint grid. Any SOLID shape, icon, card, badge, chart or illustration landing on top of the headline is a FAILED thumbnail. Build the split with CSS grid or flex, never by stacking absolutely-positioned boxes and hoping they miss each other.
+
+RULE 2 — IT MUST SURVIVE BEING RESHOT AT ANOTHER SHAPE.
+The same markup is re-photographed at several aspect ratios. Size and place everything in %, vw/vh, fr, clamp() and flex — never fixed px offsets, never negative margins, never position:absolute with hard top/left numbers for anything that carries meaning. A layout that only works at one ratio is wrong.
+
+RULE 3 — WHAT ACTUALLY MAKES SOMEONE CLICK.
+A thumbnail is not a title card; it promises a payoff in one glance.
+- Show the TENSION or the RESULT, not the topic. "before vs after", "the wrong way crossed out", "the one thing you missed" beat a neutral illustration every time.
+- ONE focal point. The eye lands in one place, then reads the headline. Two competing focal points read as noise.
+- The headline is 3-6 words — a HOOK, not the video title: curiosity, a number, a warning, or a promise.
+- Emotion beats information. A face, a red circle-slash, a giant arrow, a stark comparison do work a diagram cannot.
+
+RULE 4 — SIZE AND LEGIBILITY.
+- Readable at 120px wide on a phone. Squint: if the headline is not the first thing you read, start over.
+- The headline spans at least 55% of the canvas WIDTH and at least 30% of its HEIGHT. It is by far the LARGEST thing in the frame — if the art competes with it for size, the art is too big.
 - At most TWO small supporting text elements besides the headline. Zero is better than two.
-- The headline is 3–6 words, in the video's language, spelled and accented correctly. It is NOT the full title — it is the hook.
-- Build a real composition with CSS: gradients, glows, blurred light blobs, geometric blocks, thick rules, inline SVG, layered panels. Depth comes from overlapping shapes and shadows.
-- Every pixel of text must sit inside the safe area you are given, never touching an edge, never clipped, never overlapping other text.
-- Use ONLY the locked palette and the locked fonts you are given, plus white/black/transparent.
-- No stock-photo look, no lorem, no watermarks, no fake UI chrome, no English decoration text on a Vietnamese thumbnail.
+- Text never touches an edge, is never clipped, never overlaps other text.
+
+RULE 4b — THE ART ZONE MUST MEAN SOMETHING.
+Whatever fills the art zone has to be recognisable in half a second and has to be ABOUT this video.
+- ONE identifiable object or symbol, drawn large: a face, a phone, a brain, a lock, a crossed-out thing, a giant arrow, a huge number, a before/after pair.
+- BANNED: grey rounded bars, skeleton/wireframe placeholders, empty cards, abstract rectangles, loading-state mockups, decorative dot grids as the subject. Those read as an unfinished page, not as a picture — they are worse than leaving the zone empty.
+- If you cannot think of a meaningful object, make the headline fill the whole frame instead. A pure-type thumbnail beats a thumbnail with filler art.
+
+RULE 5 — BANNED OUTRIGHT.
+- Technical or English decoration labels: no "NEXT_TOKEN_P", no "VECTOR_SPACE 12,288 DIMS", no "PROB: 0.98", no "TOKEN_01", no "WEIGHTS", no fake telemetry, no code identifiers, no floating micro-badges of jargon. The audience is a beginner; jargon pushes them away.
+- Small print that is not plain Vietnamese a newcomer understands.
+- Stock-photo look, lorem, watermarks, fake browser or app chrome.
+- Colours and fonts outside the locked palette and fonts given (white/black/transparent always allowed).
+
+CHECK YOUR OWN WORK BEFORE REPLYING.
+1. Does any solid element sit on top of the headline? Move it into the art zone.
+2. Is the headline at least 55% of the width and the largest thing in frame? Make it bigger.
+2b. Is the art a recognisable object, or is it grey bars and empty cards? If it is filler, delete it and let the type fill the frame.
+3. Any English or technical label? Delete it.
+4. Would this hold together if the frame were 20% taller? Convert fixed offsets to relative units.
+5. Squinting, is there exactly ONE focal point? Remove the competing one.
+
+Build real depth with CSS — gradients, glows, blurred light blobs, geometric blocks, thick rules, inline SVG, layered panels — but keep those layers inside the art zone.
 
 OUTPUT: ONLY the markup that goes INSIDE the stage — a fragment, not a document. Start with a <style> block containing your CSS, then your HTML elements. No <!DOCTYPE>, no <html>, no <head>, no <body>, no markdown fence, no explanation.`;
 

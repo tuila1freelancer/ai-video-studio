@@ -18,6 +18,11 @@ const LAYOUTS = [
   'Mũi tên chỉ vào điểm nhấn', 'Khung chat hỏi đáp', 'So sánh hai cột',
   'Vật thể phát sáng giữa khung', 'Dải chéo qua khung', 'Ba chữ xếp chồng',
 ];
+const RATIOS = [
+  { id: 'youtube', label: 'YouTube 16:9' }, { id: 'facebook', label: 'Facebook' },
+  { id: 'x', label: 'X / Twitter' }, { id: 'shorts', label: 'Shorts / TikTok' },
+  { id: 'ig_feed', label: 'Instagram' }, { id: 'square', label: 'Vuông 1:1' },
+];
 const SOURCE = { ai: 'AI dựng', 'ai-edit': 'AI sửa', hand: 'Sửa tay', template: 'Mẫu sẵn' };
 
 let busy = false;
@@ -35,6 +40,10 @@ export async function renderThumbPanel() {
 
   let data = { versions: [], current: null };
   try { data = await api.get(`/projects/${p.id}/thumbnails`); } catch { box.innerHTML = ''; return; }
+  // The six platform covers live in metadata, not in the version table — they are a different
+  // artefact (one design per ratio) and each ratio can now be redone on its own.
+  let covers = [];
+  try { covers = (await api.get(`/projects/${p.id}`)).project?.metadata?.covers || []; } catch { /* none yet */ }
 
   const cur = data.versions.find((v) => v.current) || data.versions[0] || null;
   const curUrl = cur?.url || (data.current ? `/api/file?path=${encodeURIComponent(data.current)}` : null);
@@ -52,6 +61,14 @@ export async function renderThumbPanel() {
         <button class="btn xs" data-t="html" ${cur?.html ? '' : 'disabled'} title="Mở mã HTML ra sửa tay rồi dựng lại">⌨️ Sửa HTML</button>
       </div>
       ${data.versions.length ? `<div class="tp-strip">${data.versions.map(stripItem).join('')}</div>` : ''}
+      <div class="tp-covers">
+        <div class="tp-head" style="margin:12px 0 8px">
+          <b>Ảnh bìa theo tỉ lệ</b>
+          <span class="hint">${covers.length}/6</span>
+          <button class="btn xs ghost" data-cov="*" title="Dựng lại cả sáu khổ">Dựng lại tất cả</button>
+        </div>
+        <div class="tp-strip">${(covers.length ? covers : RATIOS).map(coverItem).join('')}</div>
+      </div>
     </div>`;
 
   box.querySelector('[data-t=regen]')?.addEventListener('click', () => lock(regen));
@@ -59,6 +76,7 @@ export async function renderThumbPanel() {
   box.querySelector('[data-t=html]')?.addEventListener('click', () => lock(() => editHtml(cur)));
   box.querySelectorAll('[data-use]').forEach((b) => b.addEventListener('click', () => lock(() => useVersion(b.dataset.use))));
   box.querySelectorAll('[data-del]').forEach((b) => b.addEventListener('click', () => lock(() => delVersion(b.dataset.del))));
+  box.querySelectorAll('[data-cov]').forEach((b) => b.addEventListener('click', () => lock(() => regenCovers(b.dataset.cov))));
 }
 
 function stripItem(v) {
@@ -77,6 +95,37 @@ function stripItem(v) {
       </span>
     </figcaption>
   </figure>`;
+}
+
+function coverItem(c) {
+  const url = c.path ? `/api/file?path=${encodeURIComponent(c.path)}` : null;
+  const label = c.label || RATIOS.find((r) => r.id === c.id)?.label || c.id;
+  return `<figure class="tp-ver">
+    ${url ? `<img src="${esc(url)}" loading="lazy" alt="">` : '<div class="tp-gone">chưa có</div>'}
+    <figcaption>
+      <span class="tp-tag">${esc(label)}</span>
+      <span class="tp-vacts"><button class="btn xs ghost" data-cov="${esc(c.id)}">Dựng lại khổ này</button></span>
+    </figcaption>
+  </figure>`;
+}
+
+/** One ratio, or all six. Redoing all six to fix one throws away five the owner may like. */
+async function regenCovers(which) {
+  const p = state.current;
+  const all = which === '*';
+  const prompt = await promptDialog({
+    title: all ? 'Dựng lại cả sáu khổ ảnh bìa' : `Dựng lại khổ ${which}`,
+    label: 'Định hướng mỹ thuật (để trống thì AI tự quyết)',
+    placeholder: 'ví dụ: một khuôn mặt ngạc nhiên bên phải, chữ vàng cực lớn, nền tối',
+    okText: 'Dựng',
+  });
+  if (prompt === null) return; // cancelled; an empty string is a deliberate "you decide"
+  toast(all ? 'Đang dựng sáu khổ…' : 'Đang dựng…');
+  try {
+    await api.post(`/projects/${p.id}/covers/regen`, { fresh: true, prompt, ...(all ? {} : { only: [which] }) });
+    toast('Đã dựng xong', 'ok');
+    await renderThumbPanel();
+  } catch (e) { toast(e.message || 'Dựng không được', 'err'); }
 }
 
 /** Re-design: pick a layout brief and, optionally, say what it should look like. */
