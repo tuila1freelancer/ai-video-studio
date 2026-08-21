@@ -627,6 +627,23 @@ export async function generateMetadata(project, stylePrompt, { ai, script = '' }
 Write publishing metadata for the video "${title}".
 ${scriptBlock}Write every user-facing text in the SAME LANGUAGE as that video title; tags and hashtags may mix in globally searched terms.
 Each platform gets its OWN wording — do not paste one caption into all of them. Never promise anything the narration does not deliver.
+
+ONE PRIMARY KEYWORD, FIVE PLACES. Pick the single phrase a viewer would actually type to find this
+video — short, plain, no cleverness — then place it, spelled identically every time, in: (1) the
+YouTube title, as early as it reads naturally; (2) the first two lines of the YouTube description;
+(3) the FIRST YouTube tag, on its own, exactly as typed; (4) one of the first three YouTube
+hashtags; (5) the first 50 characters of the TikTok caption. Everything else is supporting text.
+
+HASHTAG RULES — these are counts, not suggestions:
+- NEVER use empty reach-bait: no #fyp, #foryou, #viral, #xuhuong, #trending, #followme. Platforms
+  in 2026 read a stack of generic tags as manipulation and they dilute the real topic signal.
+- Every hashtag must describe THIS video's actual subject. If it would fit any video on the
+  channel, it is not earning its place — except the one channel-brand tag.
+- Do not ship the identical hashtag set on every video: keep one or two fixed (brand + main
+  content area) and change the rest to match this specific topic.
+- YouTube: only the first three hashtags are visible above the title, so put the load-bearing
+  ones there. TikTok: 3-5 total. Facebook: 1-3 total, inside the post body.
+
 Output JSON exactly in this shape:
 {
 ${spec}
@@ -658,6 +675,8 @@ ${spec}
   return {
     title: `${title} | Bạn cần xem ngay!`,
     description: `${title}\n\nVideo được tạo tự động bằng AI Video Studio.`,
-    hashtags: ['#fyp', '#viral', '#ai', ...tags].slice(0, 12),
+    // No #fyp/#viral filler even in the offline fallback: generic reach-bait dilutes the topic
+    // signal on every platform, and a fallback that ships it teaches the habit by example.
+    hashtags: tags.slice(0, 8),
   };
 }

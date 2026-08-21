@@ -32,10 +32,12 @@ export const PLATFORMS = [
       { key: 'title', label: 'Tiêu đề', limit: 100, sweet: 70, lines: 1 },
       { key: 'description', label: 'Mô tả', limit: 5000, sweet: 1200, lines: 8 },
       { key: 'tags', label: 'Thẻ (tags)', limit: 500, sweet: 400, list: true, hint: 'tổng ≤500 ký tự, không có dấu #' },
+      // Only the first three render above the title, so the panel says so — the rest still index.
+      { key: 'hashtags', label: 'Hashtag', limit: 300, sweet: 140, list: true, hint: '8–10 cái; chỉ 3 cái đầu hiện trên tiêu đề' },
       { key: 'pinnedComment', label: 'Bình luận ghim', limit: 10000, sweet: 220, lines: 3 },
     ],
     // 2 lines before "show more" on desktop, ~3 on mobile — the keywords have to be up there
-    brief: 'Long-form. Title ≤70 chars carrying the main keyword; the FIRST TWO LINES of the description carry the keywords because that is all that shows before "show more"; 10-15 search tags without the # prefix; one pinned question that invites a real answer.',
+    brief: 'Long-form. Title ≤70 chars carrying the main keyword AS EARLY AS POSSIBLE; the FIRST TWO LINES of the description restate that keyword in a natural sentence, because that is all that shows before "show more"; 8-12 search tags without the # prefix and THE FIRST TAG MUST BE THE PRIMARY KEYWORD SPELLED EXACTLY AS A VIEWER WOULD TYPE IT — it is the single most load-bearing tag; 8-10 hashtags where the FIRST THREE are the load-bearing ones because only those show above the title; one pinned question that invites a real answer.',
   },
   {
     id: 'shorts', label: 'YouTube Shorts', icon: '⚡',
@@ -52,7 +54,7 @@ export const PLATFORMS = [
       { key: 'caption', label: 'Caption', limit: 2200, sweet: 150, lines: 4 },
       { key: 'hashtags', label: 'Hashtag', limit: 300, sweet: 100, list: true },
     ],
-    brief: 'Caption ≤150 chars including a hook that works with sound off; 3-5 hashtags mixing one broad and two niche; conversational, no corporate voice.',
+    brief: 'Caption ≤150 chars whose FIRST 50 CHARACTERS carry the primary keyword — that is all that shows before "more"; a hook that works with sound off; EXACTLY 3-5 hashtags, all genuinely about this video; conversational, no corporate voice.',
   },
   {
     id: 'instagram', label: 'Instagram (Reels + Feed)', icon: '📸',
