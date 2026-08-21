@@ -85,7 +85,11 @@ test('P40: the thumbnail designer may use the owner\'s own pictures, safely', as
   assert.equal(applyThumbAssets(null, []), '');
   // finalize and the regen route both offer the pictures
   assert.match(src('../src/pipeline/stages/finalize.js'), /media: thumbMedia/);
-  assert.match(src('../src/api/routes.js'), /media, llm: DB\.aiSettings\(\)\.llm/);
+  assert.match(src('../src/api/routes.js'), /media, llm: thumbLlmFor\(p\)/);
+  // A thumbnail is codegen, not chat — both lanes take the codegen model, never aiSettings().llm
+  // straight, or the design regresses to whatever the general chat model can draw.
+  assert.match(src('../src/api/routes.js'), /const thumbLlmFor = \(proj\)/);
+  assert.match(src('../src/pipeline/stages/finalize.js'), /const thumbLlm = thumbAi\.llm/);
 });
 
 test('P40: image search works with NO api key — a real catalog, not gradients', () => {
