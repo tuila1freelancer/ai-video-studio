@@ -151,6 +151,17 @@ CREATE TABLE IF NOT EXISTS renders (
   created_at INTEGER
 );
 CREATE INDEX IF NOT EXISTS idx_renders_project ON renders(project_id, created_at);
+CREATE TABLE IF NOT EXISTS thumbnails (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL,
+  path TEXT,                            -- rendered image on disk
+  html TEXT,                            -- the fragment that produced it, so it can be re-rendered or edited
+  source TEXT,                          -- ai|template|ai-edit|hand (how this version came to exist)
+  instruction TEXT,                     -- the edit instruction, when source='ai-edit'
+  composition INTEGER,                  -- which COMPOSITIONS brief was used, when source='ai'
+  created_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_thumbnails_project ON thumbnails(project_id, created_at);
 CREATE TABLE IF NOT EXISTS scene_reviews (
   scene_id TEXT PRIMARY KEY,
   project_id TEXT NOT NULL,
