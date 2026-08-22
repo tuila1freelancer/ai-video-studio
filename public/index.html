@@ -27,6 +27,7 @@
 <link rel="modulepreload" href="js/views/library.js">
 <link rel="modulepreload" href="js/views/brandgen.js">
 <link rel="modulepreload" href="js/views/editvideo.js">
+<link rel="modulepreload" href="js/views/guide.js">
 <link rel="modulepreload" href="js/features/settings.js">
 <link rel="modulepreload" href="js/features/voicepicker.js">
 <link rel="modulepreload" href="js/features/channels.js">
@@ -810,20 +811,29 @@
       </div>
     </section>
 
-    <!-- TUTORIALS -->
+    <!-- GUIDE — the manual, rendered from views/guide.js so it stays searchable -->
     <section class="page" id="page-tutorials">
-      <div class="center-narrow">
-        <h1>Hướng dẫn nhanh</h1>
-        <ol style="line-height:2.1;color:var(--muted);margin-top:14px;padding-left:18px">
-          <li>Vào <strong>Tạo Video</strong>, nhập chủ đề (hoặc dán JSON / link).</li>
-          <li>Chỉnh <strong>Config đầu ra</strong>: tỉ lệ, thời lượng, phụ đề, BGM.</li>
-          <li>Nhấn <strong>▶ Bắt đầu</strong> — theo dõi pipeline B2→B7 real-time.</li>
-          <li>Xem video, render lại từng cảnh, sửa SRT, tải về.</li>
-          <li>Chạy hoàn toàn <strong>offline</strong> (giọng macOS + ffmpeg). Cắm API ở <strong>AI Setting</strong> để nâng chất lượng.</li>
-        </ol>
-        <div class="credit-card">
-          <span class="logo" id="creditLogo"></span>
-          <div><strong>AI Video Studio</strong><div class="hint">Thiết kế &amp; xây dựng bởi <strong>TuiLa1Freelancer</strong> — made with ♥ on macOS</div></div>
+      <div class="gd">
+        <header class="gd-hero">
+          <h1>Sổ tay <span class="grad-text">AI Video Studio</span></h1>
+          <p>Toàn bộ màn hình, từng nút bấm và mọi cài đặt — giải thích bằng tiếng Việt, tra cứu được, và bấm được thẳng sang chỗ cần làm.</p>
+          <div class="gd-searchbox">
+            <span aria-hidden="true">🔍</span>
+            <input id="gdSearch" type="search" placeholder="Tìm nhanh: phụ đề, giọng đọc, chi phí, phím tắt…" autocomplete="off" spellcheck="false">
+            <span class="gd-count" id="gdCount"></span>
+          </div>
+        </header>
+        <div class="gd-shell">
+          <nav class="gd-nav" id="gdNav"></nav>
+          <div>
+            <div id="gdBody"></div>
+            <button class="gd-more hidden" id="gdMore"></button>
+            <div class="gd-empty hidden" id="gdEmpty">Không có chương nào khớp. Thử một từ khoá ngắn hơn.</div>
+            <div class="credit-card" style="margin-top:26px">
+              <span class="logo" id="creditLogo"></span>
+              <div><strong>AI Video Studio</strong><div class="hint">Thiết kế &amp; xây dựng bởi <strong>TuiLa1Freelancer</strong> — made with ♥ on macOS</div></div>
+            </div>
+          </div>
         </div>
       </div>
     </section>
