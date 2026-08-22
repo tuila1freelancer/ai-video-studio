@@ -36,72 +36,110 @@ import { fontsCss } from '../animation/harness.js';
 import { userFontsCss } from '../animation/userfonts.js';
 import { orientationOf } from '../publish/platforms.js';
 
-// Composition briefs for the A/B lab — one per variant, so three thumbnails differ by DESIGN
-// rather than by a random re-roll of the same idea.
-const COMPOSITIONS = [
-  'Bottom-weighted: a huge headline anchored low-left over a rich graphic field, with one accent rule and generous air above.',
-  'Centre punch: one enormous centred hook phrase, radial light behind it, the supporting element small and off to one side.',
-  'Split frame: a bold kicker band across the top, the headline in the lower two-thirds, and a strong graphic block occupying the opposite half.',
-  'Before/after: one hard vertical seam down the middle — left side muted, cluttered, cool; right side accent-lit, clean, ordered. Headline straddles the seam.',
-  'Giant numeral: one enormous number bleeding off the top-right edge at low opacity, the headline tucked into the negative space it leaves.',
-  'Forbidden mark: a thick accent circle-with-slash sitting over the wrong thing, headline filling the opposite half.',
-  'Arrow focus: a heavy accent arrow driving from the headline into one highlighted detail, everything else dimmed back.',
-  'Chat frame: two stylised chat bubbles — a short bad question, a wall of reply — with the headline above them.',
-  'Two-column compare: two labelled panels side by side, one accent-lit and one muted, headline as a band across the top.',
-  'Spotlight object: a single small glowing focal object dead centre with deep vignette, the headline wrapping around it in two lines.',
-  'Diagonal band: the headline riding a strong diagonal accent band across the frame, graphic texture behind it.',
-  'Stacked words: three words stacked as three full-width lines, each line a different weight and colour, filling most of the canvas.',
-];
+// Layout budgets, ported from the reference app. The old prompt asked for percentages ("headline
+// >=55% of the width") and the model reinterpreted them differently every run — two good designs
+// and two collisions out of four. The reference hands the model ABSOLUTE PIXEL ceilings per ratio
+// and tells it to use them directly, which is why its output is consistent.
+const THUMB_LAYOUT = {
+  '9:16': {
+    w: 1080, h: 1920, label: 'dọc, TikTok/Reels',
+    sidePadding: 70, topPadding: 90, bottomPadding: 130, textMaxW: 830, heroMaxW: 810,
+    cardMinW: 620, cardMaxW: 780, subjectMaxH: 990, textBlockMaxH: 360,
+    safeCenterW: 760, safeCenterH: 980, splitGap: 36,
+    rules: `RULE RIÊNG CHO 9:16 (dọc cao, ưu tiên mobile-first):
+• Focal area: cột giữa màn hình, bố cục xếp dọc; tránh layout quá ngang.
+• Hero text/number: width tối đa {{HERO_MAX_W}}px; căn giữa hoặc lệch rất nhẹ.
+• Card/mockup: width {{CARD_MIN_W}}px đến {{CARD_MAX_W}}px; không full ngang trừ background.
+• Nếu có 2 cột: chỉ dùng khi mỗi cột hẹp, tổng width tối đa 84%; ưu tiên stack dọc hơn split ngang.
+• Không đặt subject quan trọng sát mép trên/dưới; headroom tối thiểu {{TOP_PADDING}}px, side padding tối thiểu {{SIDE_PADDING}}px.
+• Với vật thể cao: chiều cao tối đa {{SUBJECT_MAX_H}}px.`,
+  },
+  '16:9': {
+    w: 1920, h: 1080, label: 'ngang, YouTube',
+    sidePadding: 90, topPadding: 70, bottomPadding: 90, textMaxW: 980, heroMaxW: 920,
+    cardMinW: 520, cardMaxW: 760, subjectMaxH: 450, textBlockMaxH: 300,
+    safeCenterW: 1320, safeCenterH: 620, splitGap: 80,
+    rules: `RULE RIÊNG CHO 16:9 (ngang rộng, cinematic):
+• Focal area: vùng trung tâm hơi lệch trái/phải; tận dụng chiều ngang cho split layout.
+• Hero text/number: width tối đa {{HERO_MAX_W}}px; tránh kéo quá dài thành một dòng khó đọc.
+• Cho phép 2 cột rõ ràng hoặc bố cục 60/40, mỗi khối phải có khoảng thở tối thiểu {{SPLIT_GAP}}px.
+• Text block không cao quá {{TEXT_BLOCK_MAX_H}}px; không stack dọc quá dài.
+• Các element phụ trải ngang, không dồn hết vào trung tâm như 9:16.
+• Giữ outer padding tối thiểu {{SIDE_PADDING}}px; không nhồi kín sát mép.`,
+  },
+  '1:1': {
+    w: 1080, h: 1080, label: 'vuông',
+    sidePadding: 70, topPadding: 70, bottomPadding: 90, textMaxW: 760, heroMaxW: 730,
+    cardMinW: 520, cardMaxW: 700, subjectMaxH: 700, textBlockMaxH: 280,
+    safeCenterW: 740, safeCenterH: 740, splitGap: 32,
+    rules: `RULE RIÊNG CHO 1:1 (vuông, cân bằng tuyệt đối):
+• Focal area: trung tâm khung; ưu tiên bố cục đối xứng, một hero cộng một nhãn.
+• Hero text/number: width tối đa {{HERO_MAX_W}}px; text block không quá {{TEXT_BLOCK_MAX_H}}px.
+• Asset chính nằm trong khối an toàn {{SAFE_CENTER_W}}px × {{SAFE_CENTER_H}}px ở giữa frame.
+• Nếu dùng card/list: tối đa 3 item, mỗi item to và thoáng.
+• Giữ khoảng thở {{SIDE_PADDING}}px mỗi cạnh để tránh cảm giác chật.`,
+  },
+  '4:5': {
+    w: 1080, h: 1350, label: 'portrait feed',
+    sidePadding: 65, topPadding: 60, bottomPadding: 105, textMaxW: 790, heroMaxW: 760,
+    cardMinW: 600, cardMaxW: 820, subjectMaxH: 760, textBlockMaxH: 300,
+    safeCenterW: 780, safeCenterH: 760, splitGap: 34,
+    rules: `RULE RIÊNG CHO 4:5 (portrait cân bằng giữa feed và mobile):
+• Focal area: trung tâm hơi cao hơn giữa khung; bố cục dọc nhưng đỡ cực đoan hơn 9:16.
+• Hero text/number: width tối đa {{HERO_MAX_W}}px; có thể dùng 2 tầng text ngắn.
+• Card/ảnh: width {{CARD_MIN_W}}px đến {{CARD_MAX_W}}px; tránh asset quá cao chiếm hết frame.
+• Đáy subject chính dừng trên lower third; không để text nằm sát đáy.
+• Padding trái/phải tối thiểu {{SIDE_PADDING}}px, padding trên tối thiểu {{TOP_PADDING}}px.`,
+  },
+};
 
-const SYS = `You design VIDEO THUMBNAILS as a single static HTML page rendered once by headless Chrome into one image.
+/** Vietnamese diacritics need room: 1.35, not the 1.08 our shell used to ship. */
+const TEXT_METRICS = { lineHeight: 1.35, paddingTop: '0.15em' };
 
-THIS IS A STILL IMAGE, NOT A SCENE. No animation, no <script>, no GSAP, no @keyframes, no setTimeout — anything that moves is wrong here.
+/** The layout entry whose shape is closest to the canvas actually being rendered. */
+export function layoutFor({ w, h }) {
+  const r = w / h;
+  let best = null, bestGap = Infinity;
+  for (const [key, L] of Object.entries(THUMB_LAYOUT)) {
+    const gap = Math.abs(Math.log(r / (L.w / L.h)));
+    if (gap < bestGap) { bestGap = gap; best = { key, ...L }; }
+  }
+  return best;
+}
 
-RULE 1 — TWO ZONES THAT NEVER TOUCH.
-Before writing any CSS, split the canvas into a TEXT ZONE and an ART ZONE and keep every element strictly inside its own zone. Pick ONE split:
-  (a) vertical: text 55% of one side, art 45% of the other
-  (b) horizontal: text the lower 45%, art the upper 55% (or inverted)
-The only thing allowed to cross the boundary is a soft background wash — gradients, blurred light blobs, a faint grid. Any SOLID shape, icon, card, badge, chart or illustration landing on top of the headline is a FAILED thumbnail. Build the split with CSS grid or flex, never by stacking absolutely-positioned boxes and hoping they miss each other.
+/** Substitute the {{…}} budget placeholders in a ratio's rule block. */
+function layoutBlock(L) {
+  const rules = L.rules
+    .replaceAll('{{SIDE_PADDING}}', L.sidePadding).replaceAll('{{TOP_PADDING}}', L.topPadding)
+    .replaceAll('{{BOTTOM_PADDING}}', L.bottomPadding).replaceAll('{{TEXT_MAX_W}}', L.textMaxW)
+    .replaceAll('{{HERO_MAX_W}}', L.heroMaxW).replaceAll('{{CARD_MIN_W}}', L.cardMinW)
+    .replaceAll('{{CARD_MAX_W}}', L.cardMaxW).replaceAll('{{SUBJECT_MAX_H}}', L.subjectMaxH)
+    .replaceAll('{{TEXT_BLOCK_MAX_H}}', L.textBlockMaxH).replaceAll('{{SAFE_CENTER_W}}', L.safeCenterW)
+    .replaceAll('{{SAFE_CENTER_H}}', L.safeCenterH).replaceAll('{{SPLIT_GAP}}', L.splitGap);
+  return `TỈ LỆ KHUNG HÌNH HIỆN TẠI: ${L.label} (${L.w}×${L.h})
+Các ngưỡng bố cục số cứng — PHẢI ưu tiên dùng trực tiếp trong code:
+• side padding ${L.sidePadding}px · top ${L.topPadding}px · bottom ${L.bottomPadding}px
+• text rộng tối đa ${L.textMaxW}px · hero rộng tối đa ${L.heroMaxW}px
+• card ${L.cardMinW}–${L.cardMaxW}px · subject cao tối đa ${L.subjectMaxH}px
+• text block cao tối đa ${L.textBlockMaxH}px · vùng an toàn giữa ${L.safeCenterW}×${L.safeCenterH}px
+• khoảng cách khi chia cột tối thiểu ${L.splitGap}px
 
-RULE 2 — IT MUST SURVIVE BEING RESHOT AT ANOTHER SHAPE.
-The same markup is re-photographed at several aspect ratios. Size and place everything in %, vw/vh, fr, clamp() and flex — never fixed px offsets, never negative margins, never position:absolute with hard top/left numbers for anything that carries meaning. A layout that only works at one ratio is wrong.
+${rules}`;
+}
 
-RULE 3 — WHAT ACTUALLY MAKES SOMEONE CLICK.
-A thumbnail is not a title card; it promises a payoff in one glance.
-- Show the TENSION or the RESULT, not the topic. "before vs after", "the wrong way crossed out", "the one thing you missed" beat a neutral illustration every time.
-- ONE focal point. The eye lands in one place, then reads the headline. Two competing focal points read as noise.
-- The headline is 3-6 words — a HOOK, not the video title: curiosity, a number, a warning, or a promise.
-- Emotion beats information. A face, a red circle-slash, a giant arrow, a stark comparison do work a diagram cannot.
+const SYS = `Create a STATIC HTML thumbnail rendered once by Chrome headless.
 
-RULE 4 — SIZE AND LEGIBILITY.
-- Readable at 120px wide on a phone. Squint: if the headline is not the first thing you read, start over.
-- The headline spans at least 55% of the canvas WIDTH and at least 30% of its HEIGHT. It is by far the LARGEST thing in the frame — if the art competes with it for size, the art is too big.
-- At most TWO small supporting text elements besides the headline. Zero is better than two.
-- Text never touches an edge, is never clipped, never overlaps other text.
+THIS IS A STATIC THUMBNAIL IMAGE, NOT A VIDEO SCENE.
 
-RULE 4b — THE ART ZONE MUST MEAN SOMETHING.
-Whatever fills the art zone has to be recognisable in half a second and has to be ABOUT this video.
-- ONE identifiable object or symbol, drawn large: a face, a phone, a brain, a lock, a crossed-out thing, a giant arrow, a huge number, a before/after pair.
-- BANNED: grey rounded bars, skeleton/wireframe placeholders, empty cards, abstract rectangles, loading-state mockups, decorative dot grids as the subject. Those read as an unfinished page, not as a picture — they are worse than leaving the zone empty.
-- If you cannot think of a meaningful object, make the headline fill the whole frame instead. A pure-type thumbnail beats a thumbnail with filler art.
+REQUIREMENTS:
+• Static layout, captured as one JPEG image.
+• NO animation, NO gsap, NO anime.js, NO setTimeout, NO @keyframes.
+• Strong composition, readable, high contrast, ONE subject, large clear text.
+• Fonts ONLY: "Be Vietnam Pro", "Oswald", "JetBrains Mono". NO other fonts.
+• All text: class="txt" (line-height:${TEXT_METRICS.lineHeight};overflow:visible;padding-top:${TEXT_METRICS.paddingTop}).
+• NO overflow:hidden on text containers — Vietnamese diacritics get clipped.
 
-RULE 5 — BANNED OUTRIGHT.
-- Technical or English decoration labels: no "NEXT_TOKEN_P", no "VECTOR_SPACE 12,288 DIMS", no "PROB: 0.98", no "TOKEN_01", no "WEIGHTS", no fake telemetry, no code identifiers, no floating micro-badges of jargon. The audience is a beginner; jargon pushes them away.
-- Small print that is not plain Vietnamese a newcomer understands.
-- Stock-photo look, lorem, watermarks, fake browser or app chrome.
-- Colours and fonts outside the locked palette and fonts given (white/black/transparent always allowed).
-
-CHECK YOUR OWN WORK BEFORE REPLYING.
-1. Does any solid element sit on top of the headline? Move it into the art zone.
-2. Is the headline at least 55% of the width and the largest thing in frame? Make it bigger.
-2b. Is the art a recognisable object, or is it grey bars and empty cards? If it is filler, delete it and let the type fill the frame.
-3. Any English or technical label? Delete it.
-4. Would this hold together if the frame were 20% taller? Convert fixed offsets to relative units.
-5. Squinting, is there exactly ONE focal point? Remove the competing one.
-
-Build real depth with CSS — gradients, glows, blurred light blobs, geometric blocks, thick rules, inline SVG, layered panels — but keep those layers inside the art zone.
-
-OUTPUT: ONLY the markup that goes INSIDE the stage — a fragment, not a document. Start with a <style> block containing your CSS, then your HTML elements. No <!DOCTYPE>, no <html>, no <head>, no <body>, no markdown fence, no explanation.`;
+OUTPUT: ONLY the markup that goes INSIDE #content — a fragment, not a document. Start with a <style> block, then your HTML elements. No <!DOCTYPE>, no <html>, no <body>, no markdown fence, no explanation.`;
 
 /**
  * Swap `{{asset:NAME}}` placeholders for the resolved data URIs, then strip any that stayed
@@ -138,20 +176,21 @@ export function sanitizeThumbFragment(raw) {
 function shell(fragment, { w, h, guide }) {
   const p = guide?.palette || {};
   const f = guide?.fonts || {};
-  const inset = Math.round(Math.min(w, h) * 0.045);
+  const inset = Math.round(Math.min(w, h) * 0.012); // reference uses a 10px inset, not 4.5%
   // GEOMETRY IS INLINE, NOT IN THE STYLESHEET. The fragment's own <style> is parsed AFTER ours,
   // so a model that writes `#content { position: relative }` — a reasonable thing to write, and
   // one really did — would beat a head rule, collapse the box to height:0 (its children are all
   // absolute) and render a solid black image. An inline style outranks any author rule, so the
   // model can restyle the canvas (background, font, radius) but never move or collapse it.
-  const box = `position:absolute;top:${inset}px;left:${inset}px;right:${inset}px;bottom:${inset}px;overflow:hidden`;
+  // overflow VISIBLE, like the reference: hidden clips Vietnamese diacritics at the box edge.
+  const box = `position:absolute;top:${inset}px;left:${inset}px;right:${inset}px;bottom:${inset}px;overflow:visible`;
   return `<!doctype html><html><head><meta charset="utf-8"><style>
 ${fontsCss()}
 ${userFontsCss()}
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{width:${w}px;height:${h}px;overflow:hidden;background:${p.bg || '#0b1220'}}
 body{font-family:${f.display || 'Be Vietnam Pro'},Arial,sans-serif;color:${p.ink || '#fff'};-webkit-font-smoothing:antialiased}
-.txt{display:block;line-height:1.08;overflow:visible;padding-top:.12em;padding-bottom:.06em}
+.txt{display:block;line-height:1.35;overflow:visible;padding-top:0.15em;padding-bottom:0.05em}
 </style></head><body><div id="stage" style="position:relative;width:${w}px;height:${h}px;overflow:hidden;background:${p.bg || '#0b1220'}"><div id="content" style="${box}">${fragment}</div></div></body></html>`;
 }
 
@@ -279,18 +318,20 @@ export async function generateThumbnailImage({
   const w = size?.w || 1280, h = size?.h || 720;
   const p = guide?.palette || {};
   const f = guide?.fonts || {};
-  const inset = Math.round(Math.min(w, h) * 0.045);
-  const user = `THUMBNAIL CANVAS: ${w}×${h}px. Your fragment renders inside #content, which is inset ${inset}px on every side — treat that box as the FULL usable area and keep text a further ~4% away from its edges.
+  const inset = Math.round(Math.min(w, h) * 0.012); // reference uses a 10px inset, not 4.5%
+  const L = layoutFor({ w, h });
+  const user = `THUMBNAIL CANVAS: ${w}×${h}px. Fragment renders inside #content, inset ${inset}px on every side.
 
-VIDEO TITLE: "${String(title || '').trim().slice(0, 160)}"
-${hook ? `HOOK ALREADY WRITTEN FOR THE THUMBNAIL (use this wording, or tighten it — do not invent a different message): "${String(hook).trim().slice(0, 120)}"\n` : ''}${prompt ? `ART DIRECTION: ${String(prompt).trim().slice(0, 400)}\n` : ''}
-LOCKED PALETTE: bg ${p.bg || '#0b1220'} · bg2 ${p.bg2 || '#1e3a8a'} · ink ${p.ink || '#ffffff'} · muted ${p.muted || '#94a3b8'} · accents ${(p.accents || ['#f7b500']).join(' ')}
-LOCKED FONTS: display ${f.display || 'Be Vietnam Pro'} · body ${f.body || 'Be Vietnam Pro'} · mono ${f.mono || 'JetBrains Mono'}
-LANGUAGE: every visible character must be in ${language === 'vi' ? 'Vietnamese, with correct diacritics' : language}.
+Tiêu đề video: "${String(title || '').trim().slice(0, 160)}"
+${hook ? `Câu móc đã viết sẵn cho ảnh bìa (dùng đúng chữ này, hoặc siết gọn hơn — không tự nghĩ thông điệp khác): "${String(hook).trim().slice(0, 120)}"\n` : ''}${prompt ? `Định hướng mỹ thuật: ${String(prompt).trim().slice(0, 400)}\n` : ''}
+LAYOUT PARAMS:
+${layoutBlock(L)}
 
-COMPOSITION FOR THIS ONE: ${COMPOSITIONS[variant % COMPOSITIONS.length]}
-${assetBlock(media)}
-Reply with ONLY the <style> block and the markup.`;
+BẢNG MÀU KHOÁ CỨNG: bg ${p.bg || '#0b1220'} · bg2 ${p.bg2 || '#1e3a8a'} · ink ${p.ink || '#ffffff'} · muted ${p.muted || '#94a3b8'} · nhấn ${(p.accents || ['#f7b500']).join(' ')}
+FONT KHOÁ CỨNG: hiển thị "${f.display || 'Be Vietnam Pro'}" · tiêu đề lớn có thể dùng "Oswald" · mono "JetBrains Mono"
+NGÔN NGỮ: mọi chữ nhìn thấy phải bằng ${language === 'vi' ? 'tiếng Việt, đúng dấu' : language}. Không dùng ngôn ngữ khác.
+${variant > 0 ? `Đây là phương án số ${variant + 1} — bố cục phải KHÁC HẲN các phương án trước, đừng lặp lại cùng một cách sắp xếp.\n` : ''}${assetBlock(media)}
+Trả về CHỈ khối <style> và phần markup.`;
 
   try {
     const reply = await chat([

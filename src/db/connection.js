@@ -158,7 +158,7 @@ CREATE TABLE IF NOT EXISTS thumbnails (
   html TEXT,                            -- the fragment that produced it, so it can be re-rendered or edited
   source TEXT,                          -- ai|template|ai-edit|hand (how this version came to exist)
   instruction TEXT,                     -- the edit instruction, when source='ai-edit'
-  composition INTEGER,                  -- which COMPOSITIONS brief was used, when source='ai'
+  composition INTEGER,                  -- which A/B variant produced this take, when source='ai'
   created_at INTEGER
 );
 CREATE INDEX IF NOT EXISTS idx_thumbnails_project ON thumbnails(project_id, created_at);
