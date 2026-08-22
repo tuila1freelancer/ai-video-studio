@@ -573,6 +573,7 @@ Rationale for each layer:
 | Change the final-video logo stamp (geometry/UX) | `media/logo-overlay.js` (`logoRect` — P26 single source of truth) · `public/js/features/brandkit.js` |
 | Change the copyright watermark (path/speed/opacity) | `media/watermark.js` (P28: one path for preview + ffmpeg) · `public/js/features/brandkit.js` |
 | Change Brand Asset prompts / transparency gate / provider picker | `api/services/brand-gen.js` (P27: prompts verbatim) · `public/js/views/brandgen.js` |
+| Change the in-app manual (Hướng dẫn) — add a chapter, a callout, a jump button | `public/js/views/guide.js` (`SECTIONS` is the whole content; `BLOCK` is the renderer, `ACTIONS` the screens it can open) · guarded by `tests/guide-content.test.js` |
 
 ---
 

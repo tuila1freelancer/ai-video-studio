@@ -814,3 +814,124 @@ select.input{appearance:none;-webkit-appearance:none;background-image:url("data:
 .tp-vacts{display:flex;gap:6px;align-items:center;margin-top:3px}
 
 .tp-covers{border-top:1px solid var(--line,#1f2937);margin-top:12px}
+
+/* ---- 13. GUIDE (in-app manual) ----
+   A docs layout, not a page of prose: sticky chapter rail on the left, one scrolling column of
+   typed blocks on the right. Every block type here exists because the content needed it — steps,
+   control reference, callouts, cards — and nothing renders a wall of paragraphs. */
+.gd{max-width:1220px;margin:0 auto;padding:26px 40px 90px}
+
+/* hero + search */
+.gd-hero{position:relative;padding:30px 32px;border:1px solid var(--hairline);border-radius:var(--r-lg);
+  background:linear-gradient(135deg,rgba(109,92,255,.16),rgba(168,85,247,.07) 55%,transparent),var(--bg-2);
+  box-shadow:var(--shadow-2);overflow:hidden}
+.gd-hero::after{content:"";position:absolute;right:-70px;top:-90px;width:280px;height:280px;border-radius:50%;
+  background:radial-gradient(circle,rgba(139,124,255,.28),transparent 68%);pointer-events:none}
+.gd-hero h1{font-size:30px;font-weight:800;letter-spacing:-.025em;line-height:1.2}
+.gd-hero .grad-text{background:var(--grad-brand);-webkit-background-clip:text;background-clip:text;color:transparent}
+.gd-hero p{color:var(--text-2);margin-top:8px;max-width:62ch}
+.gd-searchbox{position:relative;display:flex;align-items:center;gap:10px;margin-top:20px;max-width:520px;
+  background:var(--glass);border:1px solid var(--hairline-2);border-radius:var(--r-full);padding:2px 14px;
+  transition:border-color var(--t-fast),box-shadow var(--t-fast)}
+.gd-searchbox:focus-within{border-color:var(--accent);box-shadow:var(--accent-glow)}
+.gd-searchbox input{flex:1;background:none;border:0;outline:0;padding:11px 0;font-size:13.5px}
+.gd-searchbox input::placeholder{color:var(--text-3)}
+.gd-count{color:var(--text-3);font-size:11.5px;white-space:nowrap;font-variant-numeric:tabular-nums}
+
+/* two-column docs shell */
+.gd-shell{display:grid;grid-template-columns:238px minmax(0,1fr);gap:38px;align-items:start;margin-top:28px}
+.gd-nav{position:sticky;top:0;max-height:100vh;overflow-y:auto;padding:4px 6px 30px;
+  mask-image:linear-gradient(to bottom,transparent,#000 12px,#000 calc(100% - 18px),transparent)}
+.gd-nav-g{font-size:10.5px;font-weight:800;letter-spacing:.11em;text-transform:uppercase;color:var(--text-3);
+  margin:18px 0 7px 10px}
+.gd-nav-g:first-child{margin-top:4px}
+.gd-nav-i{display:flex;align-items:center;gap:9px;padding:7px 10px;border-radius:9px;font-size:12.5px;
+  font-weight:600;color:var(--text-2);border-left:2px solid transparent;transition:background var(--t-fast),color var(--t-fast)}
+.gd-nav-i span{font-size:13px;width:17px;text-align:center;flex-shrink:0}
+.gd-nav-i:hover{background:var(--surface-1);color:var(--text-1)}
+.gd-nav-i.on{background:var(--surface-2);color:var(--text-1);border-left-color:var(--accent)}
+
+/* section */
+.gd-sec{scroll-margin-top:14px;padding-bottom:34px;margin-bottom:34px;border-bottom:1px solid var(--hairline)}
+.gd-sec:last-child{border-bottom:0}
+.gd-sec-h{display:flex;align-items:flex-start;gap:14px}
+.gd-sec-ic{display:grid;place-items:center;width:44px;height:44px;flex-shrink:0;font-size:21px;border-radius:13px;
+  background:var(--surface-2);border:1px solid var(--hairline-2);box-shadow:var(--shadow-1)}
+.gd-sec-num{font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--accent-hi)}
+.gd-sec-t{font-size:21px;font-weight:750;letter-spacing:-.02em;margin-top:2px}
+.gd-lede{color:var(--text-2);font-size:14px;margin:12px 0 4px;max-width:74ch}
+.gd-h4{font-size:14px;font-weight:700;margin:24px 0 10px;padding-left:11px;border-left:3px solid var(--accent)}
+.gd-p{color:var(--text-2);margin:10px 0;max-width:78ch}
+.gd-p b,.gd-lede b,.gd-def dd b,.gd-st-t b{color:var(--text-1);font-weight:650}
+.gd-sec code{font-family:var(--font-mono);font-size:.88em;padding:1.5px 5px;border-radius:5px;
+  background:var(--surface-2);border:1px solid var(--hairline);color:#c9b8ff}
+
+/* breadcrumb to the real screen */
+.gd-where{display:inline-flex;align-items:center;gap:6px;margin:12px 0 2px;padding:5px 12px;border-radius:var(--r-full);
+  font-size:12px;font-weight:600;color:var(--text-2);background:var(--surface-1);border:1px dashed var(--hairline-2)}
+
+/* bullets */
+.gd-ul{margin:10px 0 10px 4px;padding-left:18px;color:var(--text-2);max-width:78ch}
+.gd-ul li{margin:6px 0}
+.gd-ul li::marker{color:var(--accent-hi)}
+
+/* numbered walkthrough */
+.gd-steps{list-style:none;counter-reset:gd;margin:14px 0}
+.gd-steps li{position:relative;counter-increment:gd;padding:0 0 20px 46px}
+.gd-steps li::before{content:counter(gd);position:absolute;left:0;top:-1px;width:28px;height:28px;border-radius:50%;
+  display:grid;place-items:center;font-size:12.5px;font-weight:800;color:#fff;background:var(--grad-brand);
+  box-shadow:var(--accent-glow)}
+.gd-steps li::after{content:"";position:absolute;left:13.5px;top:32px;bottom:2px;width:1px;background:var(--hairline-2)}
+.gd-steps li:last-child{padding-bottom:0}
+.gd-steps li:last-child::after{display:none}
+.gd-st-n{font-weight:700;font-size:14px;margin-bottom:3px}
+.gd-st-t{color:var(--text-2);max-width:74ch}
+
+/* control reference */
+.gd-defs{margin:12px 0;border:1px solid var(--hairline);border-radius:var(--r-md);overflow:hidden;background:var(--surface-1)}
+.gd-def{display:grid;grid-template-columns:210px minmax(0,1fr);gap:18px;padding:11px 16px;border-top:1px solid var(--hairline)}
+.gd-def:first-child{border-top:0}
+.gd-def:nth-child(even){background:rgba(255,255,255,.014)}
+.gd-def dt{font-weight:650;font-size:12.8px;color:var(--text-1)}
+.gd-def dd{color:var(--text-2);font-size:13px}
+.gd-keys .gd-def{grid-template-columns:120px minmax(0,1fr)}
+kbd{display:inline-block;font-family:var(--font-mono);font-size:11.5px;font-weight:600;padding:3px 8px;border-radius:7px;
+  background:var(--surface-3);border:1px solid var(--hairline-2);box-shadow:0 2px 0 rgba(0,0,0,.35);color:var(--text-1)}
+
+/* callouts */
+.gd-note{display:flex;gap:11px;margin:14px 0;padding:12px 15px;border-radius:var(--r-md);font-size:13px;
+  color:var(--text-2);background:var(--surface-1);border:1px solid var(--hairline);border-left:3px solid var(--text-3)}
+.gd-note-i{font-size:15px;line-height:1.4}
+.gd-note-l{color:var(--text-1);font-weight:700;margin-right:2px}
+.gd-note.tip{border-left-color:var(--info);background:color-mix(in srgb,var(--info) 7%,transparent)}
+.gd-note.warn{border-left-color:var(--warn-c);background:color-mix(in srgb,var(--warn-c) 7%,transparent)}
+.gd-note.cost{border-left-color:var(--ok);background:color-mix(in srgb,var(--ok) 7%,transparent)}
+.gd-note.key{border-left-color:var(--accent-hi);background:color-mix(in srgb,var(--accent-hi) 8%,transparent)}
+
+/* feature cards */
+.gd-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(216px,1fr));gap:12px;margin:14px 0}
+.gd-card{padding:15px;border-radius:var(--r-md);background:var(--surface-1);border:1px solid var(--hairline);
+  transition:border-color var(--t-fast),transform var(--t-fast),background var(--t-fast)}
+.gd-card:hover{border-color:var(--hairline-2);background:var(--surface-2);transform:translateY(-2px)}
+.gd-card-i{font-size:19px}
+.gd-card-t{font-weight:700;font-size:13.5px;margin:7px 0 4px}
+.gd-card-d{color:var(--text-2);font-size:12.5px;line-height:1.6}
+
+/* "open that screen" row */
+.gd-go{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 2px}
+
+.gd-empty{padding:40px;text-align:center;color:var(--text-3);border:1px dashed var(--hairline-2);border-radius:var(--r-lg)}
+
+@media (max-width:1080px){
+  .gd{padding:22px 22px 80px}
+  .gd-shell{grid-template-columns:1fr;gap:18px}
+  .gd-nav{position:static;max-height:none;display:flex;flex-wrap:wrap;gap:6px;mask-image:none;
+    padding-bottom:8px;border-bottom:1px solid var(--hairline)}
+  .gd-nav-g{width:100%;margin:10px 0 2px}
+  .gd-nav-i{border-left:0;border:1px solid var(--hairline);border-radius:var(--r-full)}
+  .gd-nav-i.on{border-color:var(--accent)}
+  .gd-def{grid-template-columns:1fr;gap:3px}
+}
+.gd-more{display:block;width:100%;margin:6px 0 0;padding:11px 16px;border-radius:var(--r-md);font-size:12.5px;
+  font-weight:600;color:var(--text-2);background:var(--surface-1);border:1px dashed var(--hairline-2);text-align:left}
+.gd-more:hover{color:var(--text-1);border-color:var(--accent);background:var(--surface-2)}
