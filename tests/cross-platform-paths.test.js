@@ -35,3 +35,16 @@ test('cross-platform: resolving for another platform never throws, even with an 
     assert.doesNotThrow(() => resolvePaths(platform, {}));
   }
 });
+
+// The closing block is the part the polish pass silently rewrites: measured twice on real runs,
+// the model dropped "ấn thích"/"chia sẻ video" from a fixed CTA and invented a promise of upcoming
+// videos the owner had banned. Overall coverage cannot catch it — losing the whole ending of a
+// 2,500-word script barely moves the number — so the tail is guarded on its own.
+test('master script: polish mode is told the owner closing is final copy', async () => {
+  const { readFileSync } = await import('node:fs');
+  const src = readFileSync(new URL('../src/content/master-script.js', import.meta.url), 'utf8');
+  assert.match(src, /is FINAL COPY/, 'polish mode must declare the closing block untouchable');
+  assert.match(src, /do NOT add a subscribe line/, 'the old "(subscribe)" instruction invited the rewrite');
+  assert.match(src, /ENDING_REWRITTEN/, 'a rewritten ending must be a named defect, not a silent pass');
+  assert.match(src, /function tailTokens/, 'the tail must be measured separately from overall coverage');
+});
