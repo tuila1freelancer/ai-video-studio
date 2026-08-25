@@ -1,7 +1,7 @@
 // Scene rendering (B6) + final concat/mix (B7) with ffmpeg.
 import { writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { ffmpeg, ffmpegAss, probeDuration, probeImageSize } from '../media/ffmpeg.js';
+import { ffmpeg, ffmpegAss, probeDuration, probeImageSize, probeFrameRate } from '../media/ffmpeg.js';
 import { logoRect } from '../media/logo-overlay.js';
 import { perimeterExpr, WM_SPEEDS } from '../media/watermark.js';
 import { planOffsets, programCues, XFADE_DUR } from '../subtitles/timeline.js';
@@ -10,7 +10,7 @@ import { measureCaptions } from '../subtitles/box.js';
 import { concatFingerprint, needsVideoFilter, planConcat, TIER_LOG } from './concat-plan.js';
 import { ratioToSize, newId } from '../util/util.js';
 
-const FPS = 30;
+const FPS = 30; // fallback only — the real rate is probed off the clips
 
 // ---- Transition planning (motion doctrine: every boundary FLOWS — a short dip through black is
 // the default hand-off, while one HERO transition still punches above it) ----
@@ -128,6 +128,9 @@ export async function concatScenes(sceneVideos, project, {
   // moving them would rewrite every project's `assText` digest for no visible change at all.
   const probed = await probeImageSize(sceneVideos[0]);
   const fw = probed?.w || ow, fh = probed?.h || oh;
+  // Same reason as the frame size above: re-encoding at a constant 30 threw away every frame of
+  // a 60fps project without saying so, and the fps control in the UI quietly did nothing.
+  const ffps = (await probeFrameRate(sceneVideos[0])) || FPS;
 
   // Durations + timeline.
   const TD = XFADE_DUR;
@@ -181,7 +184,7 @@ export async function concatScenes(sceneVideos, project, {
   // made, so anything gating the graph has to gate the hash too.
   const effPlan = useGraph ? plan : null;
   const fp = concatFingerprint({
-    clips: sceneVideos, size, frame: { w: fw, h: fh }, fps: FPS, transitions: effPlan, logo, watermark,
+    clips: sceneVideos, size, frame: { w: fw, h: fh }, fps: ffps, transitions: effPlan, logo, watermark,
     assText, masterFade, encoder, bgmPath, sfxPath, bgmVol,
   });
   const videoFilter = needsVideoFilter({ logo, watermark, assText, transitions: effPlan, masterFade });
@@ -341,7 +344,7 @@ export async function concatScenes(sceneVideos, project, {
   const cut = copyVideo && tier === 'audio' ? (await probeDuration(prevPath)) || total : total;
   args.push('-filter_complex', fc.join(';'));
   if (copyVideo) args.push('-map', '0:v', '-c:v', 'copy');
-  else args.push('-map', '[vout]', ...videoCodecArgs(encoder));
+  else args.push('-map', '[vout]', ...videoCodecArgs(encoder, ffps));
   args.push('-map', '[aout]', '-t', cut.toFixed(2),
     '-c:a', 'aac', '-b:a', '160k', '-ar', '44100', '-ac', '2', '-movflags', '+faststart', finalOut);
   // The join is the longest single step in the app — up to a quarter of an hour on a full-length
@@ -424,9 +427,9 @@ function ffQuote(p) {
  * needing no encoder at all is worth 8×, which is why concat-plan.js matters more than this
  * function does.
  */
-function videoCodecArgs(encoder) {
+function videoCodecArgs(encoder, fps = FPS) {
   const preset = encoder === 'fast' ? 'veryfast' : 'medium';
-  return ['-c:v', 'libx264', '-preset', preset, '-crf', '18', '-profile:v', 'high', '-level', '4.0', '-pix_fmt', 'yuv420p', '-r', String(FPS)];
+  return ['-c:v', 'libx264', '-preset', preset, '-crf', '18', '-profile:v', 'high', '-level', '4.0', '-pix_fmt', 'yuv420p', '-r', String(fps)];
 }
 
 // (renderCard — the hardcoded intro/outro title-card clip — was removed with the synthetic
