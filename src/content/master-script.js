@@ -109,6 +109,12 @@ function jaccard(a, b) {
   return inter / (a.size + b.size - inter);
 }
 
+/** The last `n` meaningful tokens of the owner's script — the closing block, checked on its own. */
+function tailTokens(source, n) {
+  const all = String(source || '').trim().split(/\s+/);
+  return tokenSet(all.slice(-Math.max(1, n)).join(' '));
+}
+
 // Voice lines that are production METADATA, not narration — the exact leak observed in the
 // factory's real output (CTA placement notes, hashtag lines, a thumbnail prompt read aloud).
 // TTS must never speak these; P18 pins that they are never persisted.
@@ -213,6 +219,21 @@ export function validateScenesJson(raw, { mode = 'topic', plan = null, source = 
     const coverage = srcTokens.size ? covered / srcTokens.size : 1;
     if (freshScenes > 2) defects.push({ code: 'POLISH_FLOOR', stt: freshStt, detail: `${freshScenes} scenes are rewritten (>40% new words) — light edit only, keep the owner's wording` });
     if (coverage < 0.7) defects.push({ code: 'POLISH_FLOOR', detail: `only ${(coverage * 100) | 0}% of the owner's words survived — content was dropped` });
+
+    // The ENDING is the part that gets silently rewritten. Overall coverage cannot catch it: lose
+    // the whole closing block of a 2,500-word script and coverage barely moves, yet the video ends
+    // on wording the channel never approved. So the tail is checked on its own.
+    const tail = tailTokens(source, 60);
+    if (tail.size) {
+      const outTail = new Set();
+      for (const sc of scenes.slice(-6)) for (const tk of tokenSet(sc.voice)) outTail.add(tk);
+      let kept = 0;
+      for (const tk of tail) if (outTail.has(tk)) kept++;
+      const ratio = kept / tail.size;
+      if (ratio < 0.8) {
+        defects.push({ code: 'ENDING_REWRITTEN', detail: `the closing block was rewritten or dropped (only ${(ratio * 100) | 0}% of its words survived) — reproduce the owner's summary and call-to-action verbatim` });
+      }
+    }
   }
 
   const spec = {
@@ -587,10 +608,16 @@ function ctaNoteFor({ from, to, ctaPlan, closes, mode, bridgeOut = '' }) {
   const lines = [];
   const softIn = ctaPlan.softStt >= from && ctaPlan.softStt <= to;
   if (softIn) {
-    lines.push(`- CTA PLAN: scene ${ctaPlan.softStt} (scene ${ctaPlan.softStt - from + 1} of this span) carries this video's ONE soft CTA — a single natural spoken sentence (save/share/follow) tied to the content. ${mode === 'script' ? "Add it only if the owner's script lacks it." : 'Write it there and nowhere else.'} No other scene in this span may contain any CTA.`);
+    lines.push(`- CTA PLAN: scene ${ctaPlan.softStt} (scene ${ctaPlan.softStt - from + 1} of this span) carries this video's ONE soft CTA — a single natural spoken sentence (save/share/follow) tied to the content. ${mode === 'script' ? "The owner's script already has one: REPRODUCE IT WORD FOR WORD. Add one only if the script truly has none." : 'Write it there and nowhere else.'} No other scene in this span may contain any CTA.`);
   }
   if (closes) {
-    lines.push(`- CTA PLAN: the video ENDS in this span — the final scene resolves the opening gap, then ONE natural closing line (subscribe). ${mode === 'script' ? "Add it only if the owner's script lacks it. " : ''}No other CTA in this span${softIn ? ' beyond the two planned ones' : ''}.`);
+    // A channel's closing CTA is fixed wording its audience hears every video. Telling the model
+    // to write "ONE natural closing line (subscribe)" in polish mode is an invitation to rewrite
+    // it — measured twice: the model dropped "ấn thích"/"chia sẻ video" and invented a promise of
+    // upcoming videos the owner had explicitly banned.
+    lines.push(mode === 'script'
+      ? `- CTA PLAN: the video ENDS in this span. The owner's closing block — the summary AND the call-to-action — is FINAL COPY. Reproduce every sentence of it VERBATIM, in order, splitting across scenes only where it must. Do NOT rephrase it, do NOT shorten it, do NOT add a subscribe line or a sign-off of your own, and do NOT promise future videos. Dropping or rewording any part of it is the single worst failure you can make here.`
+      : `- CTA PLAN: the video ENDS in this span — the final scene resolves the opening gap, then ONE natural closing line (subscribe). No other CTA in this span${softIn ? ' beyond the two planned ones' : ''}.`);
   }
   if (!softIn && !closes) {
     lines.push(`- CTA PLAN: this span carries NO call-to-action and NO farewell of any kind — no subscribe/like/share/bell, no thanks-for-watching, no goodbye, no "hẹn gặp lại". The video CONTINUES after scene ${to}: never conclude or wrap up${bridgeOut ? `; end mid-flow, handing over on: ${bridgeOut}` : ', end mid-flow'}.`);
