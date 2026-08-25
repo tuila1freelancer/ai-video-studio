@@ -41,11 +41,20 @@ function resolveWatermark(config) {
   return t ? { text: t } : null;
 }
 
-// Resolution scale: 1 = 1080-class (default), 2 = 4K-class.
+// The only viewport sizes the renderer builds: 1080p · 1440p · 4K. 4/3 lands exactly on
+// 2560×1440 (and 1440×2560 vertical) — every ratio stays an integer, which h.264 requires.
+const RUNGS = [1, 4 / 3, 2];
+
+/** Snap a stored resolutionScale to the nearest supported rung. @param {number} scale */
+export function resRung(scale) {
+  const v = +scale || 1;
+  return RUNGS.reduce((best, r) => (Math.abs(r - v) < Math.abs(best - v) ? r : best), 1);
+}
+
 export function animSize(aspectRatio, scale = 1) {
   const s = ratioToSize(aspectRatio);
-  const k = scale >= 2 ? 2 : 1;
-  return { w: s.w * k, h: s.h * k };
+  const k = resRung(scale);
+  return { w: Math.round(s.w * k), h: Math.round(s.h * k) };
 }
 
 /**
@@ -226,8 +235,8 @@ export function sceneTemplateSource(scene, project, config) {
 // then composites onto the owner's base footage (slice offset = the scene's start on the
 // final timeline, so consecutive scenes ride one continuous shot).
 export async function renderAnimationScene(scene, project, config, { dir, progressStart, progressTotal, total, onProgress, onLog } = {}) {
-  const k = (config.resolutionScale || 1) >= 2 ? 2 : 1;
-  const { w, h } = animSize(project.aspect_ratio, k); // PHYSICAL viewport (4K when k=2)
+  const k = resRung(config.resolutionScale);
+  const { w, h } = animSize(project.aspect_ratio, k); // PHYSICAL viewport (2560×1440 at 4/3, 4K at 2)
   const fps = parseInt(config.fps || 30, 10);
   const duration = Math.max(1.5, scene.duration || config.sceneDuration || 6);
   // A family the owner NAMED has to exist before a single frame is drawn. Chrome substitutes

@@ -6,6 +6,12 @@ import { openVoicePicker } from '../features/voicepicker.js';
 import { confirmDialog, promptDialog, menuDialog } from '../ui/dialog.js';
 import { icon } from '../ui/icons.js';
 
+// Output resolution: the value stored in config.resolutionScale, and the label on the chip.
+// Mirrors resRung() in src/animation/index.js — 1.3333 lands on exactly 2560×1440.
+const RES_LABEL = { 1: '1080p', 1.3333: '2K', 2: '4K' };
+export const resRung = (v) => [1, 1.3333, 2]
+  .reduce((b, r) => (Math.abs(r - (+v || 1)) < Math.abs(b - (+v || 1)) ? r : b), 1);
+
 const SUB_COLORS = ['#F7B500', '#FFFFFF', '#00E5FF', '#FF5252', '#69F0AE', '#FF80AB', '#E040FB', '#FF6D00', '#40C4FF'];
 
 /**
@@ -317,7 +323,7 @@ function applyConfigInner(cfg = {}) {
   if ($('#cfgHfModel')) $('#cfgHfModel').value = cfg.hyperframe?.model || '';
   renderHfStyleButton();
   if (cfg.fps) $('#cfgFps').value = cfg.fps;
-  if (cfg.resolutionScale) $('#cfgRes').value = cfg.resolutionScale;
+  if (cfg.resolutionScale) $('#cfgRes').value = String(resRung(cfg.resolutionScale));
   $('#cfgWatermark').value = cfg.watermarkText || '';
   if (cfg.aspectRatio) $('#cfgAr').value = cfg.aspectRatio;
   // UNCONDITIONAL, unlike its neighbours. This runs on every channel switch, so a guarded
@@ -960,7 +966,7 @@ export function updateCfgChips() {
   const selText = (id) => { const s = $(id); return s?.selectedOptions?.[0]?.textContent.trim() || ''; };
   const mode = 'HyperFrame ✨';
   const theme = ` · ${hfCurrentStyle().name || 'Chrome Kinetic'}`;
-  const res = $('#cfgRes').value === '2' ? '4K' : '1080p';
+  const res = RES_LABEL[$('#cfgRes').value] || '1080p';
   const durTxt = $('#cfgDurMode')?.value === 'auto' ? '🪄 tự động' : fmtDur(+$('#cfgVd').value);
   set('format', `${mode}${theme} — ${$('#cfgAr').value} · ${$('#cfgFps').value}fps · ${res} · ${durTxt} · cảnh ${$('#cfgSd').value}s`);
   const bk = activeChannelBrand();
