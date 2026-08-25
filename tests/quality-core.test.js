@@ -255,3 +255,24 @@ test('prompt v2 + budget stage source anchors (P4/P5 intact, gate wired pre-seed
   assert.match(budget, /durationMode === 'auto'\) return/, 'auto mode is never trimmed');
   assert.match(budget, /input_type === 'json'\) return/, 'pasted JSON is never trimmed');
 });
+
+// Output resolution rungs: 1080p · 2K · 4K. Every ratio must stay integer AND even — h.264
+// refuses odd dimensions, and a fractional viewport silently truncates in the renderer.
+test('resolution rungs land on exact even frames at every aspect ratio', async () => {
+  const { animSize, resRung } = await import('../src/animation/index.js');
+  assert.equal(resRung(1.3333).toFixed(4), (4 / 3).toFixed(4), '1.3333 snaps to the 2K rung');
+  assert.equal(resRung(undefined), 1, 'a missing scale is 1080p, never NaN');
+  assert.equal(resRung(9), 2, 'anything above the top rung clamps to 4K');
+  assert.deepEqual(animSize('16:9', 1.3333), { w: 2560, h: 1440 }, '16:9 2K is exactly QHD');
+  assert.deepEqual(animSize('9:16', 1.3333), { w: 1440, h: 2560 });
+  assert.deepEqual(animSize('16:9', 2), { w: 3840, h: 2160 }, '4K unchanged');
+  for (const ar of ['16:9', '9:16', '1:1', '4:5']) {
+    for (const s of [1, 1.3333, 2]) {
+      const { w, h } = animSize(ar, s);
+      assert.ok(Number.isInteger(w) && Number.isInteger(h), `${ar}@${s} is integer`);
+      assert.ok(w % 2 === 0 && h % 2 === 0, `${ar}@${s} is even`);
+    }
+  }
+  const ui = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
+  assert.match(ui, /id="cfgRes"[\s\S]*?value="1\.3333">2K</, 'the 2K rung is reachable from the UI');
+});
