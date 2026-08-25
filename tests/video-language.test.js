@@ -301,3 +301,23 @@ test('lang: scriptLang still falls back to the SOURCE text, not the narration', 
   assert.match(llm, /export \{ LANG_NAME, langName \}/);
   assert.ok(!/^export const LANG_NAME = \{/m.test(llm), 'no second copy of the table');
 });
+
+test('lang: a short English decor word and a giant ghost glyph are both leaks', async () => {
+  const { textLanguageLeak } = await import('../src/hyperframe/validate.js');
+  const { fold } = await import('../src/hyperframe/beats.js');
+  const words = (s) => new Set((fold(s).match(/[\p{L}\p{N}]+/gu) || []).filter((w) => w.length >= 2));
+  const viNarr = words('Vậy là xong nội dung hôm nay, cảm ơn các bạn rất nhiều');
+
+  // "END" shipped on the last frame of a video: 3 letters, under the 4-letter ASCII floor.
+  assert.equal(textLanguageLeak('END', viNarr, 'vi'), true);
+  for (const w of ['TOP', 'NEW', 'RUN', 'MAX']) assert.equal(textLanguageLeak(w, viNarr, 'vi'), true, w);
+  // …and the floor still protects real Vietnamese that happens to fold to ASCII
+  assert.equal(textLanguageLeak('TƯỞNG', viNarr, 'vi'), false);
+  assert.equal(textLanguageLeak('nội dung', viNarr, 'vi'), false, 'drawn from the narration');
+  // an English video may of course say END
+  assert.equal(textLanguageLeak('END', words('this is the end of the show'), 'en'), false);
+
+  // the other half: a ghost glyph is huge and faint, so the opacity gate excused it from the check
+  const src = readFileSync(new URL('../src/hyperframe/validate.js', import.meta.url), 'utf8');
+  assert.match(src, /\(e\.h >= 80 && e\.o > 0\.15\)/);
+});
