@@ -276,3 +276,12 @@ test('resolution rungs land on exact even frames at every aspect ratio', async (
   const ui = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
   assert.match(ui, /id="cfgRes"[\s\S]*?value="1\.3333">2K</, 'the 2K rung is reachable from the UI');
 });
+
+test('a scene clip that came out the wrong size fails loudly', () => {
+  // A long-running server holding older code rendered a 2K project at 1080p and said nothing:
+  // the clips joined, the file shipped, and only ffprobe knew. Same doctrine as the font check.
+  const src = readFileSync(new URL('../src/animation/index.js', import.meta.url), 'utf8');
+  assert.match(src, /const got = await probeImageSize\(res\.path\);/);
+  assert.match(src, /got\.w !== w \|\| got\.h !== h/);
+  assert.match(src, /kích thước không khớp/);
+});
