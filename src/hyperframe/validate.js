@@ -20,6 +20,10 @@ function narrationWordSet(narration) {
 // line), so "not in the narration" alone is NOT a defect. What IS a defect is a LANGUAGE leak:
 // e.g. an English display headline in a Vietnamese-narrated video. Flag only when the text is
 // multi-word, shares no word with the narration, AND reads as a different language.
+// Under the 4-letter floor below, these are English decoration and nothing else — no Vietnamese
+// word collides with any of them. A 3-letter ghost glyph reading END shipped once because of it.
+const SHORT_DECOR = /^(END|NEW|TOP|RUN|SET|KEY|MAP|BOX|TAG|OUT|OFF|YES|WIN|BIG|MAX|MIN|ADD|GET|FIX|LOG|OLD|LOW|GO|OK)$/i;
+
 export function textLanguageLeak(txt, narrWords, narrLang) {
   const words = (fold(txt || '').match(/[\p{L}]+/gu) || []).filter((w) => w.length >= 3);
   if (words.length < 2) {
@@ -31,7 +35,7 @@ export function textLanguageLeak(txt, narrWords, narrLang) {
     //  - on an ENGLISH video the same rule would condemn every valid one-word label, because the
     //    prompt explicitly asks for SEMANTIC, non-verbatim keywords: "MOMENTUM" is good design and
     //    is absent from its narration. Only a foreign SCRIPT is readable as a leak from one word.
-    if (narrLang !== 'en') return /^[A-Za-z]{4,}$/.test(raw) && !narrWords.has(fold(raw));
+    if (narrLang !== 'en') return (/^[A-Za-z]{4,}$/.test(raw) || SHORT_DECOR.test(raw)) && !narrWords.has(fold(raw));
     return raw.length >= 3 && detectLang(raw) !== narrLang;
   }
   if (words.some((w) => narrWords.has(w))) return false; // derived from the narration — fine
@@ -323,7 +327,7 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
         if (e.y + e.h > 0.80 * H) bump(sub, e.txt || e.cls, { t, ...e }); // element BOTTOM edge intrudes on the caption band
         // meaning-bearing text: component classes PLUS any clearly-readable custom text
         // (≥18px tall at ≥.5 opacity) — used by the wrong-language + junk content checks.
-        const meaning = /hf-(kw|label|sub|title|head|lead)/.test(e.cls || '') || (e.h >= 18 && e.o > 0.5);
+        const meaning = /hf-(kw|label|sub|title|head|lead)/.test(e.cls || '') || (e.h >= 18 && e.o > 0.5) || (e.h >= 80 && e.o > 0.15);
         if (narrWords && meaning && textLanguageLeak(e.txt, narrWords, narrLang)) bump(bad, e.txt, { t, ...e });
         if (e.o > 0.25 && e.txt && !e.txt.includes('{{') && JUNK_RE.test(e.txt) && !/[À-ỿ]/.test(e.txt)) bump(junk, e.txt.slice(0, 30), { t, ...e });
       }
