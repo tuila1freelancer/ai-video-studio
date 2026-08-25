@@ -85,6 +85,22 @@ export async function probeDuration(file) {
   });
 }
 
+/** Frame rate of a clip's first video stream, or 0 when it cannot be read. */
+export async function probeFrameRate(file) {
+  return new Promise((resolvePromise) => {
+    const ps = spawn(PATHS.ffprobe, ['-v', 'error', '-select_streams', 'v:0',
+      '-show_entries', 'stream=r_frame_rate', '-of', 'default=nw=1:nk=1', file]);
+    let out = '';
+    ps.stdout.on('data', (d) => out += d.toString());
+    ps.on('close', () => {
+      const [n, d] = out.trim().split('/').map(Number);
+      const fps = d ? n / d : n;
+      resolvePromise(Number.isFinite(fps) && fps > 0 ? Math.round(fps) : 0);
+    });
+    ps.on('error', () => resolvePromise(0));
+  });
+}
+
 /** Intrinsic pixel size of an image (first video stream) — {w,h} or null. */
 export async function probeImageSize(file) {
   return new Promise((resolvePromise) => {

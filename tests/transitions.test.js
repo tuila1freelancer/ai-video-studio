@@ -70,7 +70,7 @@ test('the fingerprint describes the join that will actually happen', () => {
   // capped video.
   const src = readFileSync(new URL('../src/pipeline/render.js', import.meta.url), 'utf8');
   assert.match(src, /const effPlan = useGraph \? plan : null;/);
-  assert.match(src, /concatFingerprint\(\{\s*\n\s*clips: sceneVideos, size, frame: \{ w: fw, h: fh \}, fps: FPS, transitions: effPlan,/);
+  assert.match(src, /concatFingerprint\(\{\s*\n\s*clips: sceneVideos, size, frame: \{ w: fw, h: fh \}, fps: ffps, transitions: effPlan,/);
   assert.match(src, /needsVideoFilter\(\{ logo, watermark, assText, transitions: effPlan, masterFade \}\)/);
 });
 
@@ -80,4 +80,17 @@ test('the audio seam is equal-power out and does not fade the incoming voice up'
   // only 0.19–0.20s of leading silence, so fading it in ate the first words of every scene.
   assert.match(readFileSync(new URL('../src/pipeline/render.js', import.meta.url), 'utf8'),
     /acrossfade=d=\$\{d\.toFixed\(3\)\}:c1=qsin:c2=nofade/);
+});
+
+test('the final frame rate follows the clips, so a 60fps project stays 60fps', () => {
+  // The encoder ran at a constant 30 while the scenes rendered at config.fps: a 60fps project paid
+  // double the render time and shipped a 30fps file, and the fps control in the UI did nothing.
+  const src = readFileSync(new URL('../src/pipeline/render.js', import.meta.url), 'utf8');
+  assert.match(src, /const ffps = \(await probeFrameRate\(sceneVideos\[0\]\)\) \|\| FPS;/);
+  assert.match(src, /videoCodecArgs\(encoder, ffps\)/);
+  assert.match(src, /function videoCodecArgs\(encoder, fps = FPS\)/);
+  assert.match(src, /'-pix_fmt', 'yuv420p', '-r', String\(fps\)\]/);
+  assert.doesNotMatch(src, /String\(FPS\)\]/, 'no path re-encodes at the hardcoded rate');
+  assert.match(readFileSync(new URL('../src/media/ffmpeg.js', import.meta.url), 'utf8'),
+    /export async function probeFrameRate/);
 });
