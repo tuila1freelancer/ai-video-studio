@@ -138,6 +138,9 @@ REQUIREMENTS:
 • Fonts ONLY: "Be Vietnam Pro", "Oswald", "JetBrains Mono". NO other fonts.
 • All text: class="txt" (line-height:${TEXT_METRICS.lineHeight};overflow:visible;padding-top:${TEXT_METRICS.paddingTop}).
 • NO overflow:hidden on text containers — Vietnamese diacritics get clipped.
+• EVERY word on the image is Vietnamese — including labels inside panels, badges and mock UI.
+  NO English technical strings ("NEXT_TOKEN_PREDICTION", "Input:", "Output", "Loading"): the viewers are
+  Vietnamese beginners. Only product names stay as-is (ChatGPT, Gemini, Claude).
 
 OUTPUT: ONLY the markup that goes INSIDE #content — a fragment, not a document. Start with a <style> block, then your HTML elements. No <!DOCTYPE>, no <html>, no <body>, no markdown fence, no explanation.`;
 
