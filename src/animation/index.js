@@ -7,6 +7,7 @@ import { themeFromGuide, resolveGuide, normalizeGuide } from '../styleguide/inde
 import { headline } from './planner.js';
 import { beatWarpMap } from './timewarp.js';
 import { renderScenePage, renderPreviewFrame } from './renderer.js';
+import { probeImageSize } from '../media/ffmpeg.js';
 import { resolveBrandKit, planBrandPlacement, buildBrandLayer, imgDataUri } from './branding.js';
 import { captionStyleFrom, familyName } from '../subtitles/presets.js';
 import { familyReady } from '../fonts/registry.js';
@@ -279,6 +280,12 @@ export async function renderAnimationScene(scene, project, config, { dir, progre
       zoom: config.overlay.zoom ? { ...config.overlay.zoom, index: scene.idx } : null,
     });
     return { ...res, path: finalPath, preview: existsSync(previewPath) ? previewPath : null };
+  }
+  // A clip whose pixels do not match the size that was asked for is a silent downgrade: it
+  // survives the join, ships, and is only visible in ffprobe. It cost a whole render pass once.
+  const got = await probeImageSize(res.path);
+  if (got && (got.w !== w || got.h !== h)) {
+    throw new Error(`cảnh ${scene.idx + 1}: kích thước không khớp — yêu cầu ${w}×${h}, nhận ${got.w}×${got.h}`);
   }
   return { ...res, preview: existsSync(previewPath) ? previewPath : null };
 }
