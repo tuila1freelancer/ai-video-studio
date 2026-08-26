@@ -9,7 +9,7 @@ import { chat, llmEnabled } from '../providers/llm.js';
 import { safeJson } from '../util/util.js';
 import { langName, majorityLang } from '../util/lang.js';
 
-export const BGM_VOL_MIN = 0.06, BGM_VOL_MAX = 0.18;   // pre-duck linear mix level bounds
+export const BGM_VOL_MIN = 0.14, BGM_VOL_MAX = 0.28;   // pre-duck linear mix level bounds
 export const SFX_VOL_MIN = 0.3, SFX_VOL_MAX = 1.0;     // per-event linear volume bounds
 export const SFX_MIN_GAP_S = 1.0;                       // reference rule: no two SFX within 1s
 
@@ -45,7 +45,7 @@ export function sanitizePlan(raw, { bgm = [], sfx = [], total = 0 } = {}) {
       || null;
   };
   const bgmPick = byName(bgm, raw.background_music);
-  const bgmVol = Math.min(BGM_VOL_MAX, Math.max(BGM_VOL_MIN, +raw.background_volume || 0.12));
+  const bgmVol = Math.min(BGM_VOL_MAX, Math.max(BGM_VOL_MIN, +raw.background_volume || 0.22));
   const events = [];
   const list = Array.isArray(raw.sound_effects) ? raw.sound_effects : [];
   const sorted = list
