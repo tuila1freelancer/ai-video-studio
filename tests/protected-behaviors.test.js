@@ -153,7 +153,7 @@ test('P17: scene gate holds cleanly and only the explicit owner route approves i
 test('P18: master scenes JSON contract — no META_LEAK persisted, canonical export shape', () => {
   const eng = src('src/content/master-script.js');
   // every path out of the engine runs the deterministic repair when defects remain…
-  assert.match(eng, /best\.ok \? best\.spec : repairScenesSpec\(best\.spec, best\.defects\)/, 'LLM chunks repair before returning');
+  assert.match(eng, /best\.ok \? best\.spec : repairScenesSpec\(best\.spec, best\.defects[,)]/, 'LLM chunks repair before returning');
   assert.match(eng, /v\.ok \? v\.spec : repairScenesSpec\(v\.spec, v\.defects\)/, 'pasted-JSON imports repair before returning');
   // …and the repair DROPS unspeakable voices (CTA notes / hashtag lines / thumbnail prompts)
   const rep = eng.slice(eng.indexOf('export function repairScenesSpec'), eng.indexOf('// ----', eng.indexOf('export function repairScenesSpec')));

@@ -244,19 +244,58 @@ export function validateScenesJson(raw, { mode = 'topic', plan = null, source = 
   return { spec, defects, ok: defects.length === 0 };
 }
 
+/**
+ * The owner's closing block — the final `### ` section of the script, else its last 60 words.
+ * This is the text the model keeps rewriting, and it is the one part we can put back exactly,
+ * because it is sitting right there in the source.
+ */
+export function closingBlock(source) {
+  const src = String(source || '').trim();
+  if (!src) return '';
+  const parts = src.split(/^###\s+.*$/m);
+  const tail = parts.length > 1 ? parts[parts.length - 1] : '';
+  const body = (tail.trim() || src.split(/\s+/).slice(-60).join(' ')).trim();
+  return body.replace(/^#.*$/gm, '').replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * Put the owner's closing block back, one sentence per trailing scene. Three videos in a row
+ * ended on wording the channel never approved: the re-ask alone does not fix it, and the text
+ * is known, so this repairs rather than complains.
+ */
+function repairEnding(scenes, source) {
+  const block = closingBlock(source);
+  if (!block || !scenes.length) return scenes;
+  const sents = splitSentences(block).map((x) => x.trim()).filter(Boolean);
+  if (!sents.length) return scenes;
+  // At most the last three scenes, and never the whole video: the closing block is short, and
+  // a long one must not eat narration that was fine.
+  const n = Math.max(1, Math.min(sents.length, 3, scenes.length - 1));
+  // group the sentences into n ordered buckets, so a long block still lands on n scenes
+  const buckets = Array.from({ length: n }, () => []);
+  sents.forEach((sent, i) => buckets[Math.min(n - 1, Math.floor((i * n) / sents.length))].push(sent));
+  const out = scenes.slice();
+  for (let k = 0; k < n; k++) {
+    const sc = out[out.length - n + k];
+    out[out.length - n + k] = { ...sc, voice: buckets[k].join(' ') };
+  }
+  return out;
+}
+
 // Deterministic final repair: drop unspeakable scenes, strip broken/duplicated visuals
 // (direction.js re-directs those), renumber. This is the P18 floor — a META_LEAK voice can
 // never leave this function alive.
-export function repairScenesSpec(spec, defects) {
+export function repairScenesSpec(spec, defects, { source = '' } = {}) {
   const dropStt = new Set(); const stripStt = new Set();
   for (const d of defects) {
     const list = Array.isArray(d.stt) ? d.stt : d.stt != null ? [d.stt] : [];
     if (d.code === 'META_LEAK' || d.code === 'NOT_SPEAKABLE' || d.code === 'EMPTY') list.forEach((x) => dropStt.add(x));
     if (d.code === 'BRACKETS' || d.code === 'MONOTONY') list.forEach((x) => stripStt.add(x));
   }
-  const scenes = spec.scenes
+  let scenes = spec.scenes
     .filter((sc) => !dropStt.has(sc.stt))
     .map((sc, i) => ({ stt: i + 1, voice: sc.voice, visual: stripStt.has(sc.stt) ? '' : sc.visual, assets: sc.assets }));
+  if (source && defects.some((d) => d.code === 'ENDING_REWRITTEN')) scenes = repairEnding(scenes, source);
   return { ...spec, scenes };
 }
 
@@ -554,7 +593,7 @@ async function generateChunk({ mode, input, plan, expect, sttBase, batchNote, la
       if (round === 1 && !best) throw e;
     }
   }
-  const spec = best.ok ? best.spec : repairScenesSpec(best.spec, best.defects);
+  const spec = best.ok ? best.spec : repairScenesSpec(best.spec, best.defects, { source: mode === 'script' ? input : '' });
   if (!spec.scenes.length) throw new Error('master-script: no usable scenes after repair');
   return { spec, defects: best.ok ? [] : best.defects };
 }
