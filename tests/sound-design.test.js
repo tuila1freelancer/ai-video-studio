@@ -2,6 +2,7 @@
 // deterministically; offline or an unusable plan degrades to the legacy deterministic audio.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { buildCueSheet, sanitizePlan, planSoundDesign, BGM_VOL_MIN, BGM_VOL_MAX, SFX_MIN_GAP_S } from '../src/audio/sound-design.js';
 
 const LIB = {
@@ -50,4 +51,21 @@ test('P21 sound-design: offline (LLM disabled) planSoundDesign is a clean null',
   const r = await planSoundDesign({ scenes: [{ duration: 5, srt_json: [{ start: 0, end: 1, text: 'x' }] }],
     bgm: LIB.bgm, sfx: LIB.sfx, total: 5, llm: { enabled: false } });
   assert.equal(r, null);
+});
+
+test('a flaky sound-design plan is re-asked, and the fallback is real music not noise', () => {
+  // One call in three came back with names matching nothing in the library. There was no retry
+  // and no loud failure: two finished videos shipped with an inaudible synthetic bed and zero
+  // SFX while their config said autoBgm/autoSfx were on.
+  const sd = readFileSync(new URL('../src/audio/sound-design.js', import.meta.url), 'utf8');
+  assert.match(sd, /const PLAN_TRIES = 3;/);
+  assert.match(sd, /for \(let attempt = 1; attempt <= PLAN_TRIES; attempt\+\+\)/);
+
+  const fin = readFileSync(new URL('../src/pipeline/stages/finalize.js', import.meta.url), 'utf8');
+  assert.match(fin, /const lib = usableLibrary\(DB\.listLibrary\('bgm'\)\);/);
+  assert.match(fin, /pickLibraryBgm\(projectId, lib\.length\)/);
+  // deterministic, because bgmPath feeds the concat fingerprint
+  assert.match(fin, /function pickLibraryBgm\(projectId, n\)/);
+  const iPick = fin.indexOf('lib[pickLibraryBgm'), iBed = fin.indexOf('makeAmbientBed(bgmPath, 45)');
+  assert.ok(iPick > 0 && iBed > iPick, 'the library is tried BEFORE the synthetic bed');
 });

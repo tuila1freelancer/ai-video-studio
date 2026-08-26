@@ -191,9 +191,21 @@ export async function finalize(projectId, { dir, size, config, variantName = nul
   if (sdPlan?.bgmPath && existsSync(sdPlan.bgmPath)) bgmPath = sdPlan.bgmPath;
   else if (config.bgmPath && existsSync(config.bgmPath)) bgmPath = config.bgmPath;
   else if (config.autoBgm !== false) {
-    op(projectId, '🎵 Tạo nhạc nền…');
-    bgmPath = join(renderDir, 'bgm_bed.m4a');
-    if (!existsSync(bgmPath)) { try { await makeAmbientBed(bgmPath, 45); } catch { bgmPath = null; } }
+    // The synthetic bed is −41 dBFS of ambience; under the 0.22 mix and the sidechain it lands
+    // around −63 dB in the gaps, which is not music, it is nothing. Real tracks are sitting in
+    // the library, so reach for one before falling back to noise. The pick is deterministic
+    // (project id → index) because bgmPath feeds the concat fingerprint: a random choice would
+    // re-encode the whole video on every finalize.
+    const lib = usableLibrary(DB.listLibrary('bgm'));
+    const pick = lib.length ? lib[pickLibraryBgm(projectId, lib.length)] : null;
+    if (pick) {
+      bgmPath = pick.path;
+      op(projectId, `🎵 Nhạc nền: ${pick.name}`);
+    } else {
+      op(projectId, '🎵 Thư viện chưa có nhạc nền — dựng nền môi trường');
+      bgmPath = join(renderDir, 'bgm_bed.m4a');
+      if (!existsSync(bgmPath)) { try { await makeAmbientBed(bgmPath, 45); } catch { bgmPath = null; } }
+    }
   }
 
   // SFX bed: LLM-planned events (when present) + the owner's per-scene picks from Scene
@@ -440,3 +452,12 @@ export async function finalize(projectId, { dir, size, config, variantName = nul
   step(projectId, 'b7', 'done', `${Math.round(res.duration)}s`);
   return res;
 }
+
+/** Stable library index for a project — same project, same track, every finalize. */
+function pickLibraryBgm(projectId, n) {
+  let h = 0;
+  for (const ch of String(projectId)) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return h % n;
+}
+
+
