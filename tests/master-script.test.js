@@ -482,3 +482,39 @@ test('adaptive split: truncated or garbled batch replies degrade to smaller call
     assert.equal(out.raw.scenes.map((s) => s.voice).join(' '), wholeSrc);
   } finally { globalThis.fetch = realFetch; }
 });
+
+test('a rewritten ending is REPAIRED from the source, not just complained about', async () => {
+  // Three videos in a row ended on wording the channel never approved. The re-ask alone never
+  // fixed it — but the closing block is sitting in the source, so put it back verbatim.
+  const { closingBlock, repairScenesSpec } = await import('../src/content/master-script.js');
+  const source = [
+    '# Chủ đề: Thử',
+    '',
+    '### Nội dung',
+    '',
+    'Một đoạn nội dung bất kỳ ở giữa bài.',
+    '',
+    '### Lời mời',
+    '',
+    'Vậy là xong nội dung hôm nay. Nếu thấy video hữu ích, các bạn hãy ấn thích giúp mình nhé. Cảm ơn các bạn rất nhiều.',
+  ].join('\n');
+
+  assert.equal(closingBlock(source),
+    'Vậy là xong nội dung hôm nay. Nếu thấy video hữu ích, các bạn hãy ấn thích giúp mình nhé. Cảm ơn các bạn rất nhiều.');
+
+  const spec = { title: 't', thumbnail: {}, scenes: [
+    { stt: 1, voice: 'Một đoạn nội dung bất kỳ ở giữa bài.', visual: 'v' },
+    { stt: 2, voice: 'Một câu máy tự nghĩ ra.', visual: 'v' },
+    { stt: 3, voice: 'Cảm ơn các bạn đã theo dõi.', visual: 'v' },
+  ] };
+  const fixed = repairScenesSpec(spec, [{ code: 'ENDING_REWRITTEN', detail: 'x' }], { source });
+  const tail = fixed.scenes.map((s) => s.voice).join(' ');
+  assert.ok(tail.includes('các bạn hãy ấn thích giúp mình nhé'), 'the owner sentence is back');
+  assert.ok(tail.endsWith('Cảm ơn các bạn rất nhiều.'), 'and it ends on the owner wording');
+  assert.ok(!tail.includes('Cảm ơn các bạn đã theo dõi'), 'the invented sign-off is gone');
+  assert.equal(fixed.scenes[0].voice, 'Một đoạn nội dung bất kỳ ở giữa bài.', 'earlier scenes untouched');
+
+  // and the repair only runs for that defect
+  const untouched = repairScenesSpec(spec, [{ code: 'MONOTONY', stt: [2] }], { source });
+  assert.equal(untouched.scenes[2].voice, 'Cảm ơn các bạn đã theo dõi.');
+});
