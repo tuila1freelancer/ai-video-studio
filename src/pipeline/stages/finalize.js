@@ -338,9 +338,15 @@ export async function finalize(projectId, { dir, size, config, variantName = nul
   // config.thumbVariants (1-3) renders extra A/B compositions (thumb_*_v1.jpg, _v2.jpg).
   checkStop(projectId); // an AI thumbnail is an LLM call plus a Chrome shot, up to three times
   let thumb = res.thumb;
+  // A re-mix is not a new video. When the join kept the picture (audio-only or skip) and a cover
+  // already exists, designing a fresh one throws away the one the owner chose — it happened on an
+  // audio repair and the replacement was worse. Packaging follows the picture, not the soundtrack.
+  const keepCover = (res.tier === 'audio' || res.tier === 'skip')
+    && !!project.thumb_path && existsSync(project.thumb_path);
+  if (keepCover) { thumb = project.thumb_path; op(projectId, '🖼 Giữ nguyên ảnh bìa — lần ghép này chỉ đổi phần tiếng'); }
   try {
     const guide = visualMode === 'hyperframe' ? resolveGuide(config) : null;
-    const nVar = Math.max(1, Math.min(3, parseInt(config.thumbVariants, 10) || 3));
+    const nVar = keepCover ? 0 : Math.max(1, Math.min(3, parseInt(config.thumbVariants, 10) || 3));
     // The master script's thumbnail title (short, mobile-readable, written FOR the thumb)
     // beats the long video title when present.
     const thumbTitle = (project.metadata?.thumbnail?.title || project.title || '').trim() || project.title;
@@ -399,7 +405,7 @@ export async function finalize(projectId, { dir, size, config, variantName = nul
     // card for YouTube, and a 16:9 one still needs a 1080×1920 cover for Shorts. One design per
     // ORIENTATION (a 16:9 layout re-shot at 9:16 becomes a strip across the middle), then every
     // canvas of that orientation re-shot from it — so at most three generations, not seven.
-    if (aiOn && config.platformCovers !== false) {
+    if (aiOn && !keepCover && config.platformCovers !== false) {
       checkStop(projectId);
       const { COVER_SIZES } = await import('../../publish/platforms.js');
       const { generateCoverSet } = await import('../thumbnail-codegen.js');

@@ -69,3 +69,13 @@ test('a flaky sound-design plan is re-asked, and the fallback is real music not 
   const iPick = fin.indexOf('lib[pickLibraryBgm'), iBed = fin.indexOf('makeAmbientBed(bgmPath, 45)');
   assert.ok(iPick > 0 && iBed > iPick, 'the library is tried BEFORE the synthetic bed');
 });
+
+test('an audio-only re-join keeps the cover the owner chose', () => {
+  // Re-mixing music re-designed the thumbnail and all six platform covers, replacing a clean
+  // hand-picked design with a worse one. Packaging follows the picture, not the soundtrack.
+  const fin = readFileSync(new URL('../src/pipeline/stages/finalize.js', import.meta.url), 'utf8');
+  assert.match(fin, /const keepCover = \(res\.tier === 'audio' \|\| res\.tier === 'skip'\)/);
+  assert.match(fin, /const nVar = keepCover \? 0 :/, 'no variant is designed');
+  assert.match(fin, /if \(aiOn && !keepCover && config\.platformCovers !== false\)/, 'no cover set is re-shot');
+  assert.match(fin, /if \(keepCover\) \{ thumb = project\.thumb_path;/, 'the existing cover is carried forward');
+});
