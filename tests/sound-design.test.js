@@ -79,3 +79,15 @@ test('an audio-only re-join keeps the cover the owner chose', () => {
   assert.match(fin, /if \(aiOn && !keepCover && config\.platformCovers !== false\)/, 'no cover set is re-shot');
   assert.match(fin, /if \(keepCover\) \{ thumb = project\.thumb_path;/, 'the existing cover is carried forward');
 });
+
+test('the music and SFX levels are the raised ones, and the SFX bed cannot clip the mix', () => {
+  // Measured on video 2: the old 0.11 pre-duck level put the bed at −45 dBFS in the speech gaps,
+  // which reads as present on a meter and as nothing to the ear. Owner asked for more, 2026-08-26.
+  assert.equal(BGM_VOL_MIN, 0.14);
+  assert.equal(BGM_VOL_MAX, 0.28);
+  const r = readFileSync(new URL('../src/pipeline/render.js', import.meta.url), 'utf8');
+  assert.match(r, /\+bgmVol > 0 \? \+bgmVol : 0\.24\)/, 'no-plan default sits inside the plan range');
+  assert.match(r, /volume=0\.9\[sfx\]/);
+  // the SFX bed peaks near 0 dBFS by construction, so its post-gain must stay under unity
+  assert.doesNotMatch(r, /volume=1(\.0+)?\[sfx\]/, 'unity or above would clip against the voice');
+});

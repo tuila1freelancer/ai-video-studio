@@ -257,9 +257,10 @@ export async function concatScenes(sceneVideos, project, {
     // pass (media/master.js) owns the final -16 LUFS.
     args.push('-stream_loop', '-1', '-i', bgmPath);
     fc.push(`${abase}asplit=2[vmain][vkey]`);
-    // pre-duck BGM level: 0.22 legacy default; an LLM sound-design plan may lower it
-    // (its 0.06–0.18 range) — the sidechain still breathes it under narration either way
-    fc.push(`[${nextIdx}:a]volume=${(Number.isFinite(+bgmVol) && +bgmVol > 0 ? +bgmVol : 0.22).toFixed(2)}[bg0]`,
+    // pre-duck BGM level: 0.24 with no plan; a sound-design plan picks inside 0.14–0.28.
+    // Raised from 0.11/0.22 on 2026-08-26 — measured, the old level sat at −45 dBFS in the
+    // gaps, which is present on a meter and absent to the ear.
+    fc.push(`[${nextIdx}:a]volume=${(Number.isFinite(+bgmVol) && +bgmVol > 0 ? +bgmVol : 0.24).toFixed(2)}[bg0]`,
       `[bg0][vkey]sidechaincompress=threshold=0.02:ratio=10:attack=60:release=550[bgd]`,
       `[vmain][bgd]amix=inputs=2:duration=first:normalize=0:dropout_transition=2[amx]`);
     abase = '[amx]'; nextIdx++;
@@ -268,7 +269,7 @@ export async function concatScenes(sceneVideos, project, {
     // transition-whoosh bed (already timed to the cut) — louder than BGM, under the voice;
     // deliberately NOT ducked: whooshes land at chapter breaks where narration pauses
     args.push('-i', sfxPath);
-    fc.push(`[${nextIdx}:a]volume=0.75[sfx]`, `${abase}[sfx]amix=inputs=2:duration=first:normalize=0:dropout_transition=2[asx]`);
+    fc.push(`[${nextIdx}:a]volume=0.9[sfx]`, `${abase}[sfx]amix=inputs=2:duration=first:normalize=0:dropout_transition=2[asx]`);
     abase = '[asx]'; nextIdx++;
   }
   if (!copyVideo && logo && logo.path && existsSync(logo.path)) {
