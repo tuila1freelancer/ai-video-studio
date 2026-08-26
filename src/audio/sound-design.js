@@ -75,6 +75,8 @@ Reply with ONLY this JSON: {"background_music":"<file name from the BGM list>","
  * @param {{scenes:any[], lossBeforeScene?:Function, bgm:{name,path}[], sfx:{name,path}[],
  *          total:number, title?:string, lang?:string, llm?:object, onLog?:Function}} opts
  */
+const PLAN_TRIES = 3;
+
 export async function planSoundDesign({ scenes, lossBeforeScene, bgm = [], sfx = [], total = 0, title = '', lang = '', llm = null, onLog = () => {} }) {
   if (!llmEnabled(llm)) return null;
   if (!bgm.length && !sfx.length) return null;
@@ -87,19 +89,27 @@ export async function planSoundDesign({ scenes, lossBeforeScene, bgm = [], sfx =
     `SFX LIBRARY:\n${sfx.slice(0, 120).map((f) => `- ${f.name}`).join('\n') || '(none)'}`,
     `CUE SHEET:\n${sheet}`,
   ].join('\n\n');
-  try {
-    const reply = await chat([
-      { role: 'system', content: SYS },
-      { role: 'user', content: user },
-    ], { json: true, temperature: 0.4, maxTokens: 3000, llm });
-    const plan = sanitizePlan(safeJson(reply, null), { bgm, sfx, total });
-    if (plan) onLog(`sound design: ${plan.bgmPath ? 'BGM chosen' : 'no BGM'}, ${plan.events.length} SFX placed`);
-    else onLog('sound design: plan unusable — keeping deterministic audio');
-    return plan;
-  } catch (e) {
-    onLog(`sound design failed (${String(e.message).slice(0, 80)}) — keeping deterministic audio`);
-    return null;
+  // Measured on one real video: about one call in three comes back with names that match
+  // nothing in the library, and a silent fall-through ships a video with no music and no SFX
+  // even though the owner asked for both. One cheap call, so ask again.
+  for (let attempt = 1; attempt <= PLAN_TRIES; attempt++) {
+    try {
+      const reply = await chat([
+        { role: 'system', content: SYS },
+        { role: 'user', content: user },
+      ], { json: true, temperature: 0.4, maxTokens: 3000, llm });
+      const plan = sanitizePlan(safeJson(reply, null), { bgm, sfx, total });
+      if (plan) {
+        onLog(`sound design: ${plan.bgmPath ? 'BGM chosen' : 'no BGM'}, ${plan.events.length} SFX placed`);
+        return plan;
+      }
+      onLog(`sound design: plan unusable (lần ${attempt}/${PLAN_TRIES})`);
+    } catch (e) {
+      onLog(`sound design failed (${String(e.message).slice(0, 80)}) — lần ${attempt}/${PLAN_TRIES}`);
+    }
   }
+  onLog('sound design: không dựng được kế hoạch — dùng nhạc nền chọn sẵn từ thư viện');
+  return null;
 }
 
 /** Library files that exist on disk, name = display name without the upload prefix. */
