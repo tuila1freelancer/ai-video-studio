@@ -258,6 +258,35 @@ export function closingBlock(source) {
   return body.replace(/^#.*$/gm, '').replace(/\s+/g, ' ').trim();
 }
 
+// The channel's substitution table (Courses/Khoa-AI-100-Bai/04-MAU-KICH-BAN.md §1). The voice
+// reads what is typed, so an English word in the narration is a word the audience hears in a
+// language the video is not in. Four of these reached a finished script — including one that
+// named a product the owner never mentioned — so the swap is deterministic rather than a rule
+// the model is asked to remember. Product names are absent on purpose: those stay as they are.
+const LOAN_WORDS = [
+  ['prompt', 'câu lệnh'], ['framework', 'quy trình'], ['workflow', 'quy trình'],
+  ['checklist', 'bảng kiểm'], ['template', 'mẫu'], ['context', 'bối cảnh'],
+  ['file', 'tập tin'], ['email', 'thư điện tử'], ['link', 'đường dẫn'],
+  ['deadline', 'hạn chót'], ['slide', 'trang trình chiếu'], ['note', 'ghi chú'],
+  ['insight', 'điều đáng chú ý'], ['feedback', 'phản hồi'], ['output', 'kết quả'],
+  ['update', 'cập nhật'], ['report', 'báo cáo'], ['meeting', 'cuộc họp'],
+  ['tool', 'công cụ'], ['app', 'ứng dụng'], ['team', 'nhóm'], ['data', 'dữ liệu'],
+];
+
+/**
+ * Swap the loan words a Vietnamese narration should never carry. Case-insensitive on the way in,
+ * capital-preserving on the way out, so a sentence-initial "Prompt" comes back as "Câu lệnh".
+ */
+export function swapLoanWords(text) {
+  let out = String(text || '');
+  for (const [en, vi] of LOAN_WORDS) {
+    out = out.replace(new RegExp(`\\b${en}\\b`, 'gi'), (m) => (
+      m[0] === m[0].toUpperCase() ? vi[0].toUpperCase() + vi.slice(1) : vi
+    ));
+  }
+  return out;
+}
+
 /**
  * The owner's FIRST spoken sentence — the hook. Retention is decided in the opening seconds,
  * and this is the one line written for exactly that job.
@@ -315,7 +344,7 @@ function repairEnding(scenes, source) {
 // Deterministic final repair: drop unspeakable scenes, strip broken/duplicated visuals
 // (direction.js re-directs those), renumber. This is the P18 floor — a META_LEAK voice can
 // never leave this function alive.
-export function repairScenesSpec(spec, defects, { source = '', first = false } = {}) {
+export function repairScenesSpec(spec, defects, { source = '', first = false, language = '' } = {}) {
   const dropStt = new Set(); const stripStt = new Set();
   for (const d of defects) {
     const list = Array.isArray(d.stt) ? d.stt : d.stt != null ? [d.stt] : [];
@@ -327,6 +356,7 @@ export function repairScenesSpec(spec, defects, { source = '', first = false } =
     .map((sc, i) => ({ stt: i + 1, voice: sc.voice, visual: stripStt.has(sc.stt) ? '' : sc.visual, assets: sc.assets }));
   if (source && defects.some((d) => d.code === 'ENDING_REWRITTEN')) scenes = repairEnding(scenes, source);
   if (source && first) scenes = repairOpening(scenes, source);
+  if (language === 'vi') scenes = scenes.map((sc) => ({ ...sc, voice: swapLoanWords(sc.voice) }));
   return { ...spec, scenes };
 }
 
@@ -627,7 +657,7 @@ async function generateChunk({ mode, input, plan, expect, sttBase, batchNote, la
   const src = mode === 'script' ? input : '';
   // The opening is repaired even when nothing else is wrong: a rewritten hook is not a defect
   // the validator can see, but it is the line the video's retention rests on.
-  const spec = repairScenesSpec(best.spec, best.ok ? [] : best.defects, { source: src, first: sttBase <= 1 });
+  const spec = repairScenesSpec(best.spec, best.ok ? [] : best.defects, { source: src, first: sttBase <= 1, language });
   if (!spec.scenes.length) throw new Error('master-script: no usable scenes after repair');
   return { spec, defects: best.ok ? [] : best.defects };
 }

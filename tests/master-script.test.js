@@ -554,3 +554,23 @@ test('a rewritten opening is REPAIRED from the source — the hook is not the mo
   // and a middle batch is never touched — its first sentence is not the video's hook
   assert.equal(repairScenesSpec(bad, [], { source, first: false }).scenes[0].voice, bad.scenes[0].voice);
 });
+
+test('loan words in a Vietnamese narration are swapped for the channel wording', async () => {
+  // The voice reads what is typed. Four English words reached a finished script — prompt, email,
+  // deadline, and a product name the owner never mentioned — each caught by eye before the render.
+  const { swapLoanWords, repairScenesSpec } = await import('../src/content/master-script.js');
+
+  assert.equal(swapLoanWords('chỉnh sửa prompt và chờ'), 'chỉnh sửa câu lệnh và chờ');
+  assert.equal(swapLoanWords('tự gõ một email phản hồi'), 'tự gõ một thư điện tử phản hồi');
+  assert.equal(swapLoanWords('khi deadline cận kề'), 'khi hạn chót cận kề');
+  // capital at the start of a sentence survives the swap
+  assert.equal(swapLoanWords('Prompt tốt thì kết quả tốt'), 'Câu lệnh tốt thì kết quả tốt');
+  // product names and real Vietnamese are untouched
+  assert.equal(swapLoanWords('Mở ChatGPT lên và hỏi'), 'Mở ChatGPT lên và hỏi');
+  assert.equal(swapLoanWords('AI rất giỏi biến đổi'), 'AI rất giỏi biến đổi');
+
+  // wired into the deterministic repair, and only for Vietnamese
+  const spec = { title: 't', thumbnail: {}, scenes: [{ stt: 1, voice: 'sửa prompt lại', visual: 'v' }] };
+  assert.equal(repairScenesSpec(spec, [], { language: 'vi' }).scenes[0].voice, 'sửa câu lệnh lại');
+  assert.equal(repairScenesSpec(spec, [], { language: 'en' }).scenes[0].voice, 'sửa prompt lại');
+});
