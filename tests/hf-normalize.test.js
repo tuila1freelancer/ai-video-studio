@@ -42,3 +42,33 @@ test('normalizeSpec: still fixes the pre-existing mechanical mistakes (<br>, inf
   assert.ok(!/<br/i.test(s.html), 'br removed');
   assert.ok(!/\binfinite\b/.test(s.css), 'infinite replaced with a finite count');
 });
+
+test('a bare English word the narration never says is decor, and is stripped', async () => {
+  // The oversized faint ghost glyph came back in English on four videos running — END, NULL,
+  // VELOCITY, SECURE, SYS.DAT, ID: NV-042 — and each one had to be fixed by hand before render.
+  // The test that settles it deterministically: does this scene's own narration ever say the word?
+  const { normalizeSpec } = await import('../src/hyperframe/codegen.js');
+  const guide = { fonts: { body: 'Be Vietnam Pro' }, palette: { bg: '#0B0F19', bg2: '#111', ink: '#fff', accents: ['#00F0FF'] } };
+  const run = (html, narration) => {
+    const spec = { html, css: '', script: '' };
+    normalizeSpec(spec, { guide, duration: 6, language: 'vi', narration });
+    return (spec.html.match(/>([^<>]*)</) || [])[1];
+  };
+
+  for (const w of ['END', 'NULL', 'VELOCITY', 'SECURE', 'HABIT']) {
+    assert.equal(run(`<div class="hf-ghost">${w}</div>`, 'Một câu tiếng Việt bình thường.'), '', w);
+  }
+  assert.equal(run('<div class="hf-ghost">SYS.DAT</div>', 'Nó không biết hoàn cảnh riêng.'), '', 'dotted telemetry');
+  assert.equal(run('<div class="emp-id">ID: NV-042</div>', 'Một bài đánh giá cuối năm.'), '', 'fake record code');
+
+  // …and everything that is real copy survives
+  assert.equal(run('<div class="hf-ghost">TỐC ĐỘ</div>', 'Tốc độ quyết định.'), 'TỐC ĐỘ', 'Vietnamese');
+  assert.equal(run('<div class="chip">ChatGPT</div>', 'Mở trợ lý lên.'), 'ChatGPT', 'product name');
+  assert.equal(run('<div class="chip">AI</div>', 'AI rất giỏi biến đổi.'), 'AI', 'said in the narration');
+  assert.equal(run('<div class="stat">99.8%</div>', 'Tỉ lệ rất cao.'), '99.8%', 'numbers belong to no language');
+
+  // an English video must keep its own words — the guard is language-gated
+  const en = { html: '<div class="hf-ghost">MOMENTUM</div>', css: '', script: '' };
+  normalizeSpec(en, { guide, duration: 6, language: 'en', narration: 'A normal English sentence.' });
+  assert.match(en.html, /MOMENTUM/);
+});

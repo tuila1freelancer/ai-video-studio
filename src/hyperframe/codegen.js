@@ -42,7 +42,7 @@ export function parseSpec(raw) {
 // Deterministic pre-lint normalizer: fix the mechanical mistakes a weak model repeats so they do
 // NOT burn a scarce codegen attempt — infinite CSS animation hard-errors the lint; off-guide fonts
 // and <br> ship a cheap look silently. Pure string transforms, meaning unchanged, mutates in place.
-export function normalizeSpec(spec, { guide, duration, language = 'vi' }) {
+export function normalizeSpec(spec, { guide, duration, language = 'vi', narration = '' }) {
   const iter = Math.max(8, Math.ceil((duration || 6) / 0.15)); // finite count that always covers DUR
   const OFF = /\b(Inter|Roboto|Poppins|Montserrat|Lato|Nunito|Open Sans|Raleway|Ubuntu|Work Sans|Source Sans(?: Pro)?)\b/gi;
   const body = String(guide?.fonts?.body || 'sans-serif').replace(/'/g, '');
@@ -64,15 +64,30 @@ export function normalizeSpec(spec, { guide, duration, language = 'vi' }) {
   //    wordlist only ever caught decor. On an ENGLISH video there is no such guard, and this
   //    silently blanked legitimate labels — measured: ACTIVE, SUCCESS, ERROR RATE and RUNNING TOTAL
   //    all became empty text nodes BEFORE validation could see them, with nothing in the log.
-  const STRUCTURAL = /\b[A-Za-z][A-Za-z0-9]*(?:_[A-Za-z0-9]+)+\b|\b[A-Za-z_][\w-]*\s*=\s*(?:"[^"]*"|'[^']*'|[\d,.]+|true|false|null)|\b[a-z_][\w]*(?:\.[a-z_][\w]*)+\s*\([^)]*\)|\b[\w-]+\.(?:exe|sh|js|ts|py|json|dll|bat|cfg|log|sys)\b|\[[A-Z][A-Z0-9_]*\]/;
+  const STRUCTURAL = /\b[A-Z]{2,}[-_]\d{2,}\b|\b[A-Z][A-Z0-9]*(?:\.[A-Z0-9]+)+\b|\b[A-Za-z][A-Za-z0-9]*(?:_[A-Za-z0-9]+)+\b|\b[A-Za-z_][\w-]*\s*=\s*(?:"[^"]*"|'[^']*'|[\d,.]+|true|false|null)|\b[a-z_][\w]*(?:\.[a-z_][\w]*)+\s*\([^)]*\)|\b[\w-]+\.(?:exe|sh|js|ts|py|json|dll|bat|cfg|log|sys)\b|\[[A-Z][A-Z0-9_]*\]/;
   const DEV_WORDS = /\b(?:OVERLOAD|OVERFLOW|UNDERFLOW|OFFLINE|ONLINE|LOADING|PROCESSING|ANALYZING|SCANNING|INITIALIZING|REBOOT|LATENCY|BUFFER|KERNEL|DAEMON|STDOUT|STDERR|TIMEOUT|STATUS|ACTIVE|INACTIVE|ENABLED|DISABLED|RUNNING|PENDING|SUCCESS|FAILED|ERROR|WARNING|DEBUG)\b/;
   const wordsAreDecor = language === 'vi'; // English copy legitimately uses these words
   const TOKEN = wordsAreDecor
     ? new RegExp(`${STRUCTURAL.source}|${DEV_WORDS.source}`)
     : STRUCTURAL;
   const VN = /[À-ỿ]/; // a Latin-with-diacritic char ⇒ Vietnamese content, never a code token
+  // The ghost glyph — the oversized faint word behind the scene — came back in English on four
+  // videos running (END, NULL, VELOCITY, SECURE…). It is decoration the model invents, so the
+  // test is whether the narration ever says the word: if this scene never says it and it carries
+  // no diacritic, it is not copy. Product names are the only bare-ASCII words that survive.
+  const LONE_ASCII = /^[A-Za-z]{3,}$/;
+  const KEEP = /^(AI|ChatGPT|Gemini|Claude|Copilot|YouTube|TikTok|Facebook|Google|Docs|Sheets|Word|Excel|Zalo|Windows|Android|iOS)$/i;
+  const said = new Set(String(narration || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/gi, 'd').toLowerCase().match(/[a-z0-9]+/g) || []);
+  const isLoneDecor = (txt) => {
+    if (!wordsAreDecor) return false;
+    const t = txt.trim();
+    if (!LONE_ASCII.test(t) || KEEP.test(t)) return false;
+    return !said.has(t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase());
+  };
   spec.html = spec.html
-    .replace(/>([^<>]+)</g, (seg, txt) => (txt.includes('{{') ? seg : (TOKEN.test(txt) && !VN.test(txt) ? '><' : seg)))
+    .replace(/>([^<>]+)</g, (seg, txt) => (txt.includes('{{') ? seg
+      : ((TOKEN.test(txt) || isLoneDecor(txt)) && !VN.test(txt) ? '><' : seg)))
     .replace(/>([^<>]+)</g, (seg, txt) => (txt.includes('{{') ? seg : `>${txt.replace(/(\p{L})_(?=\p{L})/gu, '$1 ')}<`));
   // infinite CSS animation → a large finite count (deterministic under currentTime scrubbing)
   spec.css = String(spec.css || '').replace(/\binfinite\b/gi, String(iter))
@@ -188,7 +203,7 @@ export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, on
       doctrine.reaskFormat();
       continue;
     }
-    normalizeSpec(clean, { guide, duration, language: lang }); // reclaim attempts from mechanical mistakes
+    normalizeSpec(clean, { guide, duration, language: lang, narration: scene.voice_text || '' }); // reclaim attempts from mechanical mistakes
     const { errors, warnings } = lintSpec(clean, { overlay });
     // static: lint + parse. Cheap — always first.
     if (!errors.length) {
