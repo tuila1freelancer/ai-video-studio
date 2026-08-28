@@ -259,6 +259,36 @@ export function closingBlock(source) {
 }
 
 /**
+ * The owner's FIRST spoken sentence — the hook. Retention is decided in the opening seconds,
+ * and this is the one line written for exactly that job.
+ */
+export function openingSentence(source) {
+  const src = String(source || '').trim();
+  if (!src) return '';
+  const afterHead = src.replace(/^#[^\n]*\n/, '');
+  const blocks = afterHead.split(/^###\s+.*$/m).map((b) => b.trim()).filter(Boolean);
+  const body = (blocks[0] || afterHead).replace(/^#.*$/gm, '').replace(/\s+/g, ' ').trim();
+  return splitSentences(body)[0]?.trim() || '';
+}
+
+/**
+ * Put the owner's opening sentence back. On the first run under the new hook rules the model
+ * swapped a cold open — a line of dialogue in a meeting room — for a generic "many people tend
+ * to..." sentence, which is the shape those rules exist to ban, and the video lost its first
+ * three seconds.
+ */
+function repairOpening(scenes, source) {
+  const first = openingSentence(source);
+  if (!first || !scenes.length) return scenes;
+  const want = tokenSet(first);
+  const got = tokenSet(scenes[0].voice);
+  let kept = 0;
+  for (const t of want) if (got.has(t)) kept++;
+  if (want.size && kept / want.size >= 0.7) return scenes; // the model kept it — leave it alone
+  return [{ ...scenes[0], voice: first }, ...scenes.slice(1)];
+}
+
+/**
  * Put the owner's closing block back, one sentence per trailing scene. Three videos in a row
  * ended on wording the channel never approved: the re-ask alone does not fix it, and the text
  * is known, so this repairs rather than complains.
@@ -285,7 +315,7 @@ function repairEnding(scenes, source) {
 // Deterministic final repair: drop unspeakable scenes, strip broken/duplicated visuals
 // (direction.js re-directs those), renumber. This is the P18 floor — a META_LEAK voice can
 // never leave this function alive.
-export function repairScenesSpec(spec, defects, { source = '' } = {}) {
+export function repairScenesSpec(spec, defects, { source = '', first = false } = {}) {
   const dropStt = new Set(); const stripStt = new Set();
   for (const d of defects) {
     const list = Array.isArray(d.stt) ? d.stt : d.stt != null ? [d.stt] : [];
@@ -296,6 +326,7 @@ export function repairScenesSpec(spec, defects, { source = '' } = {}) {
     .filter((sc) => !dropStt.has(sc.stt))
     .map((sc, i) => ({ stt: i + 1, voice: sc.voice, visual: stripStt.has(sc.stt) ? '' : sc.visual, assets: sc.assets }));
   if (source && defects.some((d) => d.code === 'ENDING_REWRITTEN')) scenes = repairEnding(scenes, source);
+  if (source && first) scenes = repairOpening(scenes, source);
   return { ...spec, scenes };
 }
 
@@ -593,7 +624,10 @@ async function generateChunk({ mode, input, plan, expect, sttBase, batchNote, la
       if (round === 1 && !best) throw e;
     }
   }
-  const spec = best.ok ? best.spec : repairScenesSpec(best.spec, best.defects, { source: mode === 'script' ? input : '' });
+  const src = mode === 'script' ? input : '';
+  // The opening is repaired even when nothing else is wrong: a rewritten hook is not a defect
+  // the validator can see, but it is the line the video's retention rests on.
+  const spec = repairScenesSpec(best.spec, best.ok ? [] : best.defects, { source: src, first: sttBase <= 1 });
   if (!spec.scenes.length) throw new Error('master-script: no usable scenes after repair');
   return { spec, defects: best.ok ? [] : best.defects };
 }
