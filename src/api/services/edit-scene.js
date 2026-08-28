@@ -48,7 +48,7 @@ export async function editSceneByPrompt(sceneId, editPrompt, { _chat = chat } = 
   const guide = isHf ? normalizeGuide(sc.props?.guide) : resolveGuide(config);
   const duration = Math.max(1.5, sc.duration || config.sceneDuration || 6);
   const language = resolveLang(config, DB.getScenes(sc.project_id));
-  normalizeSpec(spec, { guide, duration, language });
+  normalizeSpec(spec, { guide, duration, language, narration: sc.voice_text || '' });
   const { errors } = lintSpec(spec);
   if (errors.length) return { ok: false, error: 'edit rejected by lint', defects: errors };
   const { w, h } = animSize(project.aspect_ratio, 1);

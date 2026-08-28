@@ -173,7 +173,7 @@ test('lang: the resolved language reaches codegen from BOTH lanes', () => {
   assert.match(src('../src/pipeline/regen.js'), /const sceneLang = resolveLang\(config, allScenes\)/);
   assert.match(src('../src/pipeline/regen.js'), /ai: hfAi, language: sceneLang,/);
   // the manual scene-edit lane too
-  assert.match(src('../src/api/services/edit-scene.js'), /normalizeSpec\(spec, \{ guide, duration, language \}\)/);
+  assert.match(src('../src/api/services/edit-scene.js'), /normalizeSpec\(spec, \{ guide, duration, language[,}]/);
   // and a caller that forgets falls back to the scene's own text, never to a blanket assumption
   assert.match(src('../src/hyperframe/codegen.js'), /const lang = language \|\| detectLang\(scene\.voice_text \|\| ''\)/);
 });
