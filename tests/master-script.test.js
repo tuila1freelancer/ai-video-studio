@@ -518,3 +518,39 @@ test('a rewritten ending is REPAIRED from the source, not just complained about'
   const untouched = repairScenesSpec(spec, [{ code: 'MONOTONY', stt: [2] }], { source });
   assert.equal(untouched.scenes[2].voice, 'Cảm ơn các bạn đã theo dõi.');
 });
+
+test('a rewritten opening is REPAIRED from the source — the hook is not the model to invent', async () => {
+  // The model swapped a cold open (a line of dialogue in a meeting room) for a generic
+  // "many people tend to…" sentence carrying two English words. Retention lives in that line.
+  const { openingSentence, repairScenesSpec } = await import('../src/content/master-script.js');
+  const source = [
+    '# Chủ đề: Thử',
+    '',
+    '### Mở đầu',
+    '',
+    'Giữa cuộc họp, sếp gõ bút xuống bàn và hỏi: số này lấy ở đâu ra? Cả phòng im lặng.',
+    '',
+    '### Nội dung',
+    '',
+    'Một đoạn ở giữa bài.',
+  ].join('\n');
+
+  assert.equal(openingSentence(source), 'Giữa cuộc họp, sếp gõ bút xuống bàn và hỏi: số này lấy ở đâu ra?');
+
+  const bad = { title: 't', thumbnail: {}, scenes: [
+    { stt: 1, voice: 'Nhiều bạn có thói quen bỏ qua bước đối chiếu nguồn dữ liệu.', visual: 'v' },
+    { stt: 2, voice: 'Cả phòng im lặng.', visual: 'v' },
+  ] };
+  const fixed = repairScenesSpec(bad, [], { source, first: true });
+  assert.match(fixed.scenes[0].voice, /^Giữa cuộc họp, sếp gõ bút xuống bàn/);
+  assert.equal(fixed.scenes[1].voice, 'Cả phòng im lặng.', 'later scenes untouched');
+
+  // a faithful opening is left exactly as the model wrote it
+  const good = { title: 't', thumbnail: {}, scenes: [
+    { stt: 1, voice: 'Giữa cuộc họp, sếp gõ bút xuống bàn và hỏi: số này lấy ở đâu ra?', visual: 'v' },
+  ] };
+  assert.equal(repairScenesSpec(good, [], { source, first: true }).scenes[0].voice, good.scenes[0].voice);
+
+  // and a middle batch is never touched — its first sentence is not the video's hook
+  assert.equal(repairScenesSpec(bad, [], { source, first: false }).scenes[0].voice, bad.scenes[0].voice);
+});
