@@ -5,6 +5,7 @@
 // de-snake_cases surviving labels (DỮ_LIỆU_DƯ_THỪA → DỮ LIỆU DƯ THỪA).
 import './_env.mjs';
 import test from 'node:test';
+import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { normalizeSpec } from '../src/hyperframe/codegen.js';
 
