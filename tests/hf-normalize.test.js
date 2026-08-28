@@ -72,3 +72,14 @@ test('a bare English word the narration never says is decor, and is stripped', a
   normalizeSpec(en, { guide, duration: 6, language: 'en', narration: 'A normal English sentence.' });
   assert.match(en.html, /MOMENTUM/);
 });
+
+test('source code is never on-screen copy, and a half-stripped code panel is the worse outcome', () => {
+  // A mock code panel kept `return true;` and a bare `}` after its first line was stripped, which
+  // reads as broken rather than as decoration. Keywords and lone braces go with the rest.
+  const src = readFileSync(new URL('../src/hyperframe/codegen.js', import.meta.url), 'utf8');
+  assert.match(src, /const CODEISH = /);
+  assert.match(src, /if \(CODEISH\.test\(t\)\) return true;/);
+  for (const kw of ['return', 'const', 'function', 'import', 'undefined']) {
+    assert.ok(src.includes(kw), `keyword ${kw} listed`);
+  }
+});

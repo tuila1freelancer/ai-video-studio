@@ -76,12 +76,16 @@ export function normalizeSpec(spec, { guide, duration, language = 'vi', narratio
   // test is whether the narration ever says the word: if this scene never says it and it carries
   // no diacritic, it is not copy. Product names are the only bare-ASCII words that survive.
   const LONE_ASCII = /^[A-Za-z]{3,}$/;
+  // Source code is never on-screen copy: a mock code panel that keeps half its lines reads as
+  // broken, so the keywords and the bare braces go with the rest.
+  const CODEISH = /\b(return|const|let|var|function|import|export|null|undefined|true|false)\b|^\s*[{}();]+\s*$/;
   const KEEP = /^(AI|ChatGPT|Gemini|Claude|Copilot|YouTube|TikTok|Facebook|Google|Docs|Sheets|Word|Excel|Zalo|Windows|Android|iOS)$/i;
   const said = new Set(String(narration || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     .replace(/đ/gi, 'd').toLowerCase().match(/[a-z0-9]+/g) || []);
   const isLoneDecor = (txt) => {
     if (!wordsAreDecor) return false;
     const t = txt.trim();
+    if (CODEISH.test(t)) return true;
     if (!LONE_ASCII.test(t) || KEEP.test(t)) return false;
     return !said.has(t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase());
   };
