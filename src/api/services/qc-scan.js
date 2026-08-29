@@ -29,9 +29,24 @@ function textsOf(scene) {
   return out;
 }
 
+// The crude >…< sweep also catches CSS tails and entity padding; those carry no word and
+// then read as a foreign language. Keep only captures with an actual letter or digit.
 function screenText(scene) {
   const html = typeof scene.props?.html === 'string' ? scene.props.html : '';
-  return [...html.matchAll(/>([^<>{}]{2,})</g)].map((m) => m[1].trim()).filter(Boolean);
+  return [...html.matchAll(/>([^<>{}]{2,})</g)]
+    .map((m) => m[1].replace(/&[a-z]+;|&#\d+;/gi, ' ').trim())
+    .filter((t) => /[\p{L}\p{N}]/u.test(t));
+}
+
+// Slots that are SUPPOSED to hold a word. The templates are full of deliberately empty
+// decorative boxes — orbs, grids, fill bars — so flagging every empty tag fired on 101 of 101
+// scenes, which is the same as reporting nothing at all.
+const TEXT_SLOT = /\b(label|title|text|kicker|caption|name|head|lbl|val|kw|tag|quote|stat)\b/i;
+export function blankedLabel(html) {
+  for (const m of String(html || '').matchAll(/<(span|div|p|h[1-6])([^>]*)><\/\1>/g)) {
+    if (TEXT_SLOT.test(m[2])) return true;
+  }
+  return false;
 }
 
 /**
@@ -81,7 +96,7 @@ export function qcScan(projectId) {
     }
 
     // 4. A label the spec sanitiser blanked out — an empty box where a word should be.
-    if (typeof scene.props?.html === 'string' && /><\/(?:span|div|p|h[1-6])>/.test(scene.props.html)) {
+    if (blankedLabel(scene.props?.html)) {
       add(scene, 'empty-label', 'có nhãn bị xoá trắng trong thiết kế');
     }
 
