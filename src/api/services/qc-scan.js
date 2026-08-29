@@ -10,7 +10,7 @@
 import { existsSync } from 'node:fs';
 import * as DB from '../../db/index.js';
 import { renderCurrent } from '../../pipeline/fingerprint.js';
-import { textLanguageLeak } from '../../hyperframe/validate.js';
+import { textLanguageLeak, narrationWordSet } from '../../hyperframe/validate.js';
 import { resolveLang, langName } from '../../util/lang.js';
 
 /** Number and currency conventions that betray a different locale than the narration. */
@@ -61,8 +61,11 @@ export function qcScan(projectId) {
     }
 
     // 2. On-screen text in a language the narration is not in.
-    for (const t of screenText(scene)) {
-      if (textLanguageLeak(t, scene.voice_text || '', lang)) {
+    // textLanguageLeak wants the folded word SET, not the raw narration — passing the string
+    // threw on every call, so this whole check has never once run.
+    const narrWords = narrationWordSet(scene.voice_text);
+    for (const t of narrWords ? screenText(scene) : []) {
+      if (textLanguageLeak(t, narrWords, lang)) {
         add(scene, 'wrong-language', `chữ trên màn có vẻ không phải ${langName(lang)}: "${t.slice(0, 40)}"`);
         break; // one report per scene is enough to send the owner to look
       }

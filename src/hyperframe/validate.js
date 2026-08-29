@@ -11,7 +11,7 @@ import { detectLang, langName, langAdjective } from '../util/lang.js';
 import { getBrowser, chromeAvailable } from '../media/puppeteer.js';
 
 // Diacritic-folded content words of the narration, for the wrong-language text check.
-function narrationWordSet(narration) {
+export function narrationWordSet(narration) {
   const t = (narration || '').trim();
   if (!t) return null;
   return new Set((fold(t).match(/[\p{L}\p{N}]+/gu) || []).filter((w) => w.length >= 2));
