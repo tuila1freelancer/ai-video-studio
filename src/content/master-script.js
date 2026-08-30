@@ -363,22 +363,11 @@ export function midrollBlock(source) {
  * clause spliced into the middle of an unrelated sentence thirty scenes early, the rest
  * reworded later. The wording is fixed channel copy, so it is restored, not re-asked.
  */
-function repairMidroll(scenes, source, doc) {
-  // Long scripts are generated in batches, and a batch is handed a SENTENCE SLICE with no
-  // "###" headings left in it — so the block has to be found in the whole document.
-  const block = midrollBlock(doc || source);
+function repairMidroll(scenes, source) {
+  const block = midrollBlock(source);
   if (!block || scenes.length < 3) return scenes;
   const want = tokenSet(block);
   if (!want.size) return scenes;
-  // ...but only the batch whose own slice carries that CTA may restore it. Without this every
-  // batch finds the block, sees no CTA of its own, and grows one.
-  const inSlice = (() => {
-    const got = tokenSet(source);
-    let k = 0;
-    for (const t of want) if (got.has(t)) k++;
-    return k / want.size;
-  })();
-  if (inSlice < 0.7) return scenes;
   const score = (v) => {
     const got = tokenSet(v);
     let k = 0;
@@ -407,7 +396,7 @@ function repairMidroll(scenes, source, doc) {
 // Deterministic final repair: drop unspeakable scenes, strip broken/duplicated visuals
 // (direction.js re-directs those), renumber. This is the P18 floor — a META_LEAK voice can
 // never leave this function alive.
-export function repairScenesSpec(spec, defects, { source = '', first = false, language = '', doc = '' } = {}) {
+export function repairScenesSpec(spec, defects, { source = '', first = false, language = '' } = {}) {
   const dropStt = new Set(); const stripStt = new Set();
   for (const d of defects) {
     const list = Array.isArray(d.stt) ? d.stt : d.stt != null ? [d.stt] : [];
@@ -419,7 +408,7 @@ export function repairScenesSpec(spec, defects, { source = '', first = false, la
     .map((sc, i) => ({ stt: i + 1, voice: sc.voice, visual: stripStt.has(sc.stt) ? '' : sc.visual, assets: sc.assets }));
   if (source && defects.some((d) => d.code === 'ENDING_REWRITTEN')) scenes = repairEnding(scenes, source);
   if (source && first) scenes = repairOpening(scenes, source);
-  if (source) scenes = repairMidroll(scenes, source, doc);
+  if (source) scenes = repairMidroll(scenes, source);
   if (language === 'vi') scenes = scenes.map((sc) => ({ ...sc, voice: swapLoanWords(sc.voice) }));
   return { ...spec, scenes };
 }
@@ -703,7 +692,7 @@ async function askOnce({ messages, expect, plan, mode, source, language, llm, on
 }
 
 // One generation unit (whole video or one batch): ask → defect re-ask → deterministic repair.
-async function generateChunk({ mode, input, plan, expect, sttBase, batchNote, language, guide, memory, assets, llm, onLog, sourceDoc = null, fullSource = '' }) {
+async function generateChunk({ mode, input, plan, expect, sttBase, batchNote, language, guide, memory, assets, llm, onLog, sourceDoc = null }) {
   const base = buildMasterPrompt({ mode, input, plan, language, guide, memory, assets, sttBase, expect, batchNote, sourceDoc });
   let best = null;
   for (let round = 0; round < 2; round++) {
@@ -721,7 +710,7 @@ async function generateChunk({ mode, input, plan, expect, sttBase, batchNote, la
   const src = mode === 'script' ? input : '';
   // The opening is repaired even when nothing else is wrong: a rewritten hook is not a defect
   // the validator can see, but it is the line the video's retention rests on.
-  const spec = repairScenesSpec(best.spec, best.ok ? [] : best.defects, { source: src, first: sttBase <= 1, language, doc: mode === 'script' ? fullSource : '' });
+  const spec = repairScenesSpec(best.spec, best.ok ? [] : best.defects, { source: src, first: sttBase <= 1, language });
   if (!spec.scenes.length) throw new Error('master-script: no usable scenes after repair');
   return { spec, defects: best.ok ? [] : best.defects };
 }
@@ -895,7 +884,7 @@ export async function generateMasterScenes({ input, source = null, config = {}, 
   // P33: ONE soft CTA (~30%) + closing only — every span references the same plan; the
   // pinned outline (set below for batched topic/source) keeps batch 2+ on batch 1's arc.
   const ctaPlan = ctaPlanFor(targetCount);
-  const common = { mode, plan, language, guide, memory, assets, llm, onLog, sourceDoc, ctaPlan, outline: null, fullSource: mode === 'script' ? text : '' };
+  const common = { mode, plan, language, guide, memory, assets, llm, onLog, sourceDoc, ctaPlan, outline: null };
   // 'script' mode hands every span its word-balanced share of the owner's text; the shared
   // cut points guarantee batch (and split) boundaries never drop or repeat a sentence.
   const slice = mode === 'script' ? sourceSlicer(splitSentences(text), targetCount) : null;
