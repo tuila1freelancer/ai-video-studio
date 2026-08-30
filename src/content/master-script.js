@@ -31,7 +31,7 @@ import {
   LANG_WPS, LANG_NAME, scriptLang, topNouns, offlineScript, scriptBudgetOk, bibleBlock,
 } from '../providers/llm.js';
 import { HF_LAYOUTS, guideBrief } from '../pipeline/direction.js';
-import { auditCtas, classifyCta, stripCtaSentences } from './cta-audit.js';
+import { auditCtas, stripCtaSentences } from './cta-audit.js';
 import { wordCount, safeJson } from '../util/util.js';
 
 // The 8 canonical visual sections (factory schema hard gate). A master visual must carry
@@ -341,58 +341,6 @@ function repairEnding(scenes, source) {
   return out;
 }
 
-/**
- * The soft CTA the owner wrote MID-script, verbatim. Told apart from the closing CTA by
- * position — never the last block, which repairEnding already owns.
- */
-export function midrollBlock(source) {
-  const src = String(source || '').trim();
-  if (!src) return '';
-  const afterHead = src.replace(/^#[^\n]*\n/, '');
-  const blocks = afterHead.split(/^###\s+.*$/m)
-    .map((b) => b.replace(/^#.*$/gm, '').replace(/\s+/g, ' ').trim())
-    .filter(Boolean);
-  for (let i = 0; i < blocks.length - 1; i++) {
-    if (splitSentences(blocks[i]).length <= 3 && classifyCta(blocks[i]).cta) return blocks[i];
-  }
-  return '';
-}
-
-/**
- * Keep the mid-video CTA verbatim and in ONE place. One video shipped it torn in half: a
- * clause spliced into the middle of an unrelated sentence thirty scenes early, the rest
- * reworded later. The wording is fixed channel copy, so it is restored, not re-asked.
- */
-function repairMidroll(scenes, source) {
-  const block = midrollBlock(source);
-  if (!block || scenes.length < 3) return scenes;
-  const want = tokenSet(block);
-  if (!want.size) return scenes;
-  const score = (v) => {
-    const got = tokenSet(v);
-    let k = 0;
-    for (const t of want) if (got.has(t)) k++;
-    return k / want.size;
-  };
-  const out = scenes.slice();
-  // The closing CTA shares most of its wording with this one, so it outscores the real mid
-  // scene and would be overwritten. Never look for the mid CTA inside the closing zone.
-  const closeStart = out.length - (out.length >= 8 ? 2 : 1);
-  let bestI = 0; let bestS = -1;
-  for (let i = 0; i < closeStart; i++) {
-    const v = score(out[i].voice);
-    if (v > bestS) { bestS = v; bestI = i; }
-  }
-  if (bestS < 0.7) out[bestI] = { ...out[bestI], voice: block };
-  // Strip CTA sentences that leaked elsewhere — never inside the closing zone, where the
-  // closing CTA legitimately lives, and never to the point of emptying a scene.
-  return out.map((sc, i) => {
-    if (i === bestI || i >= closeStart) return sc;
-    const { voice, gutted } = stripCtaSentences(sc.voice);
-    return gutted || !voice ? sc : { ...sc, voice };
-  });
-}
-
 // Deterministic final repair: drop unspeakable scenes, strip broken/duplicated visuals
 // (direction.js re-directs those), renumber. This is the P18 floor — a META_LEAK voice can
 // never leave this function alive.
@@ -408,7 +356,6 @@ export function repairScenesSpec(spec, defects, { source = '', first = false, la
     .map((sc, i) => ({ stt: i + 1, voice: sc.voice, visual: stripStt.has(sc.stt) ? '' : sc.visual, assets: sc.assets }));
   if (source && defects.some((d) => d.code === 'ENDING_REWRITTEN')) scenes = repairEnding(scenes, source);
   if (source && first) scenes = repairOpening(scenes, source);
-  if (source) scenes = repairMidroll(scenes, source);
   if (language === 'vi') scenes = scenes.map((sc) => ({ ...sc, voice: swapLoanWords(sc.voice) }));
   return { ...spec, scenes };
 }
