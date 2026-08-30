@@ -78,3 +78,24 @@ test('a script with no mid CTA passes through untouched', () => {
   const out = repairScenesSpec(spec(voices), [], { source: src }).scenes.map((s) => s.voice);
   assert.deepEqual(out, voices);
 });
+
+// Long scripts generate in batches, and a batch is a SENTENCE SLICE — no "###" headings left.
+// The first version of this repair looked for the block inside the slice, found nothing, and
+// silently did nothing on every real video.
+test('a batch slice with no headings still restores the CTA, using the whole doc', () => {
+  const sliceSrc = `Một đoạn nội dung. ${MID} Một đoạn nữa.`;
+  const voices = [
+    'Một đoạn nội dung.', 'Nội dung hai.',
+    'Có khi cần một cái bảng. Các bạn hãy lưu video này lại để dễ tra cứu nhé.', // reworded
+    'Nội dung ba.', 'Nội dung bốn.', 'Nội dung năm.',
+  ];
+  const out = repairScenesSpec(spec(voices), [], { source: sliceSrc, doc: SOURCE }).scenes.map((s) => s.voice);
+  assert.ok(out.includes(MID), 'lời mời phải được chép lại nguyên văn');
+});
+
+test('a batch that does not carry the CTA never grows one', () => {
+  const sliceSrc = 'Một đoạn nội dung. Một đoạn nữa. Và một đoạn thứ ba.';
+  const voices = ['Một đoạn nội dung.', 'Một đoạn nữa.', 'Và một đoạn thứ ba.', 'Nội dung bốn.'];
+  const out = repairScenesSpec(spec(voices), [], { source: sliceSrc, doc: SOURCE }).scenes.map((s) => s.voice);
+  assert.deepEqual(out, voices);
+});
