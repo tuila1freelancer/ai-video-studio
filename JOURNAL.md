@@ -253,3 +253,8 @@ from the studio's own database — every number is real production data.
 - Scenes with rendered clips (active projects): 24 · Jobs: 0 done / 0 error / 3 cancelled
 - AI usage: 282 calls · 3941k tokens in / 718k out · 13.4k TTS chars · est. $14.95
 - Published: — · Calendar-driven runs: —
+## 2026-08-31
+- Videos: 0 created · 1 completed — “ChatGPT, Gemini, Claude, Copilot: AI Nào Cho Bạn?”
+- Scenes with rendered clips (active projects): 94 · Jobs: 2 done / 0 error / 0 cancelled
+- AI usage: 12 calls · 103k tokens in / 32.7k out · 0 TTS chars · est. $0.52
+- Published: — · Calendar-driven runs: —
