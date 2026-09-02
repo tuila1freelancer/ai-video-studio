@@ -60,7 +60,15 @@ export default {
     { key: 'accessKeyId', label: 'Access Key ID', type: 'password', required: true },
     { key: 'secretAccessKey', label: 'Secret Access Key', type: 'password', required: true },
     { key: 'region', label: 'Region', type: 'text', required: true, placeholder: 'us-east-1' },
-    { key: 'engine', label: 'Engine', type: 'select', required: false, options: ['neural', 'generative', 'long-form', 'standard'] },
+    {
+      key: 'engine', label: 'Engine', type: 'select', required: false,
+      options: [
+        { value: 'neural', label: 'Neural — cân bằng, có ở hầu hết giọng' },
+        { value: 'generative', label: 'Generative — tự nhiên nhất, ít giọng hơn' },
+        { value: 'long-form', label: 'Long-form — cho video dài' },
+        { value: 'standard', label: 'Standard — rẻ nhất, máy móc hơn' },
+      ],
+    },
   ],
   autoVoiceFor: (lang) => AUTO[lang] || AUTO.en,
 
