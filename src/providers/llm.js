@@ -7,6 +7,7 @@ import { column } from '../i18n/languages.js';
 import { recordUsage } from '../util/usage.js';
 import { PLATFORMS, checkField } from '../publish/platforms.js';
 import { withPreset } from './llm-presets.js';
+import { countWords, sentences as segmentSentences } from '../i18n/segment.js';
 
 // llm param (optional) = a resolved settings.llm object (e.g. per-channel override);
 // omitted → global settings, exactly as before.
@@ -186,13 +187,12 @@ export async function chatJson(messages, { maxTokens = 2048, attempts = 2, tempe
   throw lastErr;
 }
 
-// ---- Sentence splitting (Vietnamese + Latin aware) ----
-export function splitSentences(text) {
-  return (text || '')
-    .replace(/\s+/g, ' ')
-    .split(/(?<=[.!?…。])\s+|(?<=[।。！？])/)
-    .map((s) => s.trim())
-    .filter((s) => s.length > 1);
+// ---- Sentence splitting ----
+// Thai writes without sentence-final punctuation at all, so no regex can find its boundaries.
+// Pass the language wherever it is known; without one this is the punctuation split it has
+// always been.
+export function splitSentences(text, language) {
+  return segmentSentences(text, language);
 }
 
 export function topNouns(text, n = 4) {
@@ -306,16 +306,16 @@ function wordBudgetNote(wordsPerScene, wps = 4.4) {
   return `each scene ${wordsPerScene - 3}–${wordsPerScene + 4} words, NO more (target ~${wordsPerScene}; TTS speaks ~${(+wps).toFixed(1)} words/second — write ENOUGH words, never stubby under ${wordsPerScene - 3}, never overflowing past ${wordsPerScene + 4}; ruthlessly cut every filler phrase like "as I said before", "well, actually"…)`;
 }
 
-const CJK_LANGS = new Set(['ja', 'zh']); // no whitespace word boundaries — word math is meaningless
-
 // Soft budget validator for chatJson: only GROSS overruns re-ask (mean words/scene > 1.5×
 // target) — a strict gate here would push good-but-chatty replies into the offline
 // fallback; the deterministic budget-fit pass (stages/budget.js) owns fine trimming.
 export function scriptBudgetOk(scenes, wordsPerScene, language) {
-  if (CJK_LANGS.has(language)) return true; // whitespace counting would misfire wildly
   const arr = (scenes || []).map((s) => String(s.voice || s.text || '')).filter(Boolean);
   if (!arr.length) return false;
-  const mean = arr.reduce((a, v) => a + v.trim().split(/\s+/).filter(Boolean).length, 0) / arr.length;
+  // Japanese and Chinese used to skip this gate entirely, because counting their whitespace
+  // "would misfire wildly" — true of whitespace, not of words. Now they are counted properly
+  // and held to the same budget as everything else.
+  const mean = arr.reduce((a, v) => a + countWords(v, language), 0) / arr.length;
   return mean <= wordsPerScene * 1.5;
 }
 
