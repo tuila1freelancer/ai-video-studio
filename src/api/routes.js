@@ -21,6 +21,7 @@ import { synthPreview } from './services/voice-preview.js';
 import { startBatch } from './services/batch.js';
 import { getVoiceCatalog } from './services/voice-catalog.js';
 import { resolveLang, declaredLang, detectLang, majorityLang, padMsFor, DEFAULT_LANG } from '../util/lang.js';
+import { isSupported } from '../i18n/languages.js';
 import { WEB_SAFE, toPng } from './services/image-convert.js';
 import { licenseGate } from '../license/gate.js';
 import { activate, publicStatus, refreshNow } from '../license/index.js';
@@ -887,9 +888,25 @@ export function mountRoutes(app, { version }) {
     scenes.forEach((sc, i) => {
       if (Array.isArray(sc.srt_json)) all.push(...shiftCues(sc.srt_json, Math.max(0, starts[i] || 0)));
     });
-    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="subtitles.srt"`);
-    res.send(buildSrt(all));
+    // ?lang= translates the cue sheet; ?format=vtt gives WebVTT, which is what YouTube's caption
+    // editor and every browser player prefer. Nothing is re-rendered either way — a finished video
+    // reaches another audience for the price of some text.
+    const want = String(req.query.lang || '').toLowerCase();
+    const from = resolveLang(cfg, scenes);
+    let cues = all;
+    if (want && want !== from) {
+      if (!isSupported(want)) return res.status(400).json({ error: 'ngôn ngữ không được hỗ trợ' });
+      try {
+        const { translateCues } = await import('../subtitles/translate.js');
+        cues = await translateCues(all, { from, to: want, llm: DB.aiSettings().llm });
+      } catch (e) { return res.status(400).json({ error: e.message }); }
+    }
+    const vtt = String(req.query.format || '').toLowerCase() === 'vtt';
+    const { buildVtt } = await import('../subtitles/translate.js');
+    const code = want || from;
+    res.setHeader('Content-Type', vtt ? 'text/vtt; charset=utf-8' : 'text/plain; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="subtitles.${code}.${vtt ? 'vtt' : 'srt'}"`);
+    res.send(vtt ? buildVtt(cues) : buildSrt(cues));
   });
 
   // ---- batch queue: multiple topics → run sequentially on their own ----

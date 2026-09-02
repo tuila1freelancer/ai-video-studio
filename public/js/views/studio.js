@@ -15,8 +15,17 @@ import { initPendingChanges, schedulePendingCheck, resetPendingCheck } from '../
 import { openSrt } from '../features/srt.js';
 import { confirmDialog, menuDialog, publishDialog, promptDialog } from '../ui/dialog.js';
 import { renderThumbPanel } from './thumbnail.js';
+import { t } from '../i18n.js';
 
 let ws = null;
+// Caption tracks the owner can export. Named in the language itself, like the interface picker.
+const SRT_LANGS = [
+  ['vi', '🇻🇳 Tiếng Việt'], ['en', '🇺🇸 English'], ['ja', '🇯🇵 日本語'], ['ko', '🇰🇷 한국어'],
+  ['zh', '🇨🇳 中文'], ['es', '🇪🇸 Español'], ['fr', '🇫🇷 Français'], ['de', '🇩🇪 Deutsch'],
+  ['pt', '🇧🇷 Português'], ['id', '🇮🇩 Indonesia'], ['th', '🇹🇭 ไทย'], ['hi', '🇮🇳 हिन्दी'],
+  ['ru', '🇷🇺 Русский'],
+];
+
 export function initWs() { ws = new WS(onWsMessage); }
 
 export function initStudio() {
@@ -516,6 +525,21 @@ function renderFinal() {
     $('#finalVideo').src = fileUrl(p.video_path);
     $('#btnDownload').href = fileUrl(p.video_path);
     $('#btnDownloadSrt').href = '/api/projects/' + p.id + '/srt';
+    // One video, many caption tracks. YouTube takes a track per language on an existing upload,
+    // so this reaches another audience for the price of some text and no render at all.
+    const langSel = $('#btnSrtLang');
+    if (langSel) {
+      const own = p.config?.language && p.config.language !== 'auto' ? p.config.language : null;
+      langSel.innerHTML = `<option value="">${esc(t('ui.finalView.srt-goc', null, '⬇ Ngôn ngữ gốc'))}</option>`
+        + SRT_LANGS.filter(([c]) => c !== own).map(([c, label]) => `<option value="${c}">${esc(label)}</option>`).join('');
+      langSel.value = '';
+      langSel.onchange = () => {
+        if (!langSel.value) return;
+        // A download, not a fetch: the reply is a file, and translating a long video takes a while.
+        window.location.href = `/api/projects/${p.id}/srt?lang=${langSel.value}&format=vtt`;
+        langSel.value = '';
+      };
+    }
     const sheet = $('#btnFinalContactSheet');
     if (sheet) sheet.href = '/api/projects/' + p.id + '/contact-sheet';
   }
