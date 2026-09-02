@@ -1,6 +1,6 @@
-// THE language module. Two jobs, deliberately kept in one dependency-free file so every layer —
-// the TTS façade, the script engine, the codegen prompt, the render validator, the HTTP routes —
-// can agree on the answer without importing anything heavier.
+// THE language module. Two jobs, kept in one file that imports nothing but the language table so
+// every layer — the TTS façade, the script engine, the codegen prompt, the render validator, the
+// HTTP routes — can agree on the answer without pulling in anything heavier.
 //
 // 1. detectLang(text)           — what language is THIS text?
 // 2. resolveLang(config, texts) — what language is THIS VIDEO?
@@ -11,6 +11,10 @@
 // across scenes (right), while the editorial rewrite, the art-direction brief, the budget and the
 // thumbnail all hardcoded 'vi' (wrong). On an English video that mismatch rewrote narration INTO
 // Vietnamese and told the codegen model the narration WAS Vietnamese. One resolver, one answer.
+
+import { LANGUAGES, DEFAULT_LANG, lang as langRow, column } from '../i18n/languages.js';
+
+export { DEFAULT_LANG, LANGUAGES };
 
 /** Language of a single piece of text, by script/diacritics. Cheap, no I/O, no model. */
 export function detectLang(text) {
@@ -24,14 +28,10 @@ export function detectLang(text) {
 }
 
 /** Display names — used in prompts, so a model is told "English (US)", never the code "en". */
-export const LANG_NAME = {
-  vi: 'Vietnamese', en: 'English (US)', ja: 'Japanese', ko: 'Korean', zh: 'Chinese', ru: 'Russian',
-  fr: 'French', de: 'German', es: 'Spanish (neutral/Latin American)', pt: 'Portuguese (Brazilian)',
-  hi: 'Hindi', th: 'Thai', id: 'Indonesian',
-};
+export const LANG_NAME = column('name');
 
 /** Human name for a language code — for prompts and owner-facing messages. */
-export function langName(code) { return LANG_NAME[code] || code || 'Vietnamese'; }
+export function langName(code) { return LANG_NAME[code] || code || langRow(DEFAULT_LANG).name; }
 
 /**
  * The name as an ADJECTIVE, for prose that reads "a ${L} word" / "complete ${L} words".
@@ -40,9 +40,8 @@ export function langName(code) { return LANG_NAME[code] || code || 'Vietnamese';
  */
 export function langAdjective(code) { return langName(code).replace(/\s*\(.*\)$/, ''); }
 
-// The channel that has always existed here is Vietnamese, so an app with nothing whatsoever to go
-// on still answers 'vi'. Every other path reaches a real answer long before this constant.
-export const DEFAULT_LANG = 'vi';
+/** The trailing breath pad after a scene's voice, in ms. One table row, not five ternaries. */
+export function padMsFor(code) { return langRow(code).padMs; }
 
 /**
  * The language the OWNER declared for this video, or null if they did not.

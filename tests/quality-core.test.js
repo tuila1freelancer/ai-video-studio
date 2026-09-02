@@ -236,7 +236,7 @@ test('prompt v2 + budget stage source anchors (P4/P5 intact, gate wired pre-seed
   const llm = readFileSync(new URL('../src/providers/llm.js', import.meta.url), 'utf8');
   assert.match(llm, /Math\.ceil\(sceneCount\s*\*\s*0\.7\)/, 'P4 anchor survives prompt v2');
   assert.match(llm, /Math\.ceil\(perCh\s*\*\s*0\.6\)/, 'P4 chapter anchor survives');
-  assert.match(llm, /LANG_WPS\s*=\s*\{\s*vi:\s*4\.4/, 'P5 anchor survives');
+  assert.equal(LANG_WPS.vi, 4.4, 'P5 anchor survives');
   assert.match(llm, /DURATION SHAPE/, 'duration shape block present (content-led range, not EXACTLY-N)');
   assert.match(llm, /VALUE ARCHITECTURE/, 'value-first doctrine present (replaces the old micro-hook mandate)');
   assert.match(llm, /At most ONE genuine viewer-directed question/, 'filler-question cap present');
