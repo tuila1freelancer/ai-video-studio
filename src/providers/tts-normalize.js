@@ -1,7 +1,9 @@
-// Deterministic Vietnamese TTS text normalization + per-channel pronunciation lexicon.
+// Deterministic TTS text normalization + per-channel pronunciation lexicon.
 //
 // Scope: symbols/units/dates that neural voices mis-read ('85%', '50.000đ', '16:9',
 // '15/3/2025') — NOT full digit-to-word expansion (the voices read plain numbers well).
+// The rules themselves live per language in src/i18n/tts-rules.js; a language with none is
+// left alone, which used to be true of every language except Vietnamese.
 // The expansion feeds ONLY the synthesizer; captions keep the ORIGINAL script text
 // (digits stay on screen — P11 number-beat detection intact), and the forced-alignment
 // engine bridges the timing: the caption word '85%' simply spans the spoken expansion.
@@ -9,24 +11,7 @@
 // Also exports moodOf(): the per-scene prosody hint (from the art-director's [MOOD] line
 // or the scene's position) that providers with expressive controls consume.
 
-const VI_RULES = [
-  // dd/mm/yyyy → "d tháng m năm yyyy" (before the ratio rule can touch it)
-  [/\b(\d{1,2})\/(\d{1,2})\/(\d{4})\b/g, '$1 tháng $2 năm $3'],
-  // percentages
-  [/(\d)\s?%/g, '$1 phần trăm'],
-  // currency: 50.000đ / 200 VNĐ / $100 — \b is ASCII-only in JS, so 'đ/Đ' endings need
-  // an explicit Unicode lookahead instead of a word boundary
-  [/(\d)\s?(?:VNĐ|VND)(?![\p{L}\p{N}])/giu, '$1 đồng'],
-  [/(\d)\s?đ(?![\p{L}\p{N}])/gu, '$1 đồng'],
-  [/\$\s?(\d[\d.,]*)/g, '$1 đô la'],
-  // units
-  [/(\d)\s?°C\b/g, '$1 độ C'],
-  [/(\d)\s?km\/h\b/gi, '$1 ki lô mét một giờ'],
-  [/(\d)\s?m2\b/gi, '$1 mét vuông'],
-  // aspect/score ratios: 16:9 → 16 trên 9 (only digit:digit, so times like 15:30 with
-  // context "giờ" stay rare edge cases the voices already read acceptably)
-  [/\b(\d{1,2}):(\d{1,2})\b/g, '$1 trên $2'],
-];
+import { rulesFor } from '../i18n/tts-rules.js';
 
 /**
  * @param {string} text the script line as written
@@ -51,7 +36,7 @@ export function normalizeForTts(text, { lang = 'vi', lexicon = null } = {}) {
         (m) => map.get(m.toLowerCase()) ?? m);
     }
   }
-  if (lang === 'vi') for (const [re, rep] of VI_RULES) out = out.replace(re, rep);
+  for (const [re, rep] of rulesFor(lang)) out = out.replace(re, rep);
   return out;
 }
 
