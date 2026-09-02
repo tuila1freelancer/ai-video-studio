@@ -154,6 +154,16 @@ function kwTreatment(guide, ctx) {
   return `color:${guide.palette.ink};text-shadow:${softShadow}`;
 }
 // exported so the repair scanner can ask the same question the CSS asks
+// Two CSS properties that are wrong outside Latin-like scripts.
+//
+// `text-transform:uppercase` is a no-op in CJK, Thai, Devanagari, Hebrew and Arabic — they have no
+// case — and `letter-spacing` is worse than a no-op: it pulls apart the clusters that Devanagari,
+// Thai and Arabic build their letters out of, and breaks cursive joining outright.
+const CASED = new Set(['latin', 'vietnamese', 'cyrillic', 'greek']);
+const CLUSTERED = new Set(['devanagari', 'thai', 'arabic', 'hebrew']);
+const upper = (script) => (CASED.has(script || 'latin') ? 'text-transform:uppercase;' : '');
+const track = (script, v) => (CLUSTERED.has(script || 'latin') ? '' : `letter-spacing:${v};`);
+
 export function isLightHex(hex) {
   const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || '')); if (!m) return false;
   const v = parseInt(m[1], 16);
@@ -174,16 +184,16 @@ function baseCss(guide, ctx) {
      slot is centered identically to before, so existing scenes are unaffected. */
   .hf-slot{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:${u(1.4)}px;text-align:center}
   .hf-center{position:absolute;inset:0;display:grid;place-items:center;text-align:center}
-  .hf-kw{font-family:${guide.fonts.display};font-weight:800;font-size:${u(11)}px;line-height:1.02;letter-spacing:.005em;text-transform:uppercase;white-space:pre-line;text-wrap:balance;${kwTreatment(guide, ctx)}}
-  .hf-kw2{font-family:${guide.fonts.display};font-weight:700;font-size:${u(6.2)}px;line-height:1.08;text-transform:uppercase;text-wrap:balance;color:${p.ink};text-shadow:0 ${u(0.3)}px ${u(1.4)}px rgba(0,0,0,.7)}
+  .hf-kw{font-family:${guide.fonts.display};font-weight:800;font-size:${u(11)}px;line-height:1.02;${track(ctx.script, '.005em')}${upper(ctx.script)}white-space:pre-line;text-wrap:balance;${kwTreatment(guide, ctx)}}
+  .hf-kw2{font-family:${guide.fonts.display};font-weight:700;font-size:${u(6.2)}px;line-height:1.08;${upper(ctx.script)}text-wrap:balance;color:${p.ink};text-shadow:0 ${u(0.3)}px ${u(1.4)}px rgba(0,0,0,.7)}
   .hf-sub{font-family:${guide.fonts.body};font-weight:500;font-size:${u(2.9)}px;color:${p.muted};line-height:1.4;text-wrap:balance}
-  .hf-label{font-family:${guide.fonts.mono};font-weight:700;font-size:${u(2.0)}px;letter-spacing:.3em;text-transform:uppercase;color:${a1}}
+  .hf-label{font-family:${guide.fonts.mono};font-weight:700;font-size:${u(2.0)}px;${track(ctx.script, '.3em')}${upper(ctx.script)}color:${a1}}
   .hf-card{background:linear-gradient(160deg,rgba(255,255,255,.09),rgba(255,255,255,.03));border:1px solid rgba(255,255,255,.12);border-radius:${u(1.8)}px;padding:${u(2.6)}px ${u(3.4)}px;box-shadow:0 ${u(1.6)}px ${u(4)}px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.08);backdrop-filter:blur(6px)}
   .hf-chip{display:inline-flex;align-items:center;gap:${u(1)}px;font-family:${guide.fonts.body};font-weight:600;font-size:${u(2.3)}px;color:${p.ink};background:rgba(255,255,255,.07);border:1px solid ${a0}55;border-radius:999px;padding:${u(0.9)}px ${u(2.2)}px}
   .hf-stat{display:grid;justify-items:center;gap:${u(0.6)}px}
   .hf-stat-v{font-family:${guide.fonts.display};font-weight:800;font-size:${u(13)}px;line-height:1;font-variant-numeric:tabular-nums;color:${p.ink};text-shadow:0 0 ${u(2.4)}px ${a0}66,0 ${u(0.4)}px ${u(1.6)}px rgba(0,0,0,.8)}
   .hf-stat-u{font-size:.55em;color:${a1};margin-left:.06em}
-  .hf-stat-l{font-family:${guide.fonts.body};font-weight:600;font-size:${u(2.6)}px;letter-spacing:.12em;text-transform:uppercase;color:${p.muted}}
+  .hf-stat-l{font-family:${guide.fonts.body};font-weight:600;font-size:${u(2.6)}px;${track(ctx.script, '.12em')}${upper(ctx.script)}color:${p.muted}}
   .hf-iconbox{display:grid;place-items:center;font-size:${u(11)}px;color:${a1};filter:drop-shadow(0 0 ${u(2.2)}px ${a1}77)}
   .hf-iconbox.sm{font-size:${u(6)}px}
   .hf-lower3{position:absolute;left:7%;right:7%;bottom:20%;display:flex;align-items:center;gap:${u(1.6)}px;justify-content:center}

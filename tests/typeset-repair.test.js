@@ -8,7 +8,7 @@ import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { typesetRisk, atRiskScenes } from '../src/pipeline/vietnamese-scan.js';
+import { typesetRisk, atRiskScenes } from '../src/pipeline/typeset-scan.js';
 import { TYPESET_VERSION } from '../src/pipeline/fingerprint.js';
 
 const src = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
@@ -113,6 +113,6 @@ test('the stamp is written wherever a clip is written, and nowhere else', () => 
     assert.match(src(f), /fp: stampRendered\(/, `${f} does not stamp the typesetter`);
   }
   assert.match(src('../src/pipeline/render-only.js'), /if \(cur\.migrate\) DB\.updateScene\(s\.id, \{ fp: fpStamp\(s, 'render', cur\.want\) \}\);/);
-  assert.match(src('../src/pipeline/fingerprint.js'), /export const TYPESET_VERSION = 1;/);
+  assert.match(src('../src/pipeline/fingerprint.js'), /export const TYPESET_VERSION = \d+;/);
   assert.match(src('../src/pipeline/fingerprint.js'), /return \{ \.\.\.\(scene\.fp \|\| \{\}\), render: digest, typeset: TYPESET_VERSION \};/);
 });

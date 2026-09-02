@@ -1,6 +1,6 @@
-// Which clips on disk were typeset before the Vietnamese repair existed?
+// Which clips on disk were typeset before the mark repair existed, or before it covered them?
 //
-// `__fitVietnamese` fixes the page at render time, and nothing re-renders on its own —
+// `__fitMarks` fixes the page at render time, and nothing re-renders on its own —
 // `renderFingerprint` hashes scene props and config keys, not the harness — so a finished video
 // keeps its broken clips until something asks for them again. This is what asks.
 //

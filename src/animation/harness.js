@@ -231,19 +231,22 @@ const RUNTIME = `
     pbar.style.width = (p*100).toFixed(3) + '%';
   };
 
-  // Vietnamese typesetting repair — runs before AND after __fitText, and is idempotent.
+  // Combining-mark typesetting repair — runs before AND after __fitText, and is idempotent.
   //
   // A capital carrying a stacked mark reaches up to 44% higher above the baseline than a Latin
   // capital (measured on every vendored face), so a line-height tuned for Latin leaves the mark
-  // OUTSIDE the line box. Three things then go wrong and all three shipped: background-clip:text
+  // OUTSIDE the line box. Vietnamese is where this was found, but nothing about the repair is
+  // Vietnamese: every number below comes from measureText on the element's OWN font, so a
+  // Devanagari matra, a Thai tone stack and an Arabic harakat are measured the same way. Only
+  // the trigger was Vietnamese, and that is the one thing changed here. Three things then go wrong and all three shipped: background-clip:text
   // paints only inside the box, so the mark is never painted at all; two lines collide, because
   // the box is shorter than the ink; an overflow:hidden wrapper cuts the mark off.
   //
   // Every number comes from the element's OWN resolved font via measureText, never a constant:
   // the safe line-height runs from 1.18 (Anton) to 1.41 (Nunito).
-  // grave, acute, tilde, hook-above, breve, circumflex, horn — the marks that sit ABOVE
-  var VN_HIGH = /[\\u0300\\u0301\\u0303\\u0309\\u0306\\u0302\\u031B]/;
-  var VN_LOW = /[\\u0323]/; // dot below
+  // Any combining mark, in any script: Vietnamese tone marks after NFD, Devanagari matras, Thai
+  // tone stacks, Arabic harakat, Hebrew niqqud. CJK has none and needs no repair.
+  var MARKED = /\\p{M}/u;
   const vnMetrics = (el, text) => {
     const cs = getComputedStyle(el);
     const fs = parseFloat(cs.fontSize) || 0;
@@ -268,14 +271,15 @@ const RUNTIME = `
     };
   };
 
-  window.__fitVietnamese = () => {
+  window.__fitMarks = () => {
     const leaves = [];
     const walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
     for (let n = walk.nextNode(); n; n = walk.nextNode()) {
       const t = n.nodeValue;
       if (!t || !t.trim()) continue;
-      const norm = t.normalize('NFD');
-      if (!VN_HIGH.test(norm) && !VN_LOW.test(norm)) continue;
+      // NFD so Vietnamese precomposed letters expose their marks; Thai and Devanagari marks are
+      // never precomposed and match either way.
+      if (!MARKED.test(t.normalize('NFD'))) continue;
       const el = n.parentElement;
       if (el && leaves.indexOf(el) < 0) leaves.push(el);
     }
@@ -462,9 +466,9 @@ const RUNTIME = `
     } catch(e){}
     // twice: once so __fitText measures real line boxes, once so the paint room matches the font
     // size __fitText settled on. The pass is idempotent by design — it stashes the originals.
-    try { window.__fitVietnamese(); } catch(e){}
+    try { window.__fitMarks(); } catch(e){}
     try { window.__fitText(); } catch(e){}
-    try { window.__fitVietnamese(); } catch(e){}
+    try { window.__fitMarks(); } catch(e){}
     try { window.__deoverlap(); } catch(e){}
     try { window.__safeZone(); } catch(e){}
     try { window.__margins(); } catch(e){}

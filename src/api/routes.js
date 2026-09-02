@@ -714,7 +714,7 @@ export function mountRoutes(app, { version }) {
   r.get('/projects/:id/typeset-scan', async (req, res) => {
     const p = DB.getProject(req.params.id);
     if (!p) return res.status(404).json({ error: 'not found' });
-    const { atRiskScenes } = await import('../pipeline/vietnamese-scan.js');
+    const { atRiskScenes } = await import('../pipeline/typeset-scan.js');
     const scenes = DB.getScenes(p.id);
     const at = atRiskScenes(scenes);
     res.json({ title: p.title, scenes: scenes.length, atRisk: at.length, items: at });
@@ -726,7 +726,7 @@ export function mountRoutes(app, { version }) {
     const p = DB.getProject(req.params.id);
     if (!p) return res.status(404).json({ error: 'not found' });
     if (['running', 'queued'].includes(p.status)) return res.status(409).json({ error: 'đang chạy' });
-    const { atRiskScenes } = await import('../pipeline/vietnamese-scan.js');
+    const { atRiskScenes } = await import('../pipeline/typeset-scan.js');
     const at = atRiskScenes(DB.getScenes(p.id));
     if (!at.length) return res.json({ ok: true, atRisk: 0, started: false });
     // `thumbnailAi: false` for THIS run only (configOverrides is never written back): finalize
