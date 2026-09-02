@@ -15,7 +15,7 @@ import { fileURLToPath } from 'node:url';
 import { chat } from '../src/providers/llm.js';
 import { aiSettings } from '../src/db/index.js';
 import { LANGUAGES, DEFAULT_LANG } from '../src/i18n/languages.js';
-import { checkCatalogue } from './lib/locale-check.mjs';
+import { checkCatalogue, NO_TRANSLATE } from './lib/locale-check.mjs';
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const DIR = join(ROOT, 'public', 'locales');
@@ -33,6 +33,7 @@ const MODEL = (() => { const i = process.argv.indexOf('--model'); return i > 0 ?
 
 const arg = (name) => { const i = process.argv.indexOf(name); return i > 0 ? process.argv[i + 1] : null; };
 const ALL = process.argv.includes('--all');
+const FIX = process.argv.includes('--fix');
 
 // Terms that must read the same in every string of a language, or the interface teaches two names
 // for one thing. Sent with every batch rather than hoped for.
@@ -94,8 +95,16 @@ async function translateCatalogue(source, targets, llm, prefix) {
   for (const row of targets) {
     const file = join(DIR, `${prefix}${row.code}.json`);
     const have = existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : {};
-    const todo = Object.entries(source).filter(([k]) => ALL || !(k in have));
+    // --fix closes the loop: whatever the checker rejected is translated AGAIN, rather than left
+    // in the file for a human to notice. A dropped **bold** or an echoed source is a defect the
+    // machine made and the machine can retry.
+    const flagged = FIX
+      ? new Set(checkCatalogue(source, have, row.code).map((p) => p.slice(row.code.length + 1, p.indexOf(':', row.code.length + 1))))
+      : new Set();
+    for (const [k, v] of Object.entries(source)) if (NO_TRANSLATE.test(k)) have[k] = v;
+    const todo = Object.entries(source).filter(([k]) => !NO_TRANSLATE.test(k) && (ALL || !(k in have) || flagged.has(k)));
     if (!todo.length) { console.log(`${prefix}${row.code}: up to date (${Object.keys(have).length} keys)`); continue; }
+    if (flagged.size) console.log(`${prefix}${row.code}: re-translating ${flagged.size} rejected by the checker`);
 
     const next = { ...have };
     const slices = [];

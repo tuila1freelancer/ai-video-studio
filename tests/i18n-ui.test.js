@@ -14,6 +14,7 @@ import { checkCatalogue } from '../scripts/lib/locale-check.mjs';
 import { classifyError, failed, coded, ERROR_CLASS } from '../src/core/errors.js';
 import { t, setUiLang, uiLang, reloadCatalogues } from '../src/i18n/t.js';
 import { PATHS } from '../src/config/paths.js';
+import { LANG_CODES } from '../src/i18n/languages.js';
 import { join } from 'node:path';
 
 test('errors: the class comes from a code, not from the wording', () => {
@@ -101,16 +102,21 @@ test('ui: a catalogue is consistent with the source, and never stale', () => {
 
 // The languages the owner has declared finished. A code moves in here when its catalogue is
 // complete, and from then on a missing key is a build failure rather than a fallback.
-const SHIPPED = ['vi'];
+const SHIPPED = LANG_CODES;
 
-test('ui: a language declared shipped is actually complete', () => {
+test('ui: a language declared shipped is actually complete, interface and manual', () => {
   const dir = join(PATHS.publicDir, 'locales');
-  const source = JSON.parse(readFileSync(join(dir, 'vi.json'), 'utf8'));
-  for (const code of SHIPPED) {
-    if (code === 'vi') continue;
-    const cat = JSON.parse(readFileSync(join(dir, `${code}.json`), 'utf8'));
-    const missing = Object.keys(source).filter((k) => !(k in cat));
-    assert.deepEqual(missing.slice(0, 5), [], `${code} is declared shipped but is missing ${missing.length} keys`);
+  for (const prefix of ['', 'guide.']) {
+    const source = JSON.parse(readFileSync(join(dir, `${prefix}vi.json`), 'utf8'));
+    for (const code of SHIPPED) {
+      if (code === 'vi') continue;
+      const file = join(dir, `${prefix}${code}.json`);
+      assert.ok(existsSync(file), `${prefix}${code}.json does not exist, but ${code} is declared shipped`);
+      const cat = JSON.parse(readFileSync(file, 'utf8'));
+      const missing = Object.keys(source).filter((k) => !(k in cat));
+      assert.deepEqual(missing.slice(0, 5), [],
+        `${prefix}${code} is declared shipped but is missing ${missing.length} keys`);
+    }
   }
 });
 

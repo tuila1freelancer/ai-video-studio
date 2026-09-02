@@ -8,7 +8,7 @@
 // that can open the thing it is explaining stops being a document and starts being part of the UI.
 import { $, $$, esc } from '../ui/dom.js';
 import { registerPageHook, switchPage } from './nav.js';
-import { uiLang } from '../i18n.js';
+import { uiLang, t } from '../i18n.js';
 
 /* ---------------------------------------------------------------------------
    CONTENT
@@ -652,9 +652,12 @@ async function build() {
     }
     const rest = byBody.length - show.size;
     $('#gdMore').classList.toggle('hidden', rest <= 0);
-    $('#gdMore').textContent = `Còn ${rest} chương khác có nhắc tới “${search.value.trim()}” — bấm để xem`;
+    $('#gdMore').textContent = t('ui.guide.con-n-chuong-khac', { n: rest, q: search.value.trim() },
+      'Còn {n} chương khác có nhắc tới “{q}” — bấm để xem');
     $('#gdEmpty').classList.toggle('hidden', !q || show.size > 0);
-    $('#gdCount').textContent = q ? `${show.size} chương khớp` : `${CHAPTERS.length} chương`;
+    $('#gdCount').textContent = q
+      ? t('ui.guide.n-chuong-khop', { n: show.size }, '{n} chương khớp')
+      : t('ui.guide.n-chuong', { n: CHAPTERS.length }, '{n} chương');
   };
   search.addEventListener('input', () => { wide = false; runSearch(); });
   $('#gdMore').addEventListener('click', () => { wide = true; runSearch(); });
