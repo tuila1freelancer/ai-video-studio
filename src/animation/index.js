@@ -15,6 +15,7 @@ import { rechunkCues } from '../subtitles/chunk.js';
 import { ratioToSize, hash32 } from '../util/util.js';
 import { wordJoiner } from '../i18n/segment.js';
 import { lang as langRow } from '../i18n/languages.js';
+import { scriptFallback } from '../styleguide/script-fonts.js';
 
 // Per-project seed salt (P31): scene N of two different videos must NOT share randomness
 // (particles, ambient layout, FX picks) — before this, seed was `idx + 1` for every video,
@@ -167,7 +168,11 @@ export function buildSceneHtml(scene, project, config, extras = {}) {
     capJoin: wordJoiner(config.subtitleLang || config.language),
     // P30 loud-font contract: the page probes these families after load; a miss surfaces
     // in __init's return so the renderer can warn instead of silently substituting.
-    fontChecks: [familyName(config.subtitleFont), familyName(config.fonts?.display)].filter(Boolean),
+    // P30 loud-font contract, plus the script's own face: the page probes these after load and a
+    // miss surfaces in __init's return, so the renderer warns instead of silently substituting.
+    // Without the third entry a Thai or Devanagari video substituted in total silence.
+    fontChecks: [familyName(config.subtitleFont), familyName(config.fonts?.display),
+      (scriptFallback(config.subtitleLang || config.language)[0] || '').replace(/'/g, '')].filter(Boolean),
     overlay: overlayCfg,
   });
 }
