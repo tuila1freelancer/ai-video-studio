@@ -80,3 +80,19 @@ export async function setUiLanguage(code, api) {
   try { localStorage.uiLang = code; } catch { /* private window */ }
   location.reload();
 }
+
+/**
+ * Put an icon in front of a button WITHOUT losing its translation.
+ *
+ * The boot-time label writes did `el.innerHTML = icon + 'Tạo video tự động'`, which ran after the
+ * catalogue had been painted and put the Vietnamese straight back — the most visible button in the
+ * app stayed Vietnamese in an otherwise English interface. The label comes from the element's own
+ * data-i18n key now, so the icon is the only thing this adds.
+ */
+export function setLabel(el, iconHtml, fallback = null) {
+  const node = typeof el === 'string' ? document.querySelector(el) : el;
+  if (!node) return;
+  const key = node.dataset.i18n;
+  const text = key ? t(key, null, fallback ?? node.textContent.trim()) : (fallback ?? node.textContent.trim());
+  node.innerHTML = `${iconHtml} ${text.replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]))}`;
+}

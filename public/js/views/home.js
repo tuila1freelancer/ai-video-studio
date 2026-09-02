@@ -5,11 +5,12 @@ import { fileUrl, withLock } from '../api.js';
 import { state } from '../state.js';
 import { registerPageHook, switchPage } from './nav.js';
 import { openProject, createAndStart } from './studio.js';
+import { setLabel } from '../i18n.js';
 
 export function initHome() {
   registerPageHook('home', renderGallery);
-  $('#heroGo').innerHTML = `${icon('wand', 16)} Tạo video tự động`;
-  $('#heroBatch').innerHTML = `${icon('layers', 16)} Hàng loạt`;
+  setLabel('#heroGo', icon('wand', 16));
+  setLabel('#heroBatch', icon('layers', 16));
   $$('#page-home .gtab').forEach((b) => {
     b.innerHTML = `${icon(b.dataset.cat === 'short' ? 'smartphone' : 'monitor', 14)} ${b.textContent.trim()}`;
   });
