@@ -107,6 +107,7 @@ export function initStudio() {
   $('#checkAll').addEventListener('change', (e) => { $$('#sceneGrid .scene').forEach((c) => { c.classList.toggle('sel', e.target.checked); c.querySelector('.chk').checked = e.target.checked; }); updateSelCount(); });
   $('#btnSrt').addEventListener('click', openSrt);
   $('#btnRepurpose').addEventListener('click', () => withLock($('#btnRepurpose'), repurposeCurrent));
+  $('#btnDub')?.addEventListener('click', () => withLock($('#btnDub'), dubCurrent));
   $('#btnExport')?.addEventListener('click', () => withLock($('#btnExport'), exportCurrent));
   $('#btnPublish')?.addEventListener('click', () => withLock($('#btnPublish'), publishCurrent));
   // P40: the toolbar button existed but had no handler — reveal the finished file in Finder.
@@ -237,6 +238,25 @@ async function repurposeCurrent() {
     await loadProjects();
     await openProject(r.project.id);
   } catch (e) { toast('Lỗi đổi tỉ lệ: ' + e.message, 'error'); }
+}
+
+// Clone the current project into another LANGUAGE: the art direction travels verbatim, the
+// narration and the on-screen text are rewritten. Creates the project and opens it — it does not
+// start it, because starting one spends money and that stays an explicit click (P16).
+async function dubCurrent() {
+  if (!state.current) { toast(t('ui.toast.mo-du-an-truoc', null, 'Mở một dự án trước đã.'), 'error'); return; }
+  const own = state.current.config?.language && state.current.config.language !== 'auto'
+    ? state.current.config.language : null;
+  const items = SRT_LANGS.filter(([c]) => c !== own).map(([c, label]) => ({ id: c, label }));
+  const pick = await menuDialog({ title: t('ui.dialog.long-tieng-sang', null, 'Lồng tiếng sang ngôn ngữ nào?'), items });
+  if (!pick) return;
+  try {
+    const r = await api.post(`/projects/${state.current.id}/dub`, { language: pick });
+    toast(t('ui.toast.da-tao-ban-long-tieng', { n: r.scenes },
+      'Đã tạo bản lồng tiếng — {n} cảnh, giữ nguyên chỉ dẫn mỹ thuật. Bấm Bắt đầu khi sẵn sàng 🌍'), 'success');
+    await loadProjects();
+    await openProject(r.project.id);
+  } catch (e) { toast(t('ui.toast.loi-long-tieng', null, 'Lỗi lồng tiếng: ') + e.message, 'error'); }
 }
 
 // One-click platform export: fast remux when the master already fits; confirmed fade-trim
