@@ -8,6 +8,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { LANG_WPS } from '../src/providers/llm.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const src = (p) => readFileSync(join(ROOT, p), 'utf8');
@@ -37,7 +38,9 @@ test('P4: script validate enforces >=70% of target scenes (60% per chapter)', ()
 });
 
 test('P5: LANG_WPS keeps the measured Vietnamese reading speed (vi 4.4)', () => {
-  assert.match(src('src/providers/llm.js'), /LANG_WPS\s*=\s*\{\s*vi:\s*4\.4/);
+  // The table owns the number now; assert the VALUE, which a move cannot silently break.
+  assert.equal(LANG_WPS.vi, 4.4);
+  assert.match(src('src/i18n/languages.js'), /code: 'vi'[\s\S]{0,400}?wps: 4\.4/);
 });
 
 test('P38 QC integrity: probeStreams trailing-comma strip; no per-frame pixel/silence scan', () => {

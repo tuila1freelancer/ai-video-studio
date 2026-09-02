@@ -3,6 +3,7 @@
 import { aiSettings } from '../db/index.js';
 import { wordCount, safeJson } from '../util/util.js';
 import { detectLang, declaredLang, LANG_NAME, langName } from '../util/lang.js';
+import { column } from '../i18n/languages.js';
 import { recordUsage } from '../util/usage.js';
 import { PLATFORMS, checkField } from '../publish/platforms.js';
 import { withPreset } from './llm-presets.js';
@@ -274,10 +275,7 @@ export function offlineScript(sourceText, { title, sceneCount, wordsPerScene, st
 // P5 core rates (vi 4.4 …) are measured and pinned; the 2026-07 additions extend the table
 // for the reference-app language set (its per-language wordsPerSecond values where known,
 // family-consistent estimates otherwise) — existing entries are untouched.
-export const LANG_WPS = {
-  vi: 4.4, en: 2.6, ja: 3.4, ko: 3.1, zh: 3.4, ru: 2.4,
-  fr: 4.0, de: 3.8, es: 4.2, pt: 4.0, hi: 4.2, th: 4.0, id: 4.2,
-};
+export const LANG_WPS = column('wps');
 // LANG_NAME now lives in util/lang.js next to detectLang so the render validator and the codegen
 // prompt can name a language without importing this module (db + metering + pricing). Re-exported
 // here because a dozen call sites already import it from providers/llm.js.
