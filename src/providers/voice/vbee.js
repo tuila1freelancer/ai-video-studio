@@ -2,6 +2,7 @@
 // Docs: https://vbee.vn/api-docs (Postman: documenter.getpostman.com/view/12951168/Uz5FHbSd)
 import { writeFileSync } from 'node:fs';
 import { probeDuration } from '../../media/ffmpeg.js';
+import { recordUsage } from '../../util/usage.js';
 
 const BASE = 'https://vbee.vn/api/v1';
 
@@ -73,6 +74,7 @@ export default {
     const audio = await fetch(audioLink, { signal: AbortSignal.timeout(60000) });
     if (!audio.ok) throw new Error(`Vbee download ${audio.status}`);
     writeFileSync(outPath, Buffer.from(await audio.arrayBuffer()));
+    recordUsage('tts', { provider: 'vbee', chars: String(text).length });
     return { path: outPath, duration: await probeDuration(outPath) };
   },
 

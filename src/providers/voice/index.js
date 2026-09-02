@@ -1,4 +1,4 @@
-// Voice provider registry — one contract, seven providers.
+// Voice provider registry — one contract, ten providers.
 import edge from './edge.js';
 import say from './say.js';
 import openai from './openai.js';
@@ -6,8 +6,11 @@ import elevenlabs from './elevenlabs.js';
 import vbee from './vbee.js';
 import larvoice from './larvoice.js';
 import supertonic from './supertonic.js';
+import azure from './azure.js';
+import google from './google.js';
+import polly from './polly.js';
 
-export const PROVIDERS = { edge, say, supertonic, vbee, larvoice, elevenlabs, openai };
+export const PROVIDERS = { edge, say, supertonic, vbee, larvoice, elevenlabs, openai, azure, google, polly };
 
 export function getProvider(id) { return PROVIDERS[id] || PROVIDERS.edge; }
 
@@ -36,6 +39,8 @@ export function providerConfig(ttsSettings, pid) {
     elevenlabs: { apiKey: s.apiKey, model: s.model },
     edge: {}, vbee: {}, supertonic: {},
   }[pid] || {};
+  // Providers added after the picker existed have no legacy shape to inherit — only the modern
+  // per-provider slot, which is where the settings UI writes them.
   return { ...legacy, ...modern };
 }
 
