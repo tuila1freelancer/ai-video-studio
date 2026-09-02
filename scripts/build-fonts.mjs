@@ -37,9 +37,14 @@ const MANIFEST = [
 ];
 
 // UI shell fonts (served as static files — small, cache-immutable; NOT inlined into scene pages).
+// The app's own interface is being translated into every language the table lists, so the shell
+// font needs their glyphs. CJK is deliberately absent: one Noto Sans SC face is 5-20 MB, and the
+// OS UI font already in the CSS fallback (-apple-system / Segoe UI) draws it correctly — for the
+// app chrome that trade is worth taking, for the video it is not (see styleguide/script-fonts.js).
+const UI_SUBSETS = ['latin', 'latin-ext', 'vietnamese', 'cyrillic', 'greek', 'thai', 'devanagari'];
 const UI_MANIFEST = [
-  { family: 'Lexend', weights: [400, 500, 600, 700, 800], subsets: ['latin', 'latin-ext', 'vietnamese'] },
-  { family: 'JetBrains Mono', weights: [500], subsets: ['latin', 'latin-ext', 'vietnamese'] },
+  { family: 'Lexend', weights: [400, 500, 600, 700, 800], subsets: UI_SUBSETS },
+  { family: 'JetBrains Mono', weights: [500], subsets: ['latin', 'latin-ext', 'vietnamese', 'cyrillic', 'greek'] },
 ];
 
 function cssUrl(family, weights) {

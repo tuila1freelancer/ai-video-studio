@@ -1,6 +1,8 @@
 // Built-in style presets ("Video style") + resolution from a project config.
 // Depends only on ./guide.js — no animation/ or hyperframe/ deps (keeps the graph acyclic).
 import { HF_DEFAULT_GUIDE, normalizeGuide } from './guide.js';
+import { guideForLanguage } from './script-fonts.js';
+import { declaredLang } from '../util/lang.js';
 
 // Only families that exist in vendor/fonts/fonts.css may appear in a guide.
 export const DISPLAY_FONTS = {
@@ -104,6 +106,11 @@ export function presetById(id) {
  */
 export function resolveGuide(config) {
   const hf = config?.hyperframe || {};
-  if (hf.guide && typeof hf.guide === 'object') return normalizeGuide(hf.guide);
-  return presetById(hf.styleId) || normalizeGuide(HF_DEFAULT_GUIDE);
+  const guide = hf.guide && typeof hf.guide === 'object'
+    ? normalizeGuide(hf.guide)
+    : (presetById(hf.styleId) || normalizeGuide(HF_DEFAULT_GUIDE));
+  // Every stack in every preset is Latin+Vietnamese, and nothing outside those two scripts is
+  // bundled at all — so a Chinese or Russian video asked for fonts that cannot draw it and got
+  // whatever the renderer chose. The guide's own faces still win wherever they have the glyph.
+  return guideForLanguage(guide, declaredLang(config));
 }
