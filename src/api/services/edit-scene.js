@@ -52,7 +52,7 @@ export async function editSceneByPrompt(sceneId, editPrompt, { _chat = chat } = 
   const { errors } = lintSpec(spec);
   if (errors.length) return { ok: false, error: 'edit rejected by lint', defects: errors };
   const { w, h } = animSize(project.aspect_ratio, 1);
-  const beats = isHf && Array.isArray(sc.props?.beats) ? sc.props.beats : extractBeats(sc.srt_json, sc.keywords, duration);
+  const beats = isHf && Array.isArray(sc.props?.beats) ? sc.props.beats : extractBeats(sc.srt_json, sc.keywords, duration, { lang: language });
   const rv = await renderValidate({
     spec: { ...spec, guide }, guide, w, h,
     duration: isHf ? (sc.props?.plannedDur || duration) : duration,

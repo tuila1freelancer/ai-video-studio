@@ -110,3 +110,41 @@ test('segment: the scene page joins caption words the way the language writes th
   assert.equal(capJoin({ enableSubtitles: true, language: 'vi' }), undefined);
   assert.equal(capJoin({ enableSubtitles: true, language: 'en' }), undefined);
 });
+
+// ---- beats: what the animation lands on ----
+
+test('beats: a Chinese scene gets real keyword beats instead of one undifferentiated phrase', async () => {
+  const { extractBeats } = await import('../src/hyperframe/beats.js');
+  const cue = (chars) => [{
+    start: 0, end: chars.length * 0.3, text: chars.join(''),
+    words: chars.map((c, i) => ({ word: c, start: i * 0.3, end: (i + 1) * 0.3 })),
+  }];
+  const zh = cue('人工智能正在改变我们工作的方式并且提高效率'.split(''));
+  const withLang = extractBeats(zh, [], 8, { lang: 'zh' });
+  const kw = withLang.filter((b) => b.kind === 'keyword');
+  assert.ok(kw.length >= 2, `expected keyword beats, got ${JSON.stringify(withLang.map((b) => b.kind))}`);
+  assert.ok(kw.some((b) => b.text === '人工智能'), `expected a real multi-character word: ${kw.map((b) => b.text)}`);
+  for (const b of kw) assert.ok(!b.text.includes(' '), 'a Chinese label carries no invented spaces');
+  // Without a language the whole narration is one token and the scene falls through to a phrase.
+  assert.equal(extractBeats(zh, [], 8).filter((b) => b.kind === 'keyword').length, 0);
+});
+
+test('beats: the Vietnamese lane does not move', async () => {
+  const { extractBeats } = await import('../src/hyperframe/beats.js');
+  const words = 'Ba dấu hiệu giúp các bạn tự tin tăng giá mà không sợ mất khách hàng'.split(' ');
+  const cue = [{ start: 0, end: 6, text: words.join(' '), words: words.map((w, i) => ({ word: w, start: i * 0.3, end: (i + 1) * 0.3 })) }];
+  const before = extractBeats(cue, [], 8);
+  const after = extractBeats(cue, [], 8, { lang: 'vi' });
+  assert.deepEqual(after, before, 'declaring Vietnamese changes nothing — it was already the assumption');
+});
+
+test('beats: German folding keeps umlauts as the letters they are', async () => {
+  const { fold, labelIsFragment } = await import('../src/hyperframe/beats.js');
+  // Stripping diacritics is right for Vietnamese and French; in German it merges distinct words.
+  assert.notEqual(fold('schön', 'de'), fold('schon', 'de'));
+  assert.equal(fold('schön', 'de'), 'schoen', 'German transliterates the way German does');
+  assert.equal(fold('schön'), fold('schon'), 'the language-free default still folds — this was the bug');
+  // …and a French label is judged against French function words.
+  assert.equal(labelIsFragment('de la puissance', 'fr'), true);
+  assert.equal(labelIsFragment('PUISSANCE MAXIMALE', 'fr'), false);
+});
