@@ -14,6 +14,7 @@ import { familyReady } from '../fonts/registry.js';
 import { rechunkCues } from '../subtitles/chunk.js';
 import { ratioToSize, hash32 } from '../util/util.js';
 import { wordJoiner } from '../i18n/segment.js';
+import { lang as langRow } from '../i18n/languages.js';
 
 // Per-project seed salt (P31): scene N of two different videos must NOT share randomness
 // (particles, ambient layout, FX picks) — before this, seed was `idx + 1` for every video,
@@ -114,7 +115,8 @@ export function buildSceneHtml(scene, project, config, extras = {}) {
       lang: config.subtitleLang || config.language,
     })
     : [];
-  const ctx = makeCtx({ w, h, theme, seed: sceneSeed(project, scene.idx), duration, idx: scene.idx, captions: scene.srt_json || [] });
+  const ctx = makeCtx({ w, h, theme, seed: sceneSeed(project, scene.idx), duration, idx: scene.idx, captions: scene.srt_json || [],
+    script: langRow(config.subtitleLang || config.language).script });
   const tpl = buildTemplate(plan.template, plan.props, ctx);
   applyCustomOverride(tpl, plan.props);
   // Canvas provenance: a hyperframe spec authored on a different canvas (stamped at codegen)
@@ -229,7 +231,8 @@ export function sceneTemplateSource(scene, project, config) {
     ? themeFromGuide(normalizeGuide(plan.props.guide))
     : themeFromGuide(resolveGuide(config));
   ({ plan, theme } = applyBrandFont(plan, theme, config));
-  const ctx = makeCtx({ w, h, theme, seed: sceneSeed(project, scene.idx), duration, idx: scene.idx, captions: scene.srt_json || [] });
+  const ctx = makeCtx({ w, h, theme, seed: sceneSeed(project, scene.idx), duration, idx: scene.idx, captions: scene.srt_json || [],
+    script: langRow(config.subtitleLang || config.language).script });
   const tpl = buildTemplate(plan.template, plan.props, ctx);
   applyCustomOverride(tpl, plan.props);
   return { template: plan.template, html: tpl.html || '', css: tpl.css || '', script: tpl.script || '', hasCustom: !!plan.props?.__custom };

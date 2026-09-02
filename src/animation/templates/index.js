@@ -53,10 +53,10 @@ export function accentTimes(captions, duration, n, { gap = 1.2, lead = 0.12 } = 
   return picked.sort((a, b) => a - b).map((t) => +t.toFixed(2));
 }
 
-export function makeCtx({ w, h, theme, accent, seed = 0, duration = 6, idx = 0, captions = [] }) {
+export function makeCtx({ w, h, theme, accent, seed = 0, duration = 6, idx = 0, captions = [], script = 'latin' }) {
   const m = Math.min(w, h);
   return {
-    w, h, theme, seed, duration, idx,
+    w, h, theme, seed, duration, idx, script,
     accent: accent || theme.accents[idx % theme.accents.length],
     vertical: h > w,
     u: (n) => Math.round(m * n / 100),

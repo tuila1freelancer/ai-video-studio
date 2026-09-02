@@ -71,3 +71,46 @@ test('fonts: the app shell carries the subsets its own translations need', () =>
     assert.ok(manifest.includes(subset), `the interface font has no ${subset} subset`);
   }
 });
+
+// ---- typography that suits the script, not just the alphabet ----
+
+test('typography: case and tracking are applied only where the script has them', async () => {
+  const { buildTemplate, makeCtx } = await import('../src/animation/templates/index.js');
+  const { themeFromGuide } = await import('../src/styleguide/index.js');
+  const { lang: langRow } = await import('../src/i18n/languages.js');
+  const css = (code) => {
+    const guide = resolveGuide({ language: code });
+    const ctx = makeCtx({ w: 1920, h: 1080, theme: themeFromGuide(guide), script: langRow(code).script });
+    return buildTemplate('hyperframe', { guide, html: '<div class="hf-kw">X</div>' }, ctx).css;
+  };
+  const rule = (c, sel) => (c.match(new RegExp(`\\${sel}\\{[^}]*\\}`)) || [''])[0];
+
+  // Latin, Vietnamese and Cyrillic have case and take tracking — unchanged.
+  for (const code of ['vi', 'en', 'ru']) {
+    assert.match(rule(css(code), '.hf-kw'), /text-transform:uppercase/, `${code} keeps its uppercase headline`);
+    assert.match(rule(css(code), '.hf-label'), /letter-spacing/, `${code} keeps its tracking`);
+  }
+  // CJK has no case at all, so uppercase is a no-op dressed up as emphasis.
+  assert.ok(!/text-transform:uppercase/.test(rule(css('zh'), '.hf-kw')));
+  // Thai and Devanagari build letters out of clusters that letter-spacing pulls apart.
+  for (const code of ['th', 'hi']) {
+    assert.ok(!/letter-spacing/.test(rule(css(code), '.hf-label')), `${code} must not be letter-spaced`);
+    assert.ok(!/text-transform:uppercase/.test(rule(css(code), '.hf-kw')));
+  }
+});
+
+test('typography: the codegen prompt names the right rule for the declared language', async () => {
+  const { scriptTextRule } = await import('../src/hyperframe/prompt.js');
+  assert.match(scriptTextRule('x', 'hi'), /Devanagari/);
+  assert.match(scriptTextRule('x', 'th'), /Thai/);
+  assert.match(scriptTextRule('x', 'ru'), /Cyrillic/);
+  assert.match(scriptTextRule('x', 'vi'), /Vietnamese/);
+  assert.equal(scriptTextRule('x', 'en'), '');
+  // A Vietnamese product name inside an English video used to trigger the Vietnamese rule,
+  // because the rule was chosen by sniffing the narration rather than by asking the project.
+  assert.equal(scriptTextRule('Our tool is called Nguyễn', 'en'), '');
+  // Without a language it still falls back to reading the text — using the fixed detector, so
+  // Greek, which decomposes to a combining acute, is not claimed as Vietnamese.
+  assert.match(scriptTextRule('ปัญญาประดิษฐ์เปลี่ยนโลกทุกวัน'), /Thai/);
+  assert.ok(!/Vietnamese/.test(scriptTextRule('Καλημέρα κόσμε από την Ελλάδα σήμερα')));
+});

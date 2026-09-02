@@ -34,9 +34,10 @@ test('the repair measures the real font instead of hardcoding a number', () => {
 
 test('it only looks at text that actually carries a mark', () => {
   // An English scene must render byte-identically to before, so the pass selects by CONTENT:
-  // a text node with a combining mark above (or the dot below) after NFD, and nothing else.
-  assert.match(harness, /VN_HIGH = \/\[\\\\u0300\\\\u0301\\\\u0303\\\\u0309\\\\u0306\\\\u0302\\\\u031B\]\//);
-  assert.match(harness, /VN_LOW = \/\[\\\\u0323\]\//);
+  // a text node carrying a combining mark after NFD, and nothing else. The class used to be
+  // seven Vietnamese marks, which is why a Devanagari matra and a Thai tone stack — measured
+  // exactly the same way by exactly the same code — were walked straight past.
+  assert.match(harness, /MARKED = \/\\\\p\{M\}\/u/);
   assert.match(harness, /t\.normalize\('NFD'\)/);
   // doubled in the source so the template literal EMITS an escape: a literal combining mark
   // inside a character class is invisible in an editor and one stray keystroke from breaking.
@@ -75,7 +76,7 @@ test('it runs on both sides of __fitText, and cannot double-apply', () => {
   // __fitText changes font-size, which changes the overhang — so the pass has to run again after
   // it. That is only safe because the originals are stashed on the node and every value is
   // recomputed from them.
-  const order = /__fitVietnamese\(\); \} catch\(e\)\{\}\s*\n\s*try \{ window\.__fitText\(\); \} catch\(e\)\{\}\s*\n\s*try \{ window\.__fitVietnamese\(\)/;
+  const order = /__fitMarks\(\); \} catch\(e\)\{\}\s*\n\s*try \{ window\.__fitText\(\); \} catch\(e\)\{\}\s*\n\s*try \{ window\.__fitMarks\(\)/;
   assert.match(harness, order);
   assert.match(harness, /if \(d\.vnPadT === undefined\) \{/, 'originals are stashed once');
   assert.match(harness, /const padT = parseFloat\(d\.vnPadT\) \|\| 0, padB = parseFloat\(d\.vnPadB\) \|\| 0;/);
@@ -86,9 +87,9 @@ test('the pass ships inside the scene page', () => {
     { id: 's', idx: 0, voice_text: 'Đà Nẵng', template: 'kinetic-statement', props: { heading: 'ĐÀ NẴNG' }, duration: 5 },
     { id: 'p', aspect_ratio: '16:9' }, { enableSubtitles: false }, { total: 1 },
   );
-  assert.match(html, /window\.__fitVietnamese = /);
-  // the escapes must survive the template literal as ESCAPES, not as literal combining marks
-  assert.match(html, /\\u0300\\u0301\\u0303/);
+  assert.match(html, /window\.__fitMarks = /);
+  // the class must survive the template literal as an ESCAPE, not as a literal property name
+  assert.match(html, /\\p\{M\}/);
 });
 
 test('the codegen prompt finally names Vietnamese as a tall-mark script', () => {

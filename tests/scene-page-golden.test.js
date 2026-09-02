@@ -53,10 +53,14 @@ const page = (config) => buildSceneHtml(scene, project, config, { total: 3 });
 // not — `capJoin` is emitted only when it is not a space, so a Vietnamese or English payload is
 // byte-identical and renders identically. Deliberately not behind a config key, for the reason
 // above: a flag would mean CJK projects draw wrong until somebody remembers to tick it.
+// Re-frozen once more for the mark repair. It used to trigger on seven Vietnamese marks; it now
+// triggers on any combining mark, because every number it applies is measured from the element's
+// own font and a Devanagari matra or a Thai tone stack needs exactly the same repair. Same reason
+// as the two above: a correctness repair does not go behind a config key.
 const GOLDEN = {
-  plain: '9f27466f81f03354cb39e8972c85945f',
-  styled: '6f9fd8f6fb46bbb0a942bfda528eb679',
-  off: '6c89b84b42cdfb05d0b513ca7e0233b8',
+  plain: '991c2c42c38cab74dae101fd7729d989',
+  styled: 'f0ce7d2eac4d3915d4a8937d9e68e8da',
+  off: 'c63609bbf39a1386fafc9d7f6fe896ca',
 };
 const STYLED = {
   enableSubtitles: true, subtitlePreset: 'bold-impact', subtitleFont: 'Anton', subtitleFontSize: 80,

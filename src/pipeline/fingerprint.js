@@ -179,7 +179,7 @@ export function fpStamp(scene, key, value) {
  * what lets the Vietnamese repair scan say "already done" instead of offering the same 7 scenes
  * forever.
  */
-export const TYPESET_VERSION = 1;
+export const TYPESET_VERSION = 2;
 
 /** Stamp a scene that just had its clip written. */
 export function stampRendered(scene, digest) {
