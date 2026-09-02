@@ -33,6 +33,7 @@ import {
 import { HF_LAYOUTS, guideBrief } from '../pipeline/direction.js';
 import { auditCtas, stripCtaSentences } from './cta-audit.js';
 import { wordCount, safeJson } from '../util/util.js';
+import { words, countWords, wordJoiner } from '../i18n/segment.js';
 
 // The 8 canonical visual sections (factory schema hard gate). A master visual must carry
 // [MAIN FOCUS] plus at least MIN_BRACKETS of these to count as "directed".
@@ -101,7 +102,13 @@ function bracketSection(visual, name) {
 function bracketCount(visual) {
   return VISUAL_BRACKETS.reduce((n, b) => n + (new RegExp(`\\[${b.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\]`, 'i').test(visual) ? 1 : 0), 0);
 }
-const tokenSet = (s) => new Set((String(s || '').toLowerCase().replace(/\d+/g, ' ').match(/[\p{L}]{2,}/gu) || []));
+// Tokens for the near-duplicate and polish-floor ratios. Length ≥2 drops single letters, which
+// is right for Latin and wrong for Chinese, where a great many words are one character — so the
+// floor only applies where a one-character word is genuinely noise.
+const tokenSet = (s, code) => new Set(
+  words(String(s || '').toLowerCase().replace(/\d+/g, ' '), code)
+    .filter((w) => (wordJoiner(code) === '' ? true : w.length >= 2)),
+);
 function jaccard(a, b) {
   if (!a.size || !b.size) return 0;
   let inter = 0;
@@ -110,9 +117,9 @@ function jaccard(a, b) {
 }
 
 /** The last `n` meaningful tokens of the owner's script — the closing block, checked on its own. */
-function tailTokens(source, n) {
+function tailTokens(source, n, code) {
   const all = String(source || '').trim().split(/\s+/);
-  return tokenSet(all.slice(-Math.max(1, n)).join(' '));
+  return tokenSet(all.slice(-Math.max(1, n)).join(' '), code);
 }
 
 // Voice lines that are production METADATA, not narration — the exact leak observed in the
@@ -176,7 +183,7 @@ export function validateScenesJson(raw, { mode = 'topic', plan = null, source = 
   // MONOTONY: [MAIN FOCUS] must be scene-specific. Digits are stripped before comparing so
   // "Scene 4: …" vs "Scene 5: …" template stamps still count as duplicates.
   const withFocus = scenes.filter((sc) => sc.visual);
-  const focusSets = withFocus.map((sc) => ({ stt: sc.stt, set: tokenSet(bracketSection(sc.visual, 'MAIN FOCUS') || sc.visual) }));
+  const focusSets = withFocus.map((sc) => ({ stt: sc.stt, set: tokenSet(bracketSection(sc.visual, 'MAIN FOCUS') || sc.visual, language) }));
   const dupStt = [];
   for (let i = 1; i < focusSets.length; i++) {
     for (let j = 0; j < i; j++) {
@@ -204,11 +211,11 @@ export function validateScenesJson(raw, { mode = 'topic', plan = null, source = 
   // tokens must come from the source (up to 2 fully-new scenes are allowed — the added CTAs),
   // and ≥70% of the source's tokens must reappear somewhere in the output (nothing dropped).
   if (mode === 'script' && source && scenes.length) {
-    const srcTokens = tokenSet(source);
+    const srcTokens = tokenSet(source, language);
     const outTokens = new Set();
     let freshScenes = 0; const freshStt = [];
     for (const sc of scenes) {
-      const toks = [...tokenSet(sc.voice)];
+      const toks = [...tokenSet(sc.voice, language)];
       toks.forEach((t) => outTokens.add(t));
       if (!toks.length) continue;
       const kept = toks.filter((t) => srcTokens.has(t)).length / toks.length;
@@ -223,10 +230,10 @@ export function validateScenesJson(raw, { mode = 'topic', plan = null, source = 
     // The ENDING is the part that gets silently rewritten. Overall coverage cannot catch it: lose
     // the whole closing block of a 2,500-word script and coverage barely moves, yet the video ends
     // on wording the channel never approved. So the tail is checked on its own.
-    const tail = tailTokens(source, 60);
+    const tail = tailTokens(source, 60, language);
     if (tail.size) {
       const outTail = new Set();
-      for (const sc of scenes.slice(-6)) for (const tk of tokenSet(sc.voice)) outTail.add(tk);
+      for (const sc of scenes.slice(-6)) for (const tk of tokenSet(sc.voice, language)) outTail.add(tk);
       let kept = 0;
       for (const tk of tail) if (outTail.has(tk)) kept++;
       const ratio = kept / tail.size;
@@ -306,11 +313,11 @@ export function openingSentence(source) {
  * to..." sentence, which is the shape those rules exist to ban, and the video lost its first
  * three seconds.
  */
-function repairOpening(scenes, source) {
+function repairOpening(scenes, source, code) {
   const first = openingSentence(source);
   if (!first || !scenes.length) return scenes;
-  const want = tokenSet(first);
-  const got = tokenSet(scenes[0].voice);
+  const want = tokenSet(first, code);
+  const got = tokenSet(scenes[0].voice, code);
   let kept = 0;
   for (const t of want) if (got.has(t)) kept++;
   if (want.size && kept / want.size >= 0.7) return scenes; // the model kept it — leave it alone
@@ -355,7 +362,7 @@ export function repairScenesSpec(spec, defects, { source = '', first = false, la
     .filter((sc) => !dropStt.has(sc.stt))
     .map((sc, i) => ({ stt: i + 1, voice: sc.voice, visual: stripStt.has(sc.stt) ? '' : sc.visual, assets: sc.assets }));
   if (source && defects.some((d) => d.code === 'ENDING_REWRITTEN')) scenes = repairEnding(scenes, source);
-  if (source && first) scenes = repairOpening(scenes, source);
+  if (source && first) scenes = repairOpening(scenes, source, language);
   if (language === 'vi') scenes = scenes.map((sc) => ({ ...sc, voice: swapLoanWords(sc.voice) }));
   return { ...spec, scenes };
 }
@@ -672,9 +679,9 @@ const MIN_SPLIT = 6; // halves below this many scenes lose the narrative thread 
  * adjacent spans, so batching — and any adaptive re-split of a batch — tiles the source
  * EXACTLY: no sentence dropped, none duplicated, order preserved.
  */
-export function sourceSlicer(sentences, targetCount) {
+export function sourceSlicer(sentences, targetCount, code) {
   const cum = [0];
-  for (const s of sentences) cum.push(cum[cum.length - 1] + wordCount(s));
+  for (const s of sentences) cum.push(cum[cum.length - 1] + countWords(s, code));
   const total = cum[cum.length - 1];
   const cut = (k) => { // first sentence index whose cumulative words reach k scenes' share
     if (k <= 0 || !total) return 0;
@@ -684,7 +691,7 @@ export function sourceSlicer(sentences, targetCount) {
     while (lo < hi) { const mid = (lo + hi) >> 1; if (cum[mid] >= want) hi = mid; else lo = mid + 1; }
     return lo;
   };
-  return (from, to) => sentences.slice(cut(from - 1), cut(to)).join(' ');
+  return (from, to) => sentences.slice(cut(from - 1), cut(to)).join(wordJoiner(code));
 }
 
 function sceneTail(scenes) {
@@ -803,11 +810,15 @@ export async function generateMasterScenes({ input, source = null, config = {}, 
 
   // 'source' (fetched article) outranks the word-count sniff: a long article is research
   // material for a NEW script, never a detailed owner script to polish.
-  const mode = sourceText ? 'source' : wordCount(text) >= SCRIPT_MODE_MIN_WORDS ? 'script' : 'topic';
+  // countWords, not whitespace: a 5,000-character Chinese script has no spaces in it at all, so
+  // the whitespace count was 1, it fell under the floor, and the owner's script was routed to
+  // 'topic' mode and rewritten from scratch.
+  const ownerWords = countWords(text, language);
+  const mode = sourceText ? 'source' : ownerWords >= SCRIPT_MODE_MIN_WORDS ? 'script' : 'topic';
   const plan = planScenes({ videoDuration: config.videoDuration, sceneDuration: config.sceneDuration, language });
   // 'script' mode: the owner's content decides the length — the duration target does not.
   const targetCount = mode === 'script'
-    ? Math.max(1, Math.min(400, Math.round(wordCount(text) / plan.wordsPerScene)))
+    ? Math.max(1, Math.min(400, Math.round(ownerWords / plan.wordsPerScene)))
     : plan.sceneCount;
 
   // 2) Offline fallback (LLM off): deterministic segmentation, same shape, no visuals
@@ -834,7 +845,7 @@ export async function generateMasterScenes({ input, source = null, config = {}, 
   const common = { mode, plan, language, guide, memory, assets, llm, onLog, sourceDoc, ctaPlan, outline: null };
   // 'script' mode hands every span its word-balanced share of the owner's text; the shared
   // cut points guarantee batch (and split) boundaries never drop or repeat a sentence.
-  const slice = mode === 'script' ? sourceSlicer(splitSentences(text), targetCount) : null;
+  const slice = mode === 'script' ? sourceSlicer(splitSentences(text, language), targetCount, language) : null;
 
   // 3) Single adaptive call for ≤30 scenes (splits itself if the reply overflows the window).
   if (targetCount <= BATCH_TRIGGER) {
