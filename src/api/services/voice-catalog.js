@@ -19,8 +19,13 @@ export function catalogProviders(ttsSettings, listProviders, providerConfig) {
     .filter((p) => {
       if (DEFAULT_PROVIDERS.includes(p.id)) return true;
       if (!p.needsNetwork) return true; // local engine (supertonic, say) — its roster is built in
+      // Which fields ARE the credentials is the provider's own business: Polly has neither an
+      // apiKey nor a token, it has an Access Key ID and a Secret, and hard-coding those two names
+      // here would have to be edited again for the provider after it.
       const cfg = providerConfig(ttsSettings, p.id) || {};
-      return !!(cfg.apiKey || cfg.token); // keyed cloud provider: only once a key exists
+      const secrets = (p.configSchema || []).filter((f) => f.type === 'password' && f.required);
+      if (!secrets.length) return !!(cfg.apiKey || cfg.token);
+      return secrets.every((f) => String(cfg[f.key] || '').trim());
     })
     .map((p) => p.id);
 }

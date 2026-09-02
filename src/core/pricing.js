@@ -68,7 +68,13 @@ const LOCAL_PROVIDERS = new Set(['ollama', 'lmstudio']);
 
 // TTS: USD per 1k characters (elevenlabs ≈ creator tier); larvoice bills opaque credits,
 // carried through as credits (VND-denominated on their side) with no USD estimate.
-const TTS_PER_KCHAR = { elevenlabs: 0.24, openai: 0.015 };
+// The cloud three are their standard neural tiers at list price — the meter is an estimate the
+// owner sees before spending, not an invoice, and a wrong-by-half number is worth far more than
+// the 0 that an unlisted provider reports.
+const TTS_PER_KCHAR = {
+  elevenlabs: 0.24, openai: 0.015,
+  azure: 0.016, google: 0.016, polly: 0.016,
+};
 
 // Aggregators namespace their model ids and OpenRouter suffixes its variants:
 //   openai/gpt-4o-mini · google/gemini-2.5-flash · deepseek-ai/DeepSeek-V4-Flash

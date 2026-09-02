@@ -2,6 +2,7 @@
 import { writeFileSync } from 'node:fs';
 import { probeDuration } from '../../media/ffmpeg.js';
 import { presetById, presetsForLane } from '../llm-presets.js';
+import { recordUsage } from '../../util/usage.js';
 
 const VOICES = ['alloy', 'ash', 'ballad', 'coral', 'echo', 'fable', 'nova', 'onyx', 'sage', 'shimmer', 'verse'];
 
@@ -50,6 +51,7 @@ export default {
     });
     if (!res.ok) throw new Error(`OpenAI TTS ${res.status}: ${(await res.text()).slice(0, 160)}`);
     writeFileSync(outPath, Buffer.from(await res.arrayBuffer()));
+    recordUsage('tts', { provider: 'openai', chars: String(text).length });
     return { path: outPath, duration: await probeDuration(outPath) };
   },
 
