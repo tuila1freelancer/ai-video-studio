@@ -68,3 +68,43 @@ test('P40-D: the canvas geometry is INLINE, so a model restyling #content cannot
   assert.ok(!/#content\s*\{/.test(head), 'no overridable #content rule left in the head');
   assert.ok(!/#stage\s*\{/.test(head), 'no overridable #stage rule left in the head');
 });
+
+// ---- the thumbnail is designed in the video's language ----
+//
+// SYS was a module constant that told the model "EVERY word on the image is Vietnamese … the
+// viewers are Vietnamese beginners" — for every language, on every run. The user message 190
+// lines later tried to say otherwise, so the model got two contradicting instructions and the
+// stronger, more specific one was the wrong one. hyperframe/prompt.js fixed exactly this class
+// of bug for scene codegen and recorded it in an incident comment; this file was the one it
+// did not reach.
+
+test('the thumbnail system prompt names the video language, not Vietnamese', async () => {
+  const { systemPrompt } = await import('../src/pipeline/thumbnail-codegen.js');
+  const fonts = { display: 'Inter', mono: 'JetBrains Mono' };
+  for (const [code, name] of [['de', 'German'], ['ja', 'Japanese'], ['fr', 'French'], ['th', 'Thai']]) {
+    const p = systemPrompt(code, fonts);
+    assert.ok(p.includes(name), `${code}: the prompt must name ${name}`);
+    assert.ok(!/Vietnamese/i.test(p), `${code}: the prompt still mentions Vietnamese`);
+    assert.ok(!/tiếng Việt|người mới bắt đầu/i.test(p), `${code}: Vietnamese prose leaked into the prompt`);
+  }
+  assert.ok(systemPrompt('vi', fonts).includes('Vietnamese'), 'a Vietnamese video still says so');
+});
+
+test('the thumbnail gives each script the vertical room its marks need', async () => {
+  const { systemPrompt } = await import('../src/pipeline/thumbnail-codegen.js');
+  const lh = (code) => Number((systemPrompt(code, { display: 'Inter' }).match(/line-height:([\d.]+)/) || [])[1]);
+  assert.equal(lh('vi'), 1.35, 'Vietnamese stacked marks — the measured floor, unchanged');
+  assert.equal(lh('hi'), 1.8, 'Devanagari matras reach far above and below the baseline');
+  assert.equal(lh('th'), 1.7, 'Thai tone marks stack');
+  assert.ok(lh('en') <= 1.35);
+});
+
+test('the thumbnail layout doctrine is language-neutral', async () => {
+  const src = readFileSync(new URL('../src/pipeline/thumbnail-codegen.js', import.meta.url), 'utf8');
+  // The pixel budgets were always language-neutral; the prose wrapped around them was not, and a
+  // Vietnamese art-direction brief demanding German on-screen text is the same mixed signal.
+  const start = src.indexOf('const THUMB_LAYOUT');
+  const doctrine = src.slice(start, src.indexOf('function layoutFor'));
+  assert.ok(!/[àáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵđ]/i.test(doctrine),
+    'the layout rules still carry Vietnamese prose');
+});
