@@ -100,7 +100,7 @@ test('P33 batch notes: prohibition / soft-CTA / closing variants, span-relative'
   const ctaPlan = ctaPlanFor(200);
   const middle = batchNoteFor({ label: 'batch 4/8', from: 76, to: 100, targetCount: 200, tail: '  - "…"', closes: false, ctaPlan });
   assert.match(middle, /NO call-to-action and NO farewell/);
-  assert.match(middle, /hẹn gặp lại/);
+  assert.match(middle, /see-you-next-time/);
   assert.match(middle, /CONTINUES after scene 100/);
   const soft = batchNoteFor({ label: 'batch 3/8', from: 51, to: 75, targetCount: 200, tail: 'x', closes: false, ctaPlan });
   assert.match(soft, /scene 60 \(scene 10 of this span\) carries this video's ONE soft CTA/);

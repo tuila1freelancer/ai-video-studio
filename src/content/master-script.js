@@ -34,6 +34,7 @@ import { HF_LAYOUTS, guideBrief } from '../pipeline/direction.js';
 import { auditCtas, stripCtaSentences } from './cta-audit.js';
 import { wordCount, safeJson } from '../util/util.js';
 import { words, countWords, wordJoiner } from '../i18n/segment.js';
+import { column, LANGUAGES, lang as langRow } from '../i18n/languages.js';
 
 // The 8 canonical visual sections (factory schema hard gate). A master visual must carry
 // [MAIN FOCUS] plus at least MIN_BRACKETS of these to count as "directed".
@@ -125,8 +126,17 @@ function tailTokens(source, n, code) {
 // Voice lines that are production METADATA, not narration — the exact leak observed in the
 // factory's real output (CTA placement notes, hashtag lines, a thumbnail prompt read aloud).
 // TTS must never speak these; P18 pins that they are never persisted.
+/**
+ * Production-metadata labels a narration line must never speak, in every language the app writes.
+ * The list was English plus two Vietnamese labels, so a German "Beschreibung:" line reached TTS.
+ */
+function metaLabelRe() {
+  const own = LANGUAGES.flatMap((l) => l.metaLabels).map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  return new RegExp(`^\\s*[-•*]?\\s*(?:CTA|Hashtags?|Thumbnail|Title|Caption|Description|Pinned comment|${own.join('|')})\\b[^:]{0,60}:`, 'i');
+}
+
 const META_LEAK_RES = [
-  /^\s*[-•*]?\s*(?:CTA|Hashtags?|Thumbnail|Title|Caption|Description|Mô tả video|Bình luận ghim|Pinned comment)\b[^:]{0,60}:/i,
+  metaLabelRe(),
   /\bcomma-separated\b/i,
   /(?:#[\p{L}\p{N}_]+\s*[, ]\s*){2,}#[\p{L}\p{N}_]+/u, // a run of 3+ hashtags
   /\bthumbnail\b[\s\S]{0,160}\b(?:16:9|9:16|1:1|4:5)\b|\b(?:16:9|9:16|1:1|4:5)\b[\s\S]{0,160}\bthumbnail\b/i,
@@ -404,19 +414,7 @@ Keep each scene to 2-3 main moving elements. Overly complex scenes = broken HTML
 
 // Per-language narration guidance (reference-app voiceNote parity): tone + address form so
 // non-vi/en scripts read like a native presenter, not a translation.
-export const LANG_VOICE_NOTES = {
-  fr: 'Voice in natural French, "vous" form — clear, warm, like a skilled French presenter.',
-  de: 'Voice in natural German, "Sie" form (formal but approachable) — clear and structured, like a German educational presenter.',
-  es: 'Voice in natural Spanish (neutral/Latin American), "tú" form — engaging and conversational, like a skilled presenter.',
-  pt: 'Voice in natural Brazilian Portuguese, "você" form — conversational and engaging, like a Brazilian YouTuber explaining a topic.',
-  hi: 'Voice in natural Hindi (Hinglish is fine for tech terms) — conversational, like explaining to a friend; mix English tech terms naturally.',
-  th: 'Voice in natural Thai — polite, friendly presenter tone; keep sentences short and rhythmic for TTS.',
-  id: 'Voice in natural Indonesian — friendly, direct presenter tone ("kamu"), short clear sentences.',
-  ja: 'Voice in natural Japanese — polite です/ます register, concise sentences that flow for TTS.',
-  ko: 'Voice in natural Korean — polite 해요체 register, concise spoken sentences.',
-  zh: 'Voice in natural Simplified Chinese — clear, friendly presenter tone, short spoken sentences.',
-  ru: 'Voice in natural Russian — engaging presenter tone, "вы" form, short clear sentences.',
-};
+export const LANG_VOICE_NOTES = column('voiceNote');
 
 /**
  * Build the ONE master prompt (messages array). mode 'topic' writes the whole video;
@@ -429,12 +427,12 @@ export function buildMasterPrompt({
 } = {}) {
   const langName = LANG_NAME[language] || language;
   const wps = LANG_WPS[language] || 3.0;
-  const persona = language === 'vi'
-    ? '\n- Persona: the narrator says "mình", the audience is "các bạn" — never "tôi", never singular "bạn".'
-    : (LANG_VOICE_NOTES[language] ? `\n- ${LANG_VOICE_NOTES[language]}` : '');
+  // One lookup, not a Vietnamese special case with everything else as its else-branch — which is
+  // how English, the app's second language, ended up with no register guidance at all.
+  const persona = LANG_VOICE_NOTES[language] ? `\n- ${LANG_VOICE_NOTES[language]}` : '';
   // Reference-app LANGUAGE OVERRIDE semantics: narration in the target language, the
   // "visual" brief stays English (codegen instructions are English), title follows the voice.
-  const langOverride = language !== 'vi' && language !== 'en'
+  const langOverride = language !== 'en'
     ? `\n- LANGUAGE: the "voice" field MUST be written in ${langName}. The "visual" field MUST remain in English (it feeds an English-instruction rendering engine) — except [ON-SCREEN TEXT] labels, which are in ${langName}. thumbnail.title in ${langName}; thumbnail.prompt in English.` : '';
   const n = expect || plan.sceneCount;
   // P33 — a PARTIAL span (any call that is not the whole video in one go, batches AND
@@ -480,7 +478,7 @@ ${partial
 VALUE ARCHITECTURE:
 - Every scene TEACHES one concrete, true, non-obvious thing: claim → why/how → ONE specific named example. A scene that is only setup, a transition or a rhetorical question is a FAILED scene.
 - Ground every figure: NEVER invent a statistic, percentage or count. A precise verb beats a fake number.
-- Scenes connect by LOGIC with forward connectors (${language === 'vi' ? '"vì vậy…", "nhưng…", "vậy nên…"' : '"so…", "but…", "which is why…"'}) — never tease-questions; at most ONE genuine viewer question in the whole video.
+- Scenes connect by LOGIC with forward connectors (${langRow(language).connectors.map((c) => `"${c}"`).join(', ')}) — never tease-questions; at most ONE genuine viewer question in the whole video.
 ${partial
     ? `- The video's scene 1 opens cold on the exact gap and the video's FINAL scene resolves it — either may live OUTSIDE this span; write only your span, mid-flow.
 - CTA placement: follow the CTA PLAN in the BATCH CONTEXT below EXACTLY — a CTA, a thanks-for-watching or a farewell anywhere it is not explicitly planned is a DEFECT.`
@@ -730,7 +728,7 @@ function ctaNoteFor({ from, to, ctaPlan, closes, mode, bridgeOut = '' }) {
       : `- CTA PLAN: the video ENDS in this span — the final scene resolves the opening gap, then ONE natural closing line (subscribe). No other CTA in this span${softIn ? ' beyond the two planned ones' : ''}.`);
   }
   if (!softIn && !closes) {
-    lines.push(`- CTA PLAN: this span carries NO call-to-action and NO farewell of any kind — no subscribe/like/share/bell, no thanks-for-watching, no goodbye, no "hẹn gặp lại". The video CONTINUES after scene ${to}: never conclude or wrap up${bridgeOut ? `; end mid-flow, handing over on: ${bridgeOut}` : ', end mid-flow'}.`);
+    lines.push(`- CTA PLAN: this span carries NO call-to-action and NO farewell of any kind — no subscribe/like/share/bell, no thanks-for-watching, no goodbye, no see-you-next-time. The video CONTINUES after scene ${to}: never conclude or wrap up${bridgeOut ? `; end mid-flow, handing over on: ${bridgeOut}` : ', end mid-flow'}.`);
   }
   return `\n${lines.join('\n')}`;
 }
@@ -826,7 +824,7 @@ export async function generateMasterScenes({ input, source = null, config = {}, 
   if (!llmEnabled(llm)) {
     const matter = sourceText || text;
     const title = (String(source?.title || '').trim() || splitSentences(matter)[0] || matter || 'Video mới').slice(0, 64);
-    const off = offlineScript(matter, { title, sceneCount: targetCount, wordsPerScene: plan.wordsPerScene, structure: plan.videoDuration >= 240 });
+    const off = offlineScript(matter, { title, sceneCount: targetCount, wordsPerScene: plan.wordsPerScene, structure: plan.videoDuration >= 240, language });
     const spec = {
       title: off.title,
       thumbnail: synthThumbnail({}, off.title),
