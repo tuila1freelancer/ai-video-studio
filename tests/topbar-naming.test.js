@@ -7,6 +7,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
+/** The interface catalogue — where a Vietnamese label lives now that the markup carries keys. */
+const catalogue = () => JSON.parse(readFileSync(new URL('../public/locales/vi.json', import.meta.url), 'utf8'));
+
 const src = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 
 test('the shell is a column with one topbar, and the panes stop padding around the titlebar', () => {
@@ -69,7 +72,10 @@ test('tool status is silent until a tool is actually missing', () => {
   const html = src('../public/index.html');
   assert.match(html, /class="dep-warn hidden" id="depWarn"/, 'hidden by default');
   // the detail moved into AI Setting rather than being thrown away
-  assert.match(html, /<div class="sec-label">Công cụ hệ thống<\/div>\s*\n\s*<div class="dep-row" id="depFoot"><\/div>/);
+  // The label is a translation key now, so the guarantee is the ORDER — the section heading
+  // immediately followed by an empty dep row — not the Vietnamese words that happen to fill it.
+  assert.match(html, /<div class="sec-label"[^>]*>[^<]*<\/div>\s*\n\s*<div class="dep-row" id="depFoot"><\/div>/);
+  assert.match(catalogue()['ui.settingsModal.cong-cu-he-thong'] || '', /Công cụ hệ thống/);
   const nav = src('../public/js/views/nav.js');
   assert.match(nav, /warn\.classList\.toggle\('hidden', !missing\.length\)/);
   assert.match(nav, /\$\('#depWarn'\)\?\.addEventListener\('click', openSettings\)/, 'the warning opens where the detail is');

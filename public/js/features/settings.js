@@ -3,8 +3,27 @@ import { closeModal } from '../ui/modals.js';
 import { toast } from '../ui/toast.js';
 import { api } from '../api.js';
 import { state } from '../state.js';
+import { uiLang, setUiLanguage } from '../i18n.js';
+
+// The languages the app can be shown in, named in themselves — a picker that says "Japanese" to
+// someone who cannot read English is a picker they cannot use.
+const UI_LANGS = [
+  ['vi', '🇻🇳 Tiếng Việt'], ['en', '🇺🇸 English'], ['ja', '🇯🇵 日本語'], ['ko', '🇰🇷 한국어'],
+  ['zh', '🇨🇳 中文'], ['es', '🇪🇸 Español'], ['fr', '🇫🇷 Français'], ['de', '🇩🇪 Deutsch'],
+  ['pt', '🇧🇷 Português'], ['id', '🇮🇩 Indonesia'], ['th', '🇹🇭 ไทย'], ['hi', '🇮🇳 हिन्दी'],
+  ['ru', '🇷🇺 Русский'],
+];
+
+function initUiLangPicker() {
+  const sel = $('#setUiLang');
+  if (!sel) return;
+  sel.innerHTML = UI_LANGS.map(([c, label]) => `<option value="${c}">${esc(label)}</option>`).join('');
+  sel.value = uiLang();
+  sel.addEventListener('change', () => { if (sel.value !== uiLang()) setUiLanguage(sel.value, api); });
+}
 
 export function initSettings() {
+  initUiLangPicker();
   $('#setSave').addEventListener('click', saveSettings);
   $('#setTtsProvider').addEventListener('change', renderProviderFields);
   $('#btnTestProvider').addEventListener('click', testProvider);

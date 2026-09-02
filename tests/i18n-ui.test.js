@@ -9,7 +9,8 @@
 import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync } from 'node:fs';
+import { checkCatalogue } from '../scripts/lib/locale-check.mjs';
 import { classifyError, failed, coded, ERROR_CLASS } from '../src/core/errors.js';
 import { t, setUiLang, uiLang, reloadCatalogues } from '../src/i18n/t.js';
 import { PATHS } from '../src/config/paths.js';
@@ -69,19 +70,57 @@ test('ui: a missing key shows itself, and placeholders are filled', () => {
   } finally { setUiLang(before); }
 });
 
-test('ui: every catalogue carries the same keys as the source language', () => {
+test('ui: a catalogue is consistent with the source, and never stale', () => {
+  // Completeness and correctness are different things here. A MISSING key degrades exactly the
+  // way the design intends — the markup's own Vietnamese shows through — so a half-translated
+  // language is a known state, not a defect. A key the source no longer has, a dropped
+  // placeholder or a label three times too long for its button are defects, and they are silent.
   const dir = join(PATHS.publicDir, 'locales');
-  const files = readdirSync(dir).filter((f) => f.endsWith('.json') && !f.includes('guide.'));
-  assert.ok(files.includes('vi.json') && files.includes('en.json'));
-  const vi = JSON.parse(readFileSync(join(dir, 'vi.json'), 'utf8'));
-  const keys = Object.keys(vi);
-  assert.ok(keys.length, 'the source catalogue is empty');
-  for (const f of files) {
-    const cat = JSON.parse(readFileSync(join(dir, f), 'utf8'));
-    const missing = keys.filter((k) => !(k in cat));
-    assert.equal(missing.length, 0, `${f} is missing ${missing.length} keys: ${missing.slice(0, 5)}`);
-    const extra = Object.keys(cat).filter((k) => !(k in vi));
-    assert.equal(extra.length, 0, `${f} has keys the source does not: ${extra.slice(0, 5)}`);
+  const files = readdirSync(dir).filter((f) => f.endsWith('.json'));
+  assert.ok(files.includes('vi.json'), 'the source catalogue must exist');
+
+  for (const prefix of ['', 'guide.']) {
+    const sourceFile = join(dir, `${prefix}vi.json`);
+    if (!existsSync(sourceFile)) continue;
+    const source = JSON.parse(readFileSync(sourceFile, 'utf8'));
+    assert.ok(Object.keys(source).length, `${prefix}vi.json is empty`);
+    for (const f of files.filter((x) => x.startsWith(prefix) && x !== `${prefix}vi.json`)) {
+      if (prefix === '' && f.startsWith('guide.')) continue;
+      const code = f.replace(prefix, '').replace('.json', '');
+      const cat = JSON.parse(readFileSync(join(dir, f), 'utf8'));
+      const present = Object.fromEntries(Object.entries(cat).filter(([k]) => k in source));
+      const problems = checkCatalogue(
+        Object.fromEntries(Object.keys(present).map((k) => [k, source[k]])), present, code,
+      );
+      assert.deepEqual(problems, [], `${f}: ${problems.slice(0, 4).join(' | ')}`);
+      const stale = Object.keys(cat).filter((k) => !(k in source));
+      assert.deepEqual(stale, [], `${f} carries ${stale.length} keys the source no longer has`);
+    }
   }
-  reloadCatalogues();
+});
+
+// The languages the owner has declared finished. A code moves in here when its catalogue is
+// complete, and from then on a missing key is a build failure rather than a fallback.
+const SHIPPED = ['vi'];
+
+test('ui: a language declared shipped is actually complete', () => {
+  const dir = join(PATHS.publicDir, 'locales');
+  const source = JSON.parse(readFileSync(join(dir, 'vi.json'), 'utf8'));
+  for (const code of SHIPPED) {
+    if (code === 'vi') continue;
+    const cat = JSON.parse(readFileSync(join(dir, `${code}.json`), 'utf8'));
+    const missing = Object.keys(source).filter((k) => !(k in cat));
+    assert.deepEqual(missing.slice(0, 5), [], `${code} is declared shipped but is missing ${missing.length} keys`);
+  }
+});
+
+test('ui: the markup carries a key for every string a translator must reach', () => {
+  const html = readFileSync(join(PATHS.publicDir, 'index.html'), 'utf8');
+  const keyed = (html.match(/data-i18n[a-z-]*="/g) || []).length;
+  assert.ok(keyed > 450, `only ${keyed} nodes carry a translation key`);
+  const source = JSON.parse(readFileSync(join(PATHS.publicDir, 'locales', 'vi.json'), 'utf8'));
+  // Every key the markup names must exist, or the interface shows a raw key where a label goes.
+  for (const m of html.matchAll(/data-i18n[a-z-]*="([^"]+)"/g)) {
+    assert.ok(m[1] in source, `index.html names "${m[1]}", the catalogue does not have it`);
+  }
 });

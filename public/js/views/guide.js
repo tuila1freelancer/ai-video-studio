@@ -8,6 +8,7 @@
 // that can open the thing it is explaining stops being a document and starts being part of the UI.
 import { $, $$, esc } from '../ui/dom.js';
 import { registerPageHook, switchPage } from './nav.js';
+import { uiLang } from '../i18n.js';
 
 /* ---------------------------------------------------------------------------
    CONTENT
@@ -534,6 +535,10 @@ function renderSection(s, i) {
    Vietnamese without diacritics has to match Vietnamese with them: nobody types "phụ đề"
    into a filter box, they type "phu de".
 --------------------------------------------------------------------------- */
+// NFD strips the marks, so "phu de" matches "phụ đề", "resume" matches "résumé" and "sluzba"
+// matches "служба" is NOT what happens — Cyrillic, Thai and CJK have no marks to strip and simply
+// pass through unchanged, which is the right answer for all three. đ has no decomposition of its
+// own, so it needs its own line.
 const flat = (s) => String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\u0111/g, 'd');
 
 function haystack(s) {
@@ -550,7 +555,33 @@ function haystack(s) {
   return flat(parts.join(' '));
 }
 
-const HAY = new Map(SECTIONS.map((s) => [s.id, haystack(s)]));
+// The chapters actually being shown: the Vietnamese source, or a translated copy laid over the
+// SAME shape (see scripts/i18n-extract-guide.mjs), so a translated manual can never have a
+// different set of chapters, blocks or jump buttons from the Vietnamese one.
+let CHAPTERS = SECTIONS;
+let HAY = new Map(SECTIONS.map((s) => [s.id, haystack(s)]));
+
+function rehydrate(flatText) {
+  const clone = JSON.parse(JSON.stringify(SECTIONS));
+  for (const [path, value] of Object.entries(flatText || {})) {
+    if (typeof value !== 'string') continue;
+    const parts = path.split('.');
+    let node = clone;
+    for (let i = 0; i < parts.length - 1 && node; i++) node = node[parts[i]];
+    if (node) node[parts[parts.length - 1]] = value;
+  }
+  return clone;
+}
+
+async function loadChapters() {
+  if (uiLang() === 'vi') return;
+  try {
+    const res = await fetch(`/locales/guide.${uiLang()}.json`, { cache: 'no-cache' });
+    if (!res.ok) return;                       // no translated manual yet — Vietnamese still reads
+    CHAPTERS = rehydrate(await res.json());
+    HAY = new Map(CHAPTERS.map((s) => [s.id, haystack(s)]));
+  } catch { /* offline: the authored manual is already here */ }
+}
 
 /* ---------------------------------------------------------------------------
    BOOT
@@ -578,17 +609,18 @@ export function initGuide() {
   registerPageHook('tutorials', build);
 }
 
-function build() {
+async function build() {
   if (built) return;
   built = true;
+  await loadChapters();
 
-  const groups = [...new Set(SECTIONS.map((s) => s.grp))];
+  const groups = [...new Set(CHAPTERS.map((s) => s.grp))];
   $('#gdNav').innerHTML = groups.map((g) => `
     <div class="gd-nav-g">${esc(g)}</div>
-    ${SECTIONS.filter((s) => s.grp === g).map((s) => `
+    ${CHAPTERS.filter((s) => s.grp === g).map((s) => `
       <a class="gd-nav-i" href="#gd-${s.id}" data-id="${s.id}"><span>${s.ic}</span>${esc(s.title)}</a>`).join('')}
   `).join('');
-  $('#gdBody').innerHTML = SECTIONS.map(renderSection).join('');
+  $('#gdBody').innerHTML = CHAPTERS.map(renderSection).join('');
 
   // Nav clicks scroll inside .page (the app's scroll container), not the window.
   $('#gdNav').addEventListener('click', (e) => {
@@ -610,10 +642,10 @@ function build() {
   let wide = false;
   const runSearch = () => {
     const q = flat(search.value.trim());
-    const byTitle = q ? SECTIONS.filter((s) => flat(s.title + ' ' + s.grp).includes(q)) : [];
-    const byBody = q ? SECTIONS.filter((s) => HAY.get(s.id).includes(q)) : SECTIONS;
+    const byTitle = q ? CHAPTERS.filter((s) => flat(s.title + ' ' + s.grp).includes(q)) : [];
+    const byBody = q ? CHAPTERS.filter((s) => HAY.get(s.id).includes(q)) : CHAPTERS;
     const show = new Set((!q || wide || !byTitle.length ? byBody : byTitle).map((s) => s.id));
-    for (const s of SECTIONS) {
+    for (const s of CHAPTERS) {
       const on = show.has(s.id);
       document.getElementById('gd-' + s.id)?.classList.toggle('hidden', !on);
       $(`.gd-nav-i[data-id="${s.id}"]`)?.classList.toggle('hidden', !on);
@@ -622,7 +654,7 @@ function build() {
     $('#gdMore').classList.toggle('hidden', rest <= 0);
     $('#gdMore').textContent = `Còn ${rest} chương khác có nhắc tới “${search.value.trim()}” — bấm để xem`;
     $('#gdEmpty').classList.toggle('hidden', !q || show.size > 0);
-    $('#gdCount').textContent = q ? `${show.size} chương khớp` : `${SECTIONS.length} chương`;
+    $('#gdCount').textContent = q ? `${show.size} chương khớp` : `${CHAPTERS.length} chương`;
   };
   search.addEventListener('input', () => { wide = false; runSearch(); });
   $('#gdMore').addEventListener('click', () => { wide = true; runSearch(); });

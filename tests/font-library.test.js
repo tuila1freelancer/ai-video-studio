@@ -145,7 +145,7 @@ test('a preset that declares uppercase can finally apply it', () => {
   // Đậm, Thể Thao and Punch all showed uppercase on their preview card and rendered mixed case
   // in the video. The empty option is what lets the preset through.
   const html = src('../public/index.html');
-  assert.match(html, /id="cfgSubCase"><option value="">/, 'a "follow the preset" choice exists, and is first');
+  assert.match(html, /id="cfgSubCase"[^>]*><option value=""/, 'a "follow the preset" choice exists, and is first');
   const cfg = src('../public/js/views/config.js');
   assert.match(cfg, /subtitleTextCase: \$\('#cfgSubCase'\)\.value \|\| undefined/);
   assert.match(cfg, /\$\('#cfgSubCase'\)\.value = cfg\.subtitleTextCase \|\| ''/, 'restored unconditionally');
