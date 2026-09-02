@@ -92,3 +92,25 @@ test('the declaration wins over whatever the scene text happens to look like', (
   // With nothing declared, content decides — and now it can actually tell French from English.
   assert.equal(resolveLang({}, ['Il faut savoir que ce sont surtout les questions précises qui donnent les résultats.']), 'fr');
 });
+
+// ---- picking a voice from a multilingual provider actually keeps it ----
+//
+// The Voice Picker writes a `lang:'multi'` choice into settings.tts.voiceId, and legacyVoice()
+// read that field back only for openai and elevenlabs. Choosing any Supertonic voice therefore
+// resolved to null → 'auto' → autoVoiceFor() → CATALOG[0], so every scene was synthesized with
+// M1 no matter which voice the owner clicked, with nothing anywhere saying so.
+
+test('a chosen voice survives for every provider, not just two of them', async () => {
+  const { legacyVoice } = await import('../src/providers/voice/index.js');
+  const picked = { provider: 'supertonic', voiceId: 'F3', providers: { supertonic: { voice: 'F3' } } };
+  assert.equal(legacyVoice(picked, 'supertonic'), 'F3', 'this returned null and the scene got M1');
+  assert.equal(resolveVoiceTarget(picked, 'vi', undefined).voice, 'F3');
+
+  // The legacy flat shape still resolves — an install that predates the picker must not move.
+  assert.equal(legacyVoice({ edgeVoice: 'vi-VN-NamMinhNeural' }, 'edge'), 'vi-VN-NamMinhNeural');
+  assert.equal(legacyVoice({ voice: 'Linh' }, 'say'), 'Linh');
+  assert.equal(legacyVoice({ voiceId: 'alloy' }, 'openai'), 'alloy');
+  // …and a provider's own slot wins over the shared field, so a stale pick cannot leak across.
+  assert.equal(legacyVoice({ voiceId: 'alloy', providers: { edge: { voice: 'en-US-AriaNeural' } } }, 'edge'),
+    'en-US-AriaNeural');
+});

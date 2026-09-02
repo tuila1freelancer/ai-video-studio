@@ -114,7 +114,13 @@ async function vpToggleFav(key) {
 }
 async function vpChoose(provider, voiceId, lang) {
   const tts = { ...(state.settings?.tts || {}) };
-  if (lang === 'multi') { tts.provider = provider; tts.voiceId = voiceId; }
+  if (lang === 'multi') {
+    // Into the provider's OWN slot, not the shared voiceId field: that field was only ever read
+    // back for openai and elevenlabs, so picking a Supertonic voice silently kept M1.
+    tts.provider = provider;
+    tts.voiceId = voiceId;
+    tts.providers = { ...(tts.providers || {}), [provider]: { ...(tts.providers?.[provider] || {}), voice: voiceId } };
+  }
   else { tts.langVoices = { ...(tts.langVoices || {}), [lang]: { provider, voice: voiceId } }; }
   await api.put('/settings', tts ? { tts } : {});
   await loadSettings();

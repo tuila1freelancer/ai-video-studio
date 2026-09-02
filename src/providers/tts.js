@@ -9,7 +9,7 @@
 //   3. on failure: edge → say, timbre-preserving: the fallback picks the cached voice
 //      closest to the primary's language+gender instead of an arbitrary default (never throws)
 import { aiSettings, cachedVoiceGender, nearestCachedVoice } from '../db/index.js';
-import { getProvider, providerConfig, legacyVoice } from './voice/index.js';
+import { getProvider, providerConfig, legacyVoice, providerExt } from './voice/index.js';
 import { logger } from '../util/log.js';
 import { detectLang } from '../util/lang.js';
 
@@ -89,10 +89,9 @@ async function synthWith(pid, voice, text, s, outPath, style, lang) {
   let v = voice;
   if (!v || v === 'auto') v = provider.autoVoiceFor(lang);
   if (v == null && pid !== 'say') throw new Error(`${pid}: không có giọng phù hợp cho ngôn ngữ`);
-  // Container follows what the provider actually writes: `say` emits m4a, the local Supertonic
-  // server returns wav, everything else mp3. A wrong extension would make ffprobe/concat guess.
-  const ext = pid === 'say' ? '.m4a' : (pid === 'supertonic' ? '.wav' : '.mp3');
-  const out = outPath.replace(/\.\w+$/, ext);
+  // Container follows what the provider actually writes — a wrong extension would make
+  // ffprobe/concat guess. The provider declares it, so adding one needs no edit here.
+  const out = outPath.replace(/\.\w+$/, providerExt(pid));
   // The language is passed through for providers whose API takes it explicitly (Supertonic is
   // one multilingual model, so the voice alone does not pick the language).
   const call = (c) => provider.synthesize(text, v, c, out, { lang });

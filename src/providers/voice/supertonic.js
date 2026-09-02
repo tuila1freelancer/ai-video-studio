@@ -34,6 +34,7 @@ const clamp = (v, lo, hi, dflt) => {
 
 export default {
   id: 'supertonic', name: 'Supertonic (chạy máy mình — miễn phí)', free: true, needsNetwork: false,
+  ext: '.wav',
   configSchema: [
     { key: 'serverUrl', label: 'Địa chỉ server', type: 'text', required: false, placeholder: 'http://127.0.0.1:7788' },
     { key: 'speed', label: 'Tốc độ đọc (0.5–2.0)', type: 'text', required: false, placeholder: '1.0' },

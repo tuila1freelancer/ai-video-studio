@@ -50,9 +50,15 @@ test('P40-C: synthesis posts the payload the local server expects, with clamped 
   } finally { globalThis.fetch = realFetch; }
 });
 
-test('P40-C: the façade writes .wav for supertonic and passes the language explicitly', () => {
+test('P40-C: the façade writes .wav for supertonic and passes the language explicitly', async () => {
   const s = src('../src/providers/tts.js');
-  assert.match(s, /pid === 'supertonic' \? '\.wav'/, 'container matches what the server returns');
+  // The container is declared BY the provider now, so the preview lane — which calls a provider
+  // directly — stops saving Supertonic's wav bytes into a .mp3 file, and a new provider needs no
+  // edit in the façade at all.
+  const { providerExt } = await import('../src/providers/voice/index.js');
+  assert.equal(providerExt('supertonic'), '.wav', 'container matches what the server returns');
+  assert.equal(providerExt('say'), '.m4a');
+  assert.equal(providerExt('edge'), '.mp3');
   assert.match(s, /provider\.synthesize\(text, v, c, out, \{ lang \}\)/,
     'multilingual model needs the language explicitly');
   // …and that language is the one the caller DECLARED where it knows it. Sniffing the text
