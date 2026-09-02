@@ -32,7 +32,11 @@ const SHARED = ['setLabel', 'uiLang', 'applyDom', 'setUiLanguage', 'toast', 'esc
 test('every shared helper a frontend module calls is one it can reach', () => {
   const problems = [];
   for (const file of walk(JS)) {
-    const src = readFileSync(file, 'utf8');
+    // Comments are stripped first: a helper NAMED in a comment ("same trick as toast()") is not a
+    // call to it, and the first draft of this check reported one as a missing import.
+    const src = readFileSync(file, 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, ' ')
+      .split('\n').map((l) => l.replace(/(^|[^:])\/\/.*$/, '$1')).join('\n');
     const known = new Set();
     for (const m of src.matchAll(/import\s*\{([^}]*)\}\s*from/g)) {
       for (const part of m[1].split(',')) known.add(part.trim().split(/\s+as\s+/).pop().trim());
