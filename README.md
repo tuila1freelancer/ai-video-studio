@@ -560,6 +560,8 @@ Rationale for each layer:
 | Change stopwords / function words / number units that shape on-screen beats | `i18n/stopwords.js` (layered over the English+Vietnamese base in `hyperframe/beats.js`) |
 | Fix a video rendering in the wrong font for its script | `styleguide/script-fonts.js` (video) · `subtitles/presets.js` `perLangDefaults` (burn) · `scripts/build-fonts.mjs` `UI_SUBSETS` (app shell) |
 | Change a string in the INTERFACE | edit `public/index.html` (it carries the Vietnamese as the default), then `node scripts/i18n-extract.mjs --write` · `node scripts/build-locales.mjs` re-translates only what changed |
+| Add a toast or a dialog | just write it in Vietnamese — `toast()` and `dialog.js` translate at the point they DRAW, keyed by the text itself; `scripts/i18n-extract-ui-msgs.mjs --write` picks it up |
+| Re-do a translation the checker rejected | `node scripts/build-locales.mjs --fix` (re-translates exactly what `scripts/lib/locale-check.mjs` flagged) |
 | Change the in-app manual | edit `SECTIONS` in `public/js/views/guide.js` as before, then `node scripts/i18n-extract-guide.mjs` + `build-locales.mjs --guide` |
 | Change a server message the owner sees | just write it in Vietnamese — `scripts/i18n-extract-server.mjs --write` keys it by its own text and `routes.js` translates `error`/`message`/`hint` on the way out |
 | Classify a new failure so the pipeline reacts correctly | throw `failed('<code>', '…')` from `core/errors.js`; NEVER rely on the wording (that was the old design and it made every message untranslatable) |
