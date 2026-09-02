@@ -1,618 +1,620 @@
-# 🎬 AI Video Studio
+<div align="center">
 
-A **macOS** desktop app that automatically generates videos from a **topic / detailed script / scenes JSON / article link** — any length you want (from 30 seconds to 30+ minutes). An optimized rebuild of `AI VIDEO Tool.app`: it drops the heavy Chromium UI shell in favor of a **native WKWebView**; a lightweight **Node.js 22** backend; runs **fully offline**.
+# AI Video Studio
 
-> Pipeline: **B2 Script → b2.5 Editorial gate → b2.75 Duration fit → B5 Scene build → (scene gate) → B3+4 TTS+Subtitles → B6 Render → (review gate) → B7 Concat & Master → B8 QC gate → Metadata → B9 Publish**.
-> Scenes-first: visuals are built against an estimated timing seed BEFORE any TTS credit is spent, then time-warped onto the real voice.
+**A desktop studio that turns one line of text into a finished, narrated, motion-graphics video.**
 
----
+`v1.0.0` · Node 22 · macOS (native) + Windows · 825 tests · 13 narration languages · 13 interface languages
 
-
-
-
-<!-- Một file duy nhất, cố ý: toàn bộ kiến thức của dự án nằm ở đây, không có thư mục docs/.
-     Ngoại lệ duy nhất là JOURNAL.md — do launchd tự ghi và tự commit, KHÔNG gộp vào đây.
-     Anchor được ghi tường minh (<a id>) nên mục lục không phụ thuộc vào cách renderer sinh slug. -->
-<details>
-<summary><b>Mục lục</b> — 36 mục</summary>
-
-- [✨ Features](#features)
-  - [📜 Master Script Engine (B2)](#master-script-engine-b2)
-  - [🆕 v3 upgrade highlights](#v3-upgrade-highlights)
-- [🚀 Run](#run)
-- [🔑 Licensing & release](#licensing-release)
-- [🧱 Architecture](#architecture)
-  - [1. System overview](#1-system-overview)
-  - [2. Current layer diagram (actual, post-refactor)](#2-current-layer-diagram-actual-post-refactor)
-  - [3. THE TWO BIGGEST ARCHITECTURAL PROBLEMS — both ✅ RESOLVED](#3-the-two-biggest-architectural-problems-both-resolved)
-  - [4. Dead-code inventory — ✅ ALL EXECUTED (verified 2026-07-17)](#4-dead-code-inventory-all-executed-verified-2026-07-17)
-  - [5. Target architecture by layer (each decision + 1 rationale)](#5-target-architecture-by-layer-each-decision-1-rationale)
-  - [5b. Upgrade-v3 module map (what was added on top of the v2 refactor)](#5b-upgrade-v3-module-map-what-was-added-on-top-of-the-v2-refactor)
-  - [6. "Want to change X → go to file Y" table (current structure)](#6-want-to-change-x-go-to-file-y-table-current-structure)
-  - [7. "PROTECTED BEHAVIOR" registry (movable; DELETE/SIMPLIFY = broken)](#7-protected-behavior-registry-movable-deletesimplify-broken)
-  - [8. Appendix — line counts of large files](#8-appendix-line-counts-of-large-files)
-- [⚙️ AI configuration (optional)](#ai-configuration-optional)
-- [📂 Data & logs](#data-logs)
-- [Appendix A — Decision record: the doctrine service (not built)](#appendix-a-decision-record-the-doctrine-service-not-built)
-  - [1. Lỗ mà giai đoạn A không chạm tới được](#1-lo-ma-giai-doan-a-khong-cham-toi-duoc)
-  - [2. Vì sao dừng ở đây — và đây là lý do kinh doanh, không phải kỹ thuật](#2-vi-sao-dung-o-day-va-day-la-ly-do-kinh-doanh-khong-phai-ky-thuat)
-  - [3. Phần nào chuyển, phần nào ở lại](#3-phan-nao-chuyen-phan-nao-o-lai)
-  - [4. Hợp đồng API](#4-hop-dong-api)
-  - [5. Chỗ nối phía app đã sẵn sàng](#5-cho-noi-phia-app-da-san-sang)
-  - [6. Rủi ro phải xử lý khi thi công](#6-rui-ro-phai-xu-ly-khi-thi-cong)
-  - [7. Thứ tự làm — CHỈ dùng nếu quyết định ở đầu tài liệu bị đảo](#7-thu-tu-lam-chi-dung-neu-quyet-dinh-o-dau-tai-lieu-bi-dao)
-- [Appendix B — HyperFrames attribution (Apache-2.0)](#appendix-b-hyperframes-attribution-apache-20)
-  - [Why it maps onto us](#why-it-maps-onto-us)
-  - [Motion doctrine (skills/faceless-explainer/references/motion-language.md)](#motion-doctrine-skillsfaceless-explainerreferencesmotion-languagemd)
-  - [Cut catalog (skills/faceless-explainer/references/cut-catalog.md)](#cut-catalog-skillsfaceless-explainerreferencescut-catalogmd)
-  - [Beat direction (skills/hyperframes-creative/references/beat-direction.md)](#beat-direction-skillshyperframes-creativereferencesbeat-directionmd)
-  - [Blueprints (skills/hyperframes-animation/blueprints-index.md)](#blueprints-skillshyperframes-animationblueprints-indexmd)
-  - [Determinism rules worth restating in our codegen prompt](#determinism-rules-worth-restating-in-our-codegen-prompt)
-  - [Static lint rules we port (packages/lint/src/rules/)](#static-lint-rules-we-port-packageslintsrcrules)
-  - [Runtime layout audit ideas we port (packages/cli/src/utils/layoutAudit.ts)](#runtime-layout-audit-ideas-we-port-packagesclisrcutilslayoutauditts)
-  - [Text fitting (packages/core/src/text/fitTextFontSize.ts)](#text-fitting-packagescoresrctextfittextfontsizets)
-  - [Baseline (recorded 2026-07-14, before adoption phases)](#baseline-recorded-2026-07-14-before-adoption-phases)
-
-</details>
-
-<a id="features"></a>
-## ✨ Features
-
-- **One tap, nothing else to do**: on the Home screen enter a topic → **✨ Tạo video tự động** → out comes a complete MP4 video.
-
-<a id="master-script-engine-b2"></a>
-### 📜 Master Script Engine (B2)
-
-ONE master prompt turns **every input shape** into the same canonical factory-format scenes JSON
-`{thumbnail{title,prompt}, scenes[{stt,voice,visual,assets}]}` — per-scene `visual` is a full 8-bracket
-motion-graphics brief (`[ENVIRONMENT]…[MOOD]`) that HyperFrame codegen consumes directly:
-
-- **Topic** → plan-then-write (throughline → spine → scenes) + a value-architecture doctrine (every scene teaches one concrete thing; no tag-question filler, no invented statistics).
-- **Detailed owner script** (≥80 words) → **light polish only**: keep ≥90% of the wording and every idea in order, fix broken sentences, smooth joins, add missing CTAs — enforced by the `POLISH_FLOOR` gate; duration follows the content, never the other way around.
-- **Pasted scenes JSON** → validated + repaired import, **zero LLM calls**.
-- **Article link** → the article is fetched and handed over as research material (**rewrite, never copy** — a new script in the channel's voice, grounded in the article's facts).
-
-Reliability: a defect-driven validator (`META_LEAK` / `NOT_SPEAKABLE` / `BRACKETS` / `MONOTONY` / `COUNT` / `WORD_BUDGET` / `POLISH_FLOOR`) drives one re-ask, then a deterministic repair — a CTA-note/hashtag line can never reach TTS. Long videos (>30 scenes) generate in **batches of 25 with rolling context**; a detailed script is partitioned **word-balanced** so no sentence is ever lost or repeated at a batch boundary, and a batch whose reply overflows the model's output window automatically **splits into smaller calls** instead of failing the run. B2 writes a canonical `scenes.json` artifact per project (re-export any time via `GET /projects/:id/scenes-json` or the Studio toolbar).
-
-<a id="v3-upgrade-highlights"></a>
-### 🆕 v3 upgrade highlights
-
-- 🌐 **Video language is a real setting** — pick it per video, or save it on the channel and every video of that channel inherits it (`auto` reads it from your topic). One resolver answers "what language is this video" for the whole pipeline, so the script, the on-screen text, the subtitles, the voice, the thumbnail and the word budget can no longer disagree with each other. The codegen prompt is told the language outright instead of inferring it, and the render validator now **re-asks** when a scene comes back in the wrong language (bounded — after three tries it ships the scene and says so loudly, rather than failing the video).
-- 🗄 **Durable production infrastructure** — a persisted **job queue** (survives crashes: queued/batched work continues after a restart), a global **resource governor** (concurrent runs can no longer oversubscribe Chrome+ffmpeg), **versioned DB migrations with auto-backup**, and a **content-hash resume**: edit one scene's script and only THAT scene re-records + re-renders.
-- 💸 **Cost meter + budget guardrail** — every LLM/TTS call is metered per video (`GET /api/usage`, live over WS); an optional per-video USD cap automatically downgrades to the free paths (offline script + edge voice) when reached.
-- 🎚 **Broadcast audio** — scene voices get measured LINEAR loudness normalization (no pumping), BGM **ducks under the voice** via sidechain compression, and the finished file is **mastered to −16 LUFS / TP −1.5** with the audio-only corrected (video never re-encoded); LUFS/true-peak land in `qc_report.json`.
-- 📝 **Forced-alignment subtitles** — captions show the EXACT script words with whisper-timed karaoke (whisper only donates timestamps, biased by the script as its decode prompt); phrase-shaped cue breaks; `85%`/`50.000đ`/dates are expanded for the VOICE only (captions keep the digits) + per-channel pronunciation lexicon; per-scene prosody hints (hook = energetic) on expressive providers.
-- ▶ **Rough-cut player + review gate + takes + timeline** — watch the whole video live BEFORE rendering (master clock over live scene pages), approve/reject each scene (the pipeline holds before concat until everything is approved), every voice/visual regen keeps **take history** with one-click rollback, a per-cue **subtitle studio**, and a read-only **timeline** (clips + waveforms + captions + scrubbing playhead).
-- 🛑 **Scene gate (opt-in)** — with `config.sceneGate` the pipeline holds right after the storyboard (B5) at a distinct `'scenes'` status; TTS money is only spent after the owner explicitly approves the scenes (`POST /projects/:id/approve-scenes`).
-- 🪶 **Editorial gate (b2.5)** — a free deterministic pass flags wrong-language scenes, truncated clauses, word-budget misses, near-duplicate narration, **formulaic tag-question hooks and value-thin scenes**; one bounded LLM rewrite fixes exactly the flagged scenes.
-- ⏱ **Duration fit (b2.75)** — total narration is audited against the ordered video length (±12%): over → one bounded LLM tighten pass + a sentence-safe deterministic trim; under → one enrich pass. Auto-duration mode, pasted JSON and detailed owner scripts are never touched (the owner's words are the deliverable).
-- 📤 **Distribution** — one-click **YouTube publish** (OAuth loopback, resumable upload, thumbnail; STAGES AS PRIVATE by default), **multi-aspect repurposing** (16:9 ↔ 9:16 with full reflow — voice/captions reused verbatim, zero re-synthesis), SEO **metadata 2.0** (per-platform titles/tags/pinned comment), **A/B thumbnail variants**, and an end-screen "Xem tiếp" cross-promo.
-- 🛰 **Content assistant** — trend-based topic suggestions (RSS/Atom feed packs, deduped against everything the channel already made), a **production calendar** (due slots auto-become videos), an ops dashboard, a per-channel **Show Bible** injected into script generation, and a channel-pinned **style guide** (every new video inherits the brand look; palettes are WCAG-locked at save). Assistant proposals never auto-start a paid pipeline — only an explicit owner click does.
-- 🧪 **Named regression tests for all 24 protected behaviors** + functional QC/audio/fingerprint/master-script suites (`npm test`, CI on Node 22) — plus a **visual-parity harness** (`scripts/parity/`) that renders the same narrations as the reference app's real sessions and scores an 8-item reference-caliber checklist on the live DOM.
-- 💎 **"Studio Pro" interface** — a multi-layered dark design system (glass + hairline + spring motion), **Lexend** font (Vietnamese subset, self-hosted), stroke SVG icons throughout the app, a transparent titlebar in Linear/Arc style on the native build, a **⌘K command palette** (navigate / create video / apply preset / open recent projects, searchable without typing diacritics), custom dialogs + toasts (no more system confirm/prompt), skeleton loading, View Transitions when switching pages.
-- ⚡ **60fps frontend with 200+ scene projects** — the scene grid uses event delegation (4 listeners for the whole grid), WS updates batched over 80ms + per-card patching (no rebuild), video previews only attach `src` on hover, images lazy-load, `content-visibility` skips off-screen layout/paint. The code is split into 25+ native ESM modules (`public/js/{ui,views,features}`), no bundler.
-- 🚀 **HYPERFRAME MODE** — the AI **art-directs graphics individually for every scene, following the narration word by word**: the server extracts **beats** from real word-timestamps (Whisper) → an LLM writes `{css, html, script}` GSAP for each scene (keywords/figures/icons appear exactly when the voice mentions them); the **video Style** is locked throughout (6 presets: **TuiLa1 HUD Cyber** (distilled from the reference channel — semantic colors, concept→visual map, HUD kickers) · Neon Tech · Minimal Editorial · Glass Aurora · Bold Poster · Cinematic Dark, or let the AI design its own from a description); a library of ~130 offline icons + 25+ professional FX (carrier-in, chrome sweep, whip-out, glitch, counter-roll, beam sweep, parallax, camera push, zoom-through, target-zoom, DOF blur…). This is the app's SINGLE visual mode.
-  - 🎬 **Art-director pass**: before writing code, the AI writes **cinematic visual direction for EVERY scene** ([ROLE]/[LAYOUT]/[ENVIRONMENT]/[MAIN FOCUS]/[CAMERA]/[MOTION FLOW]/[CHOREOGRAPHY]/[LIGHTING & FX]/[MOOD]) in batches with a global view — 15 layout archetypes, retention roles (hook/problem/insight/step/proof/payoff/cta), a motion VERB per element, the closing scene **echoes the hook scene's motif** (visual rhyme). Scenes that already carry a master-engine 8-bracket visual skip this pass. Master visuals and directions feed codegen **together with the scene's full verbatim narration** (protected behavior P19).
-  - 🎞 **Role-driven transitions (default ON)**: scene boundaries get velocity-matched cuts/blends planned from the scenes' roles — 1-2 hero transitions (zoom-through on the reveal, inverse on the payoff), a smooth 0.2s dissolve as connective tissue. `config.transitions:false` restores hard cuts.
-  - 🛡 **Structural render validation (advisory, reference-parity — P39)**: each AI-written scene is **actually rendered** and checked. The **structural floor** — the script threw at runtime, or the scene renders blank — is the only thing that re-asks the model (a genuinely broken scene); every layout finding (frame overflow, subtitle-band intrusion, text overlap/clip/occlusion, center-clump) is now an **advisory warning** (logged, never a re-ask), matching the reference app, whose validation is advisory. The fence parser + syntax check + the structural floor still block the actual blank-scene bug at the source.
-  - 🚫 **No-fallback quality contract**: codegen runs on the **primary model only** — up to **10 corrective attempts** per scene (validation defects fed back each round), then the run **fails loudly** naming the exact scenes. No fallback model, no heuristic-template substitution: a quiet mediocre scene never ships. Resume retries only the failed scenes.
-  - 🎛 **AI tuning per video**: **Motion density** (Minimal/Balanced/Dense) · **Creative direction** (notes applied to every scene) · **Separate AI model for HyperFrame** (use a dedicated strong model for the scene-build step — the single biggest quality lever).
-  - ⏲ **Beat-anchored time-warp**: specs are authored against estimated timing, then a piecewise map pins each baked beat to the real spoken word at render — per-word AV sync even when TTS runs faster/slower than estimated.
-  - 🎥 **OVERLAY MODE** — transparent motion graphics **composited onto your own footage**: scenes render on a key color (`#050510`) with every stage layer stripped, ffmpeg `colorkey` makes them transparent and overlays them on a continuous slice of the base video (consecutive scenes ride one shot); the codegen doctrine flips to edge/lower-third zones, center 40–50% kept clear, 3-layer text shadows, no solid panels/backdrop-filter (lint + a center-coverage render gate enforce it). Toggle + footage path in Output config.
-  - 🎨 **Consistent-scenes toggle** (every scene locked to the guide bg + first accent) and 🖼 **Image-full mode** (a project asset becomes the center hero at ~75% with Ken Burns; assets are assigned to scenes by the master engine and inlined as self-contained data URIs).
-  - ✏️ **Edit a scene by prompt** — type an instruction ("make the number gold, move the chart left") and one LLM call rewrites the scene's current source; the result passes the same lint/render gates as fresh codegen, snapshots a take, and re-renders. `POST /scenes/:id/edit-html`.
-- 🎼 **AI sound design** — one call reads the finished cue sheet + your BGM/SFX library and returns a plan (one mood-matched BGM + SFX placed on key moments, volumes clamped, never two SFX within 1s); falls back to the deterministic ambient bed + chapter whooshes offline. Toggle in Output config.
-- 🤖 **LLM subtitle correction** (whisper-transcription lane): fixes misheard proper nouns/numbers/foreign terms while an enforced contract keeps every timestamp + block count; the align engine never needs it (script words are displayed verbatim). Toggle in AI settings.
-- 🌍 **13 narration languages, end to end** (vi en fr de es pt-BR hi ja ko zh th id ru). ONE table (`src/i18n/languages.js`) answers every per-language question — reading speed, breath pad, connectors, line-height floor, number locale, how words and sentences are found — and a contract test fails if any consumer drifts from it. Chinese, Japanese and Thai are segmented with `Intl.Segmenter` (the vendored Node is full-ICU), so their scripts are counted, chunked, captioned and beat-anchored like every other language instead of collapsing to one token. The declared language wins over detection everywhere; detection itself now tells thirteen languages apart and reports when it is *not* sure, so a correct French headline is no longer re-asked as a "wrong-language" defect.
-- 🌐 **The interface itself speaks 13 languages** — `public/locales/<code>.json`, fetched at boot, with the markup's Vietnamese as the default so a missing key, a failed fetch or an untranslated language all degrade to Vietnamese rather than to blank. Changing it writes the setting and reloads. Three extractors keep it honest (`scripts/i18n-extract*.mjs`) and `scripts/build-locales.mjs` machine-translates behind blocking checks: placeholder parity, markdown markers, a per-key length ceiling, no stale keys, no echoed source.
-- 🌍 **Dub a finished video into another language** — the art direction travels verbatim (`visual_prompt` is the 8-bracket cinematic brief and is already English), the narration is re-written to a word budget computed from BOTH languages' measured speaking rates, and B5 rebuilds the on-screen text in the new language against the same brief. One video, twelve markets, same design.
-- 📑 **A subtitle track per language** — `?lang=xx&format=vtt` translates the cue sheet with the timings frozen (same count, same start, same end, asserted after the model replies). No frame is re-rendered; YouTube takes a track per language on an existing upload.
-- 🎙 **10 TTS providers**, including **Azure Speech** (~150 locales, `mstts:express-as` driven by the pipeline's own per-scene mood), **Google Cloud TTS** (strongest for hi/th/id) and **Amazon Polly** (real word timestamps via speech marks — the caption shows the script's own words, timed by the engine that spoke them, with no whisper pass). Bring your own key; the app stays offline-capable.
-- ✨ **GSAP 3.13 deeply integrated (all premium plugins, free)** — every scene gets high-end effects *while staying deterministic frame by frame*: 3D per-character flying text (SplitText), self-drawing icon strokes (DrawSVG), counters + gauge arcs, hacker-style decoding text (ScrambleText), bouncing falling stars, physics confetti (Physics2D), 3D perspective cards, racing bars, CustomWiggle shakes.
-- 🩹 **Self-healing, no babysitting needed** — every step auto-retries with backoff; the LLM supports **multiple rotating API keys** (paste several keys separated by commas/newlines — a key that hits its quota is skipped automatically) + a **fallback model** (`modelFallback`); a failed scene render auto-switches to a backup template and retries; after render there's a step that **inspects each mp4 file** (ffprobe: duration + both streams present + A/V matches the voice — a silent scene is an error and is never shipped) and re-renders broken scenes; a pipeline that hits an unexpected retryable error auto-resumes once; if the server crashes → orphaned jobs are requeued at boot. The UI clearly shows "🩹 đang tự thử lại".
-- 🔬 **Final integrity gate (B8)** — the assembled video is checked for stream presence and duration (off by >8%); results land in `qc_report.json`. The per-frame black/white/silence scanning was retired (P38) — the fence parser + lint + the harness-owned dark backdrop already prevent blank scenes at the source, so the heavy scan was redundant. Disable with `qcGate:false`.
-- 🎙️ **Consistent voice across the video** — the chosen voice is "locked": a TTS failure retries the same voice 3 times before falling back, the edge fallback lane picks the **nearest cached voice** (timbre-preserving), and any scene that had to use the fallback voice is **auto-retried with the primary voice** at the end of the step; every scene passes through **per-scene EBU R128 loudnorm** + a 650ms (vi) / 400ms (en) breath-pad.
-- 🔊 **Automatic chapter-transition SFX** — an offline-synthesized whoosh (deterministic) placed at the exact timestamp of each chapter change, mixed under the voice. Disable with `autoSfx:false`.
-- **Full automation (on by default)**: 🎙️ **neural voice auto-matched to each scene's language** (vi/en/ja/ko/zh/ru — never reads the wrong language) · karaoke subtitles · 🎵 automatic background music · volume normalization + fade · 📊 metadata **including YouTube Chapters** · a nice thumbnail (the master engine's thumbnail brief when available). The video is the script's scenes and nothing else — the ending is the script's own closing-CTA scene, designed by the codegen LLM like every other scene (no canned "thanks for watching" card), and per-project seed salting keeps every video's motion/ambience unique (P31).
-- **Audit-grade processing journal ("Nhật ký xử lý", P32)**: every run writes a persistent, Vietnamese, per-run journal — grouped by stage with measured durations, scene-linked lines, retries/errors highlighted, filter/search/export — that survives reloads and restarts (a video finished last week still tells its full story). A global **🗂 Tác vụ** view lists every queued/running/recent task across all projects.
-- **CTA discipline (P33)**: a video carries exactly ONE soft CTA (~30%) + ONE closing CTA, and never says goodbye mid-video. Long videos get a pinned outline (throughline/spine/chapters) that every batch follows, an explicit per-batch CTA plan (prohibitions included), a deterministic farewell/CTA detector with an editorial rewrite lane, and a strip/drop floor that cleans even pasted scenes-JSON. `scripts/cta-audit.mjs` prints any script's CTA map.
-- **Smarter assistant (P34)**: the review sheet gains a script-approval gate (see the storyboard before any TTS money), an honest cost estimate, and lands you on the new project after accepting; the researched topic always feeds the script engine (a click-title is display metadata); suggestions follow the channel's language; failed scheduled slots return their idea to the pool; series episodes get a reviewed config.
-- **Raw-GSAP reference port (P39)**: the codegen path is a faithful port of the reference app — the model authors a **raw GSAP timeline** (the full `gsap.*`/`tl.*` API, not an FX-only subset), against the reference's **hardcoded integer layout thresholds per aspect ratio** (byte-exact at standard resolutions), with the reference's cinematic dark stage and **crf-18** encode. Codegen defaults to a **strong model** (`ag/gemini-pro-agent`) with generous token headroom — visual quality is dominated by the codegen model, so this is the biggest single lever. Each scene's **backdrop style still rotates** (spotlight / aurora / grid / blueprint / …) while palette + fonts stay locked, so a video never reads as the same dark stage every cut. Retained on top of the reference (harness-side, invisible to the port): per-word **beat-sync time-warp**, deterministic frame render, and karaoke captions.
-- **Reference feature parity — and past it (P40)**: five capabilities ported from the reference app, each landing a notch above it.
-  - 🧊 **Real 3D and generative canvas in a scene**: a scene may reach for **three.js** or **p5.js** (vendored via `npm run libs:build`; only what a scene references is injected). They stay frame-exact because the harness gives them one public hook — `window.__onSeek(t)` — so the layer is a pure function of scene time under out-of-order scrubbing. Our headless Chrome runs software WebGL, so a three.js layer actually renders: **the reference app caches three.js but cannot draw it** (it launches with software rasterization disabled).
-  - 🎭 **Brand artwork casts itself**: the AI picks mascot cutouts and concept art from your Brand library for the scenes they genuinely fit (never all of them), keeping the cutout's **transparency** and placing it as a co-star beside the type — not a cropped full-frame hero. `Tự động` (Default folder) / a specific folder / `Tắt`.
-  - 🖼 **The AI designs the thumbnail**, as a real static HTML composition shot by Chrome — not a title bar over a frame grab — with three distinct A/B compositions, your locked palette and fonts, and a deterministic fallback so a thumbnail never fails a render.
-  - ✂️ **Sửa video: motion graphics onto a video you already have** — it transcribes your file, cuts it on sentence boundaries, designs a transparent overlay per segment and composites each one onto **its own moment** of the footage, keeping your original picture and sound. No TTS is spent. Transcript quality is the ceiling, so the app now prefers the **largest whisper model present** (`npm run whisper:build` installs large-v3-turbo) and runs an AI spelling/diacritics repair over the transcript that is rejected wholesale if it would change the line count. Two optional passes ride the footage itself: **cắt bỏ khoảng lặng** (dead air over 0.6s is trimmed — before transcription, so subtitles and scenes stay exactly in step, and a beat of every pause is kept so nothing lands on a hard splice) and **tự động zoom nhẹ** (a Ken Burns push-in on even scenes, pull-out on odd, so a fixed-camera shot never sits still — the graphics keyed on top do not move with it).
-  - 🔊 **Supertonic** — a local, free, offline neural voice (`pip install supertonic`): 10 voices × 9 languages, started/stopped from the app, with a deep health check that catches a server that answers HTTP but cannot actually speak. *(The reference's CapCut voice is deliberately not ported — it works by forging device fingerprints against a private endpoint.)*
-  - 📘 **Publish to a Facebook Page too** — vertical video goes up as a **Reel**, anything else into the feed, and either can be **scheduled**; YouTube gained scheduling as well. Anything but an explicit "công khai ngay" is staged, never instantly public. Your publish history is now visible under the finished video.
-  - 🖼 **A real image search with no API key** (Openverse, commercial-use licences only), remote pictures downloaded into the project so scenes stay offline, a **browsable brand library** (folder picker, audition BGM/SFX, rename), and the thumbnail designer can use **your own pictures**.
-  - 🔇 **Silent mode**, ⚡ **speed/pitch/volume on the free Edge voice**, 🔑 **key pools** for paid voices (rotate on a credit refusal, so one exhausted key can't change the narrator mid-video), and **SEO written from the actual narration** — with named, reusable SEO styles.
-- 🎙️ **Multi-provider voice library**: Edge Neural (322 voices, free) · macOS say (offline) · **Supertonic** (local, offline, free) · **Vbee** (Northern/Central/Southern Vietnamese voices) · **LarVoice** (official larvoice.com API — ~300 vi/en/zh/ja/ko voices, **0-credit previews** from bundled samples) · ElevenLabs · OpenAI — search/filter by language + gender, **▶ preview every voice** (cached), ⭐ pin, set a **default voice per language**; each provider has its own config form + a 🔌 Test-connection button. API keys are masked with `••` at every exit point.
-- 📺 **Multi-channel (Channels)**: each channel gets its own folder (`~/Movies/AI Video Studio/<channel>/` — projects, library, output, channel.json) and its own config (voice, theme, watermark, aspect ratio…) that is inherited into every new video; switch channels with one tap in the sidebar; finished videos land in the channel's `output/`.
-- 🏷 **Per-channel Brand Kit** (all placements FIXED — no auto/smart magic): channel-name badge at a dragged position (3 styles: text/pill/neon underline) + stickers; the channel name auto-fills the opening scene label + outro CTA "Đăng ký <channel>". Layered config: channel → default preset → panel (a single merge point, `src/core/config.js`).
-- 🎞 **Whole-video logo stamp (WYSIWYG)**: the ONE logo lane — burned ONCE at final assembly in every visual mode. True-aspect preview at the real render ratio, **corner presets** (4 corners with a small edge gap) or free drag, resize 2–40% (slider/wheel/corner-handle/arrow keys, snap guides), live px readout — and the preview is **pixel-exact** against the render: one shared formula (`logoRect`) feeds both the ghost and ffmpeg, pinned by a raw-frame pixel test (P26).
-- ©️ **Copyright watermark**: optional logo or channel-name mark **drifting slowly around the frame perimeter** (75s/lap default; 120s/45s options) at low opacity — deters re-uploads without hurting the picture. One path function drives both the live preview (×5 speed) and the pure t-based ffmpeg expressions, so what you see is what burns (P28). Toggle off = zero change to the output.
-- 🎨 **Brand Asset generator** (reference-app clone): reference photo → AI emotion/action list (or manual) → character set via an OpenAI-compatible `images/edits` provider **picked right on the page** (model + size too); prompts are verbatim reference copies with one hardening — the background **must** be true-alpha transparent, enforced by an ffmpeg corner-alpha gate; batch-3 generation with stop/resume, per-item logs, copy-to-brand; primary model ×10 then loud failure — no fallback (P27).
-- 🎛 **Per-channel Presets**: save an entire panel config as a named preset (e.g. "Short 4K", "Long 16:9"), set a ⭐ default — new videos on the channel (including those triggered via API/batch) pick it up automatically. AI settings (LLM/voice/subtitles) **override per channel individually**.
-- 💬 **10 ready-made beautiful subtitle presets** (click to pick from the gallery, rendered with real fonts): Karaoke Vàng, Impact Đậm, Neon Rực, Bản Tin (box), Điện Ảnh, Tối Giản, Pop Tròn, Thể Thao, Punch, Terminal — 8 offline vendor Vietnamese fonts (rebuild with `npm run fonts:build`) + auto-switch to a system font for Japanese/Korean/Chinese; applied to the scene captions (rendered as styled DOM in the render harness).
-- ⚡ **Subtitles are printed on the finished video, so you can always change them** — they are burned onto the assembled programme with libass, never baked into the individual scenes. Editing the text, font, size, colour or position afterwards costs **one join** instead of one render per scene, and it stays that way forever, because captions that are already in a clip's pixels cannot be taken back out. The karaoke reproduces the old in-scene look exactly — one accented word, the rest dimmed — rather than ASS's own progressive fill. Two honest differences: long lines wrap where the DOM lane shrank to fit, and `glow` is approximated with outline+shadow. Clips still leave the caption band clear whether subtitles are on or off, so turning them on later never means re-rendering anything. A video made before this rule moves over on its next config save, and the cost table tells you what that one-time re-render costs first.
-- 💾 **Your channel remembers its subtitles** — change the font, size, colour, preset or position and it is saved onto the channel you are working in, right then; the next video starts with it. Turning subtitles **off** keeps the style, so turning them back on brings your look back exactly as it was. The panel now also opens on the active channel's own settings, and "video mới" returns to them instead of inheriting whatever the last video happened to use.
-- 🔤 **42 typefaces, and the app never substitutes one behind your back** — one registry drives the picker, the preview and the render: 8 vendored, macOS system faces (the practical answer for CJK/Arabic/Thai/Devanagari), and the rest fetched from Google Fonts on request. Each option is drawn **in its own typeface**, and one that has not been downloaded says so with a button to get it. The preview loads the real font file and draws the actual style — weight, outline/glow/box, case, position, karaoke — instead of a coloured word in the app's own font. A family the renderer cannot resolve **stops the render with a message**, on both the browser side and the libass side; a silently substituted typeface is a finished video in the wrong face. Scene pages now embed only the fonts they use (757KB → 470KB each).
-- 🎞 **Xem trên khung thật** — check a logo or a subtitle on a **real frame of your finished video**, through the real final pipeline (same `logoRect` math, same libass burn). About a second, instead of re-concatenating for fifteen minutes to find out a badge was four pixels too high.
-- ♻️ **A finished video is a version, not a dead end** — "Áp dụng thay đổi" shows a **cost table before you spend it**: every step named, how many scenes, roughly how long, re-voicing flagged because it costs money, and the cheap subset offered next to "apply everything". The estimates come from your own project's measured times. Turning the logo off, swapping the music or restyling burned subtitles are all **one join** — the app copies the video stream instead of re-encoding it whenever no filter is needed (measured: 38.4s full encode → 4.6s stream copy).
-- 🎬 **Changed the logo or the subtitles? Re-render the finished video from where you changed it** — saving the Brand Kit or editing subtitles offers to rebuild the video you have open, and hands you the cost table first. The **live processing log opens by itself** and the join now reports its own progress (it used to run for up to a quarter of an hour in complete silence, which is indistinguishable from a hang).
-- 🕘 **Versions · alternate cuts · click-to-scene · check** — every export you have ever made is listed with what changed and a one-click way back (the files were always on disk; nothing indexed them). Export a second cut from the same clips — no logo, no music, no watermark — for the price of a join. Click a moment in the finished video to open the scene behind it. And **🔬 Kiểm tra** scans a finished project for on-screen text in the wrong language, number conventions from the wrong locale, blanked labels, and above all a clip on disk that no longer matches its design in the database. It reports; it never edits.
-- 👁️ **Live per-scene preview** — click ▶ on a scene card: the animation actually plays with sound right inside the app, no render needed. A **contact sheet** endpoint renders one thumbnail per scene for a whole-video look.
-- ✏️ **Edit text on a scene** (heading/sub/label/props) + change a scene's template + regenerate the preview instantly.
-- 📦 **Batch run** — paste multiple topics (one video per line), the app processes them one by one overnight.
-- 📑 **Export a whole-video .SRT file** (on the correct timeline) to upload YouTube subtitles; **export the canonical scenes JSON** from the Studio toolbar.
-- **Aspect ratios**: 9:16 (TikTok/Reels), 16:9 (YouTube), 1:1, 4:5.
-- **Long videos, no problem**: batched script generation + processed scene by scene + concatenated incrementally → RAM doesn't grow with length.
-- **Fully customizable subtitles**: two display modes — 🎤 **karaoke** (per-word highlight riding the real voice timing) or 📄 **plain** static lines — and three chunking modes: natural 5–7-word phrases, **one cue per sentence** (wraps to max 2 lines), or a **fixed N words per line** (2–10). Every mode is rebuilt from the same word-level timestamps, so subtitles always stay glued to the voice (P29). Font, size, weight, color (palette + custom), position — and the picked font is **guaranteed to render** in the scene captions, with a loud warning if a family can't load (P30).
-- **Scene grid**: view/regenerate voice · regenerate scene · re-render individual scenes.
-- **Library** for Brand / BGM / SFX, **Brand Asset Gen**, **Edit Video** (trim), **Metadata** (title/desc/hashtag), **SRT editor**.
-- **Real-time progress** over WebSocket, **stop / resume**, **parallel render**.
-- **Pluggable AI, with an offline fallback**:
-  | Step | Online (plug in a key) | Offline default |
-  |------|------------------|------------------|
-  | Script / Metadata | OpenAI-compatible (GPT/Gemini/Claude…) | Smart sentence splitting |
-  | Narration (TTS) | Edge / Vbee / LarVoice / OpenAI / ElevenLabs | **macOS `say`** (has a Vietnamese voice) |
-  | Subtitles | — | **align** (whisper timestamps + exact script text) or **estimate** |
-  | Scene build | HyperFrame LLM codegen | **kinetic-statement fallback** (headless Chrome) |
-  | Concat/Render | — | **ffmpeg** |
+</div>
 
 ---
 
-<a id="run"></a>
-## 🚀 Run
+Type a topic. Get an MP4 — script, per-scene animated graphics, neural narration, karaoke
+subtitles, music, thumbnail and platform metadata — with nothing else to press.
 
-**Option 1 — Browser (simplest):**
-```bash
-./run.command            # or double-click in Finder
+That sentence is the product, and the rest of this document is what it costs to make it true.
+The app is a **Node 22 backend** driving **headless Chrome** and **FFmpeg**, with a native shell
+(WKWebView on macOS, Electron on Windows) around a dependency-free ES-module frontend. It runs
+**fully offline** once its models are local, and degrades — loudly and on purpose — rather than
+shipping something quietly worse.
+
 ```
-Opens the browser at `http://127.0.0.1:8123`.
-
-**Option 2 — Native macOS app (WKWebView):**
-```bash
-npm run shell:build      # build "AI Video Studio.app"
-open "AI Video Studio.app"
+  input ──► B2 script ──► b2.5 editorial ──► b2.75 duration fit ──► timing estimate
+                                                                          │
+      ┌───────────────────────────────────────────────────────────────────┘
+      ▼
+  B5 scenes ──► ⟨scene gate⟩ ──► B3+4 voice + subtitles ──► B6 render ──► ⟨review gate⟩
+                                                                          │
+      ┌───────────────────────────────────────────────────────────────────┘
+      ▼
+  B7 concat + mix ──► B8 QC ──► metadata ──► B9 publish ──────────────────► MP4
 ```
-The app auto-starts the backend, then shows the native window.
 
-**Platforms.** One target: **macOS 11+ on Apple Silicon**. `npm run release` builds exactly
-`AI-Video-Studio-v<x>-macos-arm64.zip` — there is no second platform, and there cannot be one
-without a second shell: the launcher is Swift against Cocoa + WebKit. What ships inside the
-bundle, verified by `file` on the artifacts themselves:
+Two things in that line are the whole design. **Scenes are built before the voice**, so the
+storyboard can be reviewed before a single TTS credit is spent. And the two ⟨gates⟩ are optional
+holds, not failures — the run stops at its own status and waits for you.
 
-| Piece | Arch | Note |
+## Contents
+
+- [Quick start](#quick-start)
+- [What it makes](#what-it-makes)
+- [How a video is made](#how-a-video-is-made)
+- [Architecture](#architecture)
+- [Languages](#languages)
+- [Providers and cost](#providers-and-cost)
+- [Configuration](#configuration)
+- [Quality](#quality)
+- [Build and release](#build-and-release)
+- [Operating it](#operating-it)
+- [Known limits](#known-limits)
+- [Protected behaviors](#protected-behaviors)
+- [Appendix A — Decision record: the doctrine service](#appendix-a--decision-record-the-doctrine-service)
+- [Appendix B — HyperFrames attribution (Apache-2.0)](#appendix-b--hyperframes-attribution-apache-20)
+
+---
+
+## Quick start
+
+```bash
+npm install
+npm start                 # http://127.0.0.1:8123
+```
+
+or, without a terminal: double-click **`run.command`** (macOS) / **`run-windows.bat`** (Windows).
+Both start the same server and open it in your browser.
+
+```bash
+npm run dev               # node --watch
+npm test                  # 99 files, 825 tests, no network
+```
+
+### What has to be installed
+
+| | Needed for | Missing ⇒ |
 |---|---|---|
-| launcher, `vendor/node` (22.x), `better-sqlite3` | arm64 | Intel Macs cannot run this bundle at all |
-| `vendor/ffmpeg`, `vendor/ffprobe` | **x86_64** | static libass build; **needs Rosetta 2**, and is 4–7× slower than a native ffmpeg, so `paths.js` prefers a Homebrew one when the machine has it |
-| Chrome | — | **not bundled**; falls back to `/Applications/Google Chrome.app`, and without it scene rendering and thumbnails have no engine |
-| whisper + model | — | not bundled (547 MB); downloaded on demand from Settings |
+| **Node ≥ 20** (22 in practice) | everything | nothing runs. CI, esbuild and the shipped runtime are all 22.22.1 |
+| **ffmpeg + ffprobe** | render, concat, probing | effectively mandatory |
+| **Chrome / Chromium** | scene rendering, thumbnails, caption measuring | no video — but scene *validation* degrades to a skip rather than blocking |
+| whisper-cli + a `ggml-*.bin` | word-accurate subtitles | subtitle timing falls back to `estimate` |
+| `/usr/bin/say` | offline TTS | macOS only; the provider reports itself unavailable elsewhere |
+| `pip install supertonic` | local neural TTS | that one provider is offline |
 
-**Nothing readable ships.** `src/` does not travel. The release bundles 167 modules into one file,
-compiles it to V8 bytecode, and encrypts that with a per-build key compiled into the launcher and
-handed to the backend over stdin — so the payload is `app.jsc` plus a 50-line loader, and a byte
-scan of the finished `.app` finds no trace of the codegen doctrine. The UI ships as one minified
-file and DevTools is off outside development. `npm run release` refuses to publish a build that
-fails `scripts/audit-release.mjs`, which reads the assembled bundle rather than the source.
+`GET /api/health` answers with exactly this, resolved:
 
-Two consequences worth knowing before you debug a customer report:
-
-- The **sourcemap** lands in `dist/private/server-v<x>.cjs.map` and never leaves this machine. Without
-  it a crash report is a stack trace into a single minified line — keep it for every version shipped.
-- **Page-side code must be a string.** `page.evaluate(fn)` serialises by reading the function's own
-  source, and under bytecode that source is spaces. `tests/page-eval-strings.test.js` enforces it.
-
-What this does not protect: a debugger attached to the running process, and the prompts themselves —
-the customer supplies the LLM endpoint, so their provider's dashboard shows every one verbatim. That
-second one is an **accepted risk** (owner, 2026-08-19): the requirement is that no source ships, and
-no source ships. [Appendix A](#appendix-a-decision-record-the-doctrine-service-not-built) records what closing it would have cost and the
-one condition that would make it worth revisiting.
-
-Unless `APPLE_SIGNING_IDENTITY` + the notarytool credentials are set, the release is ad-hoc signed
-only and Gatekeeper blocks the first launch until the buyer right-clicks → Open.
-
-**Dev:**
-```bash
-npm install              # needs Node 22 (e.g.: /opt/homebrew/opt/node@22/bin)
-npm start                # server picks a port, prints "AVS_READY <url>"
-npm test                 # unit + protected-behavior suites (Node 22)
-npm run test:e2e         # end-to-end video-creation test
-npm run fonts:build:ui   # re-download Lexend/JetBrains Mono for the UI (public/fonts) — does NOT touch scene fonts
-npm run fonts:build      # ⚠ fonts for SCENE render (vendor/fonts) — changing this affects video byte-compat
-npm run libs:build       # creative runtime libs for scenes (vendor/libs: three.js, p5.js, …)
-npm run whisper:build    # bigger whisper model (vendor/whisper/models) — the ceiling for "Sửa video"
-npm run icon:build       # render shell/icon.svg → shell/AppIcon.icns (headless Chrome + sips + iconutil)
+```json
+{ "ok": true, "version": "1.0.0",
+  "deps": { "ffmpeg": true, "ffprobe": true, "say": true, "whisper": true, "chrome": true } }
 ```
+
+Binaries are looked up in a fixed order — `AVS_*` environment override → the system PATH →
+`vendor/` → the app bundle. System **first** is deliberate: the vendored FFmpeg is an x86_64 static
+build and runs 4–7× slower under Rosetta on Apple Silicon.
 
 ---
 
-<a id="licensing-release"></a>
-## 🔑 Licensing & release
+## What it makes
 
-The app is sold through the Tools Platform store and is unlocked by **signing in with the Google
-account that bought it**. The lock screen leads with one button: the app starts a loopback
-listener, opens the system browser at the store's sign-in, and when the browser lands back the
-customer's licence is found and activated by itself — nobody types a key (a collapsed key field
-remains as a support fallback). The app then runs offline against a signed RS256 token it verifies
-itself. A lapsed subscription keeps working through a 7-day grace window rather than stopping the
-day a card fails, and the app checks in with the store roughly every six hours to renew the token
-or learn that the licence was revoked. Signing out forgets the session and the licence together.
+### Four ways in, one canonical form out
 
-Device seats are counted by the store: freeing one happens on the store's Devices page (once every
-30 days) or by the admin — deliberately never from inside the app.
+The input box takes all four; the engine decides which by reading it
+(`src/util/util.js` `detectInputType`, `src/content/master-script.js`):
 
-Running from this repo nothing is locked: a checkout with no store baked in (and no
-`TOOLS_PLATFORM_URL`) simply runs. `TOOLS_LICENSE_BYPASS=1` skips the check for local work, and is
-deliberately dead inside a shipped bundle. Store integration is configured with the platform's
-cross-app environment names — the same set every desktop app in the store uses:
+| You paste | Detected as | What happens |
+|---|---|---|
+| A sentence | **topic** | plan → throughline → spine → scenes. The AI writes the whole video |
+| ≥ 80 words | **detailed script** | **light polish only** — ≥ 90 % of your wording kept, ideas kept in order; duration follows the content, never the other way round |
+| `{…}` / `[…]` | **scenes JSON** | validated and repaired import. **Zero LLM calls** |
+| A URL | **article** | fetched, then used as *research* for a new script in the channel's voice — rewritten, never copied |
 
-| Variable | Meaning |
-| --- | --- |
-| `TOOLS_PLATFORM_URL` | store origin (dev: `http://localhost:4311`) |
-| `TOOLS_STORE_CLIENT_KEY` | `client`-scope API key for this product |
-| `TOOLS_STORE_PUBLIC_KEY` | RS256 public key (dev convenience; baked at release) |
-| `TOOLS_PLATFORM_WEB_URL` | dev-only: web origin when it differs from the API |
-| `TOOLS_DEV_LOGIN_EMAIL` | dev-only: sign in without Google via the store's dev-login |
-| `TOOLS_UPDATE_CHANNEL` | release channel to follow (default `stable`) |
+A fetched article outranks the word count: a long article is material for a new script, not an
+owner's script to polish. That is why fetched text lands in its own panel and never back in the
+topic box.
 
-**Building something a customer can actually run** — the ordinary `shell:build` bundle points at
-*this* checkout and only works on this Mac:
+Every path converges on one canonical artifact —
+`{ thumbnail{title,prompt}, scenes[{stt, voice, visual, assets}] }` — where each scene's `visual`
+is a full eight-bracket motion-graphics brief (`[ENVIRONMENT] … [MOOD]`) that the renderer consumes
+directly. It is written to `scenes.json` per project and re-exportable at any time.
 
-```bash
-npm run node:fetch                              # portable Node runtime → vendor/node (once)
-npm run shell:build:dist                        # self-contained "AI Video Studio.app"
-npm run release -- --version 1.1.0 --notes "…"  # build, sign, upload and publish to the store
-```
+### What comes out
 
-`release` needs `TOOLS_PLATFORM_URL`, `TOOLS_STORE_CLIENT_KEY` (baked into the build) and
-`TOOLS_STORE_PUBLISHER_KEY` (never baked). Add the `APPLE_*` variables to get a notarised build;
-without them the release still completes and says plainly that customers will meet Gatekeeper.
-Distribution is the store's licence-gated download link — no app store, no GitHub releases.
+A single MP4, plus: an SRT/VTT track (in any of 13 languages, with no re-render), a thumbnail with
+up to three A/B compositions, six platform cover sizes, per-platform SEO metadata with YouTube
+chapters, a QC report, and an audit-grade processing journal for the run.
 
----
+### The parts a video is made of
 
-<a id="architecture"></a>
-## 🧱 Architecture
-
-> Everything about this project lives in this one file — there is no `docs/` folder. The tree
-> below is the orientation; the full living map (layer boundaries, target architecture, the
-> protected-behavior registry, and the "want to change X → go to file Y" table) follows it.
-
-**Summary:**
-
-```
-AI Video Studio.app   ← Swift shell + WKWebView (shell/main.swift)
-   └─ spawn Node 22 backend (src/server.js) → wait for /api/health → load localhost
-src/
-  server.js            Express + WebSocket + static SPA + boot recovery + scheduler start
-  config/paths.js      resolve ffmpeg/whisper/chrome/say (ENV → vendor → app root → system)
-  core/                config layering (channel → preset → request) · pricing · budget · metering · errors
-  db/
-    connection.js        handle + schema (better-sqlite3) · migrate.js: versioned migrations + auto-backup
-    repositories/        queries by domain: settings · projects · scenes · channels · jobs · usage · takes…
-    index.js             barrel: re-export every repo + seed/backfill
-  api/
-    routes.js            REST API (thin-ish; fattened by v3 — split into routes/ is the open refactor)
-    services/            business logic: assistant · topic-autopilot · batch · voice-preview · voice-catalog · file-access (allowlist)
-  content/             master-script.js (B2 master engine: prompt/validate/repair/batching) · scorer.js (editorial detectors)
-  pipeline/            runner.js (orchestrator) + stages/{script,editorial,budget,visuals,tts,render,finalize,metadata,publish}
-                       scheduler (durable jobs) · governor (Chrome+ffmpeg semaphores) · direction (art-director pass)
-                       estimate (timing seed) · fingerprint (content-hash resume) · qc · regen · repurpose · brandgen
-  styleguide/          🎨 SHARED style contract (guide schema · 6 presets · themeFromGuide · AI guide generator)
-  animation/           🎬 shared GSAP render engine (reused by hyperframe): harness (seekable page) · renderer (frame loop)
-                       templates/ (kinetic-statement fallback · chapter-break · hyperframe shell) · headline · themes · timewarp · gsap bundle
-  hyperframe/          ✨ LLM-writes-GSAP system: codegen · validate (render QA) · prompt · beats · icons (~130) · lint · signatures
-  providers/           llm (master + legacy paths) · tts + voice/* · subtitle (align/whisper/estimate) · imagegen · trends · fetchlink
-  publish/             YouTube upload (OAuth loopback, staging-first)
-  media/               ffmpeg · master (−16 LUFS two-pass) · align · waveform · say · whisper · puppeteer
-  subtitles/           10 caption presets
-public/                "Studio Pro" SPA: index.html + css + fonts (Lexend UI)
-  js/                  ESM modules: main.js · state.js · api.js
-    ui/                  dom · icons (SVG set) · toast · dialog · modals · palette (⌘K)
-    views/               nav · home · studio · scenes (grid+patch) · player · progress · config · library · brandgen · editvideo
-    features/            settings · voicepicker · channels · brandkit · srt · batch · autopilot · assistant · scene-studio · template-gallery
-vendor/ffmpeg/         static ffmpeg/ffprobe (with libass — the Homebrew build lacks it)
-vendor/fonts/          fonts.css for SCENE render (data-URI, offline — don't confuse with UI fonts)
-vendor/gsap/           GSAP 3.13.0 + SplitText/DrawSVG/MorphSVG/MotionPath/Physics2D/ScrambleText/CustomEase…
-```
-
-**System dependencies** (auto-detected, preferring `vendor/`, then the app root, then system):
-ffmpeg (libass), whisper.cpp + the `ggml-small.bin` model, Chrome for Testing, `say` (macOS).
-
-> A **living map** for both humans and AI coding agents: read it to know "which file do I go to if I want to change X", where responsibility boundaries lie, and which parts must absolutely not be touched.
+- **Scene graphics** — the AI art-directs **every scene individually, following the narration word
+  by word**: keywords, figures and icons appear exactly when the voice says them. Six locked visual
+  styles, or describe a look and have one designed. ~130 offline icons, 25+ effects, real `three.js`
+  and `p5.js` layers when a scene reaches for them.
+- **Voice** — 10 TTS providers, one locked voice per video, per-scene EBU R128 normalization, a
+  breath pad sized per language.
+- **Subtitles** — karaoke captions showing the **exact script words**, timed by forced alignment
+  (whisper donates timestamps only) or by the provider's own word marks. Thirty typographic controls.
+- **Sound** — automatic BGM that ducks under the voice by sidechain compression, chapter-transition
+  whooshes, and the whole programme mastered to **−16 LUFS / −1.5 dBTP**.
+- **Motion between scenes** — velocity-matched cuts and dips planned from each scene's narrative
+  role, with at most one hero transition per video.
 
 ---
 
-<a id="1-system-overview"></a>
-### 1. System overview
+## How a video is made
 
-AI Video Studio is a macOS app that generates videos automatically: enter a topic → generate script (LLM) → voiceover + subtitles → build per-scene motion graphics → render → concat + mix → QC. There is no build step and no FE framework.
+`src/pipeline/runner.js` sequences and nothing else — every stage is its own module handed the
+shared context from `src/pipeline/context.js`.
 
-- **Stack**: Pure Node.js 22 ESM. `express` (REST) + `ws` (realtime progress, replay buffer + heartbeat) + `better-sqlite3` (persistence, versioned migrations) + `puppeteer-core` (render HTML→frame) + `ffmpeg`/`ffprobe` (media) + `whisper-cli` (subtitles, forced alignment). The FE is vanilla ESM in `public/js/`.
-- **Entry**: `src/server.js` → cost-meter subscribe → zombie/job recovery → scheduler start → REST (`api/routes.js`) + WebSocket hub + static SPA.
-- **Pipeline (step codes used throughout the codebase)**: `B2` script → `b2.5` editorial gate → `b2.75` duration fit (`stages/budget.js`: total narration ≈ `config.videoDuration` ±12%; skipped for `durationMode:'auto'`, pasted JSON, and master-engine detailed scripts ≥`SCRIPT_MODE_MIN_WORDS`) → *(estimated timing seed, `pipeline/estimate.js`)* → `B5` visuals → *(scene gate, opt-in `config.sceneGate` — P17)* → `B34` TTS+SRT (overwrites estimated duration/srt with real) → `B6` scene render (hyperframe time-warp: `props.plannedDur`→`S.tplScale` ratio, upgraded to the beat-anchored piecewise map `S.tplWarp` built by `animation/timewarp.js` — each baked beat is pinned to the real spoken word, per-word AV sync) → *(review gate)* → `B7` concat/mix + master → `B8` QC gate → metadata → `B9` publish (opt-in). Scenes-first: visuals exist before any TTS credit is spent. `config.durationMode:'auto'` keeps a pasted detailed script verbatim (`verbatimScript` in `providers/llm.js`) and lets duration follow the content.
-- **B2 = the MASTER SCRIPT ENGINE** (`src/content/master-script.js`, default `config.scriptEngine:'master'`, `'legacy'` = old `generateScript`). ONE master prompt turns (topic | detailed owner script | pasted scenes JSON | fetched article URL) into the canonical factory-format scenes JSON `{thumbnail{title,prompt}, scenes[{stt,voice,visual,assets}]}` — per-scene `visual` is the full 8-bracket brief (`[ENVIRONMENT]…[MOOD]`), so `pipeline/direction.js` (marker `[MAIN FOCUS]`) skips those scenes and codegen consumes them directly. Modes: `topic` = plan-then-write (throughline→spine→scenes) + value architecture; `script` (≥80 words) = LIGHT POLISH (keep ≥90% wording + all ideas in order, fix broken sentences, smooth joins, add missing CTAs; enforced by the `POLISH_FLOOR` gate); `json` = zero-LLM import; `source` (URL input: B2 `fetchLink`s the article and hands it over as research material) = REWRITE-NEVER-COPY — topic doctrine grounded in the article's facts, never the polish path (an article's words are not the owner's). `validateScenesJson` gates: `META_LEAK` (CTA notes/hashtags/thumbnail prompts as narration — the real factory-file defect), `NOT_SPEAKABLE`, `BRACKETS` (≥5/8 incl `[MAIN FOCUS]`), `MONOTONY` (near-duplicate focus → visuals stripped for the direction pass), `COUNT`, `WORD_BUDGET` (topic + source); defects drive ONE re-ask, then `repairScenesSpec` drops/strips deterministically (P18). >30 target scenes → batches of 25 with rolling context; 'script' mode hands each span its word-balanced share of the source (`sourceSlicer` — shared cut points, so no sentence is ever dropped or repeated at a boundary), and any span whose reply looks truncated (invalid JSON / far fewer scenes than asked) SPLITS in two smaller calls (`generateSpan`, floor `MIN_SPLIT`) instead of failing the run. B2 writes the canonical `scenes.json` artifact into the project dir and stores `thumbnail` in `project.metadata` (finalize prefers its short title for the thumb); `GET /projects/:id/scenes-json` re-exports from DB rows on demand.
-- **Orchestration**: REST enqueues durable jobs (`jobs` table) → `pipeline/scheduler.js` single-tick loop claims per-kind lanes → executors (`runPipeline`/`renderOnly`); `pipeline/governor.js` counting semaphores bound Chrome+ffmpeg across ALL concurrent runs; the content calendar promotes due slots on the same tick.
+| # | Stage | File | Produces | Can be turned off |
+|---|---|---|---|---|
+| 1 | **B2 · script** | `stages/script.js` | scenes, title, `scenes.json` | — |
+| 2 | b2.5 · editorial gate | `stages/editorial.js` | rewrites only the scenes a free deterministic pass flagged | `editorial: false` |
+| 3 | b2.75 · duration fit | `stages/budget.js` | one bounded tighten or enrich pass, ±12 % | `budgetFit: false` |
+| 4 | timing estimate | `estimate.js` | estimated duration + word cues per scene | — |
+| 5 | **B5 · scenes** | `stages/visuals.js` | per-scene `{css, html, script}` GSAP spec | — |
+| — | *scene gate* | runner | holds at status `scenes` | `sceneGate: true` to enable |
+| 6 | **B3+4 · voice + subtitles** | `stages/tts.js` | audio, `srt_json`, real durations | `enableVoice: false` (silent mode) |
+| 7 | **B6 · render** | `stages/render.js` | one MP4 per scene + a preview frame | — |
+| — | *review gate* | runner | holds at status `review` | `requireReview: true` to enable |
+| 8 | **B7 · concat + mix** | `stages/finalize.js` | the joined, mastered video | `autoConcat: false` |
+| 9 | **B8 · QC** | `stages/finalize.js` | `qc_report.json` — reports, never blocks | `qcGate: false` |
+| 10 | metadata | `stages/metadata.js` | titles, tags, ≤ 14 YouTube chapters | `generateMetadata: false` |
+| 11 | **B9 · publish** | `stages/publish.js` | upload, **private by default** | `autoPublish: true` to enable |
 
-There is a SINGLE visual mode (P36 — the animation-template mode and the image/Ken-Burns mode were removed):
-- **hyperframe mode** — the LLM writes its own `{css, html, script}` GSAP for each scene, validates it via a real render (`src/hyperframe/`), then renders it through the shared GSAP engine in `src/animation/` (harness / renderer / gsap / branding / fonts). `src/animation/` is now PURELY that shared render engine: `buildTemplate` keeps `kinetic-statement` as the universal fallback (a legacy scene whose stored template no longer exists still renders) plus `chapter-break`; the 20-template library + heuristic planner are gone (only `headline()` survives in `planner.js`).
+Progress is weighted `b2 8 · b5 25 · b34 32 · b6 25 · b7 10` (`public/js/views/progress.js`), with the
+intra-phase fraction taken from real scene counts.
 
----
+### Scenes before voice, on purpose
 
-<a id="2-current-layer-diagram-actual-post-refactor"></a>
-### 2. Current layer diagram (actual, post-refactor)
+Visuals are designed against an **estimated** timeline, then time-warped onto the real voice at
+render. Two things follow. The owner can look at the whole storyboard before a single TTS credit is
+spent — that is what the scene gate is for. And when the real narration comes in faster or slower
+than estimated, the scene does not drift: the harness maps authored time to real time per spoken
+word (`S.tplWarp`), or by a flat ratio when there is no word map.
 
-```
-                         ┌──────────────┐
-  Browser SPA  ────────► │  server.js   │  entry: express + ws + static + boot recovery
-  (public/js)  ◄──ws───► └──────┬───────┘  + scheduler start
-                                │
-                        ┌───────▼─────────┐
-                        │  api/routes.js  │  REST (934 lines — regrown with the v3 feature
-                        │  + api/services │  surface; the routes/-by-domain split of §5 is
-                        └───────┬─────────┘  the one open refactor). services/ = assistant ·
-                                │            autopilot · batch · voice-* · file-access
-                    ┌───────────▼────────────┐
-                    │ pipeline/queue.js       │  thin facade → durable jobs table →
-                    │ scheduler.js · governor │  single-tick scheduler; governor semaphores
-                    └───────────┬────────────┘  bound Chrome+ffmpeg across ALL runs
-                                │
-                ┌───────────────▼────────────────┐
-                │  pipeline/runner.js (127 lines) │  pure orchestrator: stages + WS events +
-                │  → stages/{script,editorial,    │  auto-resume; render-only/regen/
-                │     budget,visuals,tts,render,  │  repurpose split into their own entries
-                │     finalize,metadata,publish}  │
-                └──┬───────┬───────────┬──────────┘
-                   │       │           │
-        ┌──────────▼─┐ ┌───▼────────┐ ┌▼─────────────────────────┐
-        │ providers/ │ │ content/   │ │  styleguide/  (shared)   │
-        │ llm tts    │ │ master-    │ │  guide schema · presets  │
-        │ subtitle   │ │ script ·   │ └───▲──────────────▲───────┘
-        │ imagegen   │ │ scorer     │     │              │
-        │ trends     │ └────────────┘ ┌───┴──────┐  ┌────┴───────┐
-        │ fetchlink  │                │animation/│◄─│ hyperframe/│  one-way:
-        └──────┬─────┘                │ engine + │  │ LLM codegen│  hyperframe uses the
-               │                      │ templates│  │ + validate │  engine, never back
-        ┌──────▼──────────────────────┴──────────┴──┴────────────┴─┐
-        │  infra: db/(connection·migrate·repositories)  media/(ffmpeg,master,align,puppeteer,whisper,say) │
-        │         ws/hub  config/paths  core/(config·budget·metering·errors)  util/*  subtitles/presets  publish/ │
-        └───────────────────────────────────────────────────────────┘
-```
+### The four gates
 
-#### What's already right (keep the spirit when refactoring)
-- `pipeline/queue.js` — an exemplary thin facade (in-flight `Map`, a single entry point). A pattern to replicate.
-- `core/config.js` — clean config layering (channel → preset → request; AI settings by section) + secret masking at every egress. A genuine "single source of truth".
-- `config/paths.js` — resolves binaries/dirs in the order ENV → vendor → app bundle → PATH, with graceful null. Clear.
-- `server.js` — a compact entry, with boot-recovery for zombie projects; doesn't die on a stray async error.
-- The voice provider layer (`providers/voice/*`) — one file per provider behind one interface (`index.js`). This is the model for the other providers.
+- **Scene gate** — holds after B5 at a distinct `scenes` status, showing the exact TTS cost
+  (characters, credits or USD) before you release it. Money is only spent by an explicit click.
+- **Review gate** — holds before the join; approve or reject each scene in the rough-cut player.
+- **QC gate (B8)** — checks stream presence and duration drift on the assembled file and writes
+  `qc_report.json`. **Warnings only** — it never withholds a finished video.
+- **Budget guardrail** — an optional per-video USD cap. On reaching it the run *downgrades* to the
+  free lanes (offline script, `edge` voice) rather than failing.
+
+### When something goes wrong
+
+Failures are classified by a stable code, not by their wording (`src/core/errors.js`):
+`transient` and `rate-limit` earn exactly **one** automatic resume after 8 s; `config` and `resource`
+surface immediately with an actionable hint, because retrying a missing API key eight seconds later
+cannot help. Beneath that sit per-step retries, key and model rotation, a timbre-preserving TTS
+fallback chain, and a post-render verify pass that re-renders any clip whose audio and video do not
+match.
+
+The one thing the app will not do is quietly ship something worse — see
+[the no-fallback contract](#the-no-fallback-contract).
 
 ---
 
-<a id="3-the-two-biggest-architectural-problems-both-resolved"></a>
-### 3. THE TWO BIGGEST ARCHITECTURAL PROBLEMS — both ✅ RESOLVED
+## Architecture
 
-> Kept as the record of *why* the current boundaries look the way they do. New problem to
-> watch: `api/routes.js` has regrown to ~930 lines under the v3 feature surface — the
-> routes/-by-domain split in §5 is the remaining open refactor.
+### Layers
 
-#### 3.1 God file `pipeline/runner.js` (was 723 lines) — ✅ DISSECTED (R8–R10)
-`runner.js` is now a pure orchestrator (~130 lines: stages + WS events + bounded auto-resume).
-Each stage lives in `pipeline/stages/{script,editorial,budget,visuals,tts,render,finalize,metadata,publish}.js`,
-taking `ctx` from `pipeline/context.js`; the stop signal is in `pipeline/stop.js`, WS events +
-progress in `pipeline/progress.js`, helpers in `pipeline/helpers.js`; `renderOnly`/`regenOne`/
-`repurpose` are their own entries (`pipeline/{render-only,regen,repurpose}.js`); brand-asset generation lives in `api/services/brand-gen.js`.
-The old version carried everything in one file — orchestration, per-stage logic, the retry/
-self-heal policy, metadata generation, brand-gen — which made every fix a whole-file read.
+| Directory | Owns | Start here |
+|---|---|---|
+| `pipeline/` | orchestration, the 9 stages, queue, governor, resume, concat | `runner.js`, `stages/`, `render.js`, `fingerprint.js` |
+| `hyperframe/` | scene codegen: prompt, conversation, lint, render-validation | `prompt.js`, `codegen.js`, `validate.js`, `beats.js` |
+| `animation/` | the scene page, the deterministic runtime, the frame loop | `harness.js`, `renderer.js`, `templates/` |
+| `content/` | the Master Script Engine and deterministic script quality | `master-script.js`, `scorer.js`, `cta-audit.js` |
+| `providers/` | every external service, each degrading gracefully | `llm.js`, `tts.js`, `voice/`, `subtitle.js` |
+| `media/` | FFmpeg, Chrome, mastering, overlays, ASR | `ffmpeg.js`, `puppeteer.js`, `master.js`, `whisper.js` |
+| `subtitles/` | cue timing, styling, the burned ASS file | `presets.js`, `ass.js`, `timeline.js`, `chunk.js` |
+| `styleguide/` | the visual-identity contract shared by animation and codegen | `guide.js`, `presets.js`, `script-fonts.js` |
+| `i18n/` | the language table and everything derived from it | `languages.js`, `segment.js`, `t.js` |
+| `db/` | SQLite handle, DDL, migrations, repositories | `connection.js`, `migrate.js`, `repositories/` |
+| `api/` | the whole REST surface (173 routes, one file) | `routes.js`, `services/` |
+| `fonts/` | which typeface actually exists, and which file libass gets | `registry.js`, `files.js`, `coverage.js` |
+| `license/` | offline verdict, activation, refresh, the API gate | `state.js`, `index.js`, `gate.js` |
+| `core/` | config layering, cost, error taxonomy, budget | `config.js`, `pricing.js`, `errors.js` |
+| `publish/` | per-platform upload + the platform limits table | `youtube.js`, `facebook.js`, `platforms.js` |
+| `config/` · `util/` · `ws/` · `audio/` | paths, primitives, live progress, sound design | `paths.js`, `lang.js`, `hub.js`, `sound-design.js` |
 
-#### 3.2 Dependency loop `animation/` ↔ `hyperframe/` — ✅ BROKEN (R5, `styleguide/`)
-The two directories used to import each other **bidirectionally** (guide/theme concepts were
-stranded on the wrong sides: `normalizeGuide`/`HF_DEFAULT_GUIDE`/`SAMPLE_SPEC` sat under
-`animation/templates/hyperframe.js`, while `themeFromGuide`/`resolveGuide` sat in
-`hyperframe/styleguide.js` yet were consumed by `animation/index.js`).
+The frontend is 39 native ES modules under `public/js/{ui,views,features}` — no framework, no
+runtime dependency, bundled only for release. 6 pages, 15 modals plus the full-screen rough-cut
+player, 8,218 lines.
 
-**The boundary that fixed it — one shared module, no back-edges (this is the CURRENT state):**
+### Want to change X? Go to file Y
 
-```
-                 ┌────────────────────────────┐
-                 │  styleguide/  (shared)     │  guide schema · normalizeGuide ·
-                 │  depends on neither side   │  resolveGuide · themeFromGuide ·
-                 │                            │  HF_PRESETS · HF_DEFAULT_GUIDE · SAMPLE_SPEC
-                 └───────▲───────────▲────────┘
-                         │           │
-         ┌───────────────┘           └───────────────┐
-   ┌─────┴──────────┐                        ┌────────┴─────────┐
-   │  animation/    │                        │  hyperframe/     │
-   │  ENGINE render │◄──────depends on───────│  LLM CODEGEN     │
-   │  (template lib,│   (buildTemplate,      │  (codegen,       │
-   │  harness,      │    makeCtx, harness,   │   validate,      │
-   │  renderer,     │    IC icons)           │   prompt, beats) │
-   │  planner,themes│                        │                  │
-   └────────────────┘                        └──────────────────┘
-```
-
-- **`styleguide/`** = the shared style/theme concept. Both sides `import` from it, and **neither side imports back up into it**. The loop disappears.
-- **`animation/`** = the build + render engine (template library, harness, renderer, planner, branding, themes, gsap). It's the low-level "render library".
-- **`hyperframe/`** = the "LLM writes GSAP" system (codegen, validate, prompt, beats, icons, lint). It **is allowed** to depend on `animation/` (it reuses the engine to render+validate) and on `styleguide/`. This is a valid one-way relationship.
-
-The distinguishing principle to remember: *hyperframe produces a spec, animation turns the spec into pixels, styleguide decides what colors/typography/motifs the spec/pixels carry.*
-
----
-
-<a id="4-dead-code-inventory-all-executed-verified-2026-07-17"></a>
-### 4. Dead-code inventory — ✅ ALL EXECUTED (verified 2026-07-17)
-
-Every item of the original sweep is gone from the tree: the redundant `estimateSpeechSeconds`
-import, the duplicate `sleep` (only `util/retry.js` exports it now), the unused `clamp` export,
-the redundant `projectDir` imports, the needless `export` on ffmpeg's `run`, the root debug
-files `test-beats.mjs`/`test_overshoot_logic.js`, and stray `.DS_Store` (gitignored).
-
-**Checked and NOT dead (don't delete by mistake):** `closeBrowser` (`media/puppeteer.js`) — used by `scripts/{hf-qa,build-icon,determinism}.mjs`; a survey that only scans `src/` will report it wrongly.
-
-Duplicates still tolerated (not dead, but dirty — consolidate opportunistically, never in a rush): `PALETTES` (`providers/imagesearch.js`) vs `THEMES` (`pipeline/visuals.js`) — same color-pair structure; `escapeHtml` (`animation/harness.js` defines its own even though `util/util.js` exports one); `clamp` (`animation/branding.js` has a 4-argument variant).
-
----
-
-<a id="5-target-architecture-by-layer-each-decision-1-rationale"></a>
-### 5. Target architecture by layer (each decision + 1 rationale)
-
-> Status 2026-07-17: achieved everywhere except two spots — `api/routes.js` never got its
-> routes/-by-domain split (and has regrown, see §8), and the pure-`domain/` extraction was
-> superseded: the pure logic went to `content/` (master-script, scorer) + `hyperframe/beats.js`
-> instead of a new top-level folder. The tree below is kept as the reference target.
-
-```
-src/
-  server.js                 # entry (nearly unchanged)
-  api/
-    index.js                # mountRoutes: only wires up the sub-routers
-    routes/                 # thin routers by domain — ONLY validate→call service→return JSON
-      projects · channels · scenes · voices · styles · library · media · hyperframe
-    services/               # business logic pulled out of routes (voice-preview, batch, srt-export, file-guard)
-  pipeline/
-    index.js                # facade (the old queue.js)
-    orchestrator.js         # thin runPipeline: call stages, emit WS, auto-resume
-    stages/                 # 1 file/stage: script tts visuals render concat qc metadata
-    heal.js                 # retry/self-heal policy (renderHealed, voice-lock, auto-resume)
-    progress.js             # progressPlan, step/op/retryHook, chapter helpers
-    render-only.js · regen.js
-  providers/                # every provider behind one contract; retry/multi-key in EXACTLY 1 place (llm client)
-    llm/  tts + voice/*  image(imagegen,imagesearch)  subtitle  fetchlink
-  styleguide/               # NEW: shared guide/theme — breaks the animation↔hyperframe loop (§3.2)
-  animation/                # render engine: templates/*, harness, renderer, planner, branding, themes, gsap
-  hyperframe/               # LLM codegen: codegen, validate, prompt, beats, icons, lint
-  domain/                   # PURE logic, no I/O: script(offline+prompt), srt, lang, word-budget
-  db/
-    index.js                # connection + schema + migrations
-    repositories/           # queries by domain: projects scenes channels presets styles library voices settings
-  infra/  (or keep media/ + ws/)  media/(ffmpeg,puppeteer,say,whisper)  ws/hub
-  config/                   # paths · config-layering · secrets · constants(magic numbers)
-```
-
-Rationale for each layer:
-- **`api/routes/` split by domain** — routes.js is currently 464 lines in one function; split so each domain is ≤120 lines, making endpoints easy to find and easy to add. Business logic (batch, voice-preview, file-guard) goes down into `services/` so routes are pure I/O.
-- **`pipeline/stages/` 1 file/stage** — each step B2..B8 is testable/fixable independently; the orchestrator only coordinates. This is the highest-risk target, done last.
-- **`providers/` behind one contract** — retry/backoff/multi-key currently lives in `llm.js`; gather every provider into the same mold so resilience logic isn't scattered.
-- **`styleguide/` separated** — as in §3.2, this is what lets the hyperframe codegen and the shared render engine both depend on the guide schema without a dependency cycle (reduces import churn, safe for resume-compat).
-- **`domain/` pure** — `offlineScript`, `twoStageScript` prompt-building, `LANG_WPS`, `srt`, `beats`, `lang` don't touch I/O → split them out so they're unit-testable and quick for an AI to read.
-- **`db/repositories/`** — `db/index.js` at 452 lines lumps together schema + 8 domain queries + seed + side-effects-at-import; split schema/migration from per-domain queries, keeping the SQL schema unchanged (mandatory, resume-compat).
-
-> Scope note: renaming a large directory (`animation/`→…) creates huge import churn and resume-compat risk. The plan will prioritize **splitting files & creating new modules** over mass renaming; the original folders can keep their names — what matters is that the responsibility boundaries and dependency direction are exactly as above.
-
----
-
-<a id="5b-upgrade-v3-module-map-what-was-added-on-top-of-the-v2-refactor"></a>
-### 5b. Upgrade-v3 module map (what was added on top of the v2 refactor)
-
-| Concern | Module(s) |
+| Want to change | Go to |
 |---|---|
-| Versioned migrations + auto-backup | `db/migrate.js` (PRAGMA user_version; backups in `data/backups/`) |
-| Durable job queue / scheduler / governor | `db/repositories/jobs.js` · `pipeline/scheduler.js` · `pipeline/governor.js` (flag: `settings.queue.durable`) |
-| Content-hash resume (edit-aware) | `pipeline/fingerprint.js` (+ `scenes.fp`; PUT /scenes/:id invalidation) |
-| Cost meter + budget guardrail | `util/usage.js` → `core/metering.js` → `db/repositories/usage.js`; `core/pricing.js` · `core/budget.js` |
-| Error taxonomy + diagnostics | `core/errors.js` · `pipeline/diagnostics.js` |
-| Broadcast master (-16 LUFS authority) | `media/master.js` (concat graph now ducks BGM via sidechain, no in-graph loudnorm) |
-| Forced-alignment subtitles | `media/align.js` + `providers/subtitle.js` engine `align` (default) + whisper `--prompt` |
-| Image provider mesh + smart prompts | `providers/imagegen.js` (openai/recraft → pollinations failover, `buildImagePromptSmart`) |
-| Beat-synced motion | `animation/templates/index.js` `accentTimes` + `ctx.accentTimes` + FX.accents/schedule |
-| VN TTS normalization + prosody | `providers/tts-normalize.js` (speak-text only; captions keep the script) |
-| Timbre-preserving voice fallback | `providers/tts.js` + `db/repositories/catalogs.js` `nearestCachedVoice` |
-| Channel guide + Show Bible | `POST /channels/:id/style-guide` · `channel_memory` + `db/repositories/channels.js` |
-| Rough-cut player / review gate / takes / subtitle studio / timeline | `public/js/views/player.js` · `db/repositories/{reviews,takes}.js` · `features/srt.js` · `media/waveform.js` |
-| Editorial gate (b2.5) | `content/scorer.js` · `pipeline/stages/editorial.js` |
-| SEO metadata 2.0 / thumbnails / outro promo | `providers/llm.js` `generateMetadata` · `pipeline/visuals.js` `buildThumbnailVariants` · `templates/cta-outro.js` |
-| Repurpose (aspect reflow) | `pipeline/repurpose.js` |
-| Publisher (B9, staging-first) | `src/publish/` · `pipeline/stages/publish.js` · `db/repositories/publishes.js` |
-| Trend autopilot + calendar + dashboard | `providers/trends.js` (RSS/Atom + feed packs) · `api/services/topic-autopilot.js` · `db/repositories/calendar.js` · `features/autopilot.js` |
-| Content assistant v2 (history + config sheet + series + plan-week) | `db/repositories/suggestions.js` · `api/services/assistant.js` · `features/{assistant-sheet,assistant-history}.js` |
-| Master script engine (B2: one master prompt → canonical scenes JSON; modes topic/script/json/source, word-balanced source partition + adaptive span split for long scripts) | `content/master-script.js` (plan/prompt/validate/repair/batching + `sourceSlicer`/`generateSpan` + `scenesJsonFromRows`) · `pipeline/stages/script.js` (routing + fetchLink→source + artifact) · `GET /projects/:id/scenes-json` · toolbar export buttons in `views/studio.js` · fixture gate `tests/fixtures/rag-scenes.json` |
-| Overlay mode (keyed scenes → colorkey composite onto owner footage) | `animation/harness.js` (`opts.overlay`) · `animation/templates/hyperframe.js` (`props.overlay`) · `hyperframe/prompt.js` `overlayBlock` · `media/ffmpeg.js` `compositeColorkey` · `animation/index.js` |
-| LLM SRT correction (whisper lane, timestamp-pinned) | `subtitles/llm-correct.js` · `providers/subtitle.js` |
-| LLM sound design (BGM pick + SFX by cue sheet, clamped) | `audio/sound-design.js` · `pipeline/stages/finalize.js` |
-| Consistent-scenes / image-full mode blocks + scene assets | `hyperframe/codegen.js` (blocks + `applyAssetMedia`) · `util/asset-uri.js` · migration 4 (`scenes.assets`) |
-| Edit scene by prompt (gated LLM edit + takes) | `api/services/edit-scene.js` · `POST /scenes/:id/edit-html` |
-| Language expansion (12 langs, voice notes, script text rules) | `providers/llm.js` (`LANG_WPS/LANG_NAME`) · `content/master-script.js` (`LANG_VOICE_NOTES`) · `hyperframe/prompt.js` `scriptTextRule` |
-| Visual-parity harness vs the reference app | `scripts/parity/{select,run,audit,blind,lib}.mjs` · `tests/fixtures/parity-manifest.json` · the parity manifest |
-| Final-video logo stamp (WYSIWYG corner presets + drag/resize, all modes) | `media/logo-overlay.js` · `pipeline/render.js` (concat logo branch) · `pipeline/stages/finalize.js` · `public/js/features/brandkit.js` |
-| Copyright watermark (slow perimeter drift, logo/name, on/off) | `media/watermark.js` · `pipeline/render.js` (concat watermark branch) · `pipeline/stages/finalize.js` |
-| Subtitle display modes (karaoke/plain) + chunking (auto/sentence/N-word) | `subtitles/chunk.js` · `subtitles/presets.js` · `animation/harness.js` (cap runtime) |
-| Brand Asset page (reference clone: emotions + images/edits ×10 no-fallback + alpha gate) | `api/services/brand-gen.js` · `providers/imagegen.js` `editImage` · `media/ffmpeg.js` `verifyTransparentBg` · `public/js/views/brandgen.js` |
-| Persistent per-run journal ("Nhật ký xử lý") + global tasks view | `db/repositories/journal.js` (run-aware retention) · `pipeline/journal.js` (`jlog`, ALS jobId) · `pipeline/progress.js` (funnels) · `GET /projects/:id/journal` · `GET /tasks` · `public/js/features/{journal,tasks}.js` |
-| CTA discipline + pinned-arc batching (1 soft CTA + closing only, no mid farewell) | `content/cta-audit.js` (lexicon/audit/strip) · `content/master-script.js` (`ctaPlanFor`/`generateOutline`/`enforceCtaFloor`, partial-span heads) · `content/scorer.js` (farewell/cta/idea-repeat/hook-weak/anchorless) · `pipeline/stages/editorial.js` (chunked rewrite + read-through + strip floor) · `scripts/cta-audit.mjs` |
-| Tests + CI | `tests/` (named test per P1–P44 + slug-named rows, e.g. `lang`) · `.github/workflows/ci.yml` · `npm test` |
-| HyperFrames adoption (doctrine + gates) | [Appendix B](#appendix-b-hyperframes-attribution-apache-20) (source map) · `hyperframe/lint.js` (static pre-render gate) · `hyperframe/validate.js` (persistence tiering, occlusion, beat adherence) · `animation/templates/_shared.js` (zoomThrough/jitter/targetZoom/dofBlur/streakIn/iconSpin, camPush `profile:'front'`) · `animation/harness.js` `__fitText` · `pipeline/direction.js` (roles + choreography verbs + blueprint layouts) · `pipeline/render.js` `planTransitions` (role-driven cuts/blends; `config.transitions` = smart mode, legacy uniform fade when no roles) · `GET /projects/:id/contact-sheet` |
+| the script engine (modes, gates, batching, the master prompt) | `content/master-script.js` (+ routing in `pipeline/stages/script.js`) |
+| the offline / no-LLM script path | `providers/llm.js` (`offlineScript`, `twoStageScript`, `verbatimScript`) |
+| the LLM retry / backoff / multi-key chain | `providers/llm.js` (`chat`, `chatOnce`, `chatJson`) |
+| the scene codegen prompt | `hyperframe/prompt.js` — never slice the narration or brief it embeds (P19) |
+| scene validation rules and thresholds | `hyperframe/validate.js` |
+| what an animation lands on, and when | `hyperframe/beats.js` |
+| **add a TTS provider** | `providers/voice/<name>.js` + one line in `voice/index.js`; the provider declares its own `ext` and which config fields are credentials, so the only other edit is a rate in `core/pricing.js` |
+| **anything per-language** (reading speed, breath pad, connectors, line-height floor, number locale, word and sentence boundaries) | **`i18n/languages.js` — the one table.** `tests/i18n-contract.test.js` fails if a consumer drifts from it |
+| how a language's words are counted or its lines broken | `i18n/segment.js` (`words`, `sentences`, `layoutTokens`, `wordJoiner`) |
+| what a voice says for `85 %`, `16:9`, `15/3/2025` | `i18n/tts-rules.js`, one row per language |
+| narration the app writes itself (chapter cards, the offline CTA) | `i18n/script-phrases.js` |
+| a string in the **interface** | edit `public/index.html` (it carries Vietnamese as the default), then `node scripts/i18n-extract.mjs --write` and `node scripts/build-locales.mjs` |
+| the in-app manual | edit `SECTIONS` in `public/js/views/guide.js`, then `i18n-extract-guide.mjs` + `build-locales.mjs --guide` |
+| a **server** message the owner sees | just write it in Vietnamese — `i18n-extract-server.mjs --write` keys it by its own text and `routes.js` translates `error`/`message`/`hint` on the way out |
+| a toast or a dialog | same: write it, then `i18n-extract-ui-msgs.mjs --write` |
+| how a failure is classified | throw `failed('<code>', '…')` from `core/errors.js`. **Never** rely on the wording — that was the old design and it made every message untranslatable |
+| subtitle look, timing or the burn | `subtitles/presets.js` (style), `subtitles/chunk.js` (cues), `subtitles/ass.js` (the file) |
+| a video rendering in the wrong font for its script | `styleguide/script-fonts.js` (video) · `subtitles/presets.js` `perLangDefaults` (burn) · `scripts/build-fonts.mjs` `UI_SUBSETS` (shell) |
+| transitions between scenes | `pipeline/render.js` (`planTransitions`) |
+| the audio mix, ducking or mastering | `pipeline/render.js` (mix graph) · `media/master.js` (−16 LUFS) |
+| **dub a finished video** into another language | `pipeline/dub.js` |
+| **export a subtitle track** in another language | `subtitles/translate.js` · `GET /projects/:id/srt?lang=xx&format=vtt` |
+| cost rates or the budget guardrail | `core/pricing.js` · `core/budget.js` |
+| what the licence blocks | `license/gate.js` · `license/state.js` |
+| the release pipeline | `scripts/release.mjs` · `shell/build-app.sh` |
 
-<a id="6-want-to-change-x-go-to-file-y-table-current-structure"></a>
-### 6. "Want to change X → go to file Y" table (current structure)
+### The no-fallback contract
 
-| Want to do | Go to file |
-|---|---|
-| Change the master script engine (modes topic/script/json/source · gates · batching/adaptive split · master prompt) | `content/master-script.js` (+ routing/artifact in `pipeline/stages/script.js`) |
-| Change the legacy/offline script path (`generateScript`, `offlineScript`, `twoStageScript`, `verbatimScript`) | `providers/llm.js` |
-| Change the LLM retry/backoff/multi-key chain | `providers/llm.js` (`chat`, `chatOnce`, `chatJson`) |
-| Add a new TTS provider | `providers/voice/<name>.js` + register in `providers/voice/index.js` — the provider declares its own `ext` and which of its `configSchema` fields are credentials, so nothing else needs editing except a `TTS_PER_KCHAR` rate in `core/pricing.js` |
-| Add or change ANYTHING per-language (reading speed, breath pad, connectors, line-height floor, number locale, how words and sentences are found) | **`i18n/languages.js` — the one table.** `tests/i18n-contract.test.js` fails if a consumer drifts from it |
-| Change how a language's words are counted or its lines broken (CJK/Thai have no spaces) | `i18n/segment.js` (`words`/`sentences`/`layoutTokens`/`wordJoiner`, backed by `Intl.Segmenter`) |
-| Change what a voice says for a symbol (`85%`, `16:9`, `15/3/2025`) | `i18n/tts-rules.js`, one row per language |
-| Change narration the app writes itself (chapter cards, the offline CTA) | `i18n/script-phrases.js` |
-| Change stopwords / function words / number units that shape on-screen beats | `i18n/stopwords.js` (layered over the English+Vietnamese base in `hyperframe/beats.js`) |
-| Fix a video rendering in the wrong font for its script | `styleguide/script-fonts.js` (video) · `subtitles/presets.js` `perLangDefaults` (burn) · `scripts/build-fonts.mjs` `UI_SUBSETS` (app shell) |
-| Change a string in the INTERFACE | edit `public/index.html` (it carries the Vietnamese as the default), then `node scripts/i18n-extract.mjs --write` · `node scripts/build-locales.mjs` re-translates only what changed |
-| Add a toast or a dialog | just write it in Vietnamese — `toast()` and `dialog.js` translate at the point they DRAW, keyed by the text itself; `scripts/i18n-extract-ui-msgs.mjs --write` picks it up |
-| Re-do a translation the checker rejected | `node scripts/build-locales.mjs --fix` (re-translates exactly what `scripts/lib/locale-check.mjs` flagged) |
-| Change the in-app manual | edit `SECTIONS` in `public/js/views/guide.js` as before, then `node scripts/i18n-extract-guide.mjs` + `build-locales.mjs --guide` |
-| Change a server message the owner sees | just write it in Vietnamese — `scripts/i18n-extract-server.mjs --write` keys it by its own text and `routes.js` translates `error`/`message`/`hint` on the way out |
-| Classify a new failure so the pipeline reacts correctly | throw `failed('<code>', '…')` from `core/errors.js`; NEVER rely on the wording (that was the old design and it made every message untranslatable) |
-| Dub a finished video into another language | `pipeline/dub.js` (`visual_prompt` travels verbatim, narration is re-written to a word budget, B5 rebuilds the on-screen text) |
-| Export a subtitle track in another language | `subtitles/translate.js` · `GET /projects/:id/srt?lang=xx&format=vtt` |
-| Add an animation template | create `animation/templates/<name>.js` + register in `animation/templates/index.js` |
-| Change the HyperFrame codegen prompt | `hyperframe/prompt.js` (P19: never slice the narration/visual it embeds) |
-| Change HyperFrame scene validation rules (timid/overshoot/fragments…) | `hyperframe/validate.js` |
-| Change the art-director pass (roles/layouts/choreography) | `pipeline/direction.js` |
-| Add a style preset (color/motif/HUD) | `styleguide/presets.js` (`HF_PRESETS`) |
-| Change scene-boundary transitions | `pipeline/render.js` `planTransitions` |
-| Change QC thresholds (black/silence/tolerance) | `pipeline/qc.js` + the call site in `pipeline/stages/finalize.js` |
-| Change the editorial / duration-fit gates | `content/scorer.js` + `pipeline/stages/editorial.js` · `pipeline/stages/budget.js` |
-| Add/change a REST endpoint | `api/routes.js` (business logic goes down into `api/services/`) |
-| Change the DB schema / add a column | `db/connection.js` (schema) + `db/migrate.js` (versioned migration + backup) |
-| Change pipeline orchestration (stage order, auto-resume) | `pipeline/runner.js` `runPipeline` (queueing: `pipeline/scheduler.js`) |
-| Change loudnorm / pad / SFX / ambient / final master | `media/ffmpeg.js` · `media/master.js` |
-| Change the config layer (channel/preset/request) | `core/config.js` |
-| Change binary path / runtime directory | `config/paths.js` |
-| Change the video-export config UI | `public/js/views/config.js` |
-| Change the realtime progress display | `public/js/views/progress.js` + `ws/hub.js` |
-| Change overlay-mode rules (key color, zones, composite) | `hyperframe/prompt.js` `overlayBlock` · `hyperframe/{lint,validate}.js` (overlay gates) · `media/ffmpeg.js` `compositeColorkey` |
-| Change SRT-correction / sound-design prompts or clamps | `subtitles/llm-correct.js` · `audio/sound-design.js` |
-| Change subtitle chunking / display modes | `subtitles/chunk.js` (P29) + UI in `public/js/views/config.js` |
-| Change subtitle/brand font resolution or the loud-font probe | `subtitles/presets.js` (`familyName`, P30) · `animation/harness.js` (`fontChecks`) |
-| Change the parity checklist / samples | `scripts/parity/audit.mjs` · `tests/fixtures/parity-manifest.json` (rebuild: `scripts/parity/select.mjs`) |
-| Change the final-video logo stamp (geometry/UX) | `media/logo-overlay.js` (`logoRect` — P26 single source of truth) · `public/js/features/brandkit.js` |
-| Change the copyright watermark (path/speed/opacity) | `media/watermark.js` (P28: one path for preview + ffmpeg) · `public/js/features/brandkit.js` |
-| Change Brand Asset prompts / transparency gate / provider picker | `api/services/brand-gen.js` (P27: prompts verbatim) · `public/js/views/brandgen.js` |
-| Change the in-app manual (Hướng dẫn) — add a chapter, a callout, a jump button | `public/js/views/guide.js` (`SECTIONS` is the whole content; `BLOCK` is the renderer, `ACTIONS` the screens it can open) · guarded by `tests/guide-content.test.js` |
+Scene codegen runs on the **primary model only**. Up to **10 corrective attempts** per scene, with
+the validation defects fed back each round — then the run **fails loudly**, naming the exact scenes.
+No fallback model, no heuristic-template substitution. It is enforced in three places at once: the
+fallback model is *deleted from the config object* before the call, the attempt loop throws when
+exhausted, and the render-stage template swap is explicitly skipped for these scenes. Resume retries
+only the scenes that failed.
+
+The reasoning is in the code: a quiet mediocre scene ships and nobody notices; a loud failure gets
+fixed.
+
+Validation itself is deliberately tiered. Only a **structural** failure re-asks the model — the
+script threw, or the scene renders blank. Every layout finding (overflow, overlap, caption
+collision, centre-clump) is an advisory warning. Wrong on-screen language re-asks at most **three**
+times and then ships with a warning, because on one 95-scene video the alternative was 22 blocked
+scenes.
+
+### Data
+
+SQLite (`better-sqlite3`, WAL, foreign keys on) at `data/studio.sqlite` — **22 tables**, 13 indexes.
+New tables are born as `CREATE TABLE IF NOT EXISTS` in `db/connection.js`; every column change is a
+numbered migration in `db/migrate.js` (**6** so far, append-only).
+
+Each migration runs **inside one transaction together with its version bump**, so a crash mid-migration
+rolls back cleanly and can never leave a half-migrated schema at a bumped version. Before applying
+anything pending, the DB is checkpointed and copied to `data/backups/` (latest 10 kept).
+
+The tables worth knowing: `projects` · `scenes` · `channels` · `jobs` (the durable ledger) ·
+`scene_takes` (every regen is rollback-able) · `renders` (every export, with its config snapshot) ·
+`journal_events` (the per-run audit journal) · `provider_usage` (per-call metering) ·
+`voices_cache` · `channel_memory` (the Show Bible and the anti-repeat ledger).
+
+### Durability
+
+- **Job queue** — persisted in `jobs`. `claimNextJob` is a single SQL transaction enforcing three
+  invariants at once: one running job per project, one per batch, priority then FIFO. Lanes are
+  capped at `pipeline 2 · render 2`. Ticks are self-rescheduling `setTimeout`s, so they can never
+  overlap.
+- **Resource governor** — counting semaphores shared by every concurrent run, above the per-project
+  knobs. Capacity is re-derived on each acquire from free RAM and load average, and can only ever
+  *shrink* below its base, never grow past it. In-flight permits are never revoked.
+- **Crash recovery** — at boot, orphaned `running` projects become `paused`, pending stops are
+  re-armed, and orphaned jobs are requeued in a deliberate order: a requested stop outranks
+  recovery, a job that died twice becomes a terminal error, everything else is requeued. A requeued
+  job is always treated as a *continuation*, so artifacts already on disk are not rebuilt.
+- **Stop** — cooperative and durable. The disk flag is written *before* the in-memory one, because
+  the case this exists for is the app dying between the two. Long child processes (the concat encode,
+  the master remux) get an `AbortSignal`, since checkpoints sit between steps and cannot interrupt a
+  15-minute FFmpeg run.
+- **Content-hash resume** — `scenes.fp` holds a fingerprint per artifact. Edit one scene's script and
+  only *that* scene re-records and re-renders. A `NULL` fingerprint means "trust the artifact", so
+  upgrading never triggers a mass re-synthesis. API keys and base URLs are deliberately **excluded**
+  from the hash: rotating a key must not re-voice a video.
+- **Concat-level resume** — a second fingerprint split into a video half and an audio half, yielding
+  four tiers: `skip` (reuse the file), `audio` (`-c:v copy`), `copy` (stream-copy concat), `encode`.
+  Every tier announces itself in the log, because a silent shortcut is how "why didn't my video
+  update?" bugs are born.
+
+### Determinism
+
+A scene is a **paused GSAP timeline**; a frame is a pure function of time. `window.__seek(t)` maps
+real time to authored time, sets every animation's `currentTime`, redraws the background, caption
+and progress layers, then runs any `three.js` / `p5.js` layer's `__onSeek` hook last. Headless Chrome
+screenshots each frame into an FFmpeg pipe — flat memory at any video length.
+
+`scripts/determinism.mjs` loads the same scene twice and compares SHA-256 of frames at identical
+timestamps. Page-side code always travels as a **string, never a function**: a release runs from V8
+bytecode against a blank placeholder source, so `fn.toString()` would return whitespace.
+
+Per-scene encode is `libx264 -preset medium -crf 18 -profile:v high -level 4.0 -pix_fmt yuv420p`,
+audio `aac 160k 44.1 kHz stereo`, at 30 fps by default and 1080p / 2K / 4K rungs. Rendering happens at
+the **physical** resolution while codegen and validation stay in the **logical** canvas, so a scene
+designed once looks identical at every rung.
 
 ---
 
-<a id="7-protected-behavior-registry-movable-deletesimplify-broken"></a>
-### 7. "PROTECTED BEHAVIOR" registry (movable; DELETE/SIMPLIFY = broken)
+## Languages
 
-Hard-won fixes proven by real testing. Refactors may **relocate** these, but must never change their logic/constants/ordering.
+The app makes videos in **13 languages** and shows its own interface in the same 13.
 
-| # | Behavior | Current location |
+`vi` · `en` · `fr` · `de` · `es` · `pt-BR` · `hi` · `ja` · `ko` · `zh` · `th` · `id` · `ru`
+
+**One table answers every per-language question.** `src/i18n/languages.js` holds one row per
+language carrying its script, how its words and sentences are found, its measured speaking rate,
+breath pad, line-height floor, number locale, forward connectors, production-metadata labels and
+narration register. Seven places used to answer "which languages are supported" and none of them
+agreed — 13, 13, 11, 10, 9, 6, 3. `tests/i18n-contract.test.js` now fails if any consumer drifts.
+
+What that buys, concretely:
+
+- **The declaration wins.** `resolveLang(config, scenes)` is the single answer to "what language is
+  this video", threaded to the voice, the pad, the text normalizer, the subtitle engine and the
+  codegen prompt. Detection is only for `auto`, and it reports whether it is *sure* — so a correct
+  French headline is never re-asked as a wrong-language defect.
+- **Chinese, Japanese and Thai are counted properly.** They write no spaces, so `Intl.Segmenter`
+  (the vendored Node is full-ICU) finds their words for the script-mode floor, the near-duplicate
+  gate, sentence subtitles, caption line-breaking and beat extraction alike.
+- **Each script gets the typography it needs** — Devanagari matras get line-height 1.8, Thai tone
+  stacks 1.7, Vietnamese stacked marks 1.35; `letter-spacing` and `text-transform` are withheld from
+  scripts that have no case or build letters out of clusters.
+- **A face that can actually draw it.** Nothing outside Latin and Vietnamese is bundled, so the
+  guide's font stacks gain the script's system families (macOS *and* Windows names) before the
+  generic keyword, and the loud-font probe checks that third face too.
+
+### The interface
+
+Catalogues are **static JSON** under `public/locales/` — 13 interface files (906 keys each) and 13
+manual files (435 strings each), fetched at boot. The markup carries Vietnamese as the **default**,
+so a missing key, a failed fetch or an untranslated language degrades to a Vietnamese interface
+rather than an empty one, and the app still boots with no network.
+
+Changing the language writes the setting and reloads. A live swap would need three page hooks, two
+boot-time label patches and every open modal's renderer to be idempotent — none of which they are —
+for an action taken about once.
+
+Server strings, HTTP error bodies, toasts and dialogs are translated **where they are drawn**, keyed
+by their own Vietnamese text (the gettext model), so none of the ~230 toast calls, 45 dialogs or 58
+error responses needed editing.
+
+Translation is machine-made behind blocking checks (`scripts/build-locales.mjs` +
+`scripts/lib/locale-check.mjs`): placeholder parity, markdown markers, a per-key length ceiling
+calibrated against nine real catalogues, no stale keys, no echoed source, and no Vietnamese left
+inside a non-Latin translation. `--fix` re-translates exactly what the checker rejected.
+
+### One video, many markets
+
+- **`🌍 Dub`** — the art direction travels verbatim (each scene's brief is already English), the
+  narration is re-written to a word budget computed from *both* languages' measured speaking rates,
+  and the on-screen text is rebuilt in the new language against the same brief. Same design, new
+  language. Creating a dub spends nothing; starting it stays an explicit click.
+- **`?lang=xx&format=vtt`** — a subtitle track in any of the 13 languages with the timings frozen
+  (same count, same start, same end, asserted after the model replies). No frame is re-rendered.
+
+---
+
+## Providers and cost
+
+Every provider is optional and every one degrades. The app works with none of them configured — it
+just works less well, and says so.
+
+### LLM
+
+One protocol for all: `POST {baseUrl}/chat/completions` with a bearer key. Providers are pure data
+(`providers/llm-presets.js`), so adding one is a table row.
+
+| Preset | Tier | Script + codegen | Notes |
+|---|---|---|---|
+| **Google Gemini** | free | ✅ | no card; also serves the image and TTS lanes |
+| **OpenRouter** | free | ✅ | no card |
+| Groq | free | — | TTS lane only |
+| Together AI | cheap | — | image + TTS lanes |
+| OpenAI | premium | — | image + TTS lanes |
+| ✏️ Custom | — | ✅ | any OpenAI-compatible endpoint; `localhost` needs no key |
+
+Only presets that serve **Gemini** get the script/codegen lane, because scene codegen is measured to
+be dominated by that model family and the two settings are shared. Everything else stays in the
+catalogue for the lanes it is genuinely good at.
+
+Runtime: multiple keys per provider (a key that hits its quota is skipped), a 4-attempt ladder per
+key per model with `8 s / 20 s / 45 s` backoff, a wall-clock ceiling, and an offline deterministic
+script writer when nothing is reachable.
+
+### Voice — 10 providers
+
+| | Free | Network | Why you would pick it |
+|---|---|---|---|
+| **Edge Neural** | ✅ | ✅ | keyless, ~400 voices, the default |
+| **macOS `say`** | ✅ | — | fully offline, macOS only |
+| **Supertonic** | ✅ | — | neural, runs on your own machine |
+| **Azure Speech** | | ✅ | ~150 locales; `mstts:express-as` styles — the first provider that can use the per-scene mood the pipeline already computes |
+| **Google Cloud TTS** | | ✅ | strongest for Hindi, Thai, Indonesian |
+| **Amazon Polly** | | ✅ | **real word timestamps** via speech marks — captions timed by the engine that spoke them, no transcription pass |
+| **ElevenLabs** | | ✅ | premium multilingual; also returns word timing |
+| **OpenAI TTS** | | ✅ | shares the LLM preset list |
+| **Vbee** · **LarVoice** | | ✅ | Vietnamese specialists (LarVoice bills opaque credits) |
+
+The chosen voice is **locked**: a failure retries the same voice three times before the chain may
+switch, the fallback picks the cached voice closest in language and gender, and any scene that ended
+on a fallback is retried once on the primary at the end. Implausibly long or short audio is treated
+as a failed attempt, never accepted.
+
+### Everything else
+
+Image editing (OpenAI-compatible `/images/edits`) · image search (Tavily → keyless Openverse →
+offline gradients, each degradation reported) · ASR (local whisper.cpp) · trends (Google Trends +
+Google News in the channel's own market, plus curated RSS packs) · article fetching (structural
+extraction with an optional AI refinement pass that never blocks).
+
+### Cost
+
+Every LLM and TTS call is metered per video and streamed live (`provider_usage`,
+`GET /api/usage`). Rates live in `core/pricing.js` (`PRICING_VERSION 2026-08`): 44 model prefixes
+plus per-1k-character TTS rates. Free providers meter as zero. An optional **per-video USD cap**
+downgrades the run to the free lanes rather than failing it.
+
+Cost is disclosed in four places before it is spent: the scene gate's TTS estimate, the change-plan
+table, the sticky pending-changes bar, and the assistant's pre-create sheet. **Nothing that costs
+money starts without an explicit click.**
+
+---
+
+## Configuration
+
+Five collapsible groups in the Studio's config column, each a summary card that opens into a modal.
+Settings merge in a fixed order — **app defaults → channel → preset → this video** — and only
+`undefined` is skipped, which is why "auto" values must be emitted as `undefined` and defaults like
+`durationMode` must always be explicit.
+
+| Group | What is in it |
+|---|---|
+| 🎞 **Format & quality** | visual style, motion density, creative direction, per-video codegen model, consistent-scenes, image-full, brand-asset casting, overlay mode · fps, resolution rung, language, aspect, duration mode, video and scene length |
+| 🏷 **Channel brand** | Brand Kit (name badge, logo stamp, drifting watermark), brand display font |
+| 💬 **Subtitles** | 30 controls: preset, mode, chunking, type, color, outline, shadow, glow, box, position, motion — with a live preview through the real burn path |
+| 🎙 **Voice & music** | voice picker, BGM, automatic music, AI sound design, silent mode |
+| ⚙ **Advanced** | transitions and style, metadata and SEO style, auto-concat, review gate, scene gate, TTS and render concurrency, project assets |
+
+Channel presets save and restore the whole panel; switching channel resets it to that channel's own
+defaults, so one channel's fonts can never leak into another's.
+
+---
+
+## Quality
+
+```bash
+npm test              # 99 files, 825 tests, hermetic — no network, no Chrome
+npm run test:smoke    # every template built in 16:9 and 9:16, GSAP compiled
+npm run test:e2e      # boot, make a real short video, verify the MP4
+```
+
+Beyond the unit suite:
+
+| Harness | What it proves |
+|---|---|
+| `scripts/determinism.mjs` | the same scene rendered twice is byte-identical |
+| `scripts/hf-qa.mjs` | a rendered scene meets its visual and timeline invariants |
+| `scripts/parity/` | a live 8-item checklist scored against the reference app, plus a blind A/B builder |
+| `scripts/e2e-resume.mjs` | an interrupted project resumes and still produces a valid MP4 |
+| `scripts/cta-audit.mjs` | a script's CTA map; exits non-zero on a discipline defect |
+| `scripts/audit-release.mjs` | reads the built `.app` like a curious customer and fails if anything is readable |
+
+**CI** (`.github/workflows/ci.yml`) runs on every push to `main` and every PR: Ubuntu, Node 22,
+FFmpeg installed, `npm ci`, `npm test`. Scope is deliberate — network providers and the Chrome render
+smoke are local-only, because a CI job that needs an API key is a CI job that goes red for reasons
+nobody can fix.
+
+Regression tests are **named after the behavior they protect**, not the file they live in. See
+[Protected behaviors](#protected-behaviors).
+
+---
+
+## Build and release
+
+```bash
+npm run shell:build          # dev .app pointing at this checkout
+npm run shell:build:dist     # release .app — bundled, bytecode-compiled, encrypted
+npm run win:build            # Windows NSIS installer
+npm run release -- --version 1.1.0 --notes-file NOTES.md
+```
+
+`scripts/release.mjs` is the whole thing, in order:
+
+1. Fetch the store's public key and **bake** it (with the store URL and client key) into
+   `src/license/config.js` — registering the restore handler *immediately*, so it can never reach a
+   commit.
+2. Bump the version · 3. Build the `.app` · 4. Move the sourcemap out of the payload and out of git.
+5. **`audit-release.mjs`** — the release refuses to ship readable code.
+6. `codesign` · 7. `ditto` to a zip, sha256 + size · 8. optional notarise + staple + re-zip.
+9. Upload and publish the version to the store · 10. `finally` restore the baked file.
+
+### What ships
+
+The macOS release contains **no readable source**. `src/server.js` is bundled by esbuild into one
+CJS file, compiled to V8 cached data, optionally AES-256-GCM encrypted, and loaded by a small
+`loader.cjs` that verifies the V8 build, the flags and a SHA-256 **before** V8 sees the bytes — and
+refuses rather than falling back. The decryption key is generated fresh per build, compiled into the
+launcher, and handed to the backend **over stdin** (not argv, not env — `ps` prints those). The
+payload is scrubbed of maps, type definitions, tests, dotfiles and every non-licence markdown file.
+
+Windows is honest about being different: it ships `src/**` inside an asar with no bytecode step.
+
+### Supporting scripts
+
+`fetch-node.mjs` (checksum-verified portable runtime) · `build-fonts.mjs` (scene + UI font pipelines
+under a hard byte budget) · `build-libs.mjs` (three.js, p5, GSAP plugins, each with a size floor so a
+CDN error page is never vendored) · `build-whisper-model.mjs` · `build-icon.mjs` ·
+`build-frontend.mjs` (39 ES modules → one minified file) · `build-locales.mjs` + four `i18n-extract-*`
+tools · `journal.mjs` (writes the daily production log and commits it).
+
+---
+
+## Operating it
+
+| | Where |
+|---|---|
+| Database | `data/studio.sqlite` (WAL) · backups in `data/backups/` |
+| Projects | `data/projects/<id>/{audio,srt,html,render,assets,output}` |
+| Library | `data/library/{brand,bgm,sfx,fonts}` |
+| Release data dir | `~/Library/Application Support/AI Video Studio` |
+| Per-run journal | the **Nhật ký xử lý** panel, and `journal_events` — survives reloads and restarts |
+| All jobs | the **🗂 Tasks** view: every queued, running and recent job across all projects |
+| Daily log | `JOURNAL.md`, written by `scripts/journal.mjs` on a launchd schedule |
+
+**Troubleshooting starts in the journal.** It is grouped by stage with measured durations,
+scene-linked lines, retries and errors highlighted, searchable and exportable — a video finished last
+week still tells its whole story.
+
+Common answers: a red dependency chip in the top bar means FFmpeg or Chrome is missing; a run stuck
+at `scenes` or `review` is a gate waiting for you, not a crash; "why didn't my video update?" is
+answered by the concat tier printed in the log; and a project that came out in the wrong language has
+a repair lane (`scripts/repair-language.mjs`).
+
+---
+
+## Known limits
+
+Stated plainly, because a README that only lists strengths is marketing.
+
+- **Right-to-left scripts (Arabic, Hebrew, Persian) are not supported.** Karaoke captions render one
+  `<span>` per word, and isolated spans break Arabic letter joining — this needs the caption renderer
+  redesigned, not a `direction: rtl`. The fonts are already in the catalogue for when it is done.
+- **276 interpolated server strings and 41 toasts are still Vietnamese.** They are built at runtime
+  so they cannot be keyed by their own text; they appear in the processing journal and logs, not in
+  the interface chrome. The count is printed by the extractors rather than rounded away.
+- **The Windows build has no code protection** — it ships readable source inside an asar. Only the
+  macOS release is bundled and bytecode-compiled.
+- **Prompts are visible to whoever owns the LLM key.** Since the customer brings their own key, the
+  doctrine appears in their provider dashboard. This is an accepted trade, not an oversight — see
+  [Appendix A](#appendix-a--decision-record-the-doctrine-service).
+- **Scene codegen costs one LLM call per scene.** Past ~40 scenes that is the dominant cost of a
+  video, and the UI says so before you start.
+- **No LICENSE file.** This is a commercial product with a licence gate; the source is not offered
+  under an open-source licence. Third-party obligations are honoured in
+  [Appendix B](#appendix-b--hyperframes-attribution-apache-20).
+
+---
+
+## Protected behaviors
+
+Hard-won fixes, each proven by a real failure. A refactor may **relocate** any of them — update the
+anchor here when you do — but changing their logic, constants or ordering is a regression, and
+`tests/protected-behaviors.test.js` carries one named test per entry.
+
+The rule these encode: **when a behavior exists because something once went wrong, the reason
+belongs next to it.** That is why the table below is long and why the code it points at is full of
+measurements rather than adjectives.
+
+Entries marked **+v3** were extended, not replaced, when the durable-infrastructure work landed;
+the original guarantee still holds and the addition sits beside it.
+
+| # | Behavior | Where it lives |
 |---|---|---|
 | P1 | `chatOnce` floors `max_tokens = 16000` (reasoning models burn tokens on hidden thinking) | `providers/llm.js:57` |
 | P2 | `chatJson` enables `response_format:json_object` only on the first attempt (the gemini proxy returns garbage otherwise) | `providers/llm.js:121,124` |
 | P3 | Catch **429/rate-limit BEFORE dead-key**, backoff [8s,20s,45s]×4 | `providers/llm.js:26,38–42` |
 | P4 | `minScenes ≥70%` (single) / `≥60%` (per-chapter) to guard against the model returning too few scenes | `providers/llm.js:281,331` |
-| P5 | `LANG_WPS` (vi 4.4…) — word count based on real reading speed | `providers/llm.js:217` |
+| P5 | `LANG_WPS` (vi 4.4…) — word count based on real reading speed | `i18n/languages.js` (`wps` column) · re-exported from `providers/llm.js` |
 | P6 | `qc.probeStreams` strips the trailing comma from ffprobe csv; `pix_th=0.04`; `tailAllowance`; defect mapping prioritizes exact-containment; **+v3:** `qcSceneClip` `expectVoice` flags near-silent narrated clips (mean < −50dB) | `pipeline/qc.js` |
 | P7 | TTS: an explicit `ttsOverride.provider` beats `langVoices`; voice-lock retries 3× with the same voice; **+v3:** the edge fallback lane picks `nearestCachedVoice` (timbre-preserving) | `providers/tts.js` |
 | P8 | B5 hyperframe **skips a `chapter-break` scene with props** (keeps the anchor SFX); on successful codegen it sets `video_path:null` (so resume re-renders) — take activation & repurpose do the same | `pipeline/stages/visuals.js` · `db/repositories/takes.js` · `pipeline/repurpose.js` |
 | P9 | −16 LUFS semantics + `apad` by language (vi 650ms/en 400ms). **v3 relocation:** per-scene = measured LINEAR loudnorm (`normalizeVoice`); the −16 authority for the finished file = `media/master.js` two-pass master; the concat graph carries NO loudnorm (ducking + limiter only) | `media/ffmpeg.js` · `media/master.js` · `stages/tts.js` |
 | P10 | Multi-tier self-heal: render retry → swap `kinetic-statement` template → deferred sequential → QC repair (guard `_qcAttempt<1`); auto-resume once (`_auto<1`) — **v3:** only for retryable error classes (`core/errors.js`); deterministic config/resource errors surface immediately (never fewer resumes than before) | `pipeline/runner.js` · `stages/render.js` · `stages/finalize.js` |
-| P11 | beats: `MIN_GAP=1.2 HOLD_MAX=2.6 LEAD=0.12`; filter out punctuation-only beats | `hyperframe/beats.js:61–63,137` |
+| P11 | beats: `MIN_GAP=1.2 HOLD_MAX=2.6 LEAD=0.12`; filter out punctuation-only beats | `hyperframe/beats.js:147–149` · stopwords in `i18n/stopwords.js` |
 | P12 | QA/determinism `PSNR_OK=70`; `FROZEN_TAIL` when `tlDur<dur-0.4`; `SUBTITLE_COLLISION cy>0.82H` | `scripts/{determinism,hf-qa}.mjs`, `hyperframe/validate.js` |
 | P13 | recover zombie 'running'→'paused' at boot; **+v3 superset:** orphaned running JOBS requeue (`requeueZombieJobs`, attempts≥2 → terminal error); the clean review hold uses a DISTINCT `'review'` status so it is never mistaken for a crash | `db/repositories/projects.js` · `db/repositories/jobs.js` |
 | P14 | mask secrets at every egress + `applyMaskedUpdate` round-trips `••` | `util/secrets.js`, `core/config.js` |
@@ -637,454 +639,106 @@ Hard-won fixes proven by real testing. Refactors may **relocate** these, but mus
 | P33 | CTA discipline + pinned-arc batching (owner order 2026-07-21; measured disease: batched videos wrote a subscribe block at EVERY 25-scene boundary + a farewell at scene 175/200 — ~16 CTA scenes; the reference app is worse, 7 mid farewells + 21 CTA scenes/200). Contract: ONE soft CTA near 30% + ONE closing CTA in the final scene(s), and NEVER a farewell before the closing zone. Enforced at three layers: (1) PROMPTS — every partial span (batch or adaptive split) gets an explicit per-span CTA PLAN (`ctaPlanFor`/`batchNoteFor`, span-relative, recomputed per live span) while ALL THREE whole-video CTA head sources are neutralized (`partial = !!batchNote`); the ≤30-scene single-call head stays byte-identical (test-pinned); batched topic/source videos also get a PINNED OUTLINE (`generateOutline`: throughline/spine/chapters with bridgeOut, `normalizeChapters` exact-coverage) restated to every batch so batch 2+ never re-plans the arc ('script' mode keeps the owner's arc). (2) DETECTOR — `cta-audit.js` lexicon (VI folded + EN, context-gated verbs) + `auditCtas` budget (FAREWELL_MID/CTA_EXCESS/CTA_CLUSTER; closing zone = last 2 scenes on ≥8-scene videos) wired into `scoreScript` (+ new value checks: idea-repeat, hook-weak, anchorless) and the b2.5 editorial rewrite, which drains flags in priority-ordered chunks of 20 (≤3) with a type-keyed instruction table, plus a whole-video coherence read-through (seam/repeat/arc) for >30-scene videos. (3) FLOOR — deterministic `enforceCtaFloor` in the engine strips mid-video farewell sentences and DROPS farewell-only scenes in EVERY input mode incl. zero-LLM json imports (P18 precedent), and editorial's `ctaStripFloor` cuts leftovers after the rewrite. Measured by `scripts/cta-audit.mjs` | `content/cta-audit.js` · `content/master-script.js` · `content/scorer.js` · `pipeline/stages/editorial.js` · `scripts/cta-audit.mjs` |
 | P34 | Assistant upgrades (owner order 2026-07-21): the RESEARCHED topic always feeds B2 — a picked click-title travels as `config.titleOverride` (project title + beats the engine's own title in the script stage), never replacing the script input; the sheet's `durationMode='target'` clobber is fixed (braced — applies ONLY with an explicit duration pick); the sheet exposes a script-approval gate checkbox (`config.sceneGate`, default ON for "Làm ngay", OFF for scheduled) + an honest pre-create cost line (`POST /api/estimate-cost`: TTS chars priced by the pricing table, LLM extrapolated from this installation's own per-scene history — never a fabricated number); accept lands the owner ON the new project (journal narrates from second one); suggestions speak the CHANNEL's language (`channel.config.language`, voices filtered to match); a failed slot promotion restores the suggestion to the pool (same as manual delete) + journals to the P32 system lane; series bulk-scheduling passes a reviewed config (one sheet applied to every episode); suggest note reports REAL trend-signal counts, count selector 4/8/12, expiring ideas show a countdown badge | `api/services/{assistant,topic-autopilot,batch}.js` · `api/routes.js` (`/estimate-cost`) · `pipeline/scheduler.js` · `pipeline/stages/script.js` · `public/js/features/{assistant-sheet,autopilot}.js` |
 | P35 | Visual quality levers (owner order 2026-07-21 — "bố cục dày đặc phù hợp với lời thoại từng cảnh"): per-scene density follows the direction pass's `[ROLE]` (`densityForScene`: hook/proof/payoff → rich, cta → minimal, else the project knob) and the validation FLOORS SCALE WITH IT (rich → heroParts ≥8 + sparse union ≥0.55, minimal breathes legally); a POSITIVE dialogue-match gate (beat labels' folded tokens must appear on screen at/after their t0 — >40% missing across ≥3 labeled beats re-asks) so on-screen text SPEAKS the narration instead of decorating it; headline-class text (≥5% short side) is contrast-gated at 3.5:1 (decor keeps 2.2); the art director sees each scene's SPOKEN ANCHORS (beat labels + times) and must anchor `[CHOREOGRAPHY]` verbs to them; the beat budget scales UP with duration (`max = clamp(round(dur/2.5), 5, 10)` — short scenes keep the historic cap of 5 exactly); single-scene REGEN has full parity with the batch lane (captions/consistent/overlay/imageFull/diversitySalt threaded, `qtier` persisted, `modelFallback` stripped, the silent heuristic fallback REMOVED per the no-fallback contract); B8 QC detects WHITE/blank stretches via `negate,blackdetect` (the reference app's blank-scene bug class — dark themes can never false-positive); the `tuila1-hud-cyber` preset populates the wired-but-empty `effects`/`ambient` prompt blocks. Deferred (tracked, not registered): exemplar bank per signature, geometric balance gate, `fontSizes` ladder | `hyperframe/{prompt,beats,codegen,validate}.js` · `pipeline/{direction,regen,qc}.js` · `pipeline/stages/visuals.js` · `styleguide/presets.js` |
-| P36 | Single visual mode — HyperFrame only (owner order 2026-07-22): the `animation` (20-template motion-graphics library + heuristic/LLM planner) and `image` (Pollinations text-to-image + Ken-Burns posters + libass subtitle burn) modes were removed. `src/animation/` is now PURELY the shared GSAP render engine HyperFrame reuses; `buildTemplate` keeps `kinetic-statement` as the universal fallback (a scene whose stored template no longer exists still renders) + `chapter-break`, and `headline()` (trimmed `planner.js`) survives as the P10 swap's text source; `themes.js` stays as a hyperframe-codegen validation dependency (`getTheme`). Every dispatch site is single-mode and a stored `visualMode` of `'animation'`/`'image'` is coerced to `'hyperframe'` (migration id 5 across all 5 config-bearing tables), so a stray value can never route; the scriptwriter is always the motion-graphics brief; FPS/resolution relocated out of the removed `#animOpts`; consumption-site fallbacks read `\|\| 'hyperframe'` | `core/config.js` · `db/migrate.js` (id 5) · `animation/{index,templates/index,planner,themes}.js` · `pipeline/stages/{visuals,render}.js` · `pipeline/{regen,render-only,repurpose,fingerprint}.js` · `providers/llm.js` · `public/{index.html,js/views/config.js}` |
+| P36 | Single visual mode — HyperFrame only (owner order 2026-07-22): the `animation` (20-template motion-graphics library + heuristic/LLM planner) and `image` (Pollinations text-to-image + Ken-Burns posters + libass subtitle burn) modes were removed. `src/animation/` is now PURELY the shared GSAP render engine HyperFrame reuses; `buildTemplate` keeps `kinetic-statement` as the universal fallback (a scene whose stored template no longer exists still renders) + `chapter-break`, and `headline()` (trimmed `planner.js`) survives as the P10 swap's text source; `themes.js` stays as a hyperframe-codegen validation dependency (`getTheme`). Every dispatch site is single-mode and a stored `visualMode` of `'animation'`/`'image'` is coerced to `'hyperframe'` (migration id 5 across all 5 config-bearing tables), so a stray value can never route; the scriptwriter is always the motion-graphics brief; FPS/resolution relocated out of the removed `#animOpts`; consumption-site fallbacks read `` or ` 'hyperframe'` | `core/config.js` · `db/migrate.js` (id 5) · `animation/{index,templates/index,planner,themes}.js` · `pipeline/stages/{visuals,render}.js` · `pipeline/{regen,render-only,repurpose,fingerprint}.js` · `providers/llm.js` · `public/{index.html,js/views/config.js}` |
 | P37 | Reference-parity codegen (owner order 2026-07-22, "make the HTML look like the reference app"): `buildCodegenPrompt` injects a concrete `ANIMATION SPEC` (`animationSpecBlock`: exact `FX.camPush`/`FX.beat`/`FX.parallax`/`FX.pulseGlow`/`FX.beamSweep`/`FX.impact` values derived from `cinematicDirection` + `motionSignature`) and a `TIMELINE SKELETON` (`timelineSkeletonBlock`: a t=0-nearly-empty line + one authored `FX.beat` line per REAL beat + a climax-to-DUR line) — expressed ONLY in the `tl.*`/`FX.*` vocabulary, NEVER raw `gsap.*` (mirrors the reference app's raw-timeline spec into OUR linted vocabulary; every emitted call is lint-clean, test-pinned). The harness set-dressing (motif/deco/vignette/grain/beam/beat-pulse) + the deterministic fixers (`normalizeSpec`, `__fitText`/`__deoverlap`/`__safeZone`/`__margins`, contrast-repair) are KEPT as the premium/readability floor. The HARD readability gates (off-screen/caption-band/contrast/clip/occlusion/wrong-language/text-over-text/fragment/junk/empty/runtime + primary-type-flat) still block/re-ask every attempt; the CALIBER gates (sparse / hero-density / dialogue-match / beat-adherence) are relaxed to a `softDefects` lane that re-asks ONLY in the first 3 attempts and never blocks shipping (thresholds widened: sparse rich union 0.55→0.50, hero-density a RICH-only `<4` nudge, dialogue-match `>0.6` missing across ≥4 labels) — so a scene that cleared every readability gate is not homogenized toward one dense look. (Deferred, tracked-not-registered: the TTS-first reorder + time-warp removal — author on the real audio DUR — behind `config.hyperframe.ttsFirst`, since it trades the scene gate's pre-spend RENDERED preview for a script+brief review.) | `hyperframe/{prompt,validate,codegen}.js` · `hyperframe/{beats,signatures}.js` |
 | P38 | Reference-parity LAYOUT + diverse backgrounds + QC trim (owner order 2026-07-25, "bố cục phải cân đối, rải đều; đa dạng background; bỏ QC cảnh lỗi thừa thải"). **Layout:** `viewportBlock` now emits the reference app's FULL hard-threshold set (`SIDE/TOP/BOTTOM_PADDING, TEXT_MAX_W, TEXT_BLOCK_MAX_H, HERO_MAX_W, SUBJECT_MAX_H, CARD_MIN/MAX_W, SAFE_CENTER_W/H, SPLIT_GAP, LOWER_THIRD_Y=round(H*.807)`) and MANDATES using them directly in code; a new `ratioRulesBlock` ships per-ratio distribution rules (16:9 "spread horizontally, never center-clump" / 9:16 "stack in reading order" / 1:1 symmetric / 4:5 top-heavy); the `CODEGEN_SYSTEM` composition rule distributes weight across a 3×3 grid with explicit-bounds containers; `renderValidate` gains a center-clump DISTRIBUTION defect (a wide frame whose readable elements all bunch on the center axis, span <22% width + union <50%, re-asks to spread). **QC trim (supersedes the P35 white-frame QC + the P37 caliber `softDefects` lane + quality tiers):** the render gate now emits ONLY not-broken (runtime error / blank render) + layout (off-screen / caption-band / text overlap / clip / occlusion / overlay-center / distribution) + cheap content (junk / wrong-language); the CALIBER gates (sparse / hero-density / beat-adherence / dialogue-match), the flat-primary-type check, the low-contrast gate + auto-contrast repair, and the mid-scene/ending liveness checks are REMOVED; codegen drops the contrast-repair loop + `qtier`; `qc.js` drops the per-frame black/white/silence pixel scan + `summarizeVisualTiers` + loudness probe, keeping cheap stream/duration integrity; `finalize` drops the QC repair cycle + tier surfacing. Safe because the fence parser + lint + harness-owned dark backdrop already prevent blank scenes at the source. **Backgrounds:** `motifLayer` gains six styles (spotlight/aurora/rays/dotmatrix/blueprint/gradient-wash) beside mesh/grid/bokeh; `animation/backdrop.js` rotates the backdrop STYLE per scene — deterministic by (idx + per-video salt), consecutive scenes never repeat, cta/outro → calm spotlight — while palette + fonts stay LOCKED for one identity; `hyperframe.build()` reads `props.backdrop` (falls back to `guide.motif`), set by `visuals.js`/`regen.js` when `config.hyperframe.backgroundVariety` (default on). | `hyperframe/{prompt,validate,codegen}.js` · `pipeline/qc.js` · `pipeline/stages/{finalize,render,visuals}.js` · `pipeline/regen.js` · `animation/backdrop.js` · `animation/templates/hyperframe.js` · `styleguide/{guide,generate}.js` · `core/config.js` |
-
 | P39 | Raw-GSAP REFERENCE PORT (owner order 2026-07-29, "audit kỹ code/công nghệ/prompt của app tham khảo rồi làm lại y hệt để video ra giống hệt"). Three-agent audit found the render RUNTIME already matches the reference (both = Puppeteer headless, 30fps deterministic frame-seek of a `paused` GSAP timeline, JPEG q92 → x264, xfade/concat, same per-ratio resolutions); the real deltas were the codegen contract, thresholds, model and encode. **Contract (raw GSAP):** `lint.js` no longer bans the full `gsap.*` API — `gsap.set` / `gsap.timeline` / `gsap.utils` / eases are allowed (the reference's own vocabulary); only a STANDALONE `gsap.to/from/fromTo` (lands on the paused global timeline → frozen), the real-time/env calls (`gsap.ticker/delayedCall/globalTimeline/context/matchMedia`) and `gsap.utils.random` stay hard-banned. FX.* is now OPTIONAL sugar, not required; `prompt.js` teaches "author a RAW GSAP TIMELINE on tl" + ≥5 animating elements (reference Rich-Animation). **Advisory validation (supersedes the P38 hard render-gate):** `renderValidate` returns `{ok, defects, warnings}` where `defects` = the STRUCTURAL FLOOR only (script threw / renders blank) and every geometry finding (off-screen / caption-band / overlap / clip / occlusion / distribution / wrong-language / junk) is an advisory WARNING; `codegen.js` re-asks ONLY on lint/syntax errors + structural defects, ships the first structurally-sound spec, and drops the `HARD_DEFECT` classifier + `lastGood` lane (no-fallback loud fail unchanged). The layout/quality lint guards (`repeat:-1`, display/layout tweens, gBCR-in-callback, Math.random, ALLCAPS telemetry) demote from errors to warnings. Safe because the fence parser + syntax check + the structural floor still block the actual blank-scene bug. **Thresholds:** `viewportBlock` swaps P38's formulas for the reference's HARDCODED INTEGER TABLES per ratio (16:9 `SIDE 90/…`, 9:16 `SIDE 70 / BOTTOM 130 / SUBJECT_MAX_H 990`, 1:1, 4:5) — byte-exact at the reference resolutions, proportionally scaled for any other canvas. **Model + tokens:** `config.hyperframe.model` now defaults to the owner's stable strong proxy model `ag/gemini-pro-agent` (memory: parity-harness-p0) for new projects; codegen `maxTokens` 6500→24000. **Shell + encode:** the stage gradient matches the reference cinematic key (`radial-gradient(ellipse at 50% 30%, bg2, bg, #05050a)`); per-scene, master and colorkey encodes go to `crf 18 -preset medium -profile high -level 4.0` (was crf20/veryfast). RETAINED as harness-side bonuses invisible to the port: time-warp beat-sync, deterministic frame render, caption karaoke, P38 backdrop rotation. | `hyperframe/{lint,validate,codegen,prompt}.js` · `animation/{harness,renderer}.js` · `pipeline/render.js` · `media/ffmpeg.js` · `core/config.js` · `providers/llm.js` |
-
-| P40 | Reference FEATURE parity — the capabilities beyond the scene renderer (owner order 2026-08-02, "copy hoàn toàn mọi tính năng của app tham khảo… app hiện tại là 1 bản nâng cấp"). Five lanes, each an audit finding against `/Applications/AI VIDEO Tool.app` (READ ONLY). **A — creative runtime libraries:** the reference lets its codegen model add up to 4 CDN `<script>` imports (three.js/p5.js/tsParticles/countUp/ScrollTrigger) and rewrites them to a local cache at render time; `scripts/build-libs.mjs` vendors the same set into `vendor/libs`, `animation/libs.js` detects which a spec actually references (`detectLibs`) and the harness injects ONLY those, so a text-only scene keeps its old page weight. Determinism is preserved by a single public hook — `window.__onSeek(fn)`, called from `__seek` with (sceneTime, authoredTime) — so a THREE/p5 layer is a pure function of t under out-of-order scrubbing; only scrubbable libs are advertised (`advertisedLibs`), the rAF-driven ones stay vendored (an import must never 404) but silent; lint carves `window.__onSeek` out of the harness-internals ban and warns when a library layer registers no hook. Chrome gains software WebGL (`--use-gl=angle --use-angle=swiftshader --enable-unsafe-swiftshader`) — verified byte-identical on non-WebGL pages, and without it a `WebGLRenderer` throws and takes the whole scene script down; **the reference app cannot render three.js at all** (it ships `--disable-gpu --disable-software-rasterizer`). **B — brand-asset casting:** the reference keyword-matches its `brand-specificities/<brand>/` folder per scene; `pipeline/brand-assets.js` casts the whole video in ONE call with the REAL catalog (same shape as the sound-design lane), `sanitizeCast` drops hallucinated filenames + caps 2/scene, picks persist to `scenes.assets`, and `sceneMediaResolver` is the single resolver for the batch AND regen lanes. A mascot cutout keeps its alpha (`heroMediaUri({alpha:true})` → PNG; JPEG would paste a black rectangle) and `imageFullBlock` briefs it as a CO-STAR (no crop/box/object-fit, left-or-right third, 40–55% frame height) instead of a cropped centre hero. Knob `config.brandAssets` = `'auto'`(Default folder)|`'<folder>'`|`'none'`. **C — Supertonic TTS:** a self-hosted local voice (`pip install supertonic`, POST `/v1/tts`), 10 voices × 9 languages, speed/steps clamped; `media/tts-server.js` owns liveness + a DEEP synth check (an HTTP-alive-but-broken zombie is worse than a dead port) + spawn/stop, routes `/tts/server/{status,start,stop}`, killed on app shutdown; the façade writes `.wav` for it and passes `detectLang`. The reference's CapCut provider is deliberately NOT ported — it forges device fingerprints against a private endpoint. **D — AI thumbnail:** the model authors a static HTML FRAGMENT which we re-shell in our own page (vendored fonts, locked palette, exact canvas/safe area); `sanitizeThumbFragment` strips script/iframe/handlers/@import/@keyframes/`animation:`/external URLs — a thumbnail is ONE static paint; three composition briefs drive the A/B variants; an unusable reply or no LLM silently falls back to the deterministic `buildThumbnail` (opt out with `config.thumbnailAi=false`). **E — edit video:** `pipeline/edit-video.js` puts graphics on the owner's OWN footage — transcribe → `segmentTranscript` (segments TILE the source, silent head+tail included, so cumulative offset IS the source moment) → the ordinary `runVisuals`/`runRender`/`finalize`; routed from inside `runPipeline` on `config.editVideo` so stop/resume/job-ledger/error-taxonomy apply unchanged, and a resumed run skips transcription. `compositeColorkey` gains `exact` + `audioFrom:'footage'` (slice at the scene's own moment, keep the ORIGINAL soundtrack); no TTS is spent and `autoBgm`/`soundDesign` are forced off. `whisper.transcribeWords` gains `granularity:'segment'` (forcing one word per segment costs decoding accuracy, which only matters when the transcript IS the content), `repairTranscript` fixes ASR spelling/diacritics in one call and is rejected wholesale if the line count changes, and `paths.js` now prefers the LARGEST whisper model present (`scripts/build-whisper-model.mjs` installs large-v3-turbo — measured: ggml-small "FAMO TANG NANG SUK V A I" vs large-v3-turbo the correct Vietnamese sentence). | `animation/{libs,harness}.js` · `media/{puppeteer,tts-server,whisper,ffmpeg}.js` · `pipeline/{brand-assets,thumbnail-codegen,edit-video,runner,regen}.js` · `pipeline/stages/{visuals,finalize}.js` · `providers/voice/supertonic.js` · `providers/tts.js` · `hyperframe/{prompt,lint,codegen}.js` · `util/asset-uri.js` · `config/paths.js` · `scripts/build-{libs,whisper-model}.mjs` |
-
+| P40 | Reference FEATURE parity — the capabilities beyond the scene renderer (owner order 2026-08-02, "copy hoàn toàn mọi tính năng của app tham khảo… app hiện tại là 1 bản nâng cấp"). Five lanes, each an audit finding against `/Applications/AI VIDEO Tool.app` (READ ONLY). **A — creative runtime libraries:** the reference lets its codegen model add up to 4 CDN `<script>` imports (three.js/p5.js/tsParticles/countUp/ScrollTrigger) and rewrites them to a local cache at render time; `scripts/build-libs.mjs` vendors the same set into `vendor/libs`, `animation/libs.js` detects which a spec actually references (`detectLibs`) and the harness injects ONLY those, so a text-only scene keeps its old page weight. Determinism is preserved by a single public hook — `window.__onSeek(fn)`, called from `__seek` with (sceneTime, authoredTime) — so a THREE/p5 layer is a pure function of t under out-of-order scrubbing; only scrubbable libs are advertised (`advertisedLibs`), the rAF-driven ones stay vendored (an import must never 404) but silent; lint carves `window.__onSeek` out of the harness-internals ban and warns when a library layer registers no hook. Chrome gains software WebGL (`--use-gl=angle --use-angle=swiftshader --enable-unsafe-swiftshader`) — verified byte-identical on non-WebGL pages, and without it a `WebGLRenderer` throws and takes the whole scene script down; **the reference app cannot render three.js at all** (it ships `--disable-gpu --disable-software-rasterizer`). **B — brand-asset casting:** the reference keyword-matches its `brand-specificities/<brand>/` folder per scene; `pipeline/brand-assets.js` casts the whole video in ONE call with the REAL catalog (same shape as the sound-design lane), `sanitizeCast` drops hallucinated filenames + caps 2/scene, picks persist to `scenes.assets`, and `sceneMediaResolver` is the single resolver for the batch AND regen lanes. A mascot cutout keeps its alpha (`heroMediaUri({alpha:true})` → PNG; JPEG would paste a black rectangle) and `imageFullBlock` briefs it as a CO-STAR (no crop/box/object-fit, left-or-right third, 40–55% frame height) instead of a cropped centre hero. Knob `config.brandAssets` = `'auto'` (Default folder) · `'<folder>'` · `'none'`. **C — Supertonic TTS:** a self-hosted local voice (`pip install supertonic`, POST `/v1/tts`), 10 voices × 9 languages, speed/steps clamped; `media/tts-server.js` owns liveness + a DEEP synth check (an HTTP-alive-but-broken zombie is worse than a dead port) + spawn/stop, routes `/tts/server/{status,start,stop}`, killed on app shutdown; the façade writes `.wav` for it and passes `detectLang`. The reference's CapCut provider is deliberately NOT ported — it forges device fingerprints against a private endpoint. **D — AI thumbnail:** the model authors a static HTML FRAGMENT which we re-shell in our own page (vendored fonts, locked palette, exact canvas/safe area); `sanitizeThumbFragment` strips script/iframe/handlers/@import/@keyframes/`animation:`/external URLs — a thumbnail is ONE static paint; three composition briefs drive the A/B variants; an unusable reply or no LLM silently falls back to the deterministic `buildThumbnail` (opt out with `config.thumbnailAi=false`). **E — edit video:** `pipeline/edit-video.js` puts graphics on the owner's OWN footage — transcribe → `segmentTranscript` (segments TILE the source, silent head+tail included, so cumulative offset IS the source moment) → the ordinary `runVisuals`/`runRender`/`finalize`; routed from inside `runPipeline` on `config.editVideo` so stop/resume/job-ledger/error-taxonomy apply unchanged, and a resumed run skips transcription. `compositeColorkey` gains `exact` + `audioFrom:'footage'` (slice at the scene's own moment, keep the ORIGINAL soundtrack); no TTS is spent and `autoBgm`/`soundDesign` are forced off. `whisper.transcribeWords` gains `granularity:'segment'` (forcing one word per segment costs decoding accuracy, which only matters when the transcript IS the content), `repairTranscript` fixes ASR spelling/diacritics in one call and is rejected wholesale if the line count changes, and `paths.js` now prefers the LARGEST whisper model present (`scripts/build-whisper-model.mjs` installs large-v3-turbo — measured: ggml-small "FAMO TANG NANG SUK V A I" vs large-v3-turbo the correct Vietnamese sentence). | `animation/{libs,harness}.js` · `media/{puppeteer,tts-server,whisper,ffmpeg}.js` · `pipeline/{brand-assets,thumbnail-codegen,edit-video,runner,regen}.js` · `pipeline/stages/{visuals,finalize}.js` · `providers/voice/supertonic.js` · `providers/tts.js` · `hyperframe/{prompt,lint,codegen}.js` · `util/asset-uri.js` · `config/paths.js` · `scripts/build-{libs,whisper-model}.mjs` |
 | P40+ | Reference FEATURE parity, round 2 — the gaps a 36-agent audit of the reference bundle CONFIRMED against this repo (each claim was adversarially verified before being accepted; 18 of 31 were refuted and dropped). **Publish:** `publish/facebook.js` joins the registry beside YouTube — a pasted Page token verified against the Page, 9:16/4:5 → REEL (start → bytes to rupload → finish), else a feed video; Graph's own message is surfaced; a failed first comment never fails the post; staging parity means anything but an explicit "công khai ngay" is SCHEDULED ~15 min out. Both publishers take `scheduledAt` in unix seconds (YouTube → `status.publishAt`, only honoured on a private video). AI Setting gains a **Đăng video** section — the publish routes existed but nothing in the UI ever called them — and the ledger is finally rendered under the final-video toolbar. **Assets (two real defects):** `config.assets` carries three shapes (bare path / `/api/file?path=` URL / `{name,path}`) but the resolver filtered on `a.name && a.path`, so an uploaded asset NEVER rendered → `normalizeAssets()` accepts all three and a scene may name an asset by stored name or bare filename; `brandCatalog` read only the DB, so art dropped into the brand folder in Finder was invisible to casting → catalog + `/library/brand` + `/brands` union DB rows with disk. `POST /media/download` brings a remote image/video local (content-type checked) because a scene must be offline. Library gains a brand-folder picker (uploads land in the folder being browsed), audio audition, and `PATCH /library/:id` rename (display name only — a path reference can never break). **Image search** now works with NO key via Openverse (commercial+modification licences), trying keyword phrases ONE at a time — concatenating four made a 20-word query that matched nothing — with gradients demoted to the genuinely-offline last resort. **Thumbnail:** `GET /projects/:id/thumbnail` + `POST …/regen` (re-design, or re-render hand-edited `{html}` via `renderThumbnailFragment`), design markup persisted in `metadata.thumbnail.html`, and the designer may place the owner's pictures through the same `{{asset:NAME}}` contract. **Voice:** `keyPool()` rotates a newline/comma-separated key list on a credit/auth refusal ONLY (a bad voice id must not burn every key); Edge gains rate/pitch/volume via SSML prosody (zero = unchanged, so no-knob output is byte-identical); `config.enableVoice:false` is a music-only cut (silence + estimated cue timing, no TTS credit). **Metadata:** generated from the NARRATION, not the title alone, and named SEO styles are rows in the shared `styles` table (the panel sends the resolved prompt, so deleting a style can't break a queued run). NOT ported: the reference's CapCut voice (forged device fingerprints against a private endpoint). | `publish/{facebook,youtube,index}.js` · `pipeline/{brand-assets,thumbnail-codegen}.js` · `pipeline/stages/{finalize,metadata,tts,script}.js` · `providers/{tts,imagesearch,llm}.js` · `providers/voice/edge.js` · `db/repositories/catalogs.js` · `api/routes.js` · `public/js/{views/{studio,library,config,editvideo},features/settings,api,state}.js` |
-
 | P41 | EVEN LAYOUT (owner order 2026-08-02: "bố cục HTML tạo ra phải có bố cục và nội dung ĐỀU NHAU, không cần quan tâm đến phụ đề ghi đè"). **Measured first**, not guessed: 16 stored scenes rendered and mapped onto a 3×3 ink grid (fair share 0.111) gave top-left 0.068 / top-right 0.065 against dead-centre 0.192 — the failure is lopsidedness, not emptiness. **Cause found in the prompt itself, twice:** (a) the few-shot `SAMPLE_SPEC` the model imitates put six anchors in three zones and left 6/9 cells empty — it was teaching the measured imbalance, so its slots are now spread across six zones plus a bottom-centre tick scale; (b) `viewportBlock` called a centred 39.5% box "the primary usable stage" while the block ended with "THE THRESHOLDS WIN" — an obedient model was being TOLD to centre everything, so those numbers are now **MAXIMA AND MARGINS** ("misread a maximum as a target"). **Doctrine:** master rule #2 became a countable ZONE BUDGET — nine NAMED zones (TL..BR) binned by the very `left%/top%` the model types on a `.hf-slot`, anchor bands as ranges, and four laws (≥7 of 9 zones · all four corners ≥1 · every row and column ≥2 · MC ≤1), measured on the SETTLED frame (last beat→DUR, since the beat protocol opens bare). Guarded against its own failure modes, each caught in a real render: it "NEVER ASKS FOR MORE ELEMENTS" (satisfied by MOVING, with six named relocations + "plugging a hole with confetti is a WORSE failure than the hole") so it cannot lose to the density/whitespace rules; corner anchors may not be fake telemetry (`SYS.REQ.01`, `[TARGET: TABLE]` — the first regen filled every corner with exactly that); the quota "NEVER WEAKENS THE HERO"; and "NEVER A TIC-TAC-TOE LATTICE" (the first regen snapped every scene to 15/50/85 × 15/50/85). `.hf-mid` orbs + ghost glyph become ballast for the thinnest zones (free area, zero DOM). Each `ratioRulesBlock` branch carries its own quota + ONE worked map with the arithmetic spelled out. Subtitle avoidance no longer squeezes the frame: the caption band is no longer a no-go zone, edit-video reserves nothing. **Validator:** a 3×3 ink map where a zone is DEAD only when nothing is anchored in it AND it carries almost no ink (a corner kicker is little ink but not a hole); ≥3 dead zones or one zone >34% warns — ADVISORY, per P39. **Verified by regeneration** on the shipping model: 9/9 → 7-8/9 distinct zones used and all four corners anchored in every scene, staggered coordinates, telemetry gone. Honest caveat: corner anchors are small by nature, so the AREA-weighted centre share stays ~0.24 — placement is even, ink mass still leans centre, and the frames read a little lighter than the densest reference-caliber ones. | `hyperframe/prompt.js` · `hyperframe/validate.js` · `styleguide/guide.js` |
-
-| P42 | Route-level PARITY PROOF + the last four gaps (goal check, 2026-08-03). Diffed the reference app's 121 `/api/*` routes against ours: most differences are naming or granularity (its `/tts/edge/voices` + `/larvoice/voices` + `/elevenlabs/voices` are our ONE unified `/voices` catalog; its `/projects/:id/scenes/:stt/regen` is our `/scenes/:id/regen-html`; its `/tts/supertonic/start|stop|health` are our `/tts/server/*`; a "session" there is a "project" here), so a name diff is not a capability diff. Four capabilities genuinely had no counterpart and are now implemented on OUR architecture: **copy-assets-from** (shares by PATH, skips files gone from disk, never double-adds), **restart** (same topic+config, work discarded — as a NEW project, never an in-place wipe, so a finished video cannot be destroyed by one click), **AI publish caption** (a YouTube description is the wrong shape for a Facebook post: written from the narration, hook-first, saved per platform under `metadata.captions[platform]` and preferred over `description` at publish time), and **logo presets** (a named {file + placement} pair in the shared `styles` table, kind `'logo'`, path validated against the allowed roots — applying one restores WHERE the logo sat). All four wired into the existing UI. NOT ported: the reference's `/x/scrape-tweet` (X blocks scraping and requires auth; `/fetch-link` already handles a public URL) and `/tts/capcut/*` (forged device fingerprints against a private endpoint). Second sweep after the full 121-route map came back (86 have · 3 n/a · 18 claimed missing, 0 of which survived refutation once implemented): **brand folders** can be renamed/deleted (name stripped of separators and `..`, resolved path must stay under `DIRS.brand`, `Default` refused, and a delete reports its file count and 409s until the caller echoes it back); **per-scene SRT** (`/projects/:id/scenes-srt`) keeps each scene on its own zero, beside the timeline-shifted whole-project export; **standalone transcription** (`/edit-video/transcribe`) reads a file's words without creating a project; **Facebook Pages became a REGISTRY** — list/select/remove with a per-Page token, `/check` via Graph `debug_token` (treating `expires_at 0` as NEVER), `/extend` via the documented `fb_exchange_token` long-lived exchange re-deriving the Page token, plus `/publish/published-ids` to badge what already went out; **logo-preset apply** restores file AND placement into the active channel's brand kit; `PATCH /styles/:id` renames a saved style; `/llm/test` validates a custom OpenAI-compatible endpoint for 8 tokens (the `••` masked round-trip keeps the saved key); `/tts/server/install` runs pip for the local voice engine as an EXPLICIT button, never automatic, returning the real output. Final verdict from the full map: **107 routes · 86 have · 3 n/a · 18 claimed missing, of which exactly ONE survived adversarial refutation** — thumbnail EDIT-BY-INSTRUCTION, now `POST /projects/:id/thumbnail/edit-html` (`editThumbnailFragment` sends the CURRENT design plus the instruction under an "you are editing, not designing" system message; a reply under 40% of the original length is treated as a failed edit and the old thumbnail is kept). One refutation also exposed a genuinely DEAD control on our side: the Dưới/Giữa/Trên subtitle select never reached the render because `bottomPct` read only `marginV`, which the panel always sends as 0.12 — `POSITION_BOTTOM_PCT` now decides, with `'bot'`/absent deliberately left at the harness default so no finished video shifts when re-rendered and only the two settings that never worked start working. | `api/routes.js` · `publish/facebook.js` · `pipeline/thumbnail-codegen.js` · `subtitles/presets.js` · `db/repositories/{catalogs,publishes}.js` · `public/js/{views/studio,features/settings}.js` · `public/index.html` |
-
-| P43 | UI-SURFACE parity (goal check, 2026-08-03). The P42 route diff could only see the server, so all **406 user-visible controls** were extracted from the reference app's own `index.html` and checked separately (its 26 client feature modules named alongside). Verdict: **88 have · 2 n/a · 19 claimed missing**, of which the SaaS half (login, session expiry, banned account, license expiry, voice-payment, publish-payment) is `n/a` by design — this is the owner's own local tool with his own keys — and CapCut stays refused. Real gaps closed: **transition STYLE is pickable** (`planTransitions({style})`: `'auto'` keeps the role doctrine byte-for-byte and remains the default, `'varied'` rotates deterministically so the same video always cuts the same way, `'none'` is hard cuts, plus eleven named xfade looks each verified against the vendored ffmpeg build because the string goes straight into `xfade=transition=`; an unknown value falls back to the doctrine); **drag & drop** anywhere on the window, routed by WHAT THE FILE IS (image→project assets · video→the Sửa video source · audio→BGM/SFX · font→font library), unsupported files reported rather than swallowed, drag DEPTH counted so the overlay does not flicker across child elements; **any subtitle colour** (the nine swatches were the whole palette); and four capabilities that had shipped as ROUTES with nothing in the UI ever calling them — **"Sửa HTML với AI"** per scene (`/scenes/:id/edit-html`), the **Facebook Page registry** (list/select/remove + per-Page token health, with `neverExpires` shown as such rather than as expired), **deleting a named SEO style**, and **renaming/deleting a brand folder** (the dialog states the file count it is about to destroy and echoes it back, and a 409 from a stale count is reported instead of swallowed — `api.del` THROWS on non-2xx). Refuted: the voice-picker claims — our single `/voices` catalog already covers every provider with per-provider chips, preview and favourites. Final verdict from the full UI map: **152 controls judged · 111 have · 4 n/a · 37 claimed missing → 6 survived refutation**, all six now closed. Three shared ONE root cause I had wrongly dismissed the turn before: the picker's chip row was built from all SEVEN registered providers while `getVoiceCatalog` loaded only FOUR, so ElevenLabs / OpenAI / Supertonic each rendered a live-looking chip and an EMPTY list (measured `{edge:322, say:74, vbee:10, larvoice:105}` and 0 for the rest — including Supertonic, added in P40-C, whose roster is a local list needing no key). `catalogProviders()` now decides by cost — a local/keyless engine is always listed, a keyed cloud provider joins once its key exists — and the picker greys out what it cannot show and says why. The other three: publishing opens a **composer** (the exact post text, editable, AI-written on request, plus a title and a schedule — quick picks and a datetime, with "tối nay 20h" rolling to tomorrow once tonight has passed) and typed text outranks the stored caption at publish time; and **reframe bias** — the single `crop=w:h` in `compositeColorkey` was ffmpeg's dead-centre default, which cuts a person standing off to one side out of shot. `detectSubjectX` (one cropdetect probe) + `reframeOffsetX` give auto/left/centre/right, the scale factor mirrors `force_original_aspect_ratio=increase` so the offset is right, and `'center'` does not even build a different filter string — every existing render stays byte-identical. | `pipeline/render.js` · `pipeline/stages/finalize.js` · `api/services/voice-catalog.js` · `media/ffmpeg.js` · `animation/index.js` · `pipeline/edit-video.js` · `public/js/features/{dragdrop,scene-studio,settings,voicepicker}.js` · `public/js/views/{config,library,studio,editvideo}.js` · `public/js/ui/dialog.js` · `public/index.html` |
-
+| P42 | Route-level PARITY PROOF + the last four gaps (goal check, 2026-08-03). Diffed the reference app's 121 `/api/*` routes against ours: most differences are naming or granularity (its `/tts/edge/voices` + `/larvoice/voices` + `/elevenlabs/voices` are our ONE unified `/voices` catalog; its `/projects/:id/scenes/:stt/regen` is our `/scenes/:id/regen-html`; its `/tts/supertonic/start`, `stop`, `health` are our `/tts/server/*`; a "session" there is a "project" here), so a name diff is not a capability diff. Four capabilities genuinely had no counterpart and are now implemented on OUR architecture: **copy-assets-from** (shares by PATH, skips files gone from disk, never double-adds), **restart** (same topic+config, work discarded — as a NEW project, never an in-place wipe, so a finished video cannot be destroyed by one click), **AI publish caption** (a YouTube description is the wrong shape for a Facebook post: written from the narration, hook-first, saved per platform under `metadata.captions[platform]` and preferred over `description` at publish time), and **logo presets** (a named {file + placement} pair in the shared `styles` table, kind `'logo'`, path validated against the allowed roots — applying one restores WHERE the logo sat). All four wired into the existing UI. NOT ported: the reference's `/x/scrape-tweet` (X blocks scraping and requires auth; `/fetch-link` already handles a public URL) and `/tts/capcut/*` (forged device fingerprints against a private endpoint). Second sweep after the full 121-route map came back (86 have · 3 n/a · 18 claimed missing, 0 of which survived refutation once implemented): **brand folders** can be renamed/deleted (name stripped of separators and `..`, resolved path must stay under `DIRS.brand`, `Default` refused, and a delete reports its file count and 409s until the caller echoes it back); **per-scene SRT** (`/projects/:id/scenes-srt`) keeps each scene on its own zero, beside the timeline-shifted whole-project export; **standalone transcription** (`/edit-video/transcribe`) reads a file's words without creating a project; **Facebook Pages became a REGISTRY** — list/select/remove with a per-Page token, `/check` via Graph `debug_token` (treating `expires_at 0` as NEVER), `/extend` via the documented `fb_exchange_token` long-lived exchange re-deriving the Page token, plus `/publish/published-ids` to badge what already went out; **logo-preset apply** restores file AND placement into the active channel's brand kit; `PATCH /styles/:id` renames a saved style; `/llm/test` validates a custom OpenAI-compatible endpoint for 8 tokens (the `••` masked round-trip keeps the saved key); `/tts/server/install` runs pip for the local voice engine as an EXPLICIT button, never automatic, returning the real output. Final verdict from the full map: **107 routes · 86 have · 3 n/a · 18 claimed missing, of which exactly ONE survived adversarial refutation** — thumbnail EDIT-BY-INSTRUCTION, now `POST /projects/:id/thumbnail/edit-html` (`editThumbnailFragment` sends the CURRENT design plus the instruction under an "you are editing, not designing" system message; a reply under 40% of the original length is treated as a failed edit and the old thumbnail is kept). One refutation also exposed a genuinely DEAD control on our side: the Dưới/Giữa/Trên subtitle select never reached the render because `bottomPct` read only `marginV`, which the panel always sends as 0.12 — `POSITION_BOTTOM_PCT` now decides, with `'bot'`/absent deliberately left at the harness default so no finished video shifts when re-rendered and only the two settings that never worked start working. | `api/routes.js` · `publish/facebook.js` · `pipeline/thumbnail-codegen.js` · `subtitles/presets.js` · `db/repositories/{catalogs,publishes}.js` · `public/js/{views/studio,features/settings}.js` · `public/index.html` |
+| P43 | UI-SURFACE parity (goal check, 2026-08-03). The P42 route diff could only see the server, so all **406 user-visible controls** were extracted from the reference app's own `index.html` and checked separately (its 26 client feature modules named alongside). Verdict: **88 have · 2 n/a · 19 claimed missing**, of which the SaaS half (login, session expiry, banned account, license expiry, voice-payment, publish-payment) is `n/a` by design — this is the owner's own local tool with his own keys — and CapCut stays refused. Real gaps closed: **transition STYLE is pickable** (`planTransitions({style})`: `'auto'` keeps the role doctrine byte-for-byte and remains the default, `'varied'` rotates deterministically so the same video always cuts the same way, `'none'` is hard cuts, plus eleven named xfade looks each verified against the vendored ffmpeg build because the string goes straight into `xfade=transition=`; an unknown value falls back to the doctrine); **drag & drop** anywhere on the window, routed by WHAT THE FILE IS (image→project assets · video→the Sửa video source · audio→BGM/SFX · font→font library), unsupported files reported rather than swallowed, drag DEPTH counted so the overlay does not flicker across child elements; **any subtitle color** (the nine swatches were the whole palette); and four capabilities that had shipped as ROUTES with nothing in the UI ever calling them — **"Sửa HTML với AI"** per scene (`/scenes/:id/edit-html`), the **Facebook Page registry** (list/select/remove + per-Page token health, with `neverExpires` shown as such rather than as expired), **deleting a named SEO style**, and **renaming/deleting a brand folder** (the dialog states the file count it is about to destroy and echoes it back, and a 409 from a stale count is reported instead of swallowed — `api.del` THROWS on non-2xx). Refuted: the voice-picker claims — our single `/voices` catalog already covers every provider with per-provider chips, preview and favourites. Final verdict from the full UI map: **152 controls judged · 111 have · 4 n/a · 37 claimed missing → 6 survived refutation**, all six now closed. Three shared ONE root cause I had wrongly dismissed the turn before: the picker's chip row was built from all SEVEN registered providers while `getVoiceCatalog` loaded only FOUR, so ElevenLabs / OpenAI / Supertonic each rendered a live-looking chip and an EMPTY list (measured `{edge:322, say:74, vbee:10, larvoice:105}` and 0 for the rest — including Supertonic, added in P40-C, whose roster is a local list needing no key). `catalogProviders()` now decides by cost — a local/keyless engine is always listed, a keyed cloud provider joins once its key exists — and the picker greys out what it cannot show and says why. The other three: publishing opens a **composer** (the exact post text, editable, AI-written on request, plus a title and a schedule — quick picks and a datetime, with "tối nay 20h" rolling to tomorrow once tonight has passed) and typed text outranks the stored caption at publish time; and **reframe bias** — the single `crop=w:h` in `compositeColorkey` was ffmpeg's dead-centre default, which cuts a person standing off to one side out of shot. `detectSubjectX` (one cropdetect probe) + `reframeOffsetX` give auto/left/centre/right, the scale factor mirrors `force_original_aspect_ratio=increase` so the offset is right, and `'center'` does not even build a different filter string — every existing render stays byte-identical. | `pipeline/render.js` · `pipeline/stages/finalize.js` · `api/services/voice-catalog.js` · `media/ffmpeg.js` · `animation/index.js` · `pipeline/edit-video.js` · `public/js/features/{dragdrop,scene-studio,settings,voicepicker}.js` · `public/js/views/{config,library,studio,editvideo}.js` · `public/js/ui/dialog.js` · `public/index.html` |
 | P44 | ENGINE-SURFACE parity (goal check, 2026-08-03). Routes (P42) and UI controls (P43) both map what the owner can *ask for*; neither can see a step the reference runs AUTOMATICALLY inside its pipeline. The third axis extracted the reference bundle's **150 exported functions** and checked each against ours. Two genuine gaps, both operating on the owner's own footage in the edit-video lane, both now ported — **and both reference implementations carried a bug we did not copy**. (1) **Silence removal** (`detectSilence`/`removeSilence`): `detectSilence()` reads ffmpeg `silencedetect`; the whole cut decision lives in the PURE `silenceKeepRanges()`, so it is tested without ffmpeg. A gap is never cut flush — `padMs` of its head and tail stay in and at least `keepMs` of every gap survives, so speech never starts on a hard splice, and a gap too short to be worth a splice (`MIN_CUT`) is skipped whole. The cut runs as ONE `filter_complex` pass (`trim`/`atrim` → `concat`) rather than the reference's write-N-clips-then-concat-demux: no generation loss, no temp files, and picture and sound are trimmed from the SAME range list so they cannot drift (measured 12.00s → 7.22s on a clip with a 4.99s gap, streams within one AAC frame). **The order is the fix**: the reference removes silence AFTER splitting scenes from the transcript, so every scene then reads the shortened footage at its OLD timestamp and drifts — here the cut happens BEFORE transcription and the project is repointed (`editVideo.source` + `overlay.source`, persisted so a resume reuses the cut file), making the timings right by construction. Also clamped: the reference's `max(end-pad, start+keep)` runs PAST a gap shorter than `keep` and eats the first syllable of the next sentence. (2) **Auto zoom** (`applyAutoZoom`/`applySceneZoom`): `zoomFilter()` builds a `zoompan` ramp that starts or ends at exactly 1.0 so two neighbouring scenes never jump in scale, alternating direction per scene index with a rotating focus point, intensity clamped at both ends. Framed at the caller's REAL output size — the reference hardcodes `s=1920x1080` and squashes every vertical video it touches — and folded into the existing composite pass instead of costing a second full re-encode. Spliced into the `[0:v]` footage chain ONLY: measured across a scene, the footage grows 200×120 → 227×137 while the keyed graphics stay at exactly `{60,40,200,30}` in every frame. Both switches are OFF unless asked for, so an untouched project renders exactly as before. | `media/ffmpeg.js` (`detectSilence` · `silenceKeepRanges` · `removeSilence` · `zoomFilter` · `zoomFocus` · `compositeColorkey({zoom})`) · `pipeline/edit-video.js` · `animation/index.js` · `public/js/views/editvideo.js` · `public/index.html` |
 
-| `lang` | LANGUAGE AS A FIRST-CLASS SETTING (2026-08-05; owner order: **no more `P<number>` tags for new work** — rows are slugs now). The app had no answer to "what language is this video". `config.language` was READ in 21 places and WRITTEN by nothing in the create-video UI, so every layer invented its own fallback and they disagreed — the script engine auto-detected from the topic and the scorer took the majority across scenes (both right), while the editorial rewrite, the art-direction brief, the budget, sound design and the thumbnail all hardcoded `'vi'`. Measured on a real 95-scene ENGLISH video (`pmsfzyvpdb4634c41`): **3 scenes of Vietnamese narration + 22 scenes of Vietnamese on-screen text**, and the validator caught the second one **22 times** and was ignored every time. **`src/util/lang.js` is now the single source of truth** and stays dependency-free so the TTS façade, script engine, codegen prompt, render validator and HTTP routes can all agree without importing anything heavier: `declaredLang(config)` (what the owner asked for; `''` and `'auto'` both mean *not declared* — `'auto'` genuinely reaches the DB via `createEditVideoProject`) → `majorityLang(texts)` (only lines of ≥4 words vote, because `detectLang` answers `'en'` for anything without diacritics and a title card would otherwise drag a Vietnamese video to English) → `DEFAULT_LANG`. Which resolver a site uses is a real decision: a whole-video question asks `resolveLang(config, scenes)`, a single-line question (timing seed, caption resync) falls back to THAT line's own text, and a pre-scenes question (cost preview) can only use `declaredLang`. **FOUR independent causes, all fixed:** (1) `stages/editorial.js` rewrote scenes flagged for *unrelated* defects "ENTIRELY in Vietnamese" with the Vietnamese forms of address pinned by its continuity line — that is the 3 narration scenes, and TTS then routed them to a Vietnamese voice because `langVoices` had no `vi` entry; (2) `direction.js` told the art-direction model "narration in Vietnamese" on **every video ever made**, and that brief travels into the codegen prompt; (3) `CODEGEN_SYSTEM` was a const whose every concrete example was Vietnamese (*"never put English or code on screen in a Vietnamese video"*) and `SAMPLE_SPEC` — the ONLY finished scene the model ever sees — was written in Vietnamese: it is now `codegenSystem(language)`, and the sample carries **numbers and symbols only** (translating it would merely flip the bias; slot geometry and ids are untouched because that is what it exists to teach); (4) **`normalizeSpec` silently DELETED English labels** — its telemetry stripper blanks any text node matching a dev pattern with no Vietnamese diacritic, and the diacritic was doing two jobs at once (proving "not a code token" AND "is real copy"), the second of which only works in Vietnamese. Measured: `ACTIVE`, `SUCCESS`, `ERROR RATE`, `RUNNING TOTAL` all became empty text nodes *before validation could see them*, with nothing in the log. The stripper is now split into a language-universal STRUCTURAL net and a Vietnamese-only ALLCAPS wordlist. **Wrong-language is no longer advisory:** it returns in its own `langDefects` bucket (not `defects` — `renderValidate` is stateless and is also called by the manual scene-edit lane and by `repurpose`, neither of which has an attempt loop) and `codegen.js` lets it re-ask `LANG_REASK_MAX = 3` times before shipping the scene with a LOUD log line; silent downgrading is exactly how 22 warnings shipped. It judges against the DECLARED language (detecting from the narration was circular) and its one-word rule is MIRRORED, not symmetric — deleting the `narrLang !== 'en'` guard would condemn every valid one-word English label, since the prompt explicitly asks for semantic non-verbatim keywords. **The picker** (`#cfgLang`) emits `undefined` for `'auto'`, never the string: `mergeConfigLayers` skips only `undefined`, so `'auto'` would overwrite a channel that declared its language; and `applyConfig` assigns it UNCONDITIONALLY because it runs on every channel switch. **Not backfilled, deliberately:** `ttsFingerprint` hashes `lang`, and 808 already-voiced scenes across 19 language-less projects would be re-synthesized on their next resume (~108k paid characters) — `tests/fingerprint.test.js` now freezes those hashes so this arrives as a red test rather than an invoice. Two bugs found while building the repair path are fixed too: `render-only.js` `mode:'concat'` re-rendered ALL clips (the subset filter only applied to `'scenes'`), and `server.js` had no `EADDRINUSE` handler so a busy port left a live process that never listened while the launcher's health probe got a 200 from the OLD server — the "I rebuilt and it still runs yesterday's code" trap. The handler must be registered BEFORE `hub.attach`: `ws` attaches its own re-throwing `'error'` listener (verified by experiment). **Two traps the in-place repair of `pmsfzyvpdb4634c41` exposed, both live for any future scene-editing work:** (a) **a render in flight beats a props edit** — `render-only.js` reads every scene row into memory ONCE and renders from that snapshot, so a render queued before an edit finishes from the STALE row and writes `video_path` back over the null the edit just set. The clip then looks fresh by mtime AND the DB row reads correct while the picture is the old one (scene 81 shipped Vietnamese with an English row). **Verify by extracting a FRAME, never by DB state**, and never start a bulk edit while the project is `running`. (b) **the diacritic test has a blind spot** — Vietnamese conventions carrying no diacritics slip through every language check in the app: `84.000.000 đ`, `+12 TR` (triệu), `$5.000` with a dot thousands separator. Worse, instructing a translation model to preserve numbers and currency verbatim (right for a label) is exactly wrong when the CURRENCY ITSELF is the foreign thing. `scripts/repair-language.mjs` now REPORTS these and refuses to auto-fix them: the narration pins the values ("already at seventy percent" → 84/120 must stay 70%) and a model asked to convert will invent numbers that contradict the voice-over. | `util/lang.js` · `hyperframe/{prompt,codegen,validate}.js` · `styleguide/guide.js` · `pipeline/{direction,regen,estimate}.js` · `pipeline/stages/{editorial,budget,visuals,tts,finalize}.js` · `audio/sound-design.js` · `api/routes.js` · `api/services/{edit-scene,topic-autopilot}.js` · `pipeline/render-only.js` · `server.js` · `public/js/views/config.js` · `public/index.html` · `scripts/repair-language.mjs` |
-
-| `subtitle-lane` | CAPTIONS CAN BE BURNED AT CONCAT INSTEAD OF BAKED INTO EVERY CLIP (2026-08-06). Subtitles were drawn as DOM inside each scene page, which made them an INPUT to every clip: editing a font meant re-rendering 95 scenes. `subtitleLane: 'final'` renders the clips bare and burns the captions once onto the assembled programme, so a subtitle edit costs one concat. **The fingerprint is the dangerous part and the key name hides it**: `subtitleLane` starts with `sub`, so `RENDER_CFG_KEYS` matched it for free and the first project to save the panel would have invalidated every clip it owns for a setting that changed nothing — it is stripped from the sweep entirely and read only as a mode ('scene'/absent hashes exactly as before; 'final' drops every `sub*` key so a subtitle edit provably cannot make a clip stale). Switching a finished project ONTO the lane DOES move the digest, and that re-render is honest: captions baked into 95 clips cannot be un-baked. `subtitles/ass.js` does not use ASS's own `\k` karaoke — `\k` fills progressively and leaves sung words highlighted, while the harness accents exactly ONE word and dims the rest, so it emits one Dialogue line per word window instead (libass handles thousands). Two differences are documented rather than papered over: long cues WRAP here where the harness shrinks to fit, and `glow` is approximated with outline+shadow because libass has no blur. `burnStyleFrom` joins the two style resolvers and fixes the trap between them — `assStyleFrom` reports the raw config size (80) while the harness renders `80 × min(w,h)/1080 × 0.72` = 58px, so burning at 80 would have shipped subtitles 38% larger than every preview showed. **`subtitles/timeline.js` owns where each scene starts**: cumulative duration is NOT the timeline (every crossfade steals its own length back, clamped per join), which is the drift the whole-video SRT export had been shipping as `TD * ordinal`; `planOffsets` replays the concat graph's own arithmetic and `concatScenes` calls it rather than repeating the loop. Cues are clipped to their own scene's slot because libass stacks simultaneous lines and an over-running caption would put two rows on screen at every crossfade. Rosetta cost of routing the encode through the libass-capable vendored binary measured at **29.7s vs 21.8s native — 1.36×, not the 4-7× the paths.js comment implied**, so no second ffmpeg build is needed. | `subtitles/{ass,timeline,presets}.js` · `pipeline/render.js` (`concatScenes({subtitles})`) · `pipeline/stages/finalize.js` · `pipeline/fingerprint.js` · `animation/{index,harness}.js` · `fonts/files.js` · `public/js/views/config.js` · `public/index.html` |
-
-| `fonts` | ONE REGISTRY OF TYPEFACES, AND NO SILENT SUBSTITUTION (2026-08-06). There were three answers to "which fonts does this app have" and none agreed: the subtitle picker offered ten hard-coded `<option>`s (two of which — Arial, Impact — existed in neither the vendored CSS nor the burn directory), every scene page inlined all eight vendored families whether referenced or not, and the app's own UI loaded exactly two. So the owner could pick Anton, watch the preview fall back to system sans-serif, and have no way to tell whether the video would differ. `fonts/registry.js` is the single list — 42 families across latin/vietnamese/cyrillic/greek/CJK/arabic/thai/devanagari/hebrew, each reachable exactly one of three ways (vendored · system · downloadable) with an honest `ready` flag. **CJK rides on macOS system fonts deliberately**: one Noto Sans SC face outweighs the entire current sheet. Scene pages embed only the families they NAME — the scan is a substring match over CSS + markup + template script rather than a CSS parse, because a family can arrive from `font-family:`, from `font:` shorthand, from an inline style, or from whatever the codegen model wrote, and missing one substitutes a typeface while including one spuriously costs a few KB. Page weight 757KB → 470KB on every scene, and it is what lets the catalogue grow past a handful of Latin faces at all. `/fonts/:family/css` serves the real bytes as the same base64 data URIs the scene pages use, so the preview is literally what the renderer will embed; `POST /fonts/:family/download` fetches BOTH halves (woff2 for Chrome, static TTF for libass) and never runs during a render. **Neither renderer may substitute quietly**: `fonts/files.js` resolves a family to a real file BEFORE libass is asked for it and stages it into a directory of its own so the WEIGHT cannot be picked wrong either (three Be Vietnam Pro faces sit side by side); the browser-side probe — which had existed since P30 and only ever reached `logger.warn`, the same shape as the wrong-language warning that shipped 22 scenes — now travels to `op()`, and a family the owner NAMED throws before frame one. **Fourth silent failure found here**: the panel sent `subtitleTextCase: 'original'` unconditionally and `captionStyleFrom` reads `c.subtitleTextCase \|\| preset.textCase`, so a truthy string shadowed the preset every time — `textCase: 'uppercase'` on Impact Đậm / Thể Thao / Punch had never once reached a video while their preview cards displayed it. | `fonts/{registry,files,store}.js` · `animation/{harness,userfonts,index,renderer}.js` · `api/routes.js` · `config/paths.js` (`DIRS.fontWeb`) · `public/js/views/config.js` · `public/index.html` |
-
-| `restudio` | A FINISHED VIDEO IS A VERSION, NOT A TERMINAL STATE (2026-08-06). Three things made "change one thing on a finished video" impossible to reason about: the resume button vanished on `done` so the fingerprint-aware path was unreachable, the brand kit was the snapshot taken at project creation so toggling the channel's logo stamp did nothing to anything already made, and there was no way to learn whether an edit meant a minute or an hour short of starting it. The button is back, relabelled, and opens a COST TABLE first — every step named, how many scenes, how long, re-voicing flagged in the words that matter because it spends real money, and the cheap subset always offered next to "apply everything". Estimates come from an EMA of the project's own measured times (`pipeline/stats.js`, with sanity bounds because one bad sample would poison every later estimate) and say so when there is no history. **Which exposed the thing that made the feature pointless**: `brandKit.finalOverlay` and `brandKit.watermark` were hashed into the RENDER fingerprint, but both are drawn by `concatScenes` onto the assembled programme — no clip contains them. Turning the logo off reported "render lại 105 cảnh" to change one overlay filter. They are out of the digest, and `renderCurrent` bridges the redefinition: the two digests live in DIFFERENT SPACES and cannot be compared directly, so the SAVED config is the bridge — if its legacy digest matches the stamp, that config is what the clip contains, and the real question becomes whether the proposed config differs from it under the new rules. Measured 11 of 44 projects carrying either key; not one re-renders. **`pipeline/concat-plan.js` then charges only for what moved**: video and audio halves hashed separately against what produced the file on disk → `skip` (nothing moved) · `audio` (copy the video stream, re-encode the mix) · `copy` (no video filter needed at all) · `encode`. Measured on 158s of real 1080p material: full encode 38.4s, stream copy 4.6s. The master fade is the ONE unconditional video filter and therefore the only thing keeping the copy tier out of reach, so it became `config.masterFade` and the cost table OFFERS turning it off rather than doing it. On the encoder: hardware was the obvious guess and measured worse on every axis — `h264_videotoolbox -q:v 75` 24.5s / 54.7MB / SSIM 0.99875, against plain `libx264 -preset veryfast -crf 18` 21.8s / 43.4MB / 0.99952 — so `fast` is veryfast and VideoToolbox is not offered. `resolveConcatLogo` decides from scratch every concat with "no logo" as a first-class answer (the version it replaces was an assignment with no negative branch, so the toggle was one-way in practice). Plus four things that were already possible and unreachable: an EXPORT HISTORY (finalize always kept every file; nothing indexed them), ALTERNATE CUTS from the same clips for one join, CLICK-TO-SCENE from the finished video via `metadata.timeline`, and a CHECK that reports — never edits — with the clip-does-not-match-its-design test that last month's stale-clip incident is named after. A real-frame PREVIEW (`/projects/:id/frame-preview`) runs one frame through `resolveConcatLogo` + `logoRect` + libass — the actual pipeline, not a lookalike, because a preview that merely approximated it would licence skipping the render on evidence that does not hold. | `pipeline/{concat-plan,stats,fingerprint,render,render-only}.js` · `pipeline/stages/{finalize,render}.js` · `media/logo-overlay.js` · `api/services/{change-plan,frame-preview,qc-scan}.js` · `db/repositories/renders.js` · `db/connection.js` · `api/routes.js` · `public/js/features/{changeplan,aftercare}.js` · `public/js/views/{studio,config}.js` · `public/index.html` |
-| `subtitles-after-concat` | THE BURN LANE IS THE ONLY LANE, AND A CHANNEL REMEMBERS ITS LOOK (2026-08-06, owner order). `subtitle-lane` above added the choice; this removes it. A caption drawn inside a scene page is an INPUT to that scene's clip, so on the old lane a font change cost one render per scene and the pixels could never be taken back out — the panel offered an option that could not deliver what it promised. `subtitleLane: 'final'` now lives in `NEW_PROJECT_DEFAULTS`, **under** every other config layer, which is exactly what keeps it off projects that already have clips: `resolveProjectConfig` runs at creation and nowhere else, so no stored config is rewritten and no render digest moves. An older project changes lane when its config is saved, and the change queue prices that one-time re-render first. **The final-lane clip still RESERVES the caption band** — this was the bug that made the lane unsafe to mandate. `__safeZone` lifts hero slots out of the bottom band, and it decides from `S.captions.length`; a bare clip carried an empty array, so the captions burned on later landed on top of the content. The cues now ride into the page as LAYOUT data with `captionsOff` removing the element that would draw them, and the reserve deliberately ignores `enableSubtitles`: toggling captions cannot be a concat-level decision if it changes the picture underneath. Scene-lane pages are byte-identical (`tests/scene-page-golden.test.js` holds). **finalize rebuilds any clip it cannot vouch for before printing on it**: the cheap ways in — a concat-only re-join, a variant export — skip the render stage, and one of those on a freshly switched project shipped two rows of subtitles. The repair also STAMPS what it made, which the missing-clip repair never did, so the next join does not rebuild the same scene again. **The channel remembers the look** via `PUT /channels/:id/subtitle-defaults` (`api/services/subtitle-defaults.js`), a narrow door called on every keystroke: only subtitle keys pass, and every value is validated so a control that has not loaded yet is DROPPED rather than stored as a blank — which is what makes the on/off switch safe (`enableSubtitles: false` leaves every style key untouched, so turning them back on restores the same look). `''` survives for `subtitlePreset` ("Tuỳ biến tay") and `subtitleTextCase` ("theo bộ mẫu") because those are answers, not empty controls. It also patches the channel's DEFAULT preset, which is layered OVER `channel.config` at project creation and would otherwise shadow what was just saved — the setting appearing to save and then not apply. **Three panel bugs in the same family**: `gatherConfig` sent `subtitlePreset: undefined` for custom, so the channel's preset won the merge back and custom subtitles could never be kept; half the subtitle restores in `applyConfig` were guarded, so switching to a channel that never set a font left the previous channel's font in the picker; and **nothing applied the active channel's config to the panel at startup** — `state.channelDefaults()` mirrors the server's own layering and now runs at boot, on channel switch, and on "video mới", which used to inherit the last project's settings. **Re-render from the edit, and watch it**: the Brand Kit save and a button in the subtitle panel both open the cost table. That table used to compare two snapshots of `project.config`, which a Brand Kit edit never touches (it lives on the CHANNEL and finalize reads it live), so it answered "không có gì thay đổi" at the one moment it mattered; it now compares the config of the last **non-variant** export — what the file was actually assembled from — against what the next join would stamp. And the join, the longest step in the app, said nothing while it ran because the ffmpeg wrapper is `-loglevel error`: `-progress pipe:1` + `ffProgress` turn `out_time_us` into whole percentages on the ticker (forward-only, capped at 99, ≤100 lines per encode; `progress.js` already keeps `· NN%` out of the journal), and starting the work opens the journal panel. | `core/config.js` · `animation/index.js` · `pipeline/stages/finalize.js` · `pipeline/render.js` (`ffProgress`) · `api/services/{subtitle-defaults,change-plan}.js` · `api/routes.js` · `public/js/state.js` (`channelDefaults`) · `public/js/views/{config,studio}.js` · `public/js/features/{channels,changeplan,brandkit,journal}.js` · `public/js/main.js` · `public/index.html` |
-
-| `store-license` | THE APP IS SOLD, AND THE STORE IS THE ONLY AUTHORITY (2026-08-06, owner order). `src/license/` is the whole of it, copied wholesale into the next app. The design in one line: the verdict is computed OFFLINE from an RS256 token, and the network only ever REFRESHES that token — so a store outage, hotel wifi or a flight never stops someone finishing a video they paid for. **`state.js` is pure and is where every decision lives** (file + clock + device id → `valid`/`grace`/`locked`/`missing`), which is what makes fourteen branches testable without a store; `tests/license-state.test.js` signs real tokens with a keypair minted in the test, because a test that stubs the signature check proves nothing about the one property that matters. Non-obvious branches, each of which is a real failure mode: an expired subscription runs to `graceUntil` (7 days) instead of stopping the day a card fails; the store's `revoked` verdict is checked BEFORE the token, or a revoked customer keeps running up to 30 days on a signature that is still technically valid; `lastValidatedAt` more than a day in the future means the Mac's clock was wound back, and the token is verified against `Date.now()`, so without that branch an expired licence is revived by changing the system clock. **Offline is never treated as unlicensed** — `sdk.js` splits `OfflineError` from `StoreError` precisely because `fetch` rejects identically for "no network" and "your licence is gone", and conflating them locks paying customers out. **`gate.js` is mounted first on the `/api` router**, not decorated per-route, so a route added tomorrow is covered by default; `/health` stays open because the Swift launcher polls it to decide the server is up (gate it and the window never appears, so the customer cannot reach the screen that asks for a key) and `/license/*` stays open because it is the door out. The scheduler is the second enforcement point and the one that is easy to miss: it picks up QUEUED jobs on its own at boot, so a locked copy would otherwise go on rendering silently — `tick()` refuses to CLAIM new work while unlicensed but never touches a job already running, and activating starts the queue in-process rather than demanding a restart. **`AVS_LICENSE_BYPASS` is dead in a shipped build**: it is ignored when `AVS_DIST=1`, which the Swift launcher sets inside the bundle before node starts. Same principle for `config.js` — a distributed build reads its store URL, client key and public key ONLY from the block `scripts/release.mjs` bakes in, and ignores the environment entirely, because whoever answers "which key signs licences?" can mint them. Written down deliberately: this is commercial deterrence, not DRM. The customer owns the machine and the source is plain JavaScript, so no effort goes into obfuscation. **The bundle was undistributable and nothing said so** — a dev build bakes absolute paths into the owner's checkout, and the Homebrew `node` is an 84 KB stub linked to a dozen dylibs under `/opt/homebrew`, so copying it produces an app that runs on the build machine and crashes on every customer's. `--dist` ships the official nodejs.org runtime (checksum-verified by `scripts/fetch-node.mjs`), production-only `node_modules`, and `vendor/{ffmpeg,gsap,libs,fonts}` — but NOT `vendor/whisper`, 547 MB of model for a feature most customers never touch. The vendored ffmpeg pair is fully static (System frameworks only) and therefore portable, but x86_64, so `paths.js` preferring Homebrew still gives a native encode when the customer has one. `npm run release` is the whole publish: bake, build, sign, zip, hash, optionally notarise, upload with the PUBLISHER key and publish — and restores `config.js` in `finally` so a live API key never survives a failed build. | `src/license/{index,state,sdk,gate,store,device,config,update}.js` · `src/server.js` · `src/pipeline/scheduler.js` · `src/api/routes.js` · `shell/{build-app.sh,main.swift}` · `scripts/{release,fetch-node}.mjs` · `public/js/features/license.js` · `public/js/{main,api}.js` |
-
-| `stop-means-stopped` | DỪNG PHẢI LÀ DỪNG — KỂ CẢ SAU KHI TẮT APP (2026-08-10, owner report). Pressing "Dừng" during a render did nothing visible, and quitting the app did not help: reopening it resumed the very render that had been stopped. Two independent causes, both of them the same shape — the decision existed in a place that could not reach the thing doing the work. **(1) The signal was a `Set` in module memory.** Killing the process erased it, and boot recovery then saw a job row still marked `running`, requeued it (`attempts > 1` → `resume: true`) and carried on. `projects.stop_requested_at` (migration 6) is the durable half: written by `queue.stopProject` BEFORE the in-process signal, because the gap between the two writes is precisely the crash being defended against, and `requeueZombieJobs` cancels those jobs — running AND queued — before the blanket requeue can see them. It is cleared in exactly two places, and both mean "the owner has moved on": starting a run again (`startProject`/`renderProject`), and a run settling as paused. A flag left set would have the next boot cancel a job the owner had just started. `stop.js` deliberately keeps NO imports so `media/ffmpeg.js` can share `stopError()` without dragging the database into every spawn. **(2) B7 had zero checkpoints.** finalize is the longest stretch in the app — clip repairs (one render each), the join (~15 min on a long video), the audio master, a QC decode, up to three AI thumbnails — and `checkStop` was never called in any of it. Worse, the runner had no checkpoint between `finalize` and `status: 'done'`, so a stop arriving late was not merely slow, it was **discarded**: the run finished and announced a finished video. Checkpoints now bracket every step that spends time, including inside the two `catch` blocks that swallow errors on purpose (a failed master or thumbnail must never fail a video — a stop is not a failure and rethrows). `mode:'concat'` in render-only skips the scene loop entirely, so it needed its own. **Checkpoints alone are not enough** for a single ffmpeg process that runs for a quarter of an hour: `abortSignalFor(projectId)` reaches the encoder itself, and the abort is translated into a `.stopped` error inside the ffmpeg wrapper. Left as a bare `AbortError` it would be classified as a crash — "⛔ Pipeline lỗi" — and, looking retryable, would trigger the automatic resume, restarting the render the owner just stopped; `fatal: notStopped` on the concat's `withRetry` is the same trap one level down (without it, stopping causes the fifteen-minute join to start AGAIN). A stopped render was also filed in the job ledger as `done`, because the render branch of the scheduler assumed success instead of reading the project row back. | `db/migrate.js` (id 6) · `db/repositories/{projects,jobs}.js` · `pipeline/stop.js` · `pipeline/queue.js` · `pipeline/{runner,render-only,render,scheduler}.js` · `pipeline/stages/finalize.js` · `media/{ffmpeg,master}.js` · `server.js` |
-
-| `subtitle-studio` | MỌI TUỲ CHỈNH PHỤ ĐỀ PHẢI ĂN VÀO BẢN RENDER (2026-08-10, owner report). "Kiểu chữ" did nothing in the video while the panel's preview showed it correctly — and the preview is why it took so long to see: it reads the DOM controls directly, so it renders the owner's pick whether or not the renderer ever receives it. **Never accept the CSS preview as evidence; check a real frame** (`GET /api/projects/:id/frame-preview?t=&cfg=`, which goes through logoRect + libass). Three defects, all in the gap between "resolved" and "written to the .ass": (1) `captionStyleFrom`'s no-preset branch is frozen to `{color,fontSizePx,mode}` so old scene pages stay byte-identical, and `burnStyleFrom` read `textCase` only from there — `assStyleFrom` had already resolved it correctly and the answer was discarded, so **manual styling (`subtitlePreset: ''`, a real choice) was exactly the mode in which the setting died**; (2) the opaque box was written to `BackColour`, but a rendered frame proves libass paints a BorderStyle-3 box from `OutlineColour` — BackColour is the SHADOW colour under both border styles, so every box preset came out the hardcoded black; (3) `\alpha` sets all four alpha channels including the outline, so dimming a word dimmed the box behind it. **The format description is not the authority here — the rendered frame is.** The studio adds ~30 flat `subtitle*` keys: flat and so-prefixed on purpose, because `RENDER_CFG_KEYS`, the fingerprint `SUB_KEY` and change-plan's `SUB_KEY` then pick them up for free and the final lane strips them from the render digest — **do not touch `RENDER_CFG_KEYS` or `ttsFingerprint`**. Every key is `undefined` when unset and every consumer falls back to what it computed before; `tests/subtitle-studio.test.js` freezes the .ass digest for four config shapes so 46 finished projects re-render unchanged. Two traps that bite silently: a key the resolver reads but `SUBTITLE_KEYS` rejects works for ONE video and is gone from the next (a test reads the resolver's source and demands a validator for each), and a slider whose resting value is a legal choice must emit only once touched — the burn's default vertical margin is 7% landscape, so shipping the panel's parked 12 would move every caption. The caption BACKGROUND is a drawn `{\p1}` shape, not a border: BorderStyle 3 gives one padding value, square corners, and seams at every override run when translucent. A shape needs a size, so Chrome measures the text with the same font file staged into `fontsdir`, inside `concatScenes` where the cues exist and before the encode; line breaking moves into that measurement (`WrapStyle: 2` + our own `\N`) because a box sized against one line fits nothing if libass reflows into two. Saved presets are whole settings BUNDLES in the `styles` table (kind `subtitle`), applied by pouring them back into the panel — the resolver has never heard of their ids. | `subtitles/{ass,box,color,presets,chunk}.js` · `pipeline/render.js` (measure→buildAss) · `pipeline/stages/finalize.js` · `api/services/{subtitle-defaults,frame-preview}.js` · `api/routes.js` (`/subtitle-presets`) · `public/js/views/config.js` (`SUB_FIELDS`) · `public/index.html` · `public/css/app.css` (`.sub-wide`, `.sub-studio`) |
-
-| `transitions-at-scale` | CHUYỂN CẢNH PHẢI THẬT SỰ CHẠY, VÀ MỐI NỐI PHẢI SẠCH (2026-08-11, owner report). `useGraph` required `<= 24` clips, so the xfade branch never ran on any long-form video — **29 of 39 finished projects are over that line** (42–203 scenes). The plan was computed, fingerprinted and CHARGED FOR, then joined with hard cuts. The stated reason (deep chains hold every decoder open) is empirically false here: 192 real clips join in 77s at a 2.6 GB peak. **The cap was doing damage in three more places because it had been COPIED and the copies drifted**: `finalize.js` built the plan uncapped and fed `transitionLoss` into the SFX offsets, so on every long video each effect landed `0.2s × k` early — **forty seconds by scene 200**; the QC duration carried its own copy; and the SRT export still guessed `TD * ordinal` with TD=0.5. All three now derive from `planOffsets`, which replays the concat's own arithmetic including the per-join clamp and is right whether or not the graph runs — **never recompute a timeline, ask planOffsets**. The fingerprint hashes the EFFECTIVE plan (`useGraph ? plan : null`), because a plan the graph will not execute must not buy a re-encode whose output is pixel-identical. The default hand-off is a **dip through black @0.35s, ceiling 0.45s**, and that is measured, not taste: both sides share one radial-gradient stage (`harness.js`) and the clip ENDS FULL by prompt contract (`prompt.js`: "the scene must END full"), so a dissolve superimposes two headlines and **getting longer makes it worse**; black is the only middle neither side owns. 0.45 is the ceiling because leading silence is 0.19–0.20s and `programCues` puts the incoming caption there — longer drifts the dark point under a lit line. Audio: `c1=qsin` (equal power; `tri` sagged ~3 dB) and `c2=nofade` (the outgoing side is breath pad, the incoming side is speech after 0.19s — fading it up ate the first words). The real cure for a muddy dissolve is upstream: `hyperframeHandoff` ramps `.hf-cam` out over the last 380ms and in over the first 280ms while the GROUND never moves, so the join blends an emptied frame against an arriving one. **It is baked into the clip**, so it is emitted as its own script (RUNTIME is one constant string — a branch inside it would move every page) and gated on a key matching `^hyperframe` so `renderFingerprint` invalidates the clips it changes; a name that did not match would silently ship a video mixing ramped and un-ramped clips. It sits in `NEW_PROJECT_DEFAULTS` so existing projects keep their clips. | `pipeline/render.js` (`MAX_GRAPH_CLIPS`, `planTransitions`, the acrossfade curves, `effPlan`) · `pipeline/stages/finalize.js` (`lossBeforeScene` via planOffsets) · `subtitles/timeline.js` (`planOffsets` — the one source of truth) · `api/routes.js` (`/srt`) · `animation/harness.js` (`HANDOFF`) · `core/config.js` |
-| `preview-truth` | KHUNG XEM TRƯỚC PHẢI LÀ SỰ THẬT (2026-08-11, owner report). The frame preview drew a caption onto a frame sampled from `project.video_path` — which on the final lane ALREADY HAS the captions and the logo burned in — so it showed **two subtitles**, and would have shown two logos the moment the stamp moved. The bare scene clip is the correct source and always existed (the final lane renders clips caption-free on purpose); it is also the only source that shows the config being EDITED and nothing else. Four more defects made the second caption disagree with the first: `setpts=PTS-STARTPTS` pinned the frame to ASS time zero, so libass always drew the cue's OPENING state (karaoke lit word 1, progressive reveal showed one word, a fade-in rendered it invisible) — fixed by offsetting the timestamp instead of collapsing the cue; `|| abs[0]` drew the scene's FIRST caption in a silent gap; the crossfade window was taken with `find` (first match) while the burn shows the INCOMING scene there; and cues came from `shiftCues` rather than `programCues`, so an overrunning cue previewed with more words — and a wider drawn box — than the video carries. **A test was holding the bug in place** by demanding `project.video_path` appear in the service: which file a preview samples does not decide the lane, where the burn happens does. | `api/services/frame-preview.js` · `subtitles/timeline.js` (`programCues`) |
-
-| `publish-surface` | MỘT BẢNG DUY NHẤT CHO GIỚI HẠN CỦA TỪNG NỀN TẢNG (2026-08-11, owner request). Metadata covered three platforms and the limits lived in PROSE inside the prompt ("≤100 chars") with nothing checking, so an over-long title reached the clipboard and the site truncated it — with the keyword in the part that got cut. `src/publish/platforms.js` is now the single table: five platforms, each field carrying a HARD `limit` (where the site truncates) and a `sweet` target (where it still reads well in a listing), plus `COVER_SIZES`. The prompt is GENERATED from that table and `clampPlatforms` forces the reply back through it — trimming on a word boundary, dropping list items from the end until the JOINED string fits (a list is capped on its joined length, not its item count), stripping `#` from YouTube tags and adding it to hashtags, and discarding platforms we do not publish to. The panel reads the same table over `GET /api/platforms`, so a counter can never describe a different rule than the writer obeyed. **Covers: one AI design per ORIENTATION, never per platform** — a landscape layout re-shot at 9:16 turns its headline into a strip across the middle, so orientation is the unit a design can fill; within one orientation the fragment is ordinary CSS and 1200×630 is 1280×720 with different slack, so every size is re-shot from the same fragment (`renderThumbnailFragment`). The design is authored against the BIGGEST canvas of its group so every re-shoot scales down, and the video's own orientation is seeded from the thumbnail already made — three generations at most, usually two. | `publish/platforms.js` · `providers/llm.js` (`generateMetadata`, `clampPlatforms`) · `pipeline/thumbnail-codegen.js` (`generateCoverSet`) · `pipeline/stages/finalize.js` · `api/routes.js` (`/platforms`) · `public/js/views/studio.js` (`renderMeta`) |
-| `topbar` | THANH TRÁI THÀNH TOPBAR, VÀ DỰ ÁN CÓ TÊN (2026-08-11, owner request). The Studio page spent 808px on chrome before any work showed — a 216px rail plus a 300px input column and a 292px config column — leaving 632px on a 1440px window; the rail was the part that was pure navigation, so it became a topbar and handed back all 216px (measured 632→848). The shell is a COLUMN now, which also fixed four panes each padding around the macOS title-bar inset and reading as two stacked headers — the topbar carries it alone and is the drag region, with its own controls opted back out via `-webkit-app-region:no-drag`. The collapse toggle and ⌘B went with the rail (a topbar has no width to give back) and a test asserts they are gone from all four files — which is how two dead licence-badge rules turned up. **Naming**: `updateProject`'s allowed list always accepted `title`; there was simply no UI, so every project kept its generated name. The lock lives in `metadata.titleLocked`, deliberately NOT in config — config keys feed `renderFingerprint` and a rename must not make one clip stale — and B2 honours it, because a regenerated script silently throwing away a name the owner typed is the one way this could be worse than not having it. | `public/index.html` · `public/css/app.css` (`.nav`, `.proj-name`) · `public/js/views/nav.js` · `public/js/views/studio.js` · `pipeline/stages/script.js` |
-| `source-and-stamp` | TƯ LIỆU LẤY VỀ PHẢI ĐẦY ĐỦ, VÀ LOGO PHẢI ĐÓNG ĐÚNG KHUNG THẬT (2026-08-11, owner report). Three features audited, one root cause each, every one measured before it was touched. **Lấy thông tin**: the extractor took `<p>` tags out of the raw page and cut at 8000 characters — on `en.wikipedia.org/wiki/Large_language_model` (≈118k chars of article) it returned exactly 8000, ending mid-word; anthropic.com/news put its navigation menu inside the first paragraph; vnexpress.net ended the "article" with its own street address and copyright line; Wikipedia yielded ZERO images because every one is protocol-relative and the filter demanded `https?:`. It now decodes the page in its declared charset, strips nav/header/footer/aside STRUCTURALLY before any text is read, scores containers (an `<article>` element is a declaration and is believed once it holds 200 chars of prose — scoring it against the whole document loses to any long comment thread), drops link-dense blocks, decodes named/decimal/hex entities (the old `&[a-z]+;`→space turned `&amp;` into a space and could not match `&#x27;` at all), and caps at the engine's own 24000 on a BLOCK boundary while REPORTING `truncated`/`dropped`. Measured after: 23,874 chars, 24 images, no chrome. **The mode bug was worse than the extraction**: the button pasted the article into `#topic`, which flipped `detectInputType` from url to text, so the master engine picked mode `script` ("keep ≥90% of the owner's wording") instead of mode `source` ("write a NEW script from this research") — the app narrated the article instead of writing from it, contradicting a rule its own code states. The article now lives in its own editable panel, `#topic` keeps the URL, and the reviewed text rides to the stage as `config.sourceDoc` so a re-fetch cannot swap it. **AI đứng ra chắt lọc** (owner order, same day): structure finds the REGION and stops there — inside it every site has its own furniture (author bios, newsletter boxes, "read more" tiles, photo credits, related rails rendered as ordinary paragraphs) and no pattern list survives the next site, which is exactly what a hardcoded one was. `refineArticle` shows the model a NUMBERED PREVIEW of every candidate block and every image (with its alt text and whether the tag sat inside the article container) and takes back index ranges — it CLASSIFIES, never rewrites, so the text that ships is the original assembled by code; a model asked to echo 24,000 characters paraphrases, drops paragraphs and hits its ceiling, while a model asked "which of these 370" does one cheap pass and cannot damage a sentence. Two guards, because a wrong answer here is silent data loss: a selection keeping under 25% of the candidate text is treated as a MISREAD rather than a decisive edit, and any failure at all (no LLM, bad JSON, timeout) keeps the structural result and says so in the panel. Measured on anthropic.com/news: structure ended the "article" with a teaser for a different story, the model ends it on the article's own last sentence (21/27 blocks, 4/5 images); on a VnExpress story it kept all 14 blocks and dropped 2 of 4 images. Images default to in-article only — an `<img>` whose tag never sat inside the body is a related-story tile or a promo, and the old order returned og:image, then in-article, then *everything else on the page*. **Ảnh**: results are ITEMS (thumb for looking, full URL for downloading, title, source page) behind a real grid and a lightbox — the old 46×46 squares could only be clicked to download something they never showed; the Openverse ladder shortens as it descends (measured: a five-word query returns 0 results, three words returns 240) and a fallback to gradients now says WHY (a 429 was swallowed, and six coloured squares read as "no such pictures"). **Đóng dấu logo**: `logoRect` was handed `ratioToSize()` — the LOGICAL 1080-class canvas — while a `resolutionScale: 2` project encodes at 3840×2160 and the concat never rescales, so a stamp stored at cx=0.936 (top right) rendered at cx=0.468, dead centre, at half size. Proven on a finished 4K video before the fix: a box drawn from the 1080-space prediction framed the misplaced logo exactly. The concat and the frame preview now probe the CLIPS for the frame the overlay actually lands on; captions deliberately stay in `size` (ASS carries its own PlayRes and libass scales it, so moving them would rewrite every project's `assText` digest for no visible change); the physical frame is folded into the `logo`/`wm` fingerprint entries ONLY, so a video that stamps nothing keeps its digest and a mis-stamped one re-stamps. | `providers/fetchlink.js` · `providers/imagesearch.js` · `pipeline/stages/script.js` · `pipeline/render.js` · `pipeline/concat-plan.js` · `api/services/frame-preview.js` · `public/js/views/studio.js` · `public/js/features/brandkit.js` · `public/index.html` |
-| `pending-changes` | ĐỔI CONFIG ĐẦU RA TRÊN VIDEO ĐÃ XONG THÌ PHẢI THẤY NGAY (2026-08-11, owner request). The cost table (`restudio`) could always answer "what would this edit cost"; REACHING it was the problem. It sat behind three doors — the Resume button, which silently becomes an apply button once a project is 'done'; a button inside the subtitle panel; and a confirm dialog that fires only when a Brand Kit is SAVED. Change the transition style, the music bed, the master fade or the encoder in the config column and nothing anywhere said the finished video no longer matched its own settings. Worse, the classification had DRIFTED: `CONCAT_KEYS` in the service was missing `enableSubtitles`, which is exactly what finalize checks before burning captions (`subtitleLane === 'final' && enableSubtitles !== false`), so switching subtitles OFF on a finished video was **unreachable** — the panel accepted it, the plan answered "không có gì thay đổi", the captions stayed. `platformCovers` and `bgmVol` were missing the same way. The list is now `CONCAT_CONFIG_KEYS` in `pipeline/concat-plan.js`, beside the fingerprint that consumes their effects, imported by the service rather than copied into it. The state itself became visible: `features/pending-changes.js` puts a STICKY bar at the top of the config column — "2 thay đổi chưa áp dụng · ~4.0 giờ · Render lại 46 cảnh". It is ONE delegated `change`/`input` listener over `#sConfig`, so a setting added later inherits it for free, which is the property whose absence let the three-door version drift. A concat-only edit applies straight from the bar (one join, no API credit, and it writes a NEW file, so there is nothing to undo); anything that would re-render clips or re-voice scenes turns the bar amber and the button into "Xem chi phí…", because spending money is a decision, not a side effect of dragging a slider. Debounced 550ms, skipped when the serialised config did not actually move, and guarded by a sequence number so a slow answer to an old question — or to a project the owner has since navigated away from — can never overwrite a fresh one. Re-asked at the two moments the panel cannot report: a Brand Kit save (it lives on the CHANNEL, so nothing in the column moves) and any status change (a run starting invalidates the claim; a run finishing is when it should empty). | `pipeline/concat-plan.js` (`CONCAT_CONFIG_KEYS`) · `api/services/change-plan.js` · `public/js/features/pending-changes.js` · `public/js/views/studio.js` · `public/js/features/brandkit.js` · `public/index.html` · `public/css/app.css` |
-| `incremental-render` | "RENDER + GHÉP" CHỈ DỰNG LẠI CẢNH ĐÃ ĐỔI (2026-08-11, owner request). The button re-rendered every clip in the project, every time — most of an hour on a 46-scene 4K video to change one scene — while the app already knew better: `renderCurrent` is the predicate the pipeline's own resume uses, and `finalize` uses it again to pick which clips to repair before burning captions. `render-only.js` simply never asked. It asks now, and the answer needs no new stamp, because both things the owner named are already expressible: **voice** — both re-voice paths (`stages/tts.js`, `regen.js`) NULL `video_path` with the comment "the clip carries the old voice", so a re-voiced scene has no clip to keep; **HTML** — a new spec/template/props (or a picture-shaping config key) moves `renderFingerprint`, which is exactly what `renderCurrent` compares. So the rule is "no clip on disk OR fingerprint moved". An explicitly SELECTED subset (`mode:'scenes'`) stays unconditional — picking a scene by hand is an instruction, not a question, and it is the escape hatch when a clip is wrong in a way no hash can see. **The trap that had to be fixed first**: this render loop never stamped `fp.render`, so a fresh file kept the OLD fingerprint and the very next run would find the same scene stale — an incremental pass that re-renders everything, with extra steps. `finalize`'s repair carries the identical note for the identical reason. A second, smaller trap went with it: a `brandKit` holding ONLY concat-only keys stripped to `{}` rather than to absent, and `{}` is not `undefined` to a digest — a project with no brand kit whose channel later gained a stamp-only one would have re-rendered all 46 clips to move a logo (measured before changing it: 0 of 48 live projects carry such a kit, so nothing was invalidated). Measured end to end on a 3-scene project with one clip missing: run 1 `♻️ 1/3 cảnh cần dựng lại — giữ nguyên 2 cảnh không đổi`, rendering only scene 3; run 2 immediately after `♻️ 0/3`, rendering nothing — which is the stamp proving itself. On the 46-scene 4K project the whole button now completes in 11 seconds when nothing has moved. The run also says what it will NOT do: "Render + Ghép" does not run TTS, so a line edited but never re-voiced is skipped CORRECTLY (its clip still matches the audio on disk) and is now announced rather than looking like the feature ignoring the edit. | `pipeline/render-only.js` · `pipeline/fingerprint.js` (`renderCfg` brand strip) |
-| `covers-2x` | ẢNH BÌA GẤP ĐÔI ĐỘ PHÂN GIẢI, XEM ĐƯỢC VÀ TẢI VỀ ĐƯỢC (2026-08-12, owner request). Covers are captured at DOUBLE the platform's own pixels: every site re-encodes what it is handed, and 2560×1440 downscaled by YouTube beats 1280×720 re-encoded in place because the resampling has real subpixel data instead of the artefacts of a single-resolution raster. It is a DEVICE scale (`deviceScaleFactor`), never a layout scale — the design is still laid out in the platform's coordinate space, so a 96px headline is still 96 authored px; doubling the viewport instead would halve the relative size of everything the model wrote, the same distinction the 4K video lane draws between its logical canvas and its physical frame. **The format had to change with it**: `screenshotHtml` wrote PNG unconditionally while every caller named its file `.jpg` — untidy at 1×, disqualifying at 2×, because a 2560×1440 PNG is 5–8 MB and YouTube refuses a thumbnail over 2 MB. The type now follows the extension. Measured across all six sizes: 1× PNG 225–460 KB → 2× JPEG 76–114 KB, i.e. **four times the pixels at a third of the bytes**, verified on disk with `sips`/`file` rather than from the code's own claims. Covers carry `px` (what is really on disk) beside `w`/`h` (the spec they were authored for) so the panel can say "2560×1440 · 2× của 1280×720" instead of quietly disagreeing with the file. The chip became a button that opens the same lightbox the image search uses — looking before uploading is the same question either way — and `POST /projects/:id/covers/export` copies the set into a `<title>_anh-bia/` folder, either the project's own or one chosen in the native `choose folder` dialog, since a WKWebView has no File System Access API. | `media/puppeteer.js` · `pipeline/thumbnail-codegen.js` (`COVER_SCALE`) · `api/routes.js` (`/covers/export`) · `public/js/views/studio.js` |
-| `fetch-budget` | MỘT CÁI NÚT KHÔNG ĐƯỢC TREO 163 GIÂY (2026-08-12, owner report: `base.vn/blog/ai-agent-la-gi/`). The structural pass handled that page fine (19,320 chars, 112 blocks); the AI pass did not. `chat()`'s rate-limit ladder backs off 8s + 20s + 45s per key per model, and `chatJson` runs the whole thing twice — measured 163 SECONDS against a 429ing proxy before falling back. Correct for writing a script, absurd for a button someone is watching. `chat`/`chatJson` gained `budgetMs`, a wall-clock ceiling over the ENTIRE ladder (default Infinity, so every existing caller is untouched by design), no request may outlive it, and `refineArticle` spends 40s at most: same failure, 33s, with "AI đang bị giới hạn truy cập (429) sau 33s" on screen instead of a spinner. The prompt shrank too — a fixed 110-character preview made 112 blocks a 15,000-character question, so the preview now scales to the block count. And the STRUCTURAL floor rose, because it is what ships when the model cannot run: base.vn's `<article>` ends with a WordPress popup plugin (`ays_pb_*`) whose four blocks closed the "story" with "This will close in 2000 seconds". `dropTrailingOverlay` truncates at an element whose class/id declares it a popup/modal/drawer/cookie bar — matched on its ROLE, never on its words, and only in the tail, so a `modal-demo` figure mid-article cannot delete the rest of the story. | `providers/llm.js` (`budgetMs`) · `providers/fetchlink.js` (`AI_BUDGET_MS`, `dropTrailingOverlay`) |
-
-| `ai-providers` | PICK AN AI PROVIDER, DO NOT TYPE ITS URL (2026-08-13). AI Setting asked for a Base URL, an API key and a model name with no list, no validation and no hint, so a buyer either left the LLM off — losing every AI stage to the offline generators — or reached for the one provider they had heard of and paid the highest rate on the market. `providers/llm-presets.js` is the answer, and it is **data, not code**: 18 OpenAI-compatible providers plus a custom entry, each with its base URL, key page, a Vietnamese line saying what it is good for, suggested models, and the ways it deviates from the OpenAI baseline. There is still exactly ONE request path; a preset only pre-fills it. **`compat` nests per MODEL as well as per provider**, because `max_completion_tokens` and "temperature must be 1" belong to OpenAI's reasoning line and not to OpenAI — a provider-level flag would break `gpt-4o-mini` to accommodate `gpt-5` — so `withPreset(s, model)` is re-resolved inside chat's ladder and a walk to `modelFallback` re-reads that model's rules. **No preset ships a `modelFallback`** (P25: a silent model swap reads as success while quality degrades). `chatOnce` gained a CEILING beside its floor: the floor cannot lower anything, and Groq/DeepSeek/Cerebras enforce a per-model completion cap and answer 400 rather than trimming, so the 16000 floor — and codegen's 24000 ask — failed every call there. Everything else (`extraHeaders`, the token field, temperature omission) is absent unless a preset supplies it, so an unrecognised endpoint sends byte-for-byte what it always sent; there is a test that says exactly that, and it is the no-regression net for the ~20 modules that gate on `llmEnabled`. **An install that predates the picker is inferred from its saved base URL**, so no migration is needed for a provider's quirks to start applying, and a private proxy lands on "Tuỳ chỉnh" unchanged. **`llm.accounts` keeps one key/model/endpoint per provider**, which needed two fixes on the server that were bugs before they were code: the provider being left behind holds its key only at the top level that the update is about to overwrite (snapshot first), and `'••'` means "keep the saved key" — of whichever provider was active BEFORE — so a masked key must resolve against the account it was displayed from or the newly chosen provider inherits the old one's key. A keyless local server gets `apiKey: 'local'` synthesised at READ time, never written, so `llmEnabled`'s meaning is untouched. **HyperFrame is Gemini-only** (measured; owner's call): `STRONG_CODEGEN_MODEL` was the constant `ag/gemini-pro-agent`, which exists only on the owner's proxy and, because codegen has no fallback, would have failed ten attempts deep mid-render for anyone who picked Groq — it is now resolved from the configured provider, only presets that genuinely serve Gemini declare one, `''` means "use the general model", and the panel says so in red before a video is ever rendered (P39 pillar 3 amended, not deleted). The same catalogue feeds the Brand Asset image provider and the OpenAI-compatible voice. `POST /llm/models` asks a provider what it serves today because ids drift; `GET /llm/providers` is the one settings egress that is deliberately unmasked (nothing in it came from the user) and decorates prices from `core/pricing.js` so the picker and the cost meter cannot disagree — which is also where the matcher was fixed: every namespaced id (`google/…`, `deepseek-ai/…`, `accounts/fireworks/…`, `ag/…`) missed the prefix table and billed at the `[0.50, 2.00]` fallback, 4× over on gemini-flash and 5× on deepseek, written permanently into `usage.est_cost`. Perplexity, Alibaba DashScope and Hyperbolic are deliberately absent, with reasons recorded in the catalogue. | `providers/llm-presets.js` · `providers/llm.js` · `providers/voice/openai.js` · `core/{config,pricing}.js` · `api/routes.js` (`syncLlmAccounts`) · `api/services/brand-gen.js` · `db/repositories/settings.js` · `public/js/features/settings.js` · `public/js/views/brandgen.js` · `public/index.html` |
-| `delete-one` | XOÁ TỪNG DỰ ÁN, KÈM FILE (2026-08-12, owner request). The list could only delete EVERYTHING, so getting rid of one failed experiment meant losing every finished video with it. `DELETE /projects/:id` existed and nothing called it — and it dropped only the database row, leaving gigabytes of 4K clips behind a button labelled "xoá". Deleting now takes the files (owner's call), which makes the confirmation the real work: `GET /projects/:id/footprint` reports the MEASURED file count and byte total before the dialog opens, so it can say "SẼ XOÁ VĨNH VIỄN 234 file (404 MB)" instead of "xoá dự án?". **The dangerous part is what NOT to delete**: `outputDir` is a CHANNEL folder — every video of one channel publishes into it — so removing it to delete one project would take every other finished video with it. Only the per-project working directory goes whole; the named deliverables outside it (final video, thumb, covers) are removed one by one. Verified end to end: 3 files / 6 MB removed, working dir gone, row 404, and the shared output folder unchanged at 178 files. A running project is refused rather than deleted out from under its own pipeline, deleting the OPEN project clears the panel that was showing it, and "Xoá tất cả" keeps the same promise so one of the two cannot silently differ. | `api/routes.js` (`/footprint`, `projectOwnedFiles`, `purgeProjectFiles`) · `public/js/views/studio.js` · `public/css/app.css` |
-| `gemini-only-llm` | CHỈ CÒN PROVIDER PHỤC VỤ ĐƯỢC GEMINI (2026-08-12, owner order). The script and the HyperFrame graphics run off ONE setting, and only Gemini produces markup that renders — so offering a provider without it was not a choice but a trap that surfaces as a render failure ten attempts deep. Thirteen catalogue entries serving nothing but a non-Gemini LLM lane were deleted (Cerebras · Mistral · DeepSeek · xAI · Moonshot · Z.ai · Fireworks · Novita · Nebius · SambaNova · Anthropic · Ollama · LM Studio); three more — Groq, Together, OpenAI — stay with `lanes.llm: false` because they are the only presets serving the IMAGE and TTS lanes, and deleting them would break a working picker over a rule about a different lane. The LLM list is now Google Gemini · OpenRouter · Tuỳ chỉnh, and the panel filters on `lanes.llm` rather than showing everything. Notes were cut to one short line each. **`keyless` moved from the catalogue to the ENDPOINT**: the named local presets went with the cut, but a gateway on your own machine still ignores keys, and it is now reached through "Tuỳ chỉnh" where no catalogue flag could describe it — so a `localhost`/`127.0.0.1` base URL gets its synthetic key at read time, exactly as Ollama used to. | `providers/llm-presets.js` · `public/js/features/settings.js` |
-| `shell-chrome` | TRANG CHỦ PHẢI CUỘN ĐƯỢC, CỬA SỔ PHẢI KÉO ĐƯỢC (2026-08-16, owner report). Two window-level bugs that no test could see, because both live in the one place the suite cannot execute. **Cuộn**: `.page` is `position:absolute;inset:0` precisely so a page is exactly as tall as `.content` and scrolls its own overflow — but `#page-home{position:relative}`, added only to anchor the decorative mesh, beat it on specificity and took the height with it. The home page then sized to its CONTENT (measured in the running app: `clientHeight` 3815 against a 743px viewport, `scrollHeight` identical, so there was nothing to scroll) while `.content{overflow:hidden}` clipped everything past the fold — the gallery simply ended mid-row. `.page` was always the containing block the mesh needed; the id rule was never load-bearing. A test now refuses ANY `#page-*` rule that sets `position`, because the next one will look just as harmless. **Kéo cửa sổ**: the topbar carried `-webkit-app-region:drag` with a comment explaining which controls opted back out — and none of it ever ran, because `-webkit-app-region` is a Chromium extension WKWebView does not implement. Worse, `.fullSizeContentView` makes the titlebar band hit-test THROUGH to whatever is beneath it: a probe over the real `NSThemeFrame` returned the WKWebView at every point from 6pt to 60pt below the top, and `mouseDownCanMoveWindow` is false on it, so only the traffic-light widgets themselves were ever hittable and the window could not be moved from anywhere at all. A transparent `TitlebarDragView` over the 40pt the CSS already reserves takes the drag instead — `performDrag(with:)`, plus `AppleActionOnDoubleClick` so double-click still zooms/minimises as the system is configured. It has to sit ABOVE the web view, so the web view stops being the content view and both become children of one container; re-probed after: the whole band hits the strip, all three traffic lights still hit their own widgets, content below 40pt is untouched, and the strip stays pinned on resize. `TITLEBAR_INSET` and `--pad-titlebar` are one number in two languages and a test asserts they agree — a shortfall leaves topbar that looks draggable and is not, an excess makes a real control unclickable. The dead CSS was deleted rather than left as documentation: it read as the working mechanism for as long as it existed. | `public/css/app.css` (`.page`, `.nav`) · `shell/main.swift` (`TitlebarDragView`, `TITLEBAR_INSET`) |
-
-| `vi-typeset` | CHỮ TIẾNG VIỆT BỊ CẮT DẤU, ĐÈ DÒNG (2026-08-18, owner report). Not a font bug and not a careless model — three independent mechanisms, all measured in the render Chrome at the real `.hf-kw` size (119px on a 1920x1080 frame): a capital carrying a stacked mark reaches 120–123px above the baseline where a Latin capital reaches 83–103px, i.e. **17–44% taller**, so every line-height in the app sat below the ink. **`background-clip:text` was the one that produced the reported frame**: it paints the gradient inside the element BOX and clips it to the glyphs, so ink above the box is not clipped — it is never painted. The model wrote `font-size:210px; line-height:1.1; padding:20px` and needed 35px, so the tilde on `Ẵ` was absent and the grave on `À` cut flat. **Line-height** was the second: `.hf-kw` is 1.02 against a safe 1.18 (Anton) to 1.41 (Nunito), so two lines collided by 18–23px, and the model's own CSS ran to `line-height:0.75` — 49% of 1,623 Vietnamese scenes under 1.15, 34% carrying `overflow:hidden`, 11% carrying gradient text. **The third was a lie in the registry**: `Archivo Black` declared `latin+vietnamese` while its file is missing 13 of 13 probe codepoints — `scripts/build-fonts.mjs` asks Google for the vietnamese subset, is not given one, warns once at build time, and nothing downstream ever heard. Why nothing caught any of it: `scriptTextRule` has carried a Devanagari and a Thai branch since it was written (*"matras extend far above the baseline, line-height ≥1.8, NEVER overflow:hidden"*) and Vietnamese fell through both because it is written in Latin letters; and `__fitText`, the mechanical guard-rail that exists precisely to fix what the model got wrong, only ever corrected WIDTH and only on `hf-*` classes — the broken headline was `.giant-text`, a name the model invented. **`__fitVietnamese`** measures the element's own resolved font (one constant would be wrong for every face but one), selects by CONTENT so an English scene is byte-identical, raises line-height only where the element really renders two or more lines, and buys paint room with padding paid for by a cancelling negative margin — measured on the real scene, the box grows 53.9px upward and the glyphs move **0.10px**. It relaxes an `overflow:hidden` ancestor only when the box is no taller than 1.6 line boxes AND genuinely cuts ink, because most of that 34% are panels hiding a bar fill or an `::after` streak on purpose. It runs on both sides of `__fitText` (which changes font-size, hence the overhang) and is idempotent by stashing originals on the node. **Repairing what already shipped needed a stamp**: `renderFingerprint` hashes scene props and config keys, never the harness — deliberately, since hashing it would invalidate every clip of every video on any harness edit — so nothing re-renders on its own and the scan would have offered the same scenes forever. `stampRendered` writes `fp.typeset` at the three sites that actually produce a clip (the migrate branches keep the plain stamp: they correct a digest definition and touch no file). The scan names SCENES, so the run redrew 773 clips instead of the 1,331 those 54 videos hold. `renderOnly` gained `alsoJoin` — named that because the module imports `join` from `node:path` and a parameter of that name shadows it for the whole function, which is exactly how the first run died. Layout was audited alongside and left almost alone: geometry findings stay ADVISORY by a recorded decision, and the one change is the measured gap in the zone budget — it forbade two anchors sharing a `left%`, which a model satisfies with 48% and 62%, the same zone; across 1,082 shipped scenes 31% put two slots in one zone while 43% starved a corner. | `animation/harness.js` (`__fitVietnamese`) · `hyperframe/prompt.js` (`scriptTextRule`) · `fonts/coverage.js` · `fonts/registry.js` · `pipeline/vietnamese-scan.js` · `pipeline/fingerprint.js` (`stampRendered`) · `pipeline/render-only.js` · `api/routes.js` (`/typeset-scan`, `/repair-typeset`) |
-
-| `ship-opaque` | KHÁCH KHÔNG ĐƯỢC ĐỌC MÃ NGUỒN SAU KHI BUILD (2026-08-19, owner request). Measured on the SHIPPED v1.0.0 zip rather than inferred: 161 `src/*.js` in plaintext under `Show Package Contents`, 519 dependency READMEs, `src/.DS_Store`, DevTools enabled for every customer, and the whole transition doctrine readable in `ps` because `-filter_complex` rode in argv. The value at risk is ~181 KB of prompt — `content/master-script.js` (48 KB), `hyperframe/prompt.js` (47 KB), `animation/harness.js` (40 KB), `hyperframe/validate.js` (29 KB). **What ships now**: esbuild collapses 167 modules into one CJS file (dependencies stay external — express is public and `better-sqlite3` is a native addon), `vm.Script` compiles it to V8 bytecode, and the bytecode is encrypted AES-256-GCM with a per-build key compiled into the Swift launcher and written to the backend's **stdin** — not argv, not the environment, both of which `ps` prints back. Result: `src/*.js` 161 → 0, markdown 519 → 18 (all licences), `.js` 2944 → 1477, bundle 322 → 305 MB, and boot 0.70s → 0.29s because nothing is parsed. **Three measurements decided the design.** V8 accepts cached data against a placeholder source of the same LENGTH, which is what lets the text stay behind. Bytecode does NOT hide strings — a byte scan of the real `app.jsc` pulls the doctrine out as UTF-16, which plain `strings` misses and `strings -el` does not, so encryption is mandatory rather than decorative. And `--no-lazy` plus `--no-flush-bytecode` are both load-bearing on BOTH sides: without the first, any function not called during load compiles from the blank placeholder at first call; without the second, V8 discards bytecode after a few GCs and recompiles it from blanks, so the app serves happily for minutes and then throws `SyntaxError` out of route handlers. The flag list lives in one file both the compiler and `Config.swift` read, `app.jsc.json` records it, and the loader refuses to boot without it — a refusal at boot beats a failure an hour into a render. The loader has no path back to source by design: one that quietly recompiled would put the source back in the bundle with nobody the wiser. **The failure only a real render could find**: `page.evaluate(fn)` serialises by calling `fn.toString()`, which under bytecode returns the right NUMBER of spaces and nothing else — `() => window.__init()` came back as 21 space characters — so all nine call sites now pass page-side code as a STRING with arguments interpolated through `JSON.stringify`. The suite was green the entire time the release could not draw a frame, because tests run against real source. `audit-release.mjs` reads the assembled `.app` and gates the release on it; it caught `scrub_payload` stopping at the payload boundary while the vendored runtime still carried 141 markdown files and 90 sourcemaps. **What none of this buys, stated rather than implied**: a debugger reads every decrypted string, and the customer supplies the LLM endpoint so their own provider dashboard shows the prompts verbatim. That is the ceiling for code executing on someone else's machine. The owner weighed the second one and **accepted it** (2026-08-19): the requirement was that no source ships, and none does; closing the prompt leak would mean the vendor's LLM key, which turns a one-time licence into credits — the wrong trade for a risk already judged tolerable. `hyperframe/doctrine.js` stays regardless, because the prompt and the model call belong behind one interface whether or not they ever move: the re-ask loop has no business knowing what a prompt looks like. Appendix A records the decision, the reasoning, and the single condition (a change of sales model) that would justify reopening it. | `scripts/build-bundle.mjs` · `scripts/build-bytecode.mjs` · `scripts/bytecode-flags.mjs` · `scripts/loader.cjs` · `scripts/build-frontend.mjs` · `scripts/audit-release.mjs` · `shell/build-app.sh` (`scrub_payload`) · `shell/main.swift` (`NODE_ARGS`, `APP_KEY`) · `src/hyperframe/doctrine.js` · `src/media/ffmpeg.js` (`detachFilterGraph`) · `src/config/paths.js` (`findAppRoot`) |
-
-Golden rule when refactoring: if a regex/constant/guard looks "redundant" → search this file, and this table in particular, before touching it.
+Anchors touched by the internationalisation work were re-pointed rather than dropped: the
+per-language reading speed and the breath pad now live in `i18n/languages.js` and
+`util/lang.js` `padMsFor()`, and the beat stopword lists in `i18n/stopwords.js`. Every constant they
+protect — `vi 4.4`, `650 ms / 400 ms`, `MIN_GAP 1.2`, `HOLD_MAX 2.6`, `LEAD 0.12` — is unchanged and
+asserted by value rather than by source line, so the next relocation cannot break them silently.
 
 ---
 
-<a id="8-appendix-line-counts-of-large-files"></a>
-### 8. Appendix — line counts of large files
+## Appendix A — Decision record: the doctrine service
 
-| Pre-refactor | Post-refactor (R10) | Today (2026-07-17) | File | Note |
-|---|---|---|---|---|
-| 723 | 68 | 127 | `pipeline/runner.js` | still a pure orchestrator (publish stage + gates added) ✅ |
-| 464 | 392 | **934** | `api/routes.js` | regrown under the v3 feature surface — the §5 routes/-by-domain split is the open refactor ⚠ |
-| 452 | 31 | 38 | `db/index.js` | barrel; schema in `connection.js`, migrations in `migrate.js` ✅ |
-| 400 | 400 | 463 | `public/js/views/config.js` | FE, grows with every new config knob (R11 still open) |
-| 382 | 382 | 545 | `providers/llm.js` | legacy script paths + metadata; the default B2 path lives in `content/master-script.js` (~560) |
-| 255 | 157 | 157 | `animation/templates/hyperframe.js` | only the renderer remains; guide moved to `styleguide/` ✅ |
-| 253 | 253 | 454 | `animation/harness.js` | engine (time-warp, fit-text, ambient clock added) — OK |
+> **Owner's decision, 2026-08-19: not built.** The requirement was "don't leak the source", and the
+> release achieves it — the shipped bundle contains no readable code. That the prompts appear in the
+> customer's own LLM dashboard is a **consciously accepted risk**, not unfinished work.
 
-The R10 goal "0 backend files >400 lines" was achieved and has since been traded away
-deliberately in two places (`api/routes.js`, `providers/llm.js`) as v3 features landed faster
-than splits; treat those two as the next refactor candidates, with the P-registry (§7) and
-the named tests as the safety net.
+Kept because the reasoning is still sound and because the condition for reversing it is a specific
+fact rather than a feeling: **if the business model changes to credits or a subscription** — the
+owner paying for the LLM — the main obstacle disappears and this becomes worth building. While
+customers bring their own keys, leave it closed.
 
----
+**What it would be.** The ~181 KB of scriptwriting and render doctrine is the actual product. Moving
+it behind an API (`POST /api/v1/doctrine/scene-spec`, `/doctrine/script`) would keep it off the
+customer's machine entirely. The obstacles are three: the app would lose its offline guarantee for
+content generation, the owner would carry the LLM cost and the uptime risk, and prompts would still
+be visible to whoever holds the key — which, today, is the customer.
 
-<a id="ai-configuration-optional"></a>
-## ⚙️ AI configuration (optional)
+**The seam already exists.** `src/hyperframe/doctrine.js` defines one interface with two
+implementations: `local` (today) and `remote` (specified here, deliberately unwritten). It costs
+nothing at runtime and it is the right boundary regardless — the re-ask loop has no business knowing
+what a prompt looks like. `tests/doctrine-seam.test.js` keeps it honest.
 
-Go to **⚙️ AI Setting** in the app to plug in:
-
-- **LLM**: pick a provider from the list and paste a key. The base URL, the suggested models and
-  that provider's quirks come with it; `↻ Lấy danh sách model` asks the provider what it serves
-  right now. Every provider keeps its own key and model, so switching between them is free.
-  Choose **Tuỳ chỉnh** to type a base URL by hand — any OpenAI-compatible endpoint works, several
-  keys separated by newlines rotate, and `modelFallback` is still an optional hidden knob.
-- **TTS**: choose `say` (offline) / Edge / Vbee / LarVoice / ElevenLabs, or the OpenAI-compatible
-  voice with a provider picked from the same list.
-- **Subtitles**: `align` (recommended — whisper timing with 100%-accurate script text) or `estimate` / `whisper`.
-
-With nothing plugged in it still runs fully using the macOS voice + ffmpeg.
-
-**Which provider to pick.** Free with no card: **Google Gemini** (AI Studio), **Groq**,
-**Cerebras**, **OpenRouter**'s `:free` models. Cheap pay-as-you-go: **DeepSeek**, **Z.ai**,
-**Moonshot**, **Together**. Offline and free forever: **Ollama** / **LM Studio** on your own
-machine. Prices shown next to each model come from `src/core/pricing.js`, the same table the cost
-meter bills against — they are estimates, and they go stale, so treat them as a guide.
-
-> **HyperFrame needs Gemini.** Scene graphics are written as code, and measured against every
-> other family only Gemini produces markup that renders. A provider without Gemini is fine for
-> scripts and metadata but cannot drive HyperFrame, and AI Setting says so when you pick one.
-> Gemini and OpenRouter both serve one; anything else needs a second key, or a codegen model
-> named by hand if your endpoint serves Gemini under another name.
+Not reopened without the business-model change above.
 
 ---
 
-<a id="data-logs"></a>
-## 📂 Data & logs
-
-All projects, media, and the DB live in `data/` (gitignored). Each project has its own folder:
-`data/projects/<id>/{audio,srt,html,render,output}` + the canonical `scenes.json` artifact.
-`JOURNAL.md` is the daily production log — real stats appended from the live DB by a scheduled
-`scripts/journal.mjs` run (see `scripts/install-journal-schedule.sh`); don't edit it by hand.
-
-**It is the one file deliberately kept outside this one, and it stays that way.** A launchd job
-(`com.tuila1freelancer.avs-journal`) appends to it and commits it unattended, so folding it in here
-would point a daily automatic commit at the project's main document. Machine-written, therefore
-separate — that is the whole rule.
-
----
-
-<a id="appendix-a-decision-record-the-doctrine-service-not-built"></a>
-## Appendix A — Decision record: the doctrine service (not built)
-
-> **Quyết định của chủ, 2026-08-19: KHÔNG thi công.**
-> Yêu cầu thật là *"miễn không lộ source"*, và giai đoạn A đã đạt: bản phát hành không còn một
-> dòng mã nguồn nào đọc được. Việc prompt hiện trong dashboard LLM của chính khách là **rủi ro
-> được chấp nhận có ý thức**, không phải việc còn dang dở.
->
-> Giữ tài liệu này vì lý do kỹ thuật vẫn đúng, và vì điều kiện để đảo quyết định là một con số
-> cụ thể chứ không phải cảm tính: **nếu mô hình bán hàng đổi sang credit/thuê bao** (chủ trả tiền
-> LLM), thì rào cản chính ở mục 2 biến mất và việc này đáng làm lại. Chừng nào khách còn mang key
-> riêng, đừng mở lại.
->
-> Chỗ nối phía app (`src/hyperframe/doctrine.js`) **vẫn giữ**. Nó không tốn gì lúc chạy, và nó là
-> ranh giới đúng dù có bao giờ dùng đến hay không: vòng lặp re-ask không việc gì phải biết prompt
-> trông thế nào.
-
----
-
-<a id="1-lo-ma-giai-doan-a-khong-cham-toi-duoc"></a>
-### 1. Lỗ mà giai đoạn A không chạm tới được
-
-Giai đoạn A đã làm bản phát hành không còn mã nguồn đọc được: `src/*.js` 161 → 0 file, bytecode được
-mã hoá AES-256-GCM, khoá đi qua stdin. Quét 2.191 file trong bản `.app` không tìm ra một mẩu doctrine
-nào.
-
-**Nhưng có một lỗ mà không kỹ thuật đóng gói nào chạm tới được.**
-
-`src/providers/llm.js:108` gửi prompt tới `baseUrl` + `apiKey` **do chính khách nhập**. Nhà cung cấp
-LLM lưu toàn văn request và hiển thị cho chủ khoá. Khách chỉ cần mở dashboard OpenRouter/OpenAI của
-họ là đọc được nguyên vẹn 181 KB doctrine — không cần đụng vào file app, không cần debugger, không
-cần biết gì về kỹ thuật.
-
-Chỉ có một cách bịt: **prompt không bao giờ rời máy chủ của anh**.
-
-<a id="2-vi-sao-dung-o-day-va-day-la-ly-do-kinh-doanh-khong-phai-ky-thuat"></a>
-### 2. Vì sao dừng ở đây — và đây là lý do kinh doanh, không phải kỹ thuật
-
-Nếu server của anh dựng prompt rồi gọi LLM bằng **khoá của khách**, thì prompt lại xuất hiện trong
-dashboard của khách. Không giải quyết được gì.
-
-→ Server phải gọi bằng **khoá của anh**. Kéo theo:
-
-| Hôm nay | Sau giai đoạn B |
-|---|---|
-| Khách tự mang API key | Anh trả tiền LLM |
-| Bán license một lần | Bán theo credit / thuê bao |
-| Sinh nội dung chạy offline | Sinh nội dung cần mạng (render vẫn offline) |
-| Anh không chịu chi phí biến đổi | Chi phí LLM tỉ lệ thuận với lượng dùng |
-
-**Đây chính là chỗ quyết định dừng.** Chủ giữ mô hình "khách mang key riêng", nên không có
-đường nào để prompt rời khỏi máy khách mà vẫn kín. Đổi mô hình bán hàng để bịt một lỗ mà chủ đã
-chấp nhận là đánh đổi sai chiều.
-
-<a id="3-phan-nao-chuyen-phan-nao-o-lai"></a>
-### 3. Phần nào chuyển, phần nào ở lại
-
-Chỉ chuyển đúng phần **doctrine + gọi model**. Mọi thứ cần trình duyệt vẫn ở máy khách.
-
-| Ở lại máy khách | Lên server |
-|---|---|
-| `parseSpec`, `normalizeSpec`, `lintSpec` | `buildCodegenPrompt` (47 KB) |
-| `renderValidate` (cần Chrome thật) | `codegenSystem`, các block ngưỡng bố cục |
-| Vòng thử lại + quyết định re-ask | Gọi LLM, chọn model, thang nhiệt độ |
-| Render, ghép, phụ đề, TTS | `master-script.js` (48 KB) khi làm kịch bản |
-
-`animation/harness.js` (40 KB) **không chuyển được** — nó chạy trong trình duyệt lúc render. Nó ở lại
-dưới dạng bytecode mã hoá, và đó là mức trần cho nó.
-
-<a id="4-hop-dong-api"></a>
-### 4. Hợp đồng API
-
-Khớp hạ tầng đã có trong repo store (đã đọc, chưa sửa gì):
-
-- `apps/api/src/licensing-api/licensing-v1.controller.ts` — `@Controller('v1')`, `ApiKeyGuard`,
-  `@RequireApiKeyScopes(...)`, `@RateLimit(...)`, `@CurrentProduct()` suy ra từ API key.
-- `apps/api/src/licensing-api/api-key.service.ts` — `ApiKeyScope = 'client' | 'publisher'`.
-
-**Cần thêm scope thứ ba: `doctrine`.** Không dùng lại `client`: khoá `client` được bake vào mọi bản
-app và ai cũng đọc được (đúng thiết kế, giống `pk_` của Stripe). Một khoá mở được doctrine mà nằm sẵn
-trong app thì bằng không làm gì cả.
-
-#### Xác thực
-
-Không phải API key. Dùng **license token RS256** mà app đã có sau khi kích hoạt
-(`src/license/` — token đã gắn `deviceId`). Server xác minh chữ ký, còn hạn, đúng `productId`, và
-`deviceId` khớp thiết bị đang gọi. Nghĩa là: **hết hạn license là hết doctrine**, tự động.
-
-#### `POST /api/v1/doctrine/scene-spec`
-
-Mở một phiên hoặc tiếp tục phiên đang có. Đây chính là hình dạng của `doctrine.js` hôm nay.
-
-```jsonc
-// mở phiên
-{
-  "licenseToken": "<RS256 JWT>",
-  "scene":     { "voiceText": "...", "keywords": [...], "duration": 6 },
-  "beats":     [...],
-  "direction": { "isClimax": false, ... },
-  "guide":     { /* brand kit đã normalize */ },
-  "canvas":    { "w": 1080, "h": 1920 },
-  "index":     { "idx": 0, "total": 6 },
-  "options":   { "density": "balanced", "captionsOn": true, "language": "vi",
-                 "diversitySalt": 0, "modeBlocks": ["overlay"] }
-}
-```
-
-```jsonc
-// tiếp tục — tương ứng doctrine.reaskIssues()
-{ "licenseToken": "...", "sessionId": "ds_...", "issues": ["off-screen", "overlap"],
-  "lastSpec": { "css": "...", "html": "...", "script": "..." } }
-
-// tiếp tục — tương ứng doctrine.reaskFormat()
-{ "licenseToken": "...", "sessionId": "ds_...", "formatViolation": true }
-```
-
-Trả về:
-
-```jsonc
-{ "sessionId": "ds_...", "raw": "@@@CSS@@@...@@@END@@@",
-  "usage": { "promptTokens": 8100, "completionTokens": 5200, "creditsSpent": 3 },
-  "creditsLeft": 812 }
-```
-
-**`raw` là văn bản thô, không phải spec đã parse.** Vì `parseSpec`/`lintSpec` phải chạy ở máy khách —
-chúng là đầu vào cho `renderValidate`, mà cái đó cần Chrome.
-
-#### `POST /api/v1/doctrine/script`
-
-Cùng khuôn, cho `master-script.js`. Vào: chủ đề, thời lượng, ngôn ngữ, giọng kênh. Ra: kịch bản.
-
-#### `GET /api/v1/doctrine/credits`
-
-Số dư, để app hiện trước khi chạy chứ không báo lỗi giữa chừng.
-
-#### Giới hạn tốc độ
-
-Theo đúng khuôn `LICENSE_RATE_LIMIT` sẵn có, nhưng chặn theo `deviceId` chứ không theo IP —
-một studio ngồi chung một đường mạng không được làm nhau nghẽn:
-
-```ts
-const DOCTRINE_RATE_LIMIT = [
-  { limit: 60,  windowSec: 60,   by: 'deviceId', name: 'device' },
-  { limit: 600, windowSec: 3600, by: 'deviceId', name: 'device-hour' },
-];
-```
-
-#### Vòng đời phiên
-
-TTL 15 phút, giữ trong Redis (store đã có `apps/api/src/redis`). Một cảnh tối đa 10 vòng; hết phiên
-thì app mở phiên mới — mất ngữ cảnh sửa lỗi, không mất cảnh.
-
-<a id="5-cho-noi-phia-app-da-san-sang"></a>
-### 5. Chỗ nối phía app đã sẵn sàng
-
-`src/hyperframe/doctrine.js` đã tách prompt và lời gọi model ra khỏi vòng lặp. `codegen.js` giờ chỉ
-biết ba động tác: `ask`, `reaskFormat`, `reaskIssues`.
-
-Thi công B = viết `remoteDoctrine` cài đúng ba hàm đó, cộng một khoá config chọn `local`/`remote`.
-Vòng lặp re-ask, lint, render-validate **không đụng tới một dòng nào**.
-
-`tests/doctrine-seam.test.js` khoá cuộc hội thoại của bản `local` theo từng byte, nên bản `remote`
-có một chuẩn đối chiếu rõ ràng để so.
-
-<a id="6-rui-ro-phai-xu-ly-khi-thi-cong"></a>
-### 6. Rủi ro phải xử lý khi thi công
-
-| Rủi ro | Cách chặn |
-|---|---|
-| Store sập → không ai tạo được video | Hàng đợi retry + thông báo rõ. **Không** fallback về prompt cục bộ — làm vậy là ship lại doctrine |
-| Trễ thêm một chặng mạng mỗi vòng re-ask (tới 10 vòng/cảnh) | Đo trước trên video 100 cảnh; giữ HTTP keep-alive |
-| Khách MITM chính máy mình để đọc request | TLS pinning nâng rào; debugger thì vẫn qua được. Nhưng bắt được **prompt gửi lên**, không phải doctrine — server chỉ nhận brief, không trả prompt |
-| Chi phí LLM vượt doanh thu | `creditsSpent` chốt theo token thực, kiểm tra số dư **trước** khi gọi model |
-| Video cũ render lại sau khi hết hạn | Render lại cảnh không cần LLM (`mode:'scenes'`) — đường đó phải luôn chạy được offline |
-
-<a id="7-thu-tu-lam-chi-dung-neu-quyet-dinh-o-dau-tai-lieu-bi-dao"></a>
-### 7. Thứ tự làm — CHỈ dùng nếu quyết định ở đầu tài liệu bị đảo
-
-1. Chốt mô hình bán hàng (mục 2). Mọi thứ dưới đây phụ thuộc vào nó.
-2. Store: scope `doctrine` + xác minh license token + bảng credit.
-3. Store: `/doctrine/scene-spec`, chuyển `prompt.js` sang, giữ nguyên từng chữ.
-4. App: `remoteDoctrine` + khoá config, đối chiếu byte với `local` qua test đã có.
-5. Đo song song trên một video thật: `local` và `remote` phải ra cùng một spec với cùng seed.
-6. Bật cho bản phát hành mới; bản cũ giữ `local` cho tới khi hết vòng đời.
-
----
-
-<a id="appendix-b-hyperframes-attribution-apache-20"></a>
 ## Appendix B — HyperFrames attribution (Apache-2.0)
 
 > **This section is a licence obligation, not documentation.** Parts of the render doctrine are
 > adapted from [heygen-com/hyperframes](https://github.com/heygen-com/hyperframes), Apache License
-> 2.0, which requires the attribution notice to travel with the work. Do not delete it; if this
-> file is ever split again, this section moves with the code it covers.
+> 2.0, which requires the attribution notice to travel with the work. **Do not delete it.** If this
+> file is ever split, this section moves with the code it covers.
 
-Source: https://github.com/heygen-com/hyperframes (Apache License 2.0).
-These notes distill the formulas and doctrine we port into this app. Where code is adapted
-from the upstream repo, this file is the attribution record required by the license.
-Upstream paths cited below refer to that repo, not this one.
+Source: <https://github.com/heygen-com/hyperframes> (Apache License 2.0). Upstream paths cited below
+refer to that repository, not this one. What is adapted is **craft knowledge** — rules, doctrine and
+checks — never the upstream engine.
 
-<a id="why-it-maps-onto-us"></a>
-### Why it maps onto us
+**Why it maps.** HyperFrames renders the same way this app does: a paused, seekable GSAP timeline
+where a frame is a pure function of time, captured by headless Chrome and muxed by FFmpeg. Their 4K
+path supersamples via `devicePixelRatio`; ours uses a logical canvas plus body zoom — equivalent
+architectures.
 
-HyperFrames renders video the same way our renderer does: a paused, seekable GSAP timeline,
-deterministic frame = f(time), captured by headless Chrome and muxed by FFmpeg. Their 4K path
-supersamples via devicePixelRatio — equivalent to our logical-canvas + body-zoom architecture.
-We adopt their *craft knowledge* (rules, doctrine, checks), never their engine.
+**What was adapted**
 
-<a id="motion-doctrine-skillsfaceless-explainerreferencesmotion-languagemd"></a>
-### Motion doctrine (skills/faceless-explainer/references/motion-language.md)
+| Upstream | Adapted into |
+|---|---|
+| `skills/faceless-explainer/references/motion-language.md` | the motion doctrine in the codegen prompt: a motion **verb** per element, entry → reveal → hold → exit, no decorative movement |
+| `skills/faceless-explainer/references/cut-catalog.md` | the cut and transition vocabulary behind `planTransitions` |
+| `skills/hyperframes-creative/references/beat-direction.md` | beat-anchored choreography — one keyword enters on its word, holds, exits before the next |
+| `skills/hyperframes-animation/blueprints-index.md` | the 15 time-coded shot templates tied to narrative roles, adopted as `HF_LAYOUTS` in `src/pipeline/direction.js` |
+| `packages/lint/src/rules/` | the static lint rules in `src/hyperframe/lint.js` |
+| `packages/cli/src/utils/layoutAudit.ts` | the runtime layout audit in `src/hyperframe/validate.js` |
+| `packages/core/src/text/fitTextFontSize.ts` | the text-fitting pass in `src/animation/harness.js` |
 
-Four load-bearing rules — "the difference between a serious explainer and an agent-made
-PowerPoint":
+**Blueprints** (`skills/hyperframes-animation/blueprints-index.md`) — 15 time-coded shot templates,
+each tied to narrative roles (Hook, Problem, Product_Intro, Key_Feature, Benefits, Social_Proof,
+CTA, Brand_Outro). The ones adopted as layouts, and referenced by name from
+`src/pipeline/direction.js`:
 
-1. **Smooth beats bouncy.** Long-tail decel eases (`power3.out`, `expo.out` on fast arrivals)
-   are the default. Bounce/overshoot (`back.out`, `elastic`, `bounce`) is the #1 instant
-   turn-off in agent-made videos; it is a rare, explicitly playful exception — never the
-   house style.
-2. **Sequential reveal in the back ~50%, timed to the voiceover.** Never dump content in the
-   first ~25% of a scene. Each piece (a line, a card, even the headline) arrives when the
-   narration mentions it. Fewer things, each on its spoken cue, beat a full canvas that
-   animated once and froze.
-3. **No lazy breathing, no bad pan/push.** Scaling elements up/down in a loop to look "alive"
-   is the cheap tell; a slow pan/push in the back half of a scene disrupts the viewer's
-   sightline. "I'd rather have NO motion than BAD motion." Sanctioned aliveness during a
-   hold: a subtle low-amplitude jitter, or live SVG internals (rotating hands, pulsing dots,
-   dash-flow) — the subject doing something, not a card breathing.
-4. **Internal seams are velocity-matched cuts.** Cut at peak velocity, matching direction and
-   speed on both sides (see cut catalog below).
-
-<a id="cut-catalog-skillsfaceless-explainerreferencescut-catalogmd"></a>
-### Cut catalog (skills/faceless-explainer/references/cut-catalog.md)
-
-Velocity-matched cut recipes. Common physics: you never see both contents at once — blur and
-opacity peak exactly at the swap frame; blur goes on the WRAPPER, never children; both sides
-use the SAME peak blur. Peak blur scales with subject size: **10px for text-scale**, 18–20px
-for full-frame surfaces (heavier blur on text smears it into a glitch).
-
-- **Zoom-through (forward)** — Z-axis swap "progressing through": exit scales 1.0→1.2 with
-  blur 0→10px over ~0.2s (`power3.in` on scale/blur, LINEAR on opacity 1→0.15); the incoming
-  content continues scaling up from behind, decelerating (`power3.out`) into the focal plane.
-- **Inverse zoom-through** — same, moving away from the viewer; reads as "arriving at" — use
-  for payoff beats.
-- **Cut-the-curve** — scene-to-scene cut on x/y where both sides move the same direction at
-  matched velocity.
-- **Waterfall** — cut-the-curve at word granularity (staggered exits/entries).
-
-Choosing: unfinished phrase building one idea → cut-the-curve/waterfall; state change (new
-part of the video) → zoom-through; arrival/payoff → inverse zoom-through.
-
-<a id="beat-direction-skillshyperframes-creativereferencesbeat-directionmd"></a>
-### Beat direction (skills/hyperframes-creative/references/beat-direction.md)
-
-- "Each beat is a WORLD, not a layout." Direct the experience, then derive the pixels.
-- **Every element gets a motion VERB** — SLAMS / CRASHES / STAMPS (impact), SLIDES / WIPES
-  (directional), DRAWS / FILLS / GROWS / ASSEMBLES / COUNTS UP (builds), FLOATS / DRIFTS /
-  ORBITS (organic), TYPES ON / CLICKS / LOCKS IN / SNAPS (mechanical). "If you can't name
-  the verb, the element is not yet designed."
-- Transitions: 1–2 hero transitions per video (the reveal + the CTA); more flattens their
-  impact. Connective tissue gets a plain crossfade or a hard cut.
-
-<a id="blueprints-skillshyperframes-animationblueprints-indexmd"></a>
-### Blueprints (skills/hyperframes-animation/blueprints-index.md)
-
-15 time-coded shot templates, each tied to narrative ROLES (Hook, Problem, Product_Intro,
-Key_Feature, Benefits, Social_Proof, CTA, Brand_Outro). The ones we adopt as layouts:
-
-- `kinetic-type-beats` — the words ARE the motion (token swaps / statement builds); the
-  workhorse (6 roles).
-- `ticker-takeover` — typed lead-in + cycling accent word, then the hero crashes in and
-  physically shoves the text aside (hook/outro).
-- `overwhelm-surround` — overwhelm by accumulation; elements close in from all sides
-  (problem/pain scenes).
-- `spatial-pan-stations` — labeled stations on one oversized canvas traversed by a single
+- **`kinetic-type-beats`** — the words *are* the motion (token swaps, statement builds); the
+  workhorse, covering six roles.
+- **`ticker-takeover`** — typed lead-in and a cycling accent word, then the hero crashes in and
+  physically shoves the text aside (hook / outro).
+- **`overwhelm-surround`** — overwhelm by accumulation; elements close in from every side
+  (problem and pain scenes).
+- **`spatial-pan-stations`** — labelled stations on one oversized canvas, traversed by a single
   virtual camera (timelines, processes, long videos).
-- `titlecard-reveal` — the calm breather: ONE restrained move, then a still hold. "Low motion
-  is the payload, not a deficiency."
+- **`titlecard-reveal`** — the calm breather: one restrained move, then a still hold. *"Low motion
+  is the payload, not a deficiency."*
 
-<a id="determinism-rules-worth-restating-in-our-codegen-prompt"></a>
-### Determinism rules worth restating in our codegen prompt
+**Determinism rules restated in our codegen prompt** — no wall-clock time, no `setTimeout` or
+`requestAnimationFrame`, no event listeners, no network; everything on the paused root timeline, so
+that frame = f(time) holds under out-of-order seeking. These are enforced mechanically by
+`src/hyperframe/lint.js` rather than requested in prose.
 
-(skills/hyperframes-core/references/determinism-rules.md — "silent bugs lint won't catch")
+---
 
-- Transformed elements must be block-level AND sized — `scaleX/scaleY` on an inline or
-  auto-width element renders nothing (invisible bars/fills).
-- Finite repeats use `floor`, not `ceil`: `repeat: max(0, floor(dur/cycle) - 1)`.
-- Absolutely-positioned decoratives that pulse/overshoot need clearance at their PEAK size.
-- No `<br>` in body text (double-wraps against real font metrics); wrap via max-width.
-- Pre-compute layout constants at setup; never `getBoundingClientRect()` at tween time (the
-  renderer samples in parallel).
-- No render-time clocks / unseeded random / network / input state; no `repeat: -1`.
+<div align="center">
 
-<a id="static-lint-rules-we-port-packageslintsrcrules"></a>
-### Static lint rules we port (packages/lint/src/rules/)
+**AI Video Studio** · 183 backend modules · 39 frontend modules · 34,042 lines · 99 test files · 825 tests
 
-Determinism (`non_deterministic_code`, `requestanimationframe_in_composition`), GSAP misuse
-(`gsap_infinite_repeat`, `gsap_non_transform_motion`, `gsap_from_opacity_noop`,
-`gsap_css_transform_conflict`), duplicate ids (frames are injected by `getElementById` — dupes
-render blank), infinite CSS animations (wall-clock, desync from seek).
+*Everything the project knows is in this file. There is no `docs/` directory, on purpose.*
 
-<a id="runtime-layout-audit-ideas-we-port-packagesclisrcutilslayoutauditts"></a>
-### Runtime layout audit ideas we port (packages/cli/src/utils/layoutAudit.ts)
-
-- Issue taxonomy: `text_box_overflow`, `clipped_text`, `content_overlap`, `text_occluded`,
-  `caption_zone_collision`, `motion_frozen`, `motion_appears_late`, …
-- **Persistence tiering**: a geometry finding seen at only ONE sampled time is an
-  entrance/exit transient → ignore; held across ≥2 samples (≈≥500ms) → promote to error.
-  This is the anti-false-positive mechanism that keeps validation from fighting slow eased
-  entrances.
-
-<a id="text-fitting-packagescoresrctextfittextfontsizets"></a>
-### Text fitting (packages/core/src/text/fitTextFontSize.ts)
-
-Decrement font-size in steps from a base until the text lays out in one line within
-maxWidth, with a floor; report `fits: false` below the floor. We implement the DOM-measured
-equivalent as a harness guard-rail (shrink until `scrollWidth <= clientWidth`).
-
-<a id="baseline-recorded-2026-07-14-before-adoption-phases"></a>
-### Baseline (recorded 2026-07-14, before adoption phases)
-
-QA sweep (`scripts/hf-qa.mjs` qaSpec) over the 16 real LLM-generated hyperframe scenes of the
-two most recent productions ("Ba sai lầm…" 9:16, "Cách viết báo giá…" 16:9 4K):
-
-- scenes: 16 · hard defects: 0 · warnings: 15 (13× CROWDED, 2× OVERSHOOT)
-- production stats: 8/9 hyperframe scene rate on the 4K run (1 heuristic fallback), 2 codegen
-  attempts consumed by a dead-air false positive before the gap-center rebalance.
-
-Post-phase sweeps should keep defects at 0, reduce CROWDED warnings, and reduce re-ask/
-fallback rates on future paid runs.
+</div>
