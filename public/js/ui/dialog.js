@@ -1,6 +1,10 @@
 // Promise-based dialogs replacing native confirm()/prompt(): glass surface, Esc/backdrop
 // close, focus management, spring in/out (uses .modal-bg/.modal/.dlg styles in app.css).
 import { el, esc } from './dom.js';
+import { t } from '../i18n.js';
+
+/** Translate a dialog's own words, keyed by their Vietnamese text — same trick as toast(). */
+const tr = (v) => (typeof v === 'string' && v ? t(`ui.msg.${v}`, null, v) : v);
 
 export function openDialog(innerHtml, { onReady } = {}) {
   return new Promise((resolve) => {
@@ -37,11 +41,11 @@ export function openDialog(innerHtml, { onReady } = {}) {
 
 export function confirmDialog({ title, body = '', okText = 'Xác nhận', cancelText = 'Huỷ', danger = false }) {
   return openDialog(`
-    <div class="dlg-title">${esc(title)}</div>
-    ${body ? `<div class="dlg-body">${esc(body)}</div>` : ''}
+    <div class="dlg-title">${esc(tr(title))}</div>
+    ${body ? `<div class="dlg-body">${esc(tr(body))}</div>` : ''}
     <div class="dlg-actions">
-      <button class="btn" data-a="cancel">${esc(cancelText)}</button>
-      <button class="btn ${danger ? 'danger' : 'primary'}" data-a="ok">${esc(okText)}</button>
+      <button class="btn" data-a="cancel">${esc(tr(cancelText))}</button>
+      <button class="btn ${danger ? 'danger' : 'primary'}" data-a="ok">${esc(tr(okText))}</button>
     </div>`, {
     onReady(dlg, close) {
       dlg.querySelector('[data-a=cancel]').addEventListener('click', () => close(false));
@@ -53,14 +57,14 @@ export function confirmDialog({ title, body = '', okText = 'Xác nhận', cancel
 
 export function promptDialog({ title, label = '', value = '', placeholder = '', okText = 'Lưu', cancelText = 'Huỷ' }) {
   return openDialog(`
-    <div class="dlg-title">${esc(title)}</div>
+    <div class="dlg-title">${esc(tr(title))}</div>
     <div class="field" style="margin-bottom:16px">
-      ${label ? `<label class="label">${esc(label)}</label>` : ''}
-      <input class="input" data-a="val" value="${esc(value)}" placeholder="${esc(placeholder)}">
+      ${label ? `<label class="label">${esc(tr(label))}</label>` : ''}
+      <input class="input" data-a="val" value="${esc(value)}" placeholder="${esc(tr(placeholder))}">
     </div>
     <div class="dlg-actions">
-      <button class="btn" data-a="cancel">${esc(cancelText)}</button>
-      <button class="btn primary" data-a="ok">${esc(okText)}</button>
+      <button class="btn" data-a="cancel">${esc(tr(cancelText))}</button>
+      <button class="btn primary" data-a="ok">${esc(tr(okText))}</button>
     </div>`, {
     onReady(dlg, close) {
       const input = dlg.querySelector('[data-a=val]');
@@ -76,9 +80,9 @@ export function promptDialog({ title, label = '', value = '', placeholder = '', 
 // items: [{ id, label, icon?, danger? }] → resolves the chosen id (null on dismiss)
 export function menuDialog({ title, items }) {
   return openDialog(`
-    <div class="dlg-title">${esc(title)}</div>
+    <div class="dlg-title">${esc(tr(title))}</div>
     <div class="dlg-menu">
-      ${items.map((it) => `<button data-mi="${esc(it.id)}" class="${it.danger ? 'danger' : ''}">${it.icon || ''}<span>${esc(it.label)}</span></button>`).join('')}
+      ${items.map((it) => `<button data-mi="${esc(it.id)}" class="${it.danger ? 'danger' : ''}">${it.icon || ''}<span>${esc(tr(it.label))}</span></button>`).join('')}
     </div>
     <div class="dlg-actions"><button class="btn" data-a="cancel">Đóng</button></div>`, {
     onReady(dlg, close) {
@@ -105,7 +109,7 @@ export function publishDialog({ title = 'Đăng video', platform = 'facebook', c
     { id: 'tmr20', label: 'Mai 20h' },
   ];
   return openDialog(`
-    <h3>${esc(title)}</h3>
+    <h3>${esc(tr(title))}</h3>
     <label class="label">Nội dung bài đăng (hỗ trợ #hashtag)</label>
     <textarea class="input" id="dlgCaption" rows="6">${esc(caption)}</textarea>
     <label class="label" style="margin-top:8px">Tiêu đề (tuỳ chọn)</label>
