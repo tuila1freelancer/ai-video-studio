@@ -18,7 +18,7 @@ export function hasDirection(scene) { return DIRECTED.test(scene?.visual_prompt 
 
 // Scene layout taxonomy: distilled from the @TuiLa1Freelancer reference channel, plus the
 // five HyperFrames blueprint shapes that cover roles the original ten lacked
-// (README.md, Appendix B → Blueprints).
+// (NOTICE.md → HyperFrames → Blueprints).
 export const HF_LAYOUTS = [
   'hero-center',        // 1 giant keyword/number centered + kicker + label
   'split-lr',           // text on one side, prop/diagram/icon on the other
