@@ -16,16 +16,70 @@ import { LANGUAGES, DEFAULT_LANG, lang as langRow, column } from '../i18n/langua
 
 export { DEFAULT_LANG, LANGUAGES };
 
-/** Language of a single piece of text, by script/diacritics. Cheap, no I/O, no model. */
-export function detectLang(text) {
+// Function words that only ONE of the Latin-script languages uses. Not a language model: a
+// handful of tokens a real paragraph in that language cannot avoid.
+//
+// Discriminative, not merely frequent — that distinction is the whole design. A first pass put
+// "que" in the French, Spanish and Portuguese sets and "la" in two of them, so a Spanish
+// sentence scored 4 for Spanish and 3 for French and the two cancelled out. Every token below
+// belongs to exactly one language: "es"/"é", "no"/"não", "mucho"/"muito", "cuando"/"quando".
+const LATIN_MARKERS = {
+  en: "the and of to is that for with you this are was have from at be on not but they how what",
+  fr: "le les des du et est une qui pour dans vous avec sur nous votre ce sont cette tout aussi",
+  de: "der die das und ist den dem ein eine nicht mit für sich auf von auch aber wird war hat kann nur mehr wie noch",
+  es: "el los las es más pero muy este esta cuando sus están hacer todo sin mucho hay porque nadie ahora",
+  pt: "os um uma não você isso muito quando seus estão então fazer tudo mas ele ela está é com mais tem já só até aqui agora gente coisa pode",
+  id: "yang dan di ini itu dengan untuk tidak adalah dari ke akan bisa kita juga pada atau saya lebih sangat",
+};
+const MARKER_SETS = Object.entries(LATIN_MARKERS).map(([code, words]) => [code, new Set(words.split(' '))]);
+
+/**
+ * What language is this text, and can we tell?
+ *
+ * `confident` is the half that matters. The old detector answered 'en' for every unaccented
+ * Latin script and said nothing about how sure it was, so the render validator compared a
+ * French headline against 'fr', got 'en', and re-asked the model for a scene that was already
+ * correct — up to LANG_REASK_MAX times, on every scene of every French, German, Spanish,
+ * Portuguese and Indonesian video.
+ *
+ * A script with its own codepoints is decided outright. Latin text is scored on function words,
+ * and a thin or evenly-split sample is honestly reported as a guess.
+ * @returns {{code: string, confident: boolean}}
+ */
+export function classifyLang(text) {
   const s = String(text || '');
-  if (/[ạảãàáâậầấẩẫăắằẳẵặẹẻẽèéêệềếểễịỉĩìíọỏõòóôộồốổỗơớờởỡợụủũùúưứừửữựỳýỵỷỹđ]/i.test(s)) return 'vi';
-  if (/[぀-ヿ]/.test(s)) return 'ja';
-  if (/[가-힯]/.test(s)) return 'ko';
-  if (/[一-鿿]/.test(s)) return 'zh';
-  if (/[Ѐ-ӿ]/.test(s)) return 'ru';
-  return 'en';
+  // Scripts that identify themselves. Vietnamese first: it is written in Latin letters, so its
+  // tone marks have to be tested before the generic Latin path can claim it.
+  //
+  // ONLY letters Vietnamese does not share. The shipped class also held à á â è é ê ì í ò ó ô
+  // ù ú ý ã õ — every one of which French, Spanish, Portuguese and Italian use constantly — so
+  // any accented sentence in those languages was answered 'vi'. On `language: auto` that meant
+  // a Spanish topic came back written, voiced and captioned in Vietnamese. What is left is the
+  // dot-below, the hook-above, the tone-marked â/ê/ô/ơ/ư forms, and ă ơ ư đ.
+  if (/[ạảầấẩẫậắằẳẵặẹẻẽệềếểễịỉĩọỏộồốổỗớờởỡợụủũứừửữựỳỵỷỹăơưđ]/i.test(s.normalize('NFC'))) return { code: 'vi', confident: true };
+  if (/[぀-ヿ]/.test(s)) return { code: 'ja', confident: true };
+  if (/[가-힯]/.test(s)) return { code: 'ko', confident: true };
+  if (/[一-鿿]/.test(s)) return { code: 'zh', confident: true };
+  if (/[Ѐ-ӿ]/.test(s)) return { code: 'ru', confident: true };
+  if (/[฀-๿]/.test(s)) return { code: 'th', confident: true };
+  if (/[ऀ-ॿ]/.test(s)) return { code: 'hi', confident: true };
+
+  const tokens = (s.toLowerCase().match(/[a-zà-ÿ']+/g) || []);
+  // Below this a sample carries no signal at all — a two-word headline is not evidence of
+  // anything, and treating it as evidence is exactly what produced the false leaks.
+  if (tokens.length < 6) return { code: 'en', confident: false };
+
+  const scores = MARKER_SETS.map(([code, set]) => [code, tokens.filter((t) => set.has(t)).length]);
+  scores.sort((a, b) => b[1] - a[1]);
+  const [best, runnerUp] = scores;
+  // A winner has to be both PRESENT and AHEAD: enough hits to be more than coincidence, and
+  // clearly past the second guess. Otherwise we report the best guess and admit it is one.
+  const confident = best[1] >= 3 && best[1] >= runnerUp[1] * 1.5;
+  return { code: confident ? best[0] : 'en', confident };
 }
+
+/** Language of a single piece of text, by script/function words. Cheap, no I/O, no model. */
+export function detectLang(text) { return classifyLang(text).code; }
 
 /** Display names — used in prompts, so a model is told "English (US)", never the code "en". */
 export const LANG_NAME = column('name');

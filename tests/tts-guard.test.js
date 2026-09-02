@@ -80,12 +80,15 @@ test('resolveVoiceTarget: a pinned French voice is reachable, not shadowed by th
   assert.equal(resolveVoiceTarget(MULTILINGUAL, 'en', undefined).voice, 'vi-VN-NamMinhNeural');
 });
 
-test('the declared language reaches the voice picker even when the text looks English', () => {
-  // Real French narration, no accented characters anywhere in it.
-  const plain = 'Il faut savoir que ce sont surtout les questions simples qui donnent les bons plans.';
-  assert.equal(detectLang(plain), 'en', 'detection genuinely cannot tell — this is why declaring matters');
-  assert.equal(resolveLang({ language: 'fr' }, [plain]), 'fr', 'the declaration wins');
-  assert.equal(padMsFor(resolveLang({ language: 'fr' }, [plain])), 400);
+test('the declaration wins over whatever the scene text happens to look like', () => {
+  // A French project whose first scenes are still English placeholders, or a product name, or a
+  // quoted line. Content is evidence; a declaration is an instruction.
+  const stub = 'This is the placeholder line for the opening scene of the video.';
+  assert.equal(detectLang(stub), 'en', 'the text really does read as English');
+  assert.equal(resolveLang({ language: 'fr' }, [stub]), 'fr', 'the declaration wins anyway');
+  assert.equal(padMsFor(resolveLang({ language: 'fr' }, [stub])), 400);
   // A Vietnamese project keeps its measured 650ms pad (P9).
   assert.equal(padMsFor(resolveLang({ language: 'vi' }, [])), 650);
+  // With nothing declared, content decides — and now it can actually tell French from English.
+  assert.equal(resolveLang({}, ['Il faut savoir que ce sont surtout les questions précises qui donnent les résultats.']), 'fr');
 });

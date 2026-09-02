@@ -321,3 +321,74 @@ test('lang: a short English decor word and a giant ghost glyph are both leaks', 
   const src = readFileSync(new URL('../src/hyperframe/validate.js', import.meta.url), 'utf8');
   assert.match(src, /\(e\.h >= 80 && e\.o > 0\.15\)/);
 });
+
+// ---- detection that can tell the difference, and admits when it cannot ----
+//
+// The shipped detector tested a character class that held à á â è é ê ì í ò ó ô ù ú ý ã õ —
+// every one of which French, Spanish, Portuguese and Italian use constantly — so any accented
+// sentence in those languages was answered 'vi'. With `language: auto`, a Spanish topic came
+// back written, voiced and captioned in Vietnamese.
+//
+// The second half is `confident`. Without it the render validator compared a French headline
+// against 'fr', got 'en', and re-asked the model for a scene that was already correct.
+
+const SAMPLES = {
+  vi: 'Ba dấu hiệu giúp các bạn tự tin tăng giá mà không sợ mất khách hàng quen.',
+  en: 'The thing almost nobody knows is that the answer depends on how you write the question.',
+  fr: 'Il faut savoir que ce sont surtout les questions précises qui donnent les résultats.',
+  de: 'Der wichtigste Punkt ist, dass die meisten Menschen das Werkzeug nicht richtig nutzen.',
+  es: 'Lo que casi nadie sabe es que el resultado depende mucho de cómo escribes la pregunta.',
+  pt: 'O que quase ninguém sabe é que o resultado depende muito de como você escreve.',
+  id: 'Yang tidak banyak orang tahu adalah hasilnya sangat bergantung pada cara kita bertanya.',
+  ru: 'Сегодня я покажу вам очень простой способ начать работу.',
+  ja: '今日は誰も知らない簡単な方法を紹介します。',
+  ko: '오늘은 아무도 모르는 아주 간단한 방법을 알려드리겠습니다.',
+  zh: '今天我要告诉你一个几乎没有人知道的简单方法。',
+  th: 'ปัญญาประดิษฐ์เปลี่ยนโลกและเปลี่ยนวิธีที่เราทำงานทุกวัน',
+  hi: 'यही वजह है कि यह तरीका हर बार काम करता है और लोग इसे नहीं जानते।',
+};
+
+test('lang: every supported language is identified from a real sentence', async () => {
+  const { classifyLang } = await import('../src/util/lang.js');
+  for (const [code, text] of Object.entries(SAMPLES)) {
+    const r = classifyLang(text);
+    assert.equal(r.code, code, `${code}: got ${r.code} for ${text.slice(0, 40)}`);
+    assert.equal(r.confident, true, `${code}: a full sentence must be a confident reading`);
+  }
+});
+
+test('lang: accented Romance text is no longer read as Vietnamese', async () => {
+  const { detectLang } = await import('../src/util/lang.js');
+  for (const code of ['fr', 'es', 'pt']) {
+    assert.notEqual(detectLang(SAMPLES[code]), 'vi',
+      `${code} shares à á â è é ê ì í ò ó ô ù ú ã õ with Vietnamese — sharing is not being`);
+  }
+  // …while the letters Vietnamese does NOT share still decide it outright.
+  assert.equal(detectLang('Hôm nay mình sẽ chỉ cho các bạn một cách rất đơn giản.'), 'vi');
+});
+
+test('lang: a headline is never enough evidence to overrule the declared language', async () => {
+  const { classifyLang } = await import('../src/util/lang.js');
+  for (const h of ['MOMENTUM', 'PUISSANCE', 'GESCHWINDIGKEIT', 'RESULTADO', 'Data Flow', '37 / 100']) {
+    assert.equal(classifyLang(h).confident, false, `"${h}" carries no language signal`);
+  }
+});
+
+test('lang: a correct French label is not a wrong-language defect', async () => {
+  const { textLanguageLeak } = await import('../src/hyperframe/validate.js');
+  const { fold } = await import('../src/hyperframe/beats.js');
+  const words = (s) => new Set((fold(s).match(/[\p{L}\p{N}]+/gu) || []).filter((w) => w.length >= 2));
+  const frNarr = words('voici les trois signaux qui montrent que vous pouvez augmenter vos prix');
+
+  // Every one of these used to be flagged, and every flag cost a codegen re-ask.
+  for (const w of ['PUISSANCE', 'MAXIMALE', 'RESULTAT', 'CONTEXTE', 'PRECISION']) {
+    assert.equal(textLanguageLeak(w, frNarr, 'fr'), false, `"${w}" is a correct French label`);
+  }
+  assert.equal(textLanguageLeak('AUGMENTER PRIX', frNarr, 'fr'), false);
+  // A genuinely foreign script on a French video is still caught.
+  assert.equal(textLanguageLeak('TỰ TIN', frNarr, 'fr'), true);
+  assert.equal(textLanguageLeak('人工智能', frNarr, 'fr'), true);
+  // …and the Vietnamese lane keeps its own guarantee: it cannot spell labels in plain ASCII.
+  const viNarr = words('Vậy là xong nội dung hôm nay, cảm ơn các bạn rất nhiều');
+  assert.equal(textLanguageLeak('SCANNING', viNarr, 'vi'), true);
+});

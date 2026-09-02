@@ -7,7 +7,8 @@ import { buildTemplate, makeCtx } from '../animation/templates.js';
 import { buildScenePage } from '../animation/harness.js';
 import { themeFromGuide, normalizeGuide } from '../styleguide/index.js';
 import { fold } from './beats.js';
-import { detectLang, langName, langAdjective } from '../util/lang.js';
+import { detectLang, classifyLang, langName, langAdjective } from '../util/lang.js';
+import { lang as langRow } from '../i18n/languages.js';
 import { getBrowser, chromeAvailable } from '../media/puppeteer.js';
 
 // Diacritic-folded content words of the narration, for the wrong-language text check.
@@ -26,20 +27,28 @@ const SHORT_DECOR = /^(END|NEW|TOP|RUN|SET|KEY|MAP|BOX|TAG|OUT|OFF|YES|WIN|BIG|M
 
 export function textLanguageLeak(txt, narrWords, narrLang) {
   const words = (fold(txt || '').match(/[\p{L}]+/gu) || []).filter((w) => w.length >= 3);
+  // Whether a bare ASCII word is evidence of anything depends on how the narration is written.
+  // A Vietnamese, Russian, Thai or CJK video cannot spell its own labels in plain ASCII, so one
+  // that appears is English decor. A French or Spanish video spells most of its labels in plain
+  // ASCII, so the same test condemns every correct label it has.
+  const asciiIsForeign = langRow(narrLang).script !== 'latin';
   if (words.length < 2) {
     if (words.length !== 1) return false; // number / symbol — too little signal
     const raw = String(txt || '').replace(/[^\p{L}]/gu, '');
-    // ONE word carries little signal, so the test is mirrored rather than symmetric:
-    //  - on a NON-English video, pure-ASCII decor ("ENTER", "EXECUTE", "SCANNING") is the leak.
-    //    Judged on the RAW text so a Vietnamese word like "TƯỞNG", which folds to ASCII, is safe.
-    //  - on an ENGLISH video the same rule would condemn every valid one-word label, because the
-    //    prompt explicitly asks for SEMANTIC, non-verbatim keywords: "MOMENTUM" is good design and
-    //    is absent from its narration. Only a foreign SCRIPT is readable as a leak from one word.
-    if (narrLang !== 'en') return (/^[A-Za-z]{4,}$/.test(raw) || SHORT_DECOR.test(raw)) && !narrWords.has(fold(raw));
-    return raw.length >= 3 && detectLang(raw) !== narrLang;
+    // Judged on the RAW text so a Vietnamese word like "TƯỞNG", which folds to ASCII, is safe.
+    if (asciiIsForeign) return (/^[A-Za-z]{4,}$/.test(raw) || SHORT_DECOR.test(raw)) && !narrWords.has(fold(raw));
+    // Latin-script narration: only a foreign SCRIPT is readable as a leak from a single word.
+    // The prompt asks for SEMANTIC, non-verbatim keywords, so "MOMENTUM" on an English video and
+    // "PUISSANCE" on a French one are both good design and both absent from their narration.
+    const one = classifyLang(raw);
+    return raw.length >= 3 && one.confident && one.code !== narrLang;
   }
   if (words.some((w) => narrWords.has(w))) return false; // derived from the narration — fine
-  return detectLang(txt) !== narrLang; // semantic same-language headline — fine; leak — defect
+  // Only a CONFIDENT reading is a defect. detectLang used to answer 'en' for every unaccented
+  // Latin script and say nothing about how sure it was, so on a French video every correct
+  // French headline came back 'en' !== 'fr' and was re-asked up to LANG_REASK_MAX times.
+  const c = classifyLang(txt);
+  return c.confident && c.code !== narrLang;
 }
 
 // Pure geometry/color helpers — mirrored inside PROBE (which runs as a page string) and
