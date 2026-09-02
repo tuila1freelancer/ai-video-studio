@@ -64,6 +64,7 @@ export function sceneCues(scene, config = {}) {
     chunk: config.subtitleChunk,
     wordsPerCue: config.subtitleWordsPerCue,
     text: scene?.voice_text,
+    lang: config.subtitleLang || config.language,
   });
 }
 

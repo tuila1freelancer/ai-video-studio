@@ -196,7 +196,7 @@ export function captionStyleFrom(config, theme, { w, h }) {
     };
   }
   const lang = (c.subtitleLang || c.language || '').toLowerCase();
-  const pl = preset.perLang && preset.perLang[lang];
+  const pl = preset.perLang && preset.perLang[lang || ''];
   const pos = c.subtitlePosition || preset.position || {};
   return {
     color: c.subtitleColor || preset.activeColor,
@@ -270,7 +270,11 @@ export function burnStyleFrom(config, theme, { w, h }) {
 export function assStyleFrom(config) {
   const c = config || {};
   const picked = familyName(c.subtitleFont); // bare family — a CSS stack would break libass
+  // The language travels WITH the style: line breaking, the character budget and how words
+  // rejoin all depend on it, and every consumer of a style already has one in hand.
+  const lang = (c.subtitleLang || c.language || '').toLowerCase() || undefined;
   const style = {
+    lang,
     enabled: c.enableSubtitles !== false,
     karaoke: c.subtitleMode !== 'plain', // P29: plain mode burns static lines, no \k sweep
     font: picked || 'Be Vietnam Pro',
@@ -285,7 +289,6 @@ export function assStyleFrom(config) {
   };
   const preset = getSubtitlePreset(c.subtitlePreset);
   if (!preset) return style;
-  const lang = (c.subtitleLang || c.language || '').toLowerCase();
   const pl = preset.perLang && preset.perLang[lang];
   return {
     ...style,

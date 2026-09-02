@@ -47,10 +47,16 @@ const page = (config) => buildSceneHtml(scene, project, config, { total: 3 });
 // broken clips until something asks for them again. That is what the repair action is for. The
 // pass is deliberately NOT behind a config key: it is a correctness repair, and a flag would mean
 // every project that predates it renders Vietnamese wrong until somebody remembers to tick a box.
+// Re-frozen again for the caption word joiner. Same character as the repair above: Chinese,
+// Japanese and Thai write nothing between words, so joining their karaoke spans with a space drew
+// gaps the language does not have. The page's SOURCE moved by one expression; the page DATA did
+// not — `capJoin` is emitted only when it is not a space, so a Vietnamese or English payload is
+// byte-identical and renders identically. Deliberately not behind a config key, for the reason
+// above: a flag would mean CJK projects draw wrong until somebody remembers to tick it.
 const GOLDEN = {
-  plain: 'b85cde27bcb8152803fed7df8b3f9c4d',
-  styled: 'b29fbdb953ec4f942239b8138d475d35',
-  off: 'c9c12bc6d43d4d4d2fedb44d16f80973',
+  plain: '9f27466f81f03354cb39e8972c85945f',
+  styled: '6f9fd8f6fb46bbb0a942bfda528eb679',
+  off: '6c89b84b42cdfb05d0b513ca7e0233b8',
 };
 const STYLED = {
   enableSubtitles: true, subtitlePreset: 'bold-impact', subtitleFont: 'Anton', subtitleFontSize: 80,
