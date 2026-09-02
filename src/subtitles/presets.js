@@ -7,12 +7,19 @@
 // subtitleFont for ASS) fine-tune on top. With no preset the output is byte-identical
 // to the pre-preset behavior of buildSceneHtml / runner.subtitleStyleFrom.
 
-// macOS system fonts for CJK scripts — every preset carries the same fallbacks.
+// System fonts for the scripts nothing here bundles — every preset carries the same fallbacks.
 function perLangDefaults() {
+  // libass finds these through fontconfig, and Chrome finds them for the measurement, so the
+  // caption the box was sized for is the caption that gets burned. Nothing outside Latin and
+  // Vietnamese is bundled, so a language missing from this table burned in a substituted face
+  // whose metrics the box had never measured — or in tofu.
   return {
-    ja: { fontStack: "'Hiragino Sans',sans-serif", assFont: 'Hiragino Sans' },
-    ko: { fontStack: "'Apple SD Gothic Neo',sans-serif", assFont: 'Apple SD Gothic Neo' },
-    zh: { fontStack: "'PingFang SC',sans-serif", assFont: 'PingFang SC' },
+    ja: { fontStack: "'Hiragino Sans','Yu Gothic',sans-serif", assFont: 'Hiragino Sans' },
+    ko: { fontStack: "'Apple SD Gothic Neo','Malgun Gothic',sans-serif", assFont: 'Apple SD Gothic Neo' },
+    zh: { fontStack: "'PingFang SC','Microsoft YaHei',sans-serif", assFont: 'PingFang SC' },
+    ru: { fontStack: "'Helvetica Neue','Segoe UI',sans-serif", assFont: 'Helvetica Neue' },
+    th: { fontStack: "'Thonburi','Leelawadee UI',sans-serif", assFont: 'Thonburi' },
+    hi: { fontStack: "'Kohinoor Devanagari','Nirmala UI',sans-serif", assFont: 'Kohinoor Devanagari' },
   };
 }
 
