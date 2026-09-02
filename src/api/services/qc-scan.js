@@ -12,10 +12,20 @@ import * as DB from '../../db/index.js';
 import { renderCurrent } from '../../pipeline/fingerprint.js';
 import { textLanguageLeak, narrationWordSet } from '../../hyperframe/validate.js';
 import { resolveLang, langName } from '../../util/lang.js';
+import { lang as langRow } from '../../i18n/languages.js';
 
 /** Number and currency conventions that betray a different locale than the narration. */
-const VI_NUMBER = /\b\d{1,3}(?:\.\d{3})+\s*(?:đ|vnđ|vnd|tr|triệu|tỷ)?\b|\bđ\b|\bvnđ\b|\btriệu\b|\btỷ\b/i;
-const EN_NUMBER = /\$\s?\d|\b\d{1,3}(?:,\d{3})+\b/;
+const VI_CURRENCY = /\bđ\b|\bvnđ\b|\btriệu\b|\btỷ\b/i;
+// Thousands grouped by a dot, by a comma, or by a space — the three conventions the supported
+// languages actually use. Which one is RIGHT is a question only the video's language can answer,
+// so ask Intl rather than hard-coding a Vietnamese-vs-English pair.
+const GROUPED = /\b\d{1,3}(?:([.,\u00a0\u202f ])\d{3})+\b/;
+
+/** The character this language groups thousands with, e.g. '.' for vi/de, ',' for en, NBSP for fr. */
+function groupSeparator(code) {
+  const parts = new Intl.NumberFormat(langRow(code).numberLocale).formatToParts(1234567);
+  return (parts.find((x) => x.type === 'group') || {}).value || ',';
+}
 
 /** Every text node the codegen spec puts on screen. */
 function textsOf(scene) {
@@ -89,10 +99,15 @@ export function qcScan(projectId) {
     // 3. Number and currency conventions from the wrong locale. Reported, never rewritten:
     //    "84.000.000 đ" in an English video is usually wrong and occasionally deliberate.
     const all = screenText(scene).join(' ');
-    if (lang !== 'vi' && VI_NUMBER.test(all)) {
-      add(scene, 'number-locale', 'số/tiền tệ đang theo quy ước tiếng Việt');
-    } else if (lang === 'vi' && EN_NUMBER.test(all)) {
-      add(scene, 'number-locale', 'số/tiền tệ đang theo quy ước tiếng Anh');
+    const grouped = GROUPED.exec(all);
+    if (grouped) {
+      const want = groupSeparator(lang);
+      // NBSP, narrow NBSP and a plain space are the same convention to a reader.
+      const same = grouped[1] === want || (/[\s\u00a0\u202f]/.test(grouped[1]) && /[\s\u00a0\u202f]/.test(want));
+      if (!same) add(scene, 'number-locale', `số đang nhóm hàng nghìn kiểu "${grouped[1] === ' ' ? 'khoảng trắng' : grouped[1]}", ${langName(lang)} dùng "${want === ' ' ? 'khoảng trắng' : want}"`);
+    }
+    if (lang !== 'vi' && VI_CURRENCY.test(all)) {
+      add(scene, 'number-locale', 'tiền tệ đang theo quy ước tiếng Việt');
     }
 
     // 4. A label the spec sanitiser blanked out — an empty box where a word should be.
