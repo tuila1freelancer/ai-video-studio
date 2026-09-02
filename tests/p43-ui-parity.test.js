@@ -36,7 +36,9 @@ test('P43: every offered style is a real xfade transition the render can execute
   }
   // the UI only offers what the planner accepts
   const html = src('../public/index.html');
-  const offered = [...html.matchAll(/<option value="([a-z]+)">(?:[^<]*)<\/option>/g)]
+  // attribute-tolerant: options carry a data-i18n key now, and the guarantee here is about the
+  // VALUES the picker offers, never about what else is on the tag.
+  const offered = [...html.matchAll(/<option value="([a-z]+)"[^>]*>(?:[^<]*)<\/option>/g)]
     .map((m) => m[1]).filter((v) => TRANSITION_STYLES.includes(v));
   assert.ok(offered.length >= 8, `the picker offers a real choice, got ${offered.length}`);
   assert.match(src('../public/js/views/config.js'), /transitionStyle: \$\('#cfgTransStyle'\)\?\.value \|\| 'auto'/);

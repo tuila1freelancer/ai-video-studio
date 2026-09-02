@@ -74,6 +74,26 @@ const safeJsonParse = (v) => { try { return JSON.parse(v); } catch { return null
 export function mountRoutes(app, { version }) {
   const r = express.Router();
 
+  // Every user-facing string in a reply, translated on the way out.
+  //
+  // `{ error: 'cảnh chưa có audio' }` is rendered verbatim as a toast, and there are 58 of them
+  // written across a dozen files. Rewriting all 58 to pass a key would buy nothing this does not:
+  // the Vietnamese string IS the key, so no call site changes, an unkeyed string still shows its
+  // Vietnamese, and adding a translation later needs no code at all. Only these three fields are
+  // touched — a reply's DATA is never language.
+  r.use((req, res, next) => {
+    const json = res.json.bind(res);
+    res.json = (body) => {
+      if (body && typeof body === 'object') {
+        for (const f of ['error', 'message', 'hint']) {
+          if (typeof body[f] === 'string') body[f] = t(`srv.${body[f]}`, null);
+        }
+      }
+      return json(body);
+    };
+    next();
+  });
+
   // FIRST, before any route: an unlicensed copy answers 403 everywhere except /health and
   // /license/*. Mounting it here rather than decorating routes means a route added tomorrow is
   // covered by default instead of by memory.

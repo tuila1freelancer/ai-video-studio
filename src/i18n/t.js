@@ -45,7 +45,10 @@ export function reloadCatalogues() { cache.clear(); }
  */
 export function t(key, params = null) {
   const k = String(key || '');
-  const s = catalogue(current)[k] ?? catalogue('en')[k] ?? k;
+  // A `srv.<Vietnamese sentence>` key IS its own Vietnamese fallback (the gettext model), so an
+  // untranslated one must show the sentence, never the literal "srv.…".
+  const self = k.startsWith('srv.') ? k.slice(4) : k;
+  const s = catalogue(current)[k] ?? catalogue('en')[k] ?? self;
   if (!params) return s;
   return String(s).replace(/\{(\w+)\}/g, (m, name) => (params[name] === undefined ? m : String(params[name])));
 }

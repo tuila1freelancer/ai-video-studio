@@ -1,5 +1,6 @@
 // Boot: wire every module, then load data and restore the last session.
 import { api } from './api.js';
+import { initI18n } from './i18n.js';
 import { state, channelDefaults } from './state.js';
 import { initModals } from './ui/modals.js';
 import { initNav, switchPage, renderDeps } from './views/nav.js';
@@ -37,6 +38,9 @@ async function init() {
   initLicense();
   if (!(await bootLicense())) return;
   initNav();
+  // Paint the interface in the owner's language BEFORE any view patches a label, or the boot-time
+  // label writes in studio.js and nav.js would overwrite the translation with Vietnamese.
+  try { await initI18n((await api.get('/settings')).uiLang); } catch { /* offline: the markup is Vietnamese already */ }
   initHome();
   initStudio();
   initScenes();

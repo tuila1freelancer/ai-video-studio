@@ -4,8 +4,12 @@
 // stay the at-a-glance layer, the journal is the audit layer.
 import { hub } from '../ws/hub.js';
 import { jlog } from './journal.js';
+import { t } from '../i18n/t.js';
 
-const STAGE_VI = { b2: 'Kịch bản', b5: 'Dựng cảnh', b34: 'Lồng tiếng + Phụ đề', b6: 'Render', b7: 'Ghép & Mix' };
+const STAGE_NAMES = { b2: 'Kịch bản', b5: 'Dựng cảnh', b34: 'Lồng tiếng + Phụ đề', b6: 'Render', b7: 'Ghép & Mix' };
+// The stage names are the most-read strings the server produces — they are the pipeline itself,
+// live on screen. Keyed by their own Vietnamese text, so nothing here had to change shape.
+const STAGE_VI = new Proxy(STAGE_NAMES, { get: (o, k) => (o[k] ? t(`srv.${o[k]}`) : undefined) });
 const stageStart = new Map(); // `${projectId}:${step}` -> ts (for journal durations)
 
 function fmtDur(ms) {
