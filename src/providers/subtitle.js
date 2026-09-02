@@ -10,6 +10,7 @@ import { transcribeWords, whisperAvailable, groupWordsIntoCues } from '../media/
 import { alignWords } from '../media/align.js';
 import { correctCues } from '../subtitles/llm-correct.js';
 import { logger } from '../util/log.js';
+import { padMsFor } from '../util/lang.js';
 
 // Ratio of ACTUAL spoken pace to the LANG_WPS writing budget. LANG_WPS (vi 4.4) sizes how
 // much text fits a slot; measured LarVoice vi delivery runs at ~4.29 words/s (36 words →
@@ -27,7 +28,7 @@ const SPOKEN_VS_BUDGET = 0.95;
 export function estimateSpeechDuration(text, lang, wpsTable) {
   const words = (String(text || '').match(/[\p{L}\p{N}]+/gu) || []).length;
   const wps = ((wpsTable || {})[lang] || 3.0) * SPOKEN_VS_BUDGET;
-  const padS = (lang === 'vi' ? 650 : 400) / 1000; // mirror stages/tts.js padMsFor
+  const padS = padMsFor(lang) / 1000; // the same table stages/tts.js pads with
   return Math.min(40, Math.max(2.5, +(words / Math.max(1, wps) + padS).toFixed(3)));
 }
 

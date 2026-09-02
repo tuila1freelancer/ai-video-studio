@@ -9,7 +9,7 @@ import { synthesizeVoice } from '../providers/tts.js';
 import { buildSubtitles } from '../providers/subtitle.js';
 import { normalizeForTts, moodOf } from '../providers/tts-normalize.js';
 import { normalizeVoice } from '../media/ffmpeg.js';
-import { detectLang, resolveLang } from '../util/lang.js';
+import { resolveLang, padMsFor } from '../util/lang.js';
 import { generateSceneDirection } from './direction.js';
 import { generateSceneSpec } from '../hyperframe/codegen.js';
 import { densityForScene } from '../hyperframe/prompt.js';
@@ -37,13 +37,15 @@ export async function regenOne(sceneId, what) {
     // unique filenames per take — an old take's audio must never be overwritten in place
     const audioOut = join(dir, 'audio', `scene_${sc.idx}_${newId('')}.m4a`);
     const ttsOverride = ttsOverrideFor(channel, config);
-    const lang = detectLang(sc.voice_text || '');
+    // the WHOLE video's language, exactly as B3+4 resolves it — a re-recorded scene must not
+    // land on a different voice than the ones around it
+    const lang = resolveLang(config, DB.getScenes(project.id));
     // parity with stages/tts.js: normalized speech, prosody hint, provider word timestamps
     const speakText = normalizeForTts(sc.voice_text || ' ', { lang, lexicon: ttsOverride?.lexicon || ai.tts?.lexicon });
-    const r = await synthesizeVoice(speakText, audioOut, { ttsOverride, style: moodOf(sc, total) });
-    const padMs = lang === 'vi' ? 650 : 400;
+    const r = await synthesizeVoice(speakText, audioOut, { ttsOverride, style: moodOf(sc, total), lang });
+    const padMs = padMsFor(lang);
     const { path, duration } = await normalizeVoice(r.path, audioOut.replace(/\.m4a$/, '_n.m4a'), { padMs });
-    const sub = await buildSubtitles(path, sc.voice_text || '', Math.max(0.3, duration - padMs / 1000), { language: config.language, engine: ai.subtitle?.engine, words: r.words });
+    const sub = await buildSubtitles(path, sc.voice_text || '', Math.max(0.3, duration - padMs / 1000), { language: lang, engine: ai.subtitle?.engine, words: r.words });
     DB.updateScene(sc.id, { audio_path: path, duration, srt_json: sub.cues, status: 'tts', video_path: null,
       fp: fpStamp(sc, 'tts', ttsFingerprint(sc, { config, channel, ai })) });
     DB.snapshotTake(DB.getScene(sc.id), 'voice', { active: true });

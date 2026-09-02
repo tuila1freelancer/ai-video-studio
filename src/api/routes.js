@@ -20,7 +20,7 @@ import { inAllowedRoots } from './services/file-access.js';
 import { synthPreview } from './services/voice-preview.js';
 import { startBatch } from './services/batch.js';
 import { getVoiceCatalog } from './services/voice-catalog.js';
-import { resolveLang, declaredLang, detectLang, DEFAULT_LANG } from '../util/lang.js';
+import { resolveLang, declaredLang, detectLang, majorityLang, padMsFor, DEFAULT_LANG } from '../util/lang.js';
 import { WEB_SAFE, toPng } from './services/image-convert.js';
 import { licenseGate } from '../license/gate.js';
 import { activate, publicStatus, refreshNow } from '../license/index.js';
@@ -1776,7 +1776,7 @@ export function mountRoutes(app, { version }) {
       const { aiSettingsFor } = await import('../core/config.js');
       // this scene's OWN text decides — resync runs after the owner edited that one line
       const lang = declaredLang(p.config) || detectLang(sc.voice_text || '');
-      const padMs = /[ạảãàáâậầấẩẫăắằẳẵặđ]/i.test(sc.voice_text || '') ? 650 : 400;
+      const padMs = padMsFor(lang);
       const speechDur = Math.max(0.3, (sc.duration || 0) - padMs / 1000);
       const sub = await buildSubtitles(sc.audio_path, sc.voice_text || '', speechDur, { language: lang, engine: aiSettingsFor(channel).subtitle?.engine });
       const scene = DB.updateScene(sc.id, { srt_json: sub.cues, video_path: null }); // captions changed → clip stale
@@ -2095,7 +2095,10 @@ export function mountRoutes(app, { version }) {
       let cues = segments;
       if (req.body?.repair !== false) {
         const { repairTranscript } = await import('../pipeline/edit-video.js');
-        cues = await repairTranscript(segments, { language: language === 'auto' ? 'vi' : language, llm: DB.aiSettings().llm });
+        // 'auto' means the owner did not say; read it off the transcript rather than assuming
+        // Vietnamese, which is what silently mangled every non-Vietnamese import.
+        const repairLang = language === 'auto' ? majorityLang(segments.map((c) => c.text)) || DEFAULT_LANG : language;
+        cues = await repairTranscript(segments, { language: repairLang, llm: DB.aiSettings().llm });
       }
       const { buildSrt } = await import('../pipeline/srt.js');
       res.json({ cues, srt: buildSrt(cues.map((c) => ({ start: c.start, end: c.end, text: c.text }))) });

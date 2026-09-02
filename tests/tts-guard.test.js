@@ -5,6 +5,7 @@ import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { resolveVoiceTarget, ttsDurationBounds } from '../src/providers/tts.js';
+import { detectLang, resolveLang, padMsFor } from '../src/util/lang.js';
 
 const SETTINGS = {
   provider: 'edge',
@@ -52,4 +53,39 @@ test('ttsDurationBounds: floors keep short texts and CJK safe from false trips',
   assert.ok(cjk.max > latin.max, 'CJK chars carry more speech per char → looser max');
   const empty = ttsDurationBounds('');
   assert.equal(empty.min, 0);
+});
+
+// ---- the language a voice is chosen FOR (the French-video incident) ----
+//
+// B3+4 used to re-detect the language from each scene's own text. detectLang answers 'en' for
+// any unaccented Latin script, so a video the owner explicitly marked French resolved to 'en':
+// langVoices['fr'] was unreachable no matter what the owner pinned, the breath pad came from the
+// non-Vietnamese branch, and the TTS text normaliser was skipped. The declared language now
+// travels from resolveLang() all the way into the façade.
+
+const MULTILINGUAL = {
+  provider: 'edge',
+  edgeVoice: 'vi-VN-NamMinhNeural',
+  langVoices: {
+    vi: { provider: 'larvoice', voice: 'public:3' },
+    fr: { provider: 'elevenlabs', voice: 'fr-native-01' },
+  },
+};
+
+test('resolveVoiceTarget: a pinned French voice is reachable, not shadowed by the main provider', () => {
+  assert.deepEqual(resolveVoiceTarget(MULTILINGUAL, 'fr', undefined),
+    { pid: 'elevenlabs', voice: 'fr-native-01' });
+  // …and the bug's own signature: had the language been sniffed off unaccented French text,
+  // 'en' would arrive here instead and hand the scene to the Vietnamese-configured edge voice.
+  assert.equal(resolveVoiceTarget(MULTILINGUAL, 'en', undefined).voice, 'vi-VN-NamMinhNeural');
+});
+
+test('the declared language reaches the voice picker even when the text looks English', () => {
+  // Real French narration, no accented characters anywhere in it.
+  const plain = 'Il faut savoir que ce sont surtout les questions simples qui donnent les bons plans.';
+  assert.equal(detectLang(plain), 'en', 'detection genuinely cannot tell — this is why declaring matters');
+  assert.equal(resolveLang({ language: 'fr' }, [plain]), 'fr', 'the declaration wins');
+  assert.equal(padMsFor(resolveLang({ language: 'fr' }, [plain])), 400);
+  // A Vietnamese project keeps its measured 650ms pad (P9).
+  assert.equal(padMsFor(resolveLang({ language: 'vi' }, [])), 650);
 });
