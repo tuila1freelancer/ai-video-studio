@@ -45,7 +45,37 @@ export const FEED_PACKS = {
     { url: 'https://vnexpress.net/rss/kinh-doanh.rss', source: 'vnexpress-biz' },
     { url: 'https://cafef.vn/trang-chu.rss', source: 'cafef' },
   ],
+  // The same three shapes for the other markets the app can now write for. Publisher feeds only —
+  // no key, no quota, and they degrade to empty like every other feed here.
+  'world-news': [
+    { url: 'https://feeds.bbci.co.uk/news/world/rss.xml', source: 'bbc' },
+    { url: 'https://feeds.arstechnica.com/arstechnica/index', source: 'ars' },
+  ],
+  'world-tech': [
+    { url: 'https://www.theverge.com/rss/index.xml', source: 'theverge' },
+    { url: 'https://techcrunch.com/feed/', source: 'techcrunch' },
+  ],
+  'world-business': [
+    { url: 'https://feeds.bbci.co.uk/news/business/rss.xml', source: 'bbc-biz' },
+    { url: 'https://feeds.content.dowjones.io/public/rss/mw_topstories', source: 'marketwatch' },
+  ],
 };
+
+// Google News wants three parameters that have to agree with each other: the interface language,
+// the country, and the edition that pairs them. Sending hl=vi to a French channel returned
+// Vietnamese headlines as research material for a French video, which is what this fixes.
+const NEWS_EDITION = {
+  vi: ['vi', 'VN'], en: ['en-US', 'US'], fr: ['fr', 'FR'], de: ['de', 'DE'], es: ['es-419', 'US'],
+  pt: ['pt-BR', 'BR'], id: ['id', 'ID'], ja: ['ja', 'JP'], ko: ['ko', 'KR'], zh: ['zh-CN', 'CN'],
+  th: ['th', 'TH'], hi: ['hi', 'IN'], ru: ['ru', 'RU'],
+};
+
+/** Google Trends uses a country, Google News a language+country+edition triple. */
+export function newsLocale(language, geo) {
+  const [hl, gl] = NEWS_EDITION[String(language || '').toLowerCase()] || NEWS_EDITION.en;
+  const country = geo || gl;
+  return { hl, gl: country, ceid: `${country}:${hl.split('-')[0]}` };
+}
 
 async function pull(url) {
   const res = await fetch(url, { signal: AbortSignal.timeout(15000), headers: { 'User-Agent': 'AIVideoStudio' } });
@@ -62,13 +92,15 @@ function parseAny(xml, { skipFirst } = {}) {
  *   niche: a topic query to bias news results; packs: FEED_PACKS keys; feeds: owner's custom RSS/Atom URLs
  * @returns {Promise<{title:string, source:string}[]>} up to ~40 signals, deduped
  */
-export async function fetchTrends({ geo = 'VN', niche = '', packs = [], feeds = [] } = {}) {
+export async function fetchTrends({ geo = '', niche = '', packs = [], feeds = [], language = 'vi' } = {}) {
+  const loc = newsLocale(language, geo);
+  const trendsGeo = geo || loc.gl;
   const jobs = [
-    pull(`https://trends.google.com/trending/rss?geo=${encodeURIComponent(geo)}`)
+    pull(`https://trends.google.com/trending/rss?geo=${encodeURIComponent(trendsGeo)}`)
       .then((xml) => parseRssTitles(xml).map((t) => ({ title: t, source: 'google-trends' }))).catch(() => []),
   ];
   if (niche.trim()) {
-    jobs.push(pull(`https://news.google.com/rss/search?q=${encodeURIComponent(niche)}&hl=vi&gl=VN&ceid=VN:vi`)
+    jobs.push(pull(`https://news.google.com/rss/search?q=${encodeURIComponent(niche)}&hl=${loc.hl}&gl=${loc.gl}&ceid=${loc.ceid}`)
       .then((xml) => parseRssTitles(xml, { skipFirst: false }).map((t) => ({ title: t, source: 'google-news' }))).catch(() => []));
   }
   for (const key of packs) {

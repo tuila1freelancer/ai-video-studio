@@ -73,6 +73,23 @@ export const PLATFORMS = [
     ],
     brief: 'Written for a scrolling feed: a first line that stands alone, 2-4 short lines of substance, 1-3 hashtags at most — Facebook readers treat hashtag walls as spam.',
   },
+  {
+    // COVER_SIZES has carried an X canvas since it was written; there was no platform to put it on.
+    id: 'x', label: 'X (Twitter)', icon: '𝕏',
+    fields: [
+      { key: 'caption', label: 'Nội dung bài', limit: 280, sweet: 200, lines: 3 },
+      { key: 'hashtags', label: 'Hashtag', limit: 60, sweet: 30, list: true, hint: '1-2 thẻ là đủ' },
+    ],
+    brief: 'A 280-character post. The FIRST sentence has to stand alone in a timeline, because a video card pushes everything else below the fold; state the single most surprising thing the video proves rather than teasing it. 1-2 hashtags at most — more reads as spam here and suppresses reach.',
+  },
+  {
+    id: 'linkedin', label: 'LinkedIn', icon: '💼',
+    fields: [
+      { key: 'caption', label: 'Nội dung bài', limit: 3000, sweet: 600, lines: 6 },
+      { key: 'hashtags', label: 'Hashtag', limit: 200, sweet: 60, list: true, hint: '3-5 thẻ chuyên ngành' },
+    ],
+    brief: 'Professional feed. Only the first ~200 characters show before "see more", so the opening two lines carry the whole argument and name the concrete outcome. Write in first person about what was learned or measured, never as an advertisement; 3-5 industry hashtags, never trend hashtags.',
+  },
 ];
 
 export const PLATFORM_IDS = PLATFORMS.map((p) => p.id);
