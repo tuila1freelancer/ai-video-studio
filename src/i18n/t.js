@@ -27,6 +27,10 @@ function catalogue(code) {
 /** Set the interface language. Called at boot and whenever the owner changes it. */
 export function setUiLang(code) {
   current = isSupported(code) ? String(code).toLowerCase() : DEFAULT_LANG;
+  // Drop the parsed catalogues too. They are keyed by language so switching would not strictly
+  // need it — but a catalogue rewritten while the server is running (which is what happens every
+  // time build-locales is used against a live dev server) would otherwise be served stale.
+  cache.clear();
   return current;
 }
 

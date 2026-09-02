@@ -7,6 +7,7 @@ import { $, $$, el, esc } from '../ui/dom.js';
 import { toast } from '../ui/toast.js';
 import { confirmDialog } from '../ui/dialog.js';
 import { api, fileUrl, withLock } from '../api.js';
+import { t } from '../i18n.js';
 
 const GENERATE_TIMEOUT_MS = 25 * 60 * 1000; // server does ×10 attempts — outlive them
 
@@ -61,7 +62,7 @@ async function loadImageProviders() {
     $('#bgGo').disabled = !ok;
     $('#bgProviderHint').textContent = ok
       ? 'Endpoint dạng OpenAI images/edits — mọi thay đổi ở đây được lưu ngay.'
-      : 'Chưa cấu hình provider tạo ảnh — bấm ＋ để thêm (Base URL + API key, chuẩn OpenAI images/edits).';
+      : t('ui.brandgen.chua-cau-hinh-provider-anh', null, 'Chưa cấu hình provider tạo ảnh — bấm ＋ để thêm (Base URL + API key, chuẩn OpenAI images/edits).');
   } catch { /* leave defaults */ }
 }
 // ---- the same provider catalogue as AI Setting, filtered to the ones that edit images ----
@@ -147,7 +148,7 @@ async function start() {
   if (!refFile) return toast('Vui lòng chọn ảnh tham chiếu.', 'error');
   if (!$('#bgName').value.trim()) return toast('Vui lòng nhập tên nhân vật.', 'error');
   if (!emotions.length) return toast('Chưa có danh sách — bấm "Sinh danh sách" hoặc nhập thủ công trước.', 'error');
-  if (!editProviders.length) return toast('Chưa cấu hình provider tạo ảnh — thêm ở mục 6.', 'error');
+  if (!editProviders.length) return toast(t('ui.brandgen.chua-cau-hinh-provider-muc6', null, 'Chưa cấu hình provider tạo ảnh — thêm ở mục 6.'), 'error');
   await saveBrandEditPick(); // the server reads ONLY settings — pin the current pick first
   running = true; abort = false;
   $('#bgGo').disabled = true;

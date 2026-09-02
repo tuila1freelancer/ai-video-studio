@@ -495,8 +495,11 @@ function fmt(s) {
     .replace(/\*([^*]+)\*/g, '<i>$1</i>');
 }
 
+// The four callout labels. They live OUTSIDE SECTIONS, which is why the manual's own catalogue
+// never saw them and they stayed Vietnamese in a translated manual.
 const NOTE_META = {
-  tip: ['💡', 'Mẹo'], warn: ['⚠️', 'Lưu ý'], cost: ['💰', 'Chi phí'], key: ['⌨️', 'Phím tắt'],
+  tip: ['💡', 'ui.guide.note.tip'], warn: ['⚠️', 'ui.guide.note.warn'],
+  cost: ['💰', 'ui.guide.note.cost'], key: ['⌨️', 'ui.guide.note.key'],
 };
 
 const BLOCK = {
@@ -509,7 +512,8 @@ const BLOCK = {
   keys: (b) => `<dl class="gd-defs gd-keys">${b.items.map(([k, v]) => `<div class="gd-def"><dt><kbd>${esc(k)}</kbd></dt><dd>${fmt(v)}</dd></div>`).join('')}</dl>`,
   grid: (b) => `<div class="gd-cards">${b.items.map((x) => `<div class="gd-card"><span class="gd-card-i">${x.i}</span><div class="gd-card-t">${fmt(x.t)}</div><div class="gd-card-d">${fmt(x.d)}</div></div>`).join('')}</div>`,
   note: (b) => {
-    const [ic, label] = NOTE_META[b.kind] || NOTE_META.tip;
+    const [ic, labelKey] = NOTE_META[b.kind] || NOTE_META.tip;
+    const label = t(labelKey, null, { 'ui.guide.note.tip': 'Mẹo', 'ui.guide.note.warn': 'Lưu ý', 'ui.guide.note.cost': 'Chi phí', 'ui.guide.note.key': 'Phím tắt' }[labelKey]);
     return `<div class="gd-note ${b.kind}"><span class="gd-note-i">${ic}</span><div><b class="gd-note-l">${label}</b> ${fmt(b.text)}</div></div>`;
   },
   go: (b) => `<div class="gd-go">${b.items.map((x) => `<button class="btn sm" data-act="${esc(x.act)}"${x.arg ? ` data-arg="${esc(x.arg)}"` : ''}>${esc(x.label)}</button>`).join('')}</div>`,
