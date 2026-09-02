@@ -3,7 +3,7 @@ import { closeModal } from '../ui/modals.js';
 import { toast } from '../ui/toast.js';
 import { api } from '../api.js';
 import { state } from '../state.js';
-import { uiLang, setUiLanguage } from '../i18n.js';
+import { uiLang, setUiLanguage, t } from '../i18n.js';
 
 // The languages the app can be shown in, named in themselves — a picker that says "Japanese" to
 // someone who cannot read English is a picker they cannot use.
@@ -81,7 +81,7 @@ export async function loadFbPages() {
   if (!box) return;
   let pages = [];
   try { pages = (await api.get('/publish/pages')).pages || []; } catch { return; }
-  if (!pages.length) { box.innerHTML = '<span style="opacity:.6">Chưa kết nối Page nào.</span>'; return; }
+  if (!pages.length) { box.innerHTML = `<span style="opacity:.6">${esc(t('ui.settings.chua-ket-noi-page', null, 'Chưa kết nối Page nào.'))}</span>`; return; }
   box.innerHTML = pages.map((p) => `<div>${p.active ? '🟢' : '⚪️'} <strong>${esc(p.name || p.id)}</strong>
     <button class="btn sm" data-fbsel="${esc(p.id)}">Dùng</button>
     <button class="btn sm" data-fbchk="${esc(p.id)}">Kiểm tra token</button>
@@ -107,9 +107,12 @@ export async function loadPublishStatus() {
   try {
     const { platforms } = await api.get('/publish/status');
     el.innerHTML = (platforms || []).map((p) =>
-      `${p.connected ? '🟢' : (p.configured ? '🟡' : '⚪️')} ${esc(p.name)}${p.connected ? ' — đã kết nối' : (p.configured ? ' — chưa kết nối' : ' — chưa cấu hình')}`).join(' · ')
-      || 'Chưa có nền tảng nào.';
-  } catch { el.textContent = 'Không đọc được trạng thái đăng video.'; }
+      `${p.connected ? '🟢' : (p.configured ? '🟡' : '⚪️')} ${esc(p.name)} — ${esc(t(
+        p.connected ? 'ui.publish.da-ket-noi' : p.configured ? 'ui.publish.chua-ket-noi' : 'ui.publish.chua-cau-hinh',
+        null, p.connected ? 'đã kết nối' : p.configured ? 'chưa kết nối' : 'chưa cấu hình',
+      ))}`).join(' · ')
+      || t('ui.publish.chua-co-nen-tang', null, 'Chưa có nền tảng nào.');
+  } catch { el.textContent = t('ui.publish.khong-doc-duoc-trang-thai', null, 'Không đọc được trạng thái đăng video.'); }
 }
 
 export function openSettings() { $('#settingsModal').classList.add('open'); }
@@ -229,8 +232,9 @@ function renderLlmPreset() {
   // place the app can say so before that happens.
   const hasGemini = /gemini/i.test(acc.codegenModel || p?.codegenModel || '');
   $('#llmCodegenWarn').innerHTML = hasGemini
-    ? 'Dựng đồ hoạ bằng <strong>' + esc(acc.codegenModel || p.codegenModel) + '</strong>.'
-    : '⚠️ Chưa có model Gemini — nhập tên model Gemini mà endpoint của bạn phục vụ.';
+    ? esc(t('ui.settings.dung-do-hoa-bang', { model: acc.codegenModel || p.codegenModel }, 'Dựng đồ hoạ bằng {model}.'))
+      .replace(esc(acc.codegenModel || p.codegenModel), `<strong>${esc(acc.codegenModel || p.codegenModel)}</strong>`)
+    : esc(t('ui.settings.chua-co-model-gemini', null, '⚠️ Chưa có model Gemini — nhập tên model Gemini mà endpoint của bạn phục vụ.'));
   $('#llmCodegenWarn').style.color = hasGemini ? 'var(--muted)' : 'var(--red)';
 
   $('#btnFetchModels').disabled = !(p?.listsModels ?? true);

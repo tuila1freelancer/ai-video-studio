@@ -19,6 +19,40 @@ const VIETNAMESE = /[ạảầấẩẫậắằẳẵặẹẻẽệềếể�
  */
 export const NO_TRANSLATE = /^$/;
 
+/** Languages written in a script that shares no letters with Vietnamese. */
+const NON_LATIN = new Set(['ja', 'ko', 'zh', 'th', 'hi', 'ru']);
+
+/**
+ * Any accented Latin letter — the RIGHT class for the leftover check, and deliberately broader
+ * than the Vietnamese-only one above.
+ *
+ * "Màu" carries only à, which Vietnamese shares with French, so the narrow class walked past a
+ * Japanese sentence that still began with the Vietnamese word it was meant to replace. Inside a
+ * Japanese, Thai or Russian string an accented Latin letter is a leftover almost by definition.
+ */
+// The two holes are deliberate: U+00D7 × and U+00F7 ÷ sit inside the Latin-1 letter block and are
+// MATH SIGNS. Without them "1024×1024 — 正方形" reads as a leftover Vietnamese word in six
+// catalogues at once, which is how they were found.
+const ACCENTED_LATIN = /[\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u024F\u1E00-\u1EFF]/;
+
+/**
+ * Keys whose value legitimately KEEPS Vietnamese in every language.
+ *
+ * The voice-search placeholder names two real voices as examples — "HoaiMy, Ngọc Huyền" — and a
+ * Japanese owner looking for them has to read the names the picker actually shows. Listed one by
+ * one rather than loosened into a rule, so the next leftover Vietnamese word is still caught.
+ */
+const KEEPS_VIETNAMESE = new Set(['ui.voicePickerModal.tim-ten-giong-vd-hoaimy']);
+
+/**
+ * Keys where a Latin word surviving into a non-Latin interface is a CHOICE, not a leftover.
+ *
+ * The video-language picker is the whole list: "Português" is a perfectly good way to write that
+ * language's name in a Hindi or Thai interface, and the rule below cannot tell that apart from a
+ * word the model forgot to translate.
+ */
+const LATIN_IS_FINE = /^ui\.(cfgLang|evLang)\./;
+
 /**
  * Length ceiling, calibrated against nine real machine-translated catalogues rather than guessed.
  *
@@ -67,6 +101,12 @@ export function checkCatalogue(source, target, code) {
     // and come back the same in every language, correctly.
     if (code !== 'vi' && got === src && VIETNAMESE.test(src)) {
       out.push(`${code} ${key}: untranslated (identical to source)`);
+    }
+    // A PARTLY translated string slips past the test above: a Japanese sentence that begins with
+    // the Vietnamese word it was supposed to replace reads as translated until you look. In a
+    // language that does not write in Latin at all, a Vietnamese letter can only be a leftover.
+    if (NON_LATIN.has(code.replace('.json', '').replace('guide.', '')) && ACCENTED_LATIN.test(got) && !KEEPS_VIETNAMESE.has(key) && !LATIN_IS_FINE.test(key)) {
+      out.push(`${code} ${key}: Vietnamese left inside the translation — "${got.slice(0, 30)}"`);
     }
   }
   for (const key of Object.keys(target)) {

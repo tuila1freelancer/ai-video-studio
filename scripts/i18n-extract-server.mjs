@@ -26,10 +26,27 @@ function walk(dir, out = []) {
   return out;
 }
 
-// `error: '…'` and `message: '…'` in an HTTP body, and the stage-name table.
+// `error: '…'` and `message: '…'` in an HTTP body — anywhere.
 const PATTERNS = [
   /\b(?:error|message|hint)\s*:\s*'([^'\\]{4,200})'/g,
   /\b(?:error|message|hint)\s*:\s*"([^"\\]{4,200})"/g,
+];
+
+// `label:`, `name:` and `note:` are interface text in a CATALOGUE and DATA everywhere else — a
+// voice's name, a channel's name, a project's name are the owner's own words. So these patterns
+// run only against the files that describe the app to itself.
+const CATALOGUE_FILES = /providers\/(voice\/|llm-presets)|publish\/platforms|subtitles\/presets|styleguide\/presets/;
+const CATALOGUE_PATTERNS = [
+  /\b(?:label|note|placeholder)\s*:\s*'([^'\\]{3,200})'/g,
+  /\b(?:label|note|placeholder)\s*:\s*"([^"\\]{3,200})"/g,
+];
+// `name:` is interface text on a PROVIDER and a proper noun on a VOICE — "Duy Phương (Huế · nam)"
+// is that voice's actual name and must read the same to a Japanese owner picking it. The voice
+// modules carry both, so `name` is taken only from the files that describe no voices.
+const NAME_FILES = /providers\/llm-presets|publish\/platforms|subtitles\/presets/;
+const NAME_PATTERNS = [
+  /\bname\s*:\s*'([^'\\]{3,200})'/g,
+  /\bname\s*:\s*"([^"\\]{3,200})"/g,
 ];
 
 function run() {
@@ -39,7 +56,12 @@ function run() {
 
   for (const file of walk(join(ROOT, 'src'))) {
     const src = readFileSync(file, 'utf8');
-    for (const re of PATTERNS) {
+    const patterns = [
+      ...PATTERNS,
+      ...(CATALOGUE_FILES.test(file) ? CATALOGUE_PATTERNS : []),
+      ...(NAME_FILES.test(file) ? NAME_PATTERNS : []),
+    ];
+    for (const re of patterns) {
       for (const m of src.matchAll(re)) {
         const text = m[1];
         if (!VN.test(text)) continue;

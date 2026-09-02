@@ -6,6 +6,7 @@ import { api, fileUrl } from '../api.js';
 import { state } from '../state.js';
 import { registerPageHook } from './nav.js';
 import { loadBgmOptions, loadFontFamilies, loadBrandFolders } from './config.js';
+import { t } from '../i18n.js';
 
 export function initLibrary() {
   registerPageHook('library', loadLibrary);
@@ -36,9 +37,9 @@ function renderBrandBar(brands = []) {
   const cur = state.libBrand || 'Default';
   bar.innerHTML = `<select class="input" id="libBrandSel" style="max-width:240px">${
     brands.map((b) => `<option value="${esc(b)}"${b === cur ? ' selected' : ''}>${esc(b)}</option>`).join('')
-  }</select> <button class="btn sm" id="libBrandNew">➕ Thư mục mới</button>
-  <button class="btn sm" id="libBrandRename">✏️ Đổi tên</button>
-  <button class="btn sm danger" id="libBrandDel">🗑 Xoá thư mục</button>`;
+  }</select> <button class="btn sm" id="libBrandNew">${t('ui.library.thu-muc-moi', null, '➕ Thư mục mới')}</button>
+  <button class="btn sm" id="libBrandRename">${t('ui.library.doi-ten', null, '✏️ Đổi tên')}</button>
+  <button class="btn sm danger" id="libBrandDel">${t('ui.library.xoa-thu-muc', null, '🗑 Xoá thư mục')}</button>`;
   $('#libBrandSel').onchange = (e) => { state.libBrand = e.target.value; loadLibrary(); };
   // Renaming/deleting a brand folder: the server refuses 'Default' and anything outside the
   // library, and a delete states its file count and must be echoed back before it happens.
@@ -91,7 +92,7 @@ export async function loadLibrary() {
   lastCount = items.length;
   $('#libStat').textContent = `${items.length} file`;
   const grid = $('#libGrid');
-  if (!items.length) { grid.innerHTML = '<div class="empty">Chưa có file</div>'; return; }
+  if (!items.length) { grid.innerHTML = `<div class="empty">${esc(t('ui.library.chua-co-file', null, 'Chưa có file'))}</div>`; return; }
   grid.innerHTML = '';
   items.forEach((it) => {
     const d = el('div', 'libitem');

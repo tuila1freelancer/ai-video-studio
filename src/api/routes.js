@@ -75,6 +75,28 @@ const safeJsonParse = (v) => { try { return JSON.parse(v); } catch { return null
 export function mountRoutes(app, { version }) {
   const r = express.Router();
 
+
+  /**
+   * Translate the human words in a CATALOGUE payload — a provider's config form, an LLM preset's
+   * note, a platform's field labels.
+   *
+   * Explicitly per route, never blanket: `name` on a voice, a channel or a project is DATA, and
+   * translating it would rename the owner's own things. These three endpoints describe the app to
+   * itself, so every string in them is interface text.
+   */
+  const CATALOGUE_FIELDS = new Set(['label', 'name', 'note', 'hint', 'placeholder']);
+  const localize = (v) => {
+    if (Array.isArray(v)) return v.map(localize);
+    if (v && typeof v === 'object') {
+      const out = {};
+      for (const [k, val] of Object.entries(v)) {
+        out[k] = typeof val === 'string' && CATALOGUE_FIELDS.has(k) ? t(`srv.${val}`, null) : localize(val);
+      }
+      return out;
+    }
+    return v;
+  };
+
   // Every user-facing string in a reply, translated on the way out.
   //
   // `{ error: 'cảnh chưa có audio' }` is rendered verbatim as a toast, and there are 58 of them
@@ -194,7 +216,7 @@ export function mountRoutes(app, { version }) {
   // ---- voice catalog (normalized, cached) ----
   r.get('/voices', async (req, res) => {
     try {
-      res.json(await getVoiceCatalog(req.query || {}));
+      res.json(localize(await getVoiceCatalog(req.query || {})));
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
@@ -240,7 +262,7 @@ export function mountRoutes(app, { version }) {
     try {
       const { publicCatalog } = await import('../providers/llm-presets.js');
       const { priceFor, PRICING_VERSION } = await import('../core/pricing.js');
-      res.json({ presets: publicCatalog(priceFor), pricingVersion: PRICING_VERSION });
+      res.json(localize({ presets: publicCatalog(priceFor), pricingVersion: PRICING_VERSION }));
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
@@ -321,7 +343,7 @@ export function mountRoutes(app, { version }) {
   // ---- the platform table (limits + cover sizes), so the panel and the writer agree ----
   r.get('/platforms', async (req, res) => {
     const { PLATFORMS, COVER_SIZES } = await import('../publish/platforms.js');
-    res.json({ platforms: PLATFORMS, coverSizes: COVER_SIZES });
+    res.json(localize({ platforms: PLATFORMS, coverSizes: COVER_SIZES }));
   });
 
   // ---- subtitle preset catalog for the UI gallery ----
