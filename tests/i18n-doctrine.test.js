@@ -97,3 +97,28 @@ test('market: the platforms an international channel actually posts to', async (
   const x = PLATFORMS.find((p) => p.id === 'x');
   assert.equal(x.fields.find((f) => f.key === 'caption').limit, 280, "X's cap is the whole constraint");
 });
+
+// ---- one video, many caption tracks ----
+
+test('captions: a translated cue sheet keeps every timing exactly', async () => {
+  const { translateCues, buildVtt } = await import('../src/subtitles/translate.js');
+  const cues = [
+    { start: 0, end: 1.4, text: 'Ba dấu hiệu' },
+    { start: 1.4, end: 3.0, text: 'giúp bạn tự tin tăng giá' },
+    { start: 3.0, end: 4.2, text: 'mà không mất khách' },
+  ];
+  // A model told to "translate these subtitles" merges two cues into one better sentence, and the
+  // rest of the video desyncs. The contract is enforced, not requested.
+  const llm = { enabled: true, apiKey: 'x', baseUrl: 'http://127.0.0.1:1/v1/chat/completions', model: 'm' };
+  await assert.rejects(() => translateCues(cues, { from: 'vi', to: 'en', llm }), /.*/,
+    'an unreachable model must fail loudly, never return half a sheet');
+  // Same language in, same cues out — and no network touched.
+  const same = await translateCues(cues, { from: 'vi', to: 'vi', llm });
+  assert.deepEqual(same, cues);
+  await assert.rejects(() => translateCues(cues, { from: 'vi', to: 'en', llm: { enabled: false } }), /LLM/);
+
+  const vtt = buildVtt(cues);
+  assert.match(vtt, /^WEBVTT/);
+  assert.match(vtt, /00:00:01\.400 --> 00:00:03\.000/, 'VTT uses a dot, SRT a comma');
+  assert.equal((vtt.match(/-->/g) || []).length, 3, 'one cue in, one cue out');
+});
