@@ -1591,6 +1591,20 @@ export function mountRoutes(app, { version }) {
     } catch (e) { res.status(400).json({ error: e.message }); }
   });
 
+  // Dub: the same video in another language. Creates a project and stops — running it is the
+  // owner's own click, like every other paid path (P16).
+  r.post('/projects/:id/dub', async (req, res) => {
+    try {
+      const { dubProject } = await import('../pipeline/dub.js');
+      const out = await dubProject(req.params.id, {
+        language: String(req.body?.language || ''),
+        llm: DB.aiSettings().llm,
+        onLog: (msg) => logger.info(msg, { projectId: req.params.id }),
+      });
+      res.json({ ok: true, project: out.project, scenes: out.scenes, language: out.language });
+    } catch (e) { res.status(e.status || 400).json({ error: e.message }); }
+  });
+
   // ---- durable job queue (run history + cancel) ----
   r.get('/jobs', (req, res) => {
     res.json({ jobs: DB.listJobs({ limit: Math.min(200, parseInt(req.query.limit, 10) || 50) }) });
