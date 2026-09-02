@@ -17,6 +17,7 @@
 // line the measurement did not know about is a box the text hangs out of.
 import { getBrowser, chromeAvailable } from '../media/puppeteer.js';
 import { assAlpha, toAssColor } from './color.js';
+import { layoutTokens, wordJoiner } from '../i18n/segment.js';
 
 /**
  * A rounded rectangle in ASS drawing commands, top-left at 0,0.
@@ -31,8 +32,9 @@ import { assAlpha, toAssColor } from './color.js';
 // from V8 bytecode against a blank placeholder source, so toString() returns nothing but spaces and
 // page.evaluate(fn) dies on "Passed function cannot be serialized!". Arguments go in by
 // JSON.stringify for the same reason — the string form of evaluate() takes no argument list.
-const measureSource = (texts, lim) => `(async () => {
+const measureSource = (texts, lim, tokens, joiner) => `(async () => {
   const texts_ = ${JSON.stringify(texts)};
+  const tokens_ = ${JSON.stringify(tokens)};
   const lim = ${JSON.stringify(lim)};
   try { if (document.fonts?.ready) await document.fonts.ready; } catch {}
   const span = document.createElement('span');
@@ -40,8 +42,15 @@ const measureSource = (texts, lim) => `(async () => {
   document.body.appendChild(span);
   const measure = (s) => { span.textContent = s; return span.getBoundingClientRect(); };
   const out = [];
-  for (const text of texts_) {
-    const words = text.split(' ');
+  const joiner = ${JSON.stringify(joiner)};
+  // Two columns per full-width glyph: a 42-character budget means half as many CJK characters.
+  const vw = (s) => { let n = 0; for (const ch of s) n += /[\u1100-\u115F\u2E80-\u4DBF\u4E00-\u9FFF\uA960-\uA97F\uAC00-\uD7A3\uF900-\uFAFF\uFE10-\uFE19\uFE30-\uFE6F\uFF00-\uFF60\uFFE0-\uFFE6]/.test(ch) ? 2 : 1; return n; };
+  for (let ti = 0; ti < texts_.length; ti++) {
+    const text = texts_[ti];
+    // Segmented by the caller, which knows the language: Chinese, Japanese and Thai write no
+    // spaces, so splitting on one produced a single "word" that could never be broken and simply
+    // overflowed the box regardless of maxWidth.
+    const words = tokens_[ti];
     // greedy fill: keep adding words while the line still fits, then break. ASS ScaleX
     // stretches glyphs after layout, so the budget shrinks by the same factor.
     const budget = lim.maxWidth / lim.scaleX;
@@ -50,17 +59,17 @@ const measureSource = (texts, lim) => `(async () => {
     let cur = [];
     words.forEach((word, i) => {
       const next = [...cur, word];
-      const tooWide = measure(next.join(' ')).width > budget;
-      const tooLong = lim.maxChars > 0 && next.join(' ').length > lim.maxChars;
+      const tooWide = measure(next.join(joiner)).width > budget;
+      const tooLong = lim.maxChars > 0 && vw(next.join(joiner)) > lim.maxChars;
       if (cur.length && (tooWide || tooLong) && lines.length + 1 < lim.maxLines) {
-        lines.push(cur.join(' '));
+        lines.push(cur.join(joiner));
         breakAfter.push(i - 1);
         cur = [word];
       } else {
         cur = next;
       }
     });
-    if (cur.length) lines.push(cur.join(' '));
+    if (cur.length) lines.push(cur.join(joiner));
     const rects = lines.map((l) => measure(l));
     out.push({
       text,
@@ -168,7 +177,10 @@ export async function measureCaptions(texts, style, fontFile, size) {
         + `${style.letterSpacing ? `letter-spacing:${style.letterSpacing}px;` : ''}}`,
     ].join('\n');
     await page.setContent(`<style>${css}</style><body></body>`, { waitUntil: 'load', timeout: 20000 });
-    const raw = await page.evaluate(measureSource(wanted, limits));
+    // Segment in Node, measure in Chrome: only this side knows the language.
+    const joiner = wordJoiner(style.lang);
+    const tokens = wanted.map((t) => layoutTokens(t, style.lang));
+    const raw = await page.evaluate(measureSource(wanted, limits, tokens, joiner));
     // ASS ScaleX/Y stretch the glyphs AFTER layout, so they multiply the measurement rather than
     // being expressible in the CSS above.
     const sx = limits.scaleX;

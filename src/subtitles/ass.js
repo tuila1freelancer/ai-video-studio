@@ -28,6 +28,7 @@
 
 import { boxDrawing, captionAnchor } from './box.js';
 import { assAlpha, readableOn, toAssColor } from './color.js';
+import { layoutTokens, wordJoiner } from '../i18n/segment.js';
 
 // re-exported: they were part of this module's surface before ./color.js split them out
 export { toAssColor, readableOn };
@@ -193,7 +194,7 @@ function dialogue(start, end, text, layer = 0) {
  * measured" and "what gets rendered" have to come from one function or the box will not fit.
  */
 export function cueText(cue, style) {
-  const joined = (cue.words || []).map((wd) => wd.word).join(' ');
+  const joined = (cue.words || []).map((wd) => wd.word).join(wordJoiner(style?.lang));
   const raw = style.mode === 'plain' || !joined
     ? (cue.text != null && cue.text !== '' ? cue.text : joined)
     : joined;
@@ -225,8 +226,9 @@ function joiner(cue, style, ctx) {
   const breaks = style.box && ctx?.metrics
     ? new Set(ctx.metrics.get(cueText(cue, style))?.breakAfter || [])
     : null;
-  if (!breaks?.size) return (parts) => parts.join(' ');
-  return (parts) => parts.reduce((acc, part, i) => acc + (i ? (breaks.has(i - 1) ? '\\N' : ' ') : '') + part, '');
+  const j = wordJoiner(style?.lang);
+  if (!breaks?.size) return (parts) => parts.join(j);
+  return (parts) => parts.reduce((acc, part, i) => acc + (i ? (breaks.has(i - 1) ? '\\N' : j) : '') + part, '');
 }
 
 /** `\fad(in,out)` in milliseconds, or '' when neither was asked for. */
@@ -319,7 +321,7 @@ function activeTag(style) {
 
 function staticLine(cue, style, colour, opacity, ctx) {
   const plain = { ...style, mode: 'plain' };
-  const body = joiner(cue, plain, ctx)(cueText(cue, plain).split(' ').map((w) => escapeAssText(w)));
+  const body = joiner(cue, plain, ctx)(layoutTokens(cueText(cue, plain), plain?.lang).map((w) => escapeAssText(w)));
   const lines = [];
   if (style.glow) lines.push(glowLine(cue.start, cue.end, haloWord(body, opacity), style, ctx));
   lines.push(dialogue(cue.start, cue.end,

@@ -13,6 +13,7 @@ import { captionStyleFrom, familyName } from '../subtitles/presets.js';
 import { familyReady } from '../fonts/registry.js';
 import { rechunkCues } from '../subtitles/chunk.js';
 import { ratioToSize, hash32 } from '../util/util.js';
+import { wordJoiner } from '../i18n/segment.js';
 
 // Per-project seed salt (P31): scene N of two different videos must NOT share randomness
 // (particles, ambient layout, FX picks) — before this, seed was `idx + 1` for every video,
@@ -110,6 +111,7 @@ export function buildSceneHtml(scene, project, config, extras = {}) {
   const captions = finalLane || config.enableSubtitles !== false
     ? rechunkCues(scene.srt_json || [], {
       chunk: config.subtitleChunk, wordsPerCue: config.subtitleWordsPerCue, text: scene.voice_text,
+      lang: config.subtitleLang || config.language,
     })
     : [];
   const ctx = makeCtx({ w, h, theme, seed: sceneSeed(project, scene.idx), duration, idx: scene.idx, captions: scene.srt_json || [] });
@@ -160,6 +162,7 @@ export function buildSceneHtml(scene, project, config, extras = {}) {
     handoff: config.hyperframeHandoff === true,
     // sentence cues run long — let the caption wrap to 2 lines instead of shrinking to dust
     capWrap: config.subtitleChunk === 'sentence',
+    capJoin: wordJoiner(config.subtitleLang || config.language),
     // P30 loud-font contract: the page probes these families after load; a miss surfaces
     // in __init's return so the renderer can warn instead of silently substituting.
     fontChecks: [familyName(config.subtitleFont), familyName(config.fonts?.display)].filter(Boolean),

@@ -198,7 +198,7 @@ const RUNTIME = `
     const ci = findCue(t);
     if (ci !== curCue) {
       curCue = ci;
-      capEl.innerHTML = ci < 0 ? '' : cues[ci].words.map((w,j)=>'<span class="capw" data-j="'+j+'">'+w.word.replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</span>').join(' ');
+      capEl.innerHTML = ci < 0 ? '' : cues[ci].words.map((w,j)=>'<span class="capw" data-j="'+j+'">'+w.word.replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</span>').join(S.capJoin != null ? S.capJoin : ' ');
       // fit the cue deterministically: single-line mode shrinks until the width fits;
       // wrap mode (sentence chunking) allows up to 2 lines and shrinks on height instead.
       const cap = capEl.parentElement;
@@ -639,6 +639,10 @@ export function buildScenePage(opts) {
     // (sentence cues) fits on height across up to 2 lines instead of width on 1.
     capMode: opts.captionStyle?.mode === 'plain' ? 'plain' : 'karaoke',
     capWrap: !!opts.capWrap,
+    // Chinese, Japanese and Thai put nothing between words; joining their karaoke spans with a
+    // space draws gaps the language does not have. Present only when it differs, so an untouched
+    // project keeps a byte-identical page.
+    ...(opts.capJoin != null && opts.capJoin !== ' ' ? { capJoin: opts.capJoin } : {}),
     fontChecks: Array.isArray(opts.fontChecks) ? opts.fontChecks : [],
     theme: { particles: theme.particles, streak: theme.streak, accents: theme.accents },
     live: !!opts.live,

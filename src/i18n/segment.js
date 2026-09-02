@@ -76,3 +76,24 @@ export function visualWidth(text) {
 
 /** What to put between two words when re-joining them — nothing, in a language without spaces. */
 export function wordJoiner(code) { return lang(code).wordMode === 'intl' ? '' : ' '; }
+
+/**
+ * The pieces a caption line may be broken between — LOSSLESS.
+ *
+ * `words()` drops punctuation, which is right for counting and wrong for drawing: rejoining its
+ * output would silently delete every 。 and ？ from a Chinese caption. Here a non-word segment is
+ * glued to the token before it, so `tokens.join(wordJoiner(code))` reproduces the input exactly.
+ * The caption measurer and the ASS writer must both use this, or their break indices refer to
+ * different tokens and the box fits a line the burn never draws.
+ */
+export function layoutTokens(text, code) {
+  const s = String(text || '');
+  if (!s) return [];
+  if (lang(code).wordMode !== 'intl') return s.split(' ');
+  const out = [];
+  for (const seg of segmenter(wordSegs, lang(code).numberLocale, 'word').segment(s)) {
+    if (seg.isWordLike || !out.length) out.push(seg.segment);
+    else out[out.length - 1] += seg.segment;
+  }
+  return out;
+}

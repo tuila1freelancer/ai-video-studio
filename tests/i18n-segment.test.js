@@ -72,3 +72,41 @@ test('segment: a CJK glyph asks for two columns of caption width', () => {
   assert.equal(visualWidth('人工智能'), 8);
   assert.equal(visualWidth('AIAI'), 4);
 });
+
+// ---- captions in a language that writes no spaces ----
+
+test('segment: caption tokens rejoin to exactly the text they came from', async () => {
+  const { layoutTokens } = await import('../src/i18n/segment.js');
+  // words() drops punctuation, which is right for counting and would delete every 。 from a
+  // Chinese caption. The measurer and the ASS writer must tokenise identically or their break
+  // indices point at different words.
+  for (const [text, code] of [['人工智能正在改变世界。它让每个人都更快。', 'zh'],
+    ['Ba dấu hiệu giúp các bạn tự tin.', 'vi'], ['ปัญญาประดิษฐ์เปลี่ยนโลกทุกวัน', 'th']]) {
+    const toks = layoutTokens(text, code);
+    assert.equal(toks.join(wordJoiner(code)), text, `${code} round-trips losslessly`);
+    assert.ok(toks.length > 1, `${code} is breakable at all — a single token can never wrap`);
+  }
+});
+
+test('segment: sentence-mode subtitles no longer return one cue for a whole Chinese scene', async () => {
+  const { rechunkCues } = await import('../src/subtitles/chunk.js');
+  const text = '人工智能正在改变世界。它让每个人都能更快地工作。你准备好了吗？';
+  const words = [...text].filter((c) => !'。？'.includes(c))
+    .map((c, i) => ({ word: c, start: i * 0.2, end: (i + 1) * 0.2 }));
+  const cues = rechunkCues([{ start: 0, end: 6, text, words }], { chunk: 'sentence', text, lang: 'zh' });
+  assert.ok(cues.length >= 3, `expected one cue per sentence, got ${cues.length}`);
+  assert.equal(rechunkCues([{ start: 0, end: 6, text, words }], { chunk: 'sentence', text }).length, 1,
+    'without a language the punctuation split still sees one sentence — this was the bug');
+});
+
+test('segment: the scene page joins caption words the way the language writes them', async () => {
+  const { buildSceneHtml } = await import('../src/animation/index.js');
+  const project = { id: 'p', aspect_ratio: '16:9' };
+  const scene = { id: 's1', idx: 0, voice_text: 'x', template: 'kinetic-statement', props: { heading: 'G' }, duration: 6, srt_json: [] };
+  const capJoin = (c) => (buildSceneHtml(scene, project, c, { total: 3 }).match(/"capJoin":\s*("[^"]*")/) || [])[1];
+  assert.equal(capJoin({ enableSubtitles: true, language: 'zh' }), '""');
+  assert.equal(capJoin({ enableSubtitles: true, language: 'th' }), '""');
+  // Absent for space-separated languages, so their page payload does not move at all.
+  assert.equal(capJoin({ enableSubtitles: true, language: 'vi' }), undefined);
+  assert.equal(capJoin({ enableSubtitles: true, language: 'en' }), undefined);
+});
