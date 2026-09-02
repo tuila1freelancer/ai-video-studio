@@ -9,6 +9,7 @@ import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { LANG_WPS } from '../src/providers/llm.js';
+import { padMsFor } from '../src/util/lang.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const src = (p) => readFileSync(join(ROOT, p), 'utf8');
@@ -68,7 +69,13 @@ test('P8: fresh hyperframe visuals null video_path (resume re-renders); chapter-
 
 test('P9: -16 LUFS semantics + language breath pad (vi 650ms / other 400ms)', () => {
   assert.match(src('src/media/ffmpeg.js'), /loudnorm=I=-16:TP=-1\.5:LRA=11/, 'the -16 LUFS target must survive (relocatable, not deletable)');
-  assert.match(src('src/pipeline/stages/tts.js'), /lang\s*===\s*'vi'\s*\?\s*650\s*:\s*400/);
+  // The pad moved into the language table (it was five copies written five different ways,
+  // one of which sniffed diacritics instead of asking for the language). Assert the VALUES —
+  // a relocation cannot break them silently, a deletion still turns this red.
+  assert.equal(padMsFor('vi'), 650);
+  assert.equal(padMsFor('en'), 400);
+  assert.match(src('src/pipeline/stages/tts.js'), /padMs = padMsFor\(videoLang\)/,
+    'B3+4 pads by the VIDEO language, never by a per-scene re-detection');
 });
 
 test('P10: macro self-heal — exactly one auto-resume (_auto<1) and the kinetic-statement swap', () => {

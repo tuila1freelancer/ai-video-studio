@@ -1,6 +1,10 @@
 // TTS façade — resolves language → (provider, voice) → synthesizes with a robust fallback chain.
+// The language is the CALLER's to declare (opts.lang): the pipeline already knows what the owner
+// picked, and sniffing the text instead answered 'en' for every unaccented Latin script, so a
+// French video could never reach langVoices['fr']. Detection stays only for callers that have
+// nothing to declare — a voice preview, a one-off snippet.
 // Resolution order per scene text:
-//   1. langVoices[detected-lang] = { provider, voice }     (per-language defaults, set via Voice Picker)
+//   1. langVoices[lang] = { provider, voice }              (per-language defaults, set via Voice Picker)
 //   2. settings provider + its chosen voice ('auto' → provider.autoVoiceFor(lang))
 //   3. on failure: edge → say, timbre-preserving: the fallback picks the cached voice
 //      closest to the primary's language+gender instead of an arbitrary default (never throws)
@@ -76,22 +80,22 @@ function keyExhausted(e) {
   return /\b(401|402|403|429)\b|quota|credit|balance|insufficient|unauthor|rate limit|hết|hạn mức/i.test(String(e?.message || e));
 }
 
-async function synthWith(pid, voice, text, s, outPath, style) {
+async function synthWith(pid, voice, text, s, outPath, style, lang) {
   const provider = getProvider(pid);
   // _style: optional prosody hint ('energetic'|'calm') — read only by providers with
   // expressive controls (elevenlabs voice_settings, openai instructions); others ignore
   // it, so a malformed style can never cost the voice lock (P7).
   const cfg = style ? { ...providerConfig(s, pid), _style: style } : providerConfig(s, pid);
   let v = voice;
-  if (!v || v === 'auto') v = provider.autoVoiceFor(detectLang(text));
+  if (!v || v === 'auto') v = provider.autoVoiceFor(lang);
   if (v == null && pid !== 'say') throw new Error(`${pid}: không có giọng phù hợp cho ngôn ngữ`);
   // Container follows what the provider actually writes: `say` emits m4a, the local Supertonic
   // server returns wav, everything else mp3. A wrong extension would make ffprobe/concat guess.
   const ext = pid === 'say' ? '.m4a' : (pid === 'supertonic' ? '.wav' : '.mp3');
   const out = outPath.replace(/\.\w+$/, ext);
-  // Detected language is passed through for providers whose API takes it explicitly (Supertonic
-  // is one multilingual model, so the voice alone does not pick the language).
-  const call = (c) => provider.synthesize(text, v, c, out, { lang: detectLang(text) });
+  // The language is passed through for providers whose API takes it explicitly (Supertonic is
+  // one multilingual model, so the voice alone does not pick the language).
+  const call = (c) => provider.synthesize(text, v, c, out, { lang });
   const pool = keyPool(cfg);
   if (!pool) return call(cfg);
   let lastErr;
@@ -113,9 +117,10 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // is retried 3× with backoff before the chain may switch provider; `fallback: true` flags a
 // scene that ended up on a different voice (the runner re-tries those once at the end).
 // opts.ttsOverride: per-channel/per-project tts settings merged over global (channels feature).
+// opts.lang: the video's declared language — always pass it when the caller knows it.
 export async function synthesizeVoice(text, outPath, opts = {}) {
   const s = { ...aiSettings().tts, ...(opts.ttsOverride || {}) };
-  const lang = detectLang(text);
+  const lang = opts.lang || detectLang(text);
   // An EXPLICIT per-project/per-channel provider pick beats the per-language default —
   // langVoices are defaults, not vetoes; the user's per-video choice must win. But a
   // provider-only override still inherits the pinned voice for that provider (see
@@ -137,7 +142,7 @@ export async function synthesizeVoice(text, outPath, opts = {}) {
     const tries = ci === 0 ? 3 : 1; // fight for the locked voice before switching provider
     for (let a = 0; a < tries; a++) {
       try {
-        const r = await synthWith(pid, voice, text, s, outPath, opts.style);
+        const r = await synthWith(pid, voice, text, s, outPath, opts.style, lang);
         // Reject implausibly long/short audio as a FAILED attempt: same-voice retries get
         // a fresh shot first, then the timbre-preserving fallback chain — a glitched
         // stretched take must never be accepted into the video.

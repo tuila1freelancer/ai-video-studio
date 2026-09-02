@@ -50,10 +50,16 @@ test('P40-C: synthesis posts the payload the local server expects, with clamped 
   } finally { globalThis.fetch = realFetch; }
 });
 
-test('P40-C: the façade writes .wav for supertonic and passes the detected language', () => {
+test('P40-C: the façade writes .wav for supertonic and passes the language explicitly', () => {
   const s = src('../src/providers/tts.js');
   assert.match(s, /pid === 'supertonic' \? '\.wav'/, 'container matches what the server returns');
-  assert.match(s, /\{ lang: detectLang\(text\) \}/, 'multilingual model needs the language explicitly');
+  assert.match(s, /provider\.synthesize\(text, v, c, out, \{ lang \}\)/,
+    'multilingual model needs the language explicitly');
+  // …and that language is the one the caller DECLARED where it knows it. Sniffing the text
+  // answered 'en' for every unaccented Latin script, which is how a French video was voiced
+  // as English and never reached langVoices['fr'].
+  assert.match(s, /const lang = opts\.lang \|\| detectLang\(text\)/,
+    'a declared language must beat a detected one');
 });
 
 test('P40-C: the server lifecycle is exposed as routes and cleaned up on shutdown', () => {
