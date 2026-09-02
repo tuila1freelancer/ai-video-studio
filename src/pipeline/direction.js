@@ -57,7 +57,7 @@ function batchPrompt({ batch, title, total, guide, hookSummary, language }) {
   // real/estimated word timings) — briefs used to be timing-blind, so [CHOREOGRAPHY] verbs
   // could not be anchored to actual spoken moments.
   const list = batch.map((sc) => {
-    const anchors = extractBeats(sc.srt_json, sc.keywords, sc.duration || 6)
+    const anchors = extractBeats(sc.srt_json, sc.keywords, sc.duration || 6, { lang: language })
       .filter((b) => b.text).map((b) => `${(b.t0 || 0).toFixed(1)}s "${b.text}"`).join(' · ');
     return `${sc.idx}. "${String(sc.voice_text || '').trim().slice(0, 360)}"${anchors ? `\n   (spoken anchors: ${anchors})` : ''}`;
   }).join('\n');

@@ -163,7 +163,7 @@ export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, on
   // this scene's own narration — still right far more often than the old blanket assumption.
   const lang = language || detectLang(scene.voice_text || '');
   const duration = Math.max(1.5, scene.duration || 6);
-  const beats = extractBeats(scene.srt_json, scene.keywords, duration);
+  const beats = extractBeats(scene.srt_json, scene.keywords, duration, { lang });
   const direction = cinematicDirection(scene, idx, total);
   const modeBlocks = [];
   if (overlay) modeBlocks.push(overlayBlock({ edit: overlay === 'edit' }));
