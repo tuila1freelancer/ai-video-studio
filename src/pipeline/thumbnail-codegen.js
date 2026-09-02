@@ -35,6 +35,8 @@ const statSize = (p) => { try { return statSync(p).size; } catch { return null; 
 import { fontsCss } from '../animation/harness.js';
 import { userFontsCss } from '../animation/userfonts.js';
 import { orientationOf } from '../publish/platforms.js';
+import { langName, langAdjective, DEFAULT_LANG } from '../util/lang.js';
+import { lang as langRow } from '../i18n/languages.js';
 
 // Layout budgets, ported from the reference app. The old prompt asked for percentages ("headline
 // >=55% of the width") and the model reinterpreted them differently every run — two good designs
@@ -42,59 +44,62 @@ import { orientationOf } from '../publish/platforms.js';
 // and tells it to use them directly, which is why its output is consistent.
 const THUMB_LAYOUT = {
   '9:16': {
-    w: 1080, h: 1920, label: 'dọc, TikTok/Reels',
+    w: 1080, h: 1920, label: 'vertical, TikTok/Reels',
     sidePadding: 70, topPadding: 90, bottomPadding: 130, textMaxW: 830, heroMaxW: 810,
     cardMinW: 620, cardMaxW: 780, subjectMaxH: 990, textBlockMaxH: 360,
     safeCenterW: 760, safeCenterH: 980, splitGap: 36,
-    rules: `RULE RIÊNG CHO 9:16 (dọc cao, ưu tiên mobile-first):
-• Focal area: cột giữa màn hình, bố cục xếp dọc; tránh layout quá ngang.
-• Hero text/number: width tối đa {{HERO_MAX_W}}px; căn giữa hoặc lệch rất nhẹ.
-• Card/mockup: width {{CARD_MIN_W}}px đến {{CARD_MAX_W}}px; không full ngang trừ background.
-• Nếu có 2 cột: chỉ dùng khi mỗi cột hẹp, tổng width tối đa 84%; ưu tiên stack dọc hơn split ngang.
-• Không đặt subject quan trọng sát mép trên/dưới; headroom tối thiểu {{TOP_PADDING}}px, side padding tối thiểu {{SIDE_PADDING}}px.
-• Với vật thể cao: chiều cao tối đa {{SUBJECT_MAX_H}}px.`,
+    rules: `RULES FOR 9:16 (tall vertical, mobile-first):
+• Focal area: the centre column, stacked vertically; avoid strongly horizontal layouts.
+• Hero text/number: at most {{HERO_MAX_W}}px wide; centred or barely offset.
+• Card/mockup: {{CARD_MIN_W}}px to {{CARD_MAX_W}}px wide; never full-bleed except a background.
+• Two columns only when each is narrow, total width at most 84%; prefer stacking over splitting.
+• Nothing important against the top or bottom edge: headroom at least {{TOP_PADDING}}px, side padding at least {{SIDE_PADDING}}px.
+• A tall subject: at most {{SUBJECT_MAX_H}}px high.`,
   },
   '16:9': {
-    w: 1920, h: 1080, label: 'ngang, YouTube',
+    w: 1920, h: 1080, label: 'wide, YouTube',
     sidePadding: 90, topPadding: 70, bottomPadding: 90, textMaxW: 980, heroMaxW: 920,
     cardMinW: 520, cardMaxW: 760, subjectMaxH: 450, textBlockMaxH: 300,
     safeCenterW: 1320, safeCenterH: 620, splitGap: 80,
-    rules: `RULE RIÊNG CHO 16:9 (ngang rộng, cinematic):
-• Focal area: vùng trung tâm hơi lệch trái/phải; tận dụng chiều ngang cho split layout.
-• Hero text/number: width tối đa {{HERO_MAX_W}}px; tránh kéo quá dài thành một dòng khó đọc.
-• Cho phép 2 cột rõ ràng hoặc bố cục 60/40, mỗi khối phải có khoảng thở tối thiểu {{SPLIT_GAP}}px.
-• Text block không cao quá {{TEXT_BLOCK_MAX_H}}px; không stack dọc quá dài.
-• Các element phụ trải ngang, không dồn hết vào trung tâm như 9:16.
-• Giữ outer padding tối thiểu {{SIDE_PADDING}}px; không nhồi kín sát mép.`,
+    rules: `RULES FOR 16:9 (wide, cinematic):
+• Focal area: the centre, slightly offset left or right; use the width for a split layout.
+• Hero text/number: at most {{HERO_MAX_W}}px wide; do not stretch it into one hard-to-read line.
+• Two clear columns or a 60/40 split are allowed, with at least {{SPLIT_GAP}}px of air between blocks.
+• Text block at most {{TEXT_BLOCK_MAX_H}}px high; do not stack it into a long vertical run.
+• Secondary elements spread horizontally rather than crowding the centre as they would at 9:16.
+• Keep at least {{SIDE_PADDING}}px of outer padding; never pack content to the edge.`,
   },
   '1:1': {
-    w: 1080, h: 1080, label: 'vuông',
+    w: 1080, h: 1080, label: 'square',
     sidePadding: 70, topPadding: 70, bottomPadding: 90, textMaxW: 760, heroMaxW: 730,
     cardMinW: 520, cardMaxW: 700, subjectMaxH: 700, textBlockMaxH: 280,
     safeCenterW: 740, safeCenterH: 740, splitGap: 32,
-    rules: `RULE RIÊNG CHO 1:1 (vuông, cân bằng tuyệt đối):
-• Focal area: trung tâm khung; ưu tiên bố cục đối xứng, một hero cộng một nhãn.
-• Hero text/number: width tối đa {{HERO_MAX_W}}px; text block không quá {{TEXT_BLOCK_MAX_H}}px.
-• Asset chính nằm trong khối an toàn {{SAFE_CENTER_W}}px × {{SAFE_CENTER_H}}px ở giữa frame.
-• Nếu dùng card/list: tối đa 3 item, mỗi item to và thoáng.
-• Giữ khoảng thở {{SIDE_PADDING}}px mỗi cạnh để tránh cảm giác chật.`,
+    rules: `RULES FOR 1:1 (square, absolute balance):
+• Focal area: the centre of the frame; prefer a symmetrical layout — one hero plus one label.
+• Hero text/number: at most {{HERO_MAX_W}}px wide; text block at most {{TEXT_BLOCK_MAX_H}}px high.
+• The main asset sits inside the {{SAFE_CENTER_W}}px × {{SAFE_CENTER_H}}px safe block at frame centre.
+• A card or list carries at most 3 items, each large and uncrowded.
+• Keep {{SIDE_PADDING}}px of air on every side so the square does not feel tight.`,
   },
   '4:5': {
     w: 1080, h: 1350, label: 'portrait feed',
     sidePadding: 65, topPadding: 60, bottomPadding: 105, textMaxW: 790, heroMaxW: 760,
     cardMinW: 600, cardMaxW: 820, subjectMaxH: 760, textBlockMaxH: 300,
     safeCenterW: 780, safeCenterH: 760, splitGap: 34,
-    rules: `RULE RIÊNG CHO 4:5 (portrait cân bằng giữa feed và mobile):
-• Focal area: trung tâm hơi cao hơn giữa khung; bố cục dọc nhưng đỡ cực đoan hơn 9:16.
-• Hero text/number: width tối đa {{HERO_MAX_W}}px; có thể dùng 2 tầng text ngắn.
-• Card/ảnh: width {{CARD_MIN_W}}px đến {{CARD_MAX_W}}px; tránh asset quá cao chiếm hết frame.
-• Đáy subject chính dừng trên lower third; không để text nằm sát đáy.
-• Padding trái/phải tối thiểu {{SIDE_PADDING}}px, padding trên tối thiểu {{TOP_PADDING}}px.`,
+    rules: `RULES FOR 4:5 (portrait, between feed and mobile):
+• Focal area: the centre, sitting slightly high; vertical, but less extreme than 9:16.
+• Hero text/number: at most {{HERO_MAX_W}}px wide; two short stacked lines are allowed.
+• Card or image: {{CARD_MIN_W}}px to {{CARD_MAX_W}}px wide; avoid an asset so tall it fills the frame.
+• The main subject's base stops above the lower third; never sit text against the bottom edge.
+• Side padding at least {{SIDE_PADDING}}px, top padding at least {{TOP_PADDING}}px.`,
   },
 };
 
-/** Vietnamese diacritics need room: 1.35, not the 1.08 our shell used to ship. */
-const TEXT_METRICS = { lineHeight: 1.35, paddingTop: '0.15em' };
+// How much vertical room the script's marks need. Vietnamese stacked marks want 1.35 where our
+// shell used to ship 1.08; Devanagari matras want 1.8 and Thai tone stacks 1.7. The table answers.
+function textMetrics(language) {
+  return { lineHeight: langRow(language).lineHeightMin, paddingTop: '0.15em' };
+}
 
 /** The layout entry whose shape is closest to the canvas actually being rendered. */
 export function layoutFor({ w, h }) {
@@ -116,18 +121,29 @@ function layoutBlock(L) {
     .replaceAll('{{CARD_MAX_W}}', L.cardMaxW).replaceAll('{{SUBJECT_MAX_H}}', L.subjectMaxH)
     .replaceAll('{{TEXT_BLOCK_MAX_H}}', L.textBlockMaxH).replaceAll('{{SAFE_CENTER_W}}', L.safeCenterW)
     .replaceAll('{{SAFE_CENTER_H}}', L.safeCenterH).replaceAll('{{SPLIT_GAP}}', L.splitGap);
-  return `TỈ LỆ KHUNG HÌNH HIỆN TẠI: ${L.label} (${L.w}×${L.h})
-Các ngưỡng bố cục số cứng — PHẢI ưu tiên dùng trực tiếp trong code:
+  return `CANVAS RATIO: ${L.label} (${L.w}×${L.h})
+Hard layout budgets in pixels — use these numbers directly in the code:
 • side padding ${L.sidePadding}px · top ${L.topPadding}px · bottom ${L.bottomPadding}px
-• text rộng tối đa ${L.textMaxW}px · hero rộng tối đa ${L.heroMaxW}px
-• card ${L.cardMinW}–${L.cardMaxW}px · subject cao tối đa ${L.subjectMaxH}px
-• text block cao tối đa ${L.textBlockMaxH}px · vùng an toàn giữa ${L.safeCenterW}×${L.safeCenterH}px
-• khoảng cách khi chia cột tối thiểu ${L.splitGap}px
+• text at most ${L.textMaxW}px wide · hero at most ${L.heroMaxW}px wide
+• card ${L.cardMinW}–${L.cardMaxW}px · subject at most ${L.subjectMaxH}px high
+• text block at most ${L.textBlockMaxH}px high · centre safe area ${L.safeCenterW}×${L.safeCenterH}px
+• at least ${L.splitGap}px between columns when split
 
 ${rules}`;
 }
 
-const SYS = `Create a STATIC HTML thumbnail rendered once by Chrome headless.
+// The system prompt, told which language the image is in.
+//
+// It used to be a module constant that said "EVERY word on the image is Vietnamese … the viewers
+// are Vietnamese beginners" — to every language, on every run. The user message 190 lines below
+// then tried to say otherwise, so the model was handed two contradicting instructions and the
+// stronger, more specific one was the wrong one. hyperframe/prompt.js fixed exactly this bug for
+// scene codegen; this file was the one it did not reach.
+export const systemPrompt = (language, fonts = {}) => {
+  const L = langAdjective(language);
+  const m = textMetrics(language);
+  const faces = [fonts.display, fonts.body, fonts.mono].filter(Boolean);
+  return `Create a STATIC HTML thumbnail rendered once by Chrome headless.
 
 THIS IS A STATIC THUMBNAIL IMAGE, NOT A VIDEO SCENE.
 
@@ -135,14 +151,16 @@ REQUIREMENTS:
 • Static layout, captured as one JPEG image.
 • NO animation, NO gsap, NO anime.js, NO setTimeout, NO @keyframes.
 • Strong composition, readable, high contrast, ONE subject, large clear text.
-• Fonts ONLY: "Be Vietnam Pro", "Oswald", "JetBrains Mono". NO other fonts.
-• All text: class="txt" (line-height:${TEXT_METRICS.lineHeight};overflow:visible;padding-top:${TEXT_METRICS.paddingTop}).
-• NO overflow:hidden on text containers — Vietnamese diacritics get clipped.
-• EVERY word on the image is Vietnamese — including labels inside panels, badges and mock UI.
-  NO English technical strings ("NEXT_TOKEN_PREDICTION", "Input:", "Output", "Loading"): the viewers are
-  Vietnamese beginners. Only product names stay as-is (ChatGPT, Gemini, Claude).
+• Fonts ONLY: ${faces.map((f) => `"${f}"`).join(', ')}. NO other fonts.
+• All text: class="txt" (line-height:${m.lineHeight};overflow:visible;padding-top:${m.paddingTop}).
+• NO overflow:hidden on text containers — marks that sit above or below the line get clipped.
+• EVERY word on the image is written in ${L} — including labels inside panels, badges and mock UI.
+  NO stray English technical strings ("NEXT_TOKEN_PREDICTION", "Input:", "Output", "Loading") unless
+  the image is in English: the viewer is a beginner reading ${L}. Only product names stay as they
+  are (ChatGPT, Gemini, Claude).
 
 OUTPUT: ONLY the markup that goes INSIDE #content — a fragment, not a document. Start with a <style> block, then your HTML elements. No <!DOCTYPE>, no <html>, no <body>, no markdown fence, no explanation.`;
+};
 
 /**
  * Swap `{{asset:NAME}}` placeholders for the resolved data URIs, then strip any that stayed
@@ -176,7 +194,7 @@ export function sanitizeThumbFragment(raw) {
   return s.trim();
 }
 
-function shell(fragment, { w, h, guide }) {
+function shell(fragment, { w, h, guide, language }) {
   const p = guide?.palette || {};
   const f = guide?.fonts || {};
   const inset = Math.round(Math.min(w, h) * 0.012); // reference uses a 10px inset, not 4.5%
@@ -185,7 +203,7 @@ function shell(fragment, { w, h, guide }) {
   // one really did — would beat a head rule, collapse the box to height:0 (its children are all
   // absolute) and render a solid black image. An inline style outranks any author rule, so the
   // model can restyle the canvas (background, font, radius) but never move or collapse it.
-  // overflow VISIBLE, like the reference: hidden clips Vietnamese diacritics at the box edge.
+  // overflow VISIBLE, like the reference: hidden clips marks that sit above or below the line.
   const box = `position:absolute;top:${inset}px;left:${inset}px;right:${inset}px;bottom:${inset}px;overflow:visible`;
   return `<!doctype html><html><head><meta charset="utf-8"><style>
 ${fontsCss()}
@@ -193,7 +211,7 @@ ${userFontsCss()}
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{width:${w}px;height:${h}px;overflow:hidden;background:${p.bg || '#0b1220'}}
 body{font-family:${f.display || 'Be Vietnam Pro'},Arial,sans-serif;color:${p.ink || '#fff'};-webkit-font-smoothing:antialiased}
-.txt{display:block;line-height:1.35;overflow:visible;padding-top:0.15em;padding-bottom:0.05em}
+.txt{display:block;line-height:${textMetrics(language).lineHeight};overflow:visible;padding-top:${textMetrics(language).paddingTop};padding-bottom:0.05em}
 </style></head><body><div id="stage" style="position:relative;width:${w}px;height:${h}px;overflow:hidden;background:${p.bg || '#0b1220'}"><div id="content" style="${box}">${fragment}</div></div></body></html>`;
 }
 
@@ -202,12 +220,12 @@ body{font-family:${f.display || 'Be Vietnam Pro'},Arial,sans-serif;color:${p.ink
  * Split out so the owner can re-render an edited design without paying for another generation.
  * @returns {Promise<string|null>} the written image path.
  */
-export async function renderThumbnailFragment(fragment, { guide, size, outPath, media = [], scale = COVER_SCALE } = {}) {
+export async function renderThumbnailFragment(fragment, { guide, size, outPath, media = [], language = DEFAULT_LANG, scale = COVER_SCALE } = {}) {
   if (!chromeAvailable()) return null;
   const clean = sanitizeThumbFragment(fragment);
   if (clean.length < 40) return null;
   const w = size?.w || 1280, h = size?.h || 720;
-  return screenshotHtml(shell(applyThumbAssets(clean, media), { w, h, guide }), { w, h, outPath, scale });
+  return screenshotHtml(shell(applyThumbAssets(clean, media), { w, h, guide, language }), { w, h, outPath, scale });
 }
 
 /** The owner's own pictures, offered to the model by NAME (P40 — it was text+CSS only before). */
@@ -225,14 +243,14 @@ Use at most ONE, as the focal subject or a background layer under a dark gradien
  * this returns the same markup with only the requested change applied.
  * @returns {Promise<string|null>} the edited fragment, or null when unusable.
  */
-export async function editThumbnailFragment(fragment, instruction, { guide, llm = null, onLog = () => {} } = {}) {
+export async function editThumbnailFragment(fragment, instruction, { guide, llm = null, language = DEFAULT_LANG, onLog = () => {} } = {}) {
   const current = sanitizeThumbFragment(fragment);
   const want = String(instruction || '').trim();
   if (!current || !want || !llmEnabled(llm)) return null;
   const p = guide?.palette || {};
   try {
     const reply = await chat([
-      { role: 'system', content: `${SYS}\n\nYOU ARE EDITING an existing thumbnail, not designing a new one. Apply ONLY what is asked and change nothing else — same structure, same elements, same wording, same positions, except where the instruction requires otherwise. Return the COMPLETE edited fragment (style block + markup), never a diff and never a fragment of it.` },
+      { role: 'system', content: `${systemPrompt(language, guide?.fonts)}\n\nYOU ARE EDITING an existing thumbnail, not designing a new one. Apply ONLY what is asked and change nothing else — same structure, same elements, same wording, same positions, except where the instruction requires otherwise. Return the COMPLETE edited fragment (style block + markup), never a diff and never a fragment of it.` },
       { role: 'user', content: `LOCKED PALETTE: bg ${p.bg || '#0b1220'} · ink ${p.ink || '#ffffff'} · accents ${(p.accents || ['#f7b500']).join(' ')}
 
 CURRENT THUMBNAIL:
@@ -325,25 +343,25 @@ export async function generateThumbnailImage({
   const L = layoutFor({ w, h });
   const user = `THUMBNAIL CANVAS: ${w}×${h}px. Fragment renders inside #content, inset ${inset}px on every side.
 
-Tiêu đề video: "${String(title || '').trim().slice(0, 160)}"
-${hook ? `Câu móc đã viết sẵn cho ảnh bìa (dùng đúng chữ này, hoặc siết gọn hơn — không tự nghĩ thông điệp khác): "${String(hook).trim().slice(0, 120)}"\n` : ''}${prompt ? `Định hướng mỹ thuật: ${String(prompt).trim().slice(0, 400)}\n` : ''}
+Video title: "${String(title || '').trim().slice(0, 160)}"
+${hook ? `Cover hook already written (use these exact words, or tighten them — do not invent a different message): "${String(hook).trim().slice(0, 120)}"\n` : ''}${prompt ? `Art direction: ${String(prompt).trim().slice(0, 400)}\n` : ''}
 LAYOUT PARAMS:
 ${layoutBlock(L)}
 
-BẢNG MÀU KHOÁ CỨNG: bg ${p.bg || '#0b1220'} · bg2 ${p.bg2 || '#1e3a8a'} · ink ${p.ink || '#ffffff'} · muted ${p.muted || '#94a3b8'} · nhấn ${(p.accents || ['#f7b500']).join(' ')}
-FONT KHOÁ CỨNG: hiển thị "${f.display || 'Be Vietnam Pro'}" · tiêu đề lớn có thể dùng "Oswald" · mono "JetBrains Mono"
-NGÔN NGỮ: mọi chữ nhìn thấy phải bằng ${language === 'vi' ? 'tiếng Việt, đúng dấu' : language}. Không dùng ngôn ngữ khác.
-${variant > 0 ? `Đây là phương án số ${variant + 1} — bố cục phải KHÁC HẲN các phương án trước, đừng lặp lại cùng một cách sắp xếp.\n` : ''}${assetBlock(media)}
-Trả về CHỈ khối <style> và phần markup.`;
+LOCKED PALETTE: bg ${p.bg || '#0b1220'} · bg2 ${p.bg2 || '#1e3a8a'} · ink ${p.ink || '#ffffff'} · muted ${p.muted || '#94a3b8'} · accents ${(p.accents || ['#f7b500']).join(' ')}
+LOCKED FONTS: display "${f.display || 'Be Vietnam Pro'}"${f.body ? ` · body "${f.body}"` : ''}${f.mono ? ` · mono "${f.mono}"` : ''}
+LANGUAGE: every visible word must be written in ${langName(language)}, correctly accented. No other language.
+${variant > 0 ? `This is variant ${variant + 1} — the layout must differ COMPLETELY from the earlier variants; do not repeat the same arrangement.\n` : ''}${assetBlock(media)}
+Return ONLY the <style> block and the markup.`;
 
   try {
     const reply = await chat([
-      { role: 'system', content: SYS },
+      { role: 'system', content: systemPrompt(language, f) },
       { role: 'user', content: user },
     ], { temperature: 0.9, maxTokens: 4000, llm });
     const fragment = sanitizeThumbFragment(reply);
     if (fragment.length < 80) { onLog('thumbnail AI: reply quá ngắn — dùng bản dựng sẵn'); return null; }
-    const path = await screenshotHtml(shell(applyThumbAssets(fragment, media), { w, h, guide }), { w, h, outPath, scale: COVER_SCALE });
+    const path = await screenshotHtml(shell(applyThumbAssets(fragment, media), { w, h, guide, language }), { w, h, outPath, scale: COVER_SCALE });
     onLog(`thumbnail AI: đã dựng bản ${variant + 1}`);
     return { path, fragment };
   } catch (e) {

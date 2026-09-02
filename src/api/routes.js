@@ -1359,7 +1359,7 @@ export function mountRoutes(app, { version }) {
       const { normalizeAssets } = await import('../pipeline/brand-assets.js');
       const { heroMediaUri } = await import('../util/asset-uri.js');
       const guide = resolveGuide(p.config || {});
-      const edited = await editThumbnailFragment(current, prompt, { guide, llm: thumbLlmFor(p) });
+      const edited = await editThumbnailFragment(current, prompt, { guide, llm: thumbLlmFor(p), language: resolveLang(p.config, DB.getScenes(p.id)) });
       if (!edited) return res.status(422).json({ error: 'AI chưa sửa được — thử mô tả cụ thể hơn' });
       const media = normalizeAssets(p.config?.assets).slice(0, 4)
         .map((a) => ({ name: a.name, uri: heroMediaUri(a.path) })).filter((m) => m.uri);
