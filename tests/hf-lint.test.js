@@ -1,6 +1,6 @@
 // Static lint for LLM-generated hyperframe specs — the pre-render gate that catches broken
 // specs before a paid render/re-ask cycle. Ported findings from heygen-com/hyperframes'
-// lint rules (see README.md, Appendix B).
+// lint rules (see NOTICE.md).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { lintSpec } from '../src/hyperframe/lint.js';

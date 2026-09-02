@@ -8,7 +8,7 @@
 // The owner weighed that and accepted it (2026-08-19) — the requirement is that no source ships, and
 // none does. This module stays anyway, because the boundary is right on its own terms: the re-ask
 // loop has no business knowing what a prompt looks like or which provider answers it. If the sales
-// model ever changes, README.md Appendix A is the spec for a second implementation.
+// model ever changes, ENGINEERING.md carries the spec for a second implementation.
 //
 // The interface is a SESSION, not a function, because getting a scene right takes up to ten rounds
 // of "here is what is wrong, fix it" — and whoever owns the prompt has to own that conversation.
@@ -58,7 +58,7 @@ export function localDoctrine(params, { ai } = {}) {
 
 /**
  * Open a session. One implementation today; `remote` is specified in
- * README.md Appendix A and deliberately not written yet — an untested client for an
+ * ENGINEERING.md and deliberately not written yet — an untested client for an
  * endpoint that does not exist would be dead code pretending to be a feature.
  */
 export function openDoctrine(params, opts = {}) {

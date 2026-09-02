@@ -1,6 +1,6 @@
 // Moving the prompt behind an interface must not change one byte of what the model receives.
 //
-// The seam exists so the doctrine could move to the store later (README.md, Appendix A)
+// The seam exists so the doctrine could move to the store later (ENGINEERING.md)
 // without touching the re-ask loop. That is only true if the local implementation is exactly the
 // conversation the loop used to build inline — so this file pins it against buildCodegenPrompt and
 // against the two re-ask messages, verbatim.
