@@ -126,3 +126,17 @@ test('every paid provider records what it spent', () => {
     assert.match(src(id), /recordUsage\('tts'/, `${id} spends money without metering it`);
   }
 });
+
+test('a select field offers {value,label} pairs, which is what the settings form renders', () => {
+  // The form does `esc(o.value)` and `esc(o.label)`; a plain string array renders every option as
+  // value="undefined" and an empty label, and nothing else in the app would notice.
+  for (const p of listProviders()) {
+    for (const f of (p.configSchema || []).filter((x) => x.type === 'select')) {
+      assert.ok(Array.isArray(f.options) && f.options.length, `${p.id}.${f.key}: a select needs options`);
+      for (const o of f.options) {
+        assert.equal(typeof o, 'object', `${p.id}.${f.key}: options must be {value,label}, not strings`);
+        assert.ok(o.value && o.label, `${p.id}.${f.key}: an option needs both a value and a label`);
+      }
+    }
+  }
+});
