@@ -15,7 +15,10 @@ import { readFileSync } from 'node:fs';
 import { resolveGuide } from '../src/styleguide/index.js';
 import { withScriptFallback, scriptFallback } from '../src/styleguide/script-fonts.js';
 import { assStyleFrom } from '../src/subtitles/presets.js';
-import { LANG_CODES } from '../src/i18n/languages.js';
+import { LANG_CODES, lang as langRow } from '../src/i18n/languages.js';
+import { familiesForLanguage } from '../src/fonts/registry.js';
+import { SCRIPT_PROBES, scriptsOf, coversScript } from '../src/fonts/coverage.js';
+import { existsSync, readdirSync } from 'node:fs';
 
 test('fonts: a non-Latin video gets a face that can draw its script', () => {
   const display = (language) => resolveGuide({ language }).fonts.display;
@@ -113,4 +116,41 @@ test('typography: the codegen prompt names the right rule for the declared langu
   // Greek, which decomposes to a combining acute, is not claimed as Vietnamese.
   assert.match(scriptTextRule('ปัญญาประดิษฐ์เปลี่ยนโลกทุกวัน'), /Thai/);
   assert.ok(!/Vietnamese/.test(scriptTextRule('Καλημέρα κόσμε από την Ελλάδα σήμερα')));
+});
+
+// ---- proof, not assertion: the cmap reader already in the repo, pointed at the right question ----
+
+test('fonts: the catalogue knows a face for every script the app supports', () => {
+  // OS-independent on purpose. Whether a family is installed depends on the machine; whether the
+  // app can NAME one for a language must not. A language with no candidate at all is a video that
+  // renders in whatever the engine falls back to, which is the failure this whole area exists for.
+  for (const code of LANG_CODES) {
+    const want = langRow(code).script;
+    const fams = familiesForLanguage(code).filter((f) => f.scripts.includes(want));
+    assert.ok(fams.length, `no family in the catalogue covers ${code} (${want})`);
+  }
+});
+
+test('fonts: the glyph prober covers every script the language table names', () => {
+  for (const code of LANG_CODES) {
+    const script = langRow(code).script;
+    assert.ok(SCRIPT_PROBES[script], `coverage.js cannot probe "${script}", so ${code} can claim anything`);
+  }
+});
+
+test('fonts: a vendored face really contains what it claims (skipped where none are built)', () => {
+  const dir = new URL('../vendor/fonts/ttf/', import.meta.url);
+  if (!existsSync(dir)) return; // vendor/ is gitignored — CI has no font files to read
+  const files = readdirSync(dir).filter((f) => /\.(ttf|otf)$/i.test(f));
+  assert.ok(files.length, 'a built vendor dir with no faces in it is a broken build');
+  for (const f of files) {
+    const path = new URL(f, dir).pathname;
+    const scripts = scriptsOf(path);
+    assert.ok(scripts.includes('latin'), `${f} does not even cover Latin`);
+    // The measured claim, not the declared one: this is the reader that caught Archivo Black
+    // claiming Vietnamese while missing 11 of 13 probe codepoints.
+    if (/BeVietnamPro|Lexend|Montserrat|Oswald|Nunito/i.test(f)) {
+      assert.ok(coversScript(path, 'vietnamese'), `${f} is offered for Vietnamese and cannot draw it`);
+    }
+  }
 });

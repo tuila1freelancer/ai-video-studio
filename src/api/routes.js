@@ -1925,6 +1925,30 @@ export function mountRoutes(app, { version }) {
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
+  // Everything a LANGUAGE needs, in one click. Same rule as the single-family route below: an
+  // explicit action, never something a render does on its own — which is why it is a route the
+  // owner's language picker calls and not a step inside the pipeline.
+  //
+  // A system family needs nothing fetched; only a downloadable one does. The reply says what it
+  // did and what it could not, so the picker can be honest rather than optimistic.
+  r.post('/fonts/language/:lang/ensure', async (req, res) => {
+    try {
+      const code = String(req.params.lang || '').slice(0, 5);
+      const [{ familiesForLanguage }, { downloadFamily }, { lang: langRow }] = await Promise.all([
+        import('../fonts/registry.js'), import('../fonts/store.js'), import('../i18n/languages.js'),
+      ]);
+      const want = langRow(code).script;
+      const fams = familiesForLanguage(code).filter((f) => f.scripts.includes(want));
+      if (fams.some((f) => f.ready)) {
+        return res.json({ lang: code, script: want, already: true, ready: fams.filter((f) => f.ready).map((f) => f.family) });
+      }
+      const target = fams.find((f) => f.source === 'downloadable' && f.google);
+      if (!target) return res.json({ lang: code, script: want, already: false, ready: [], note: 'no downloadable family covers this script' });
+      await downloadFamily(target.family);
+      res.json({ lang: code, script: want, already: false, fetched: target.family });
+    } catch (e) { res.status(400).json({ error: e.message }); }
+  });
+
   // Fetch a catalogue family from Google Fonts. ALWAYS an explicit action: a render that reaches
   // out to the network is a render that can fail on a DNS hiccup, in the middle of work the
   // owner is paying for.
