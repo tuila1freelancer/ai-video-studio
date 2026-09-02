@@ -2,6 +2,7 @@
 import { writeFileSync } from 'node:fs';
 import { probeDuration } from '../../media/ffmpeg.js';
 import { recordUsage } from '../../util/usage.js';
+import { failed } from '../../core/errors.js';
 
 // { characters:[], character_start_times_seconds:[], character_end_times_seconds:[] }
 // → word timings: whitespace splits words, each word spans its first→last character.
@@ -45,7 +46,7 @@ export default {
   },
 
   async synthesize(text, voiceId, cfg, outPath) {
-    if (!voiceId) throw new Error('Chưa chọn voice ElevenLabs');
+    if (!voiceId) throw failed('config.no-voice', 'Chưa chọn voice ElevenLabs');
     // prosody hint from the pipeline (cfg._style): expressive voice_settings per mood
     const vs = cfg?._style === 'energetic' ? { stability: 0.35, similarity_boost: 0.85, style: 0.55 }
       : cfg?._style === 'calm' ? { stability: 0.7, similarity_boost: 0.85, style: 0.15 } : null;
