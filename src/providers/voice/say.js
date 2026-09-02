@@ -6,6 +6,7 @@ const LOCALE = { vi: 'vi_VN', en: 'en_US', ja: 'ja_JP', ko: 'ko_KR', zh: 'zh_CN'
 
 export default {
   id: 'say', name: 'macOS say (offline)', free: true, needsNetwork: false,
+  ext: '.m4a',
   configSchema: [
     { key: 'rate', label: 'Tốc độ đọc (từ/phút)', type: 'text', required: false, placeholder: '175' },
   ],
