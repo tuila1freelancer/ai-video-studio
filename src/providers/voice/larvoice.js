@@ -8,6 +8,7 @@ import { probeDuration } from '../../media/ffmpeg.js';
 import { detectLang } from '../../util/lang.js';
 import { withRetry, sleep } from '../../util/retry.js';
 import { recordUsage } from '../../util/usage.js';
+import { failed } from '../../core/errors.js';
 
 const BASE = 'https://larvoice.com/api/v1';
 const ORIGIN = 'https://larvoice.com';
@@ -64,7 +65,7 @@ async function resolveVoice(voiceId, cfg, text) {
   const voices = await fetchCatalog(cfg);
   const pick = voices.find((v) => v.voice_type === 'public' && v.language === lang)
     || voices.find((v) => v.language === lang) || voices[0];
-  if (!pick) throw new Error('LarVoice: catalog trống — kiểm tra API key');
+  if (!pick) throw failed('config.empty-catalog', 'LarVoice: catalog trống — kiểm tra API key');
   return { voice_type: pick.voice_type, voice_id: pick.voice_id };
 }
 
@@ -81,7 +82,7 @@ async function downloadTo(url, outPath, cfg, timeoutMs = 120000) {
 }
 
 async function runTtsJob(text, voiceId, cfg, outPath, maxChars) {
-  if (!cfg?.apiKey) throw new Error('LarVoice: chưa cấu hình API Key');
+  if (!cfg?.apiKey) throw failed('config.no-key', 'LarVoice: chưa cấu hình API Key');
   const voice = await resolveVoice(voiceId, cfg, text);
   const body = {
     ...voice,
@@ -156,7 +157,7 @@ export default {
   // No dedicated preview endpoint on the official system:
   // text=null → download the voice's ready-made preview_url (0 credit); with text → short TTS job.
   async previewSynthesize(text, voiceId, cfg, outPath) {
-    if (!cfg?.apiKey) throw new Error('LarVoice: chưa cấu hình API Key');
+    if (!cfg?.apiKey) throw failed('config.no-key', 'LarVoice: chưa cấu hình API Key');
     if (!text) {
       const voices = await fetchCatalog(cfg);
       const parsed = parseVoice(voiceId);

@@ -3,6 +3,7 @@
 import { writeFileSync } from 'node:fs';
 import { probeDuration } from '../../media/ffmpeg.js';
 import { recordUsage } from '../../util/usage.js';
+import { failed } from '../../core/errors.js';
 
 const BASE = 'https://vbee.vn/api/v1';
 
@@ -36,7 +37,7 @@ export default {
   },
 
   async synthesize(text, voiceId, cfg, outPath) {
-    if (!cfg?.token || !cfg?.appId) throw new Error('Vbee: chưa cấu hình token/appId');
+    if (!cfg?.token || !cfg?.appId) throw failed('config.no-key', 'Vbee: chưa cấu hình token/appId');
     const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${cfg.token}` };
     // 1) submit async job
     const sub = await fetch(`${BASE}/tts`, {

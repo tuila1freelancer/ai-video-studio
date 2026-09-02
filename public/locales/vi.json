@@ -1,0 +1,6 @@
+{
+  "error.hint.rateLimit": "Nhà cung cấp đang giới hạn tần suất — hệ thống sẽ tự chờ và chạy tiếp.",
+  "error.hint.resource": "Lỗi tài nguyên máy (thiếu binary/đầy đĩa/quyền truy cập) — kiểm tra ffmpeg/Chrome/dung lượng đĩa rồi bấm Tiếp tục.",
+  "error.hint.config": "Lỗi cấu hình (API key/giọng đọc/đầu vào) — mở Cài đặt để sửa rồi bấm Tiếp tục. Chạy lại tự động sẽ không giúp ích.",
+  "error.hint.transient": "Lỗi tạm thời — hệ thống tự chạy tiếp."
+}

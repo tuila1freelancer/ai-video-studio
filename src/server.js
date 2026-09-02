@@ -7,6 +7,8 @@ import { hub } from './ws/hub.js';
 import { bindHub, logger } from './util/log.js';
 import { ensureDirs, DIRS, ROOT } from './config/paths.js';
 import { mountRoutes } from './api/routes.js';
+import { setUiLang } from './i18n/t.js';
+import { getSetting } from './db/index.js';
 
 // Both of these hang off ROOT rather than this file's own location: a release bundles the whole
 // server into one file, so "one directory up from here" stops meaning what it means in the repo.
@@ -111,6 +113,8 @@ async function boot() {
   // into an uncaughtException before our listener is ever reached (verified — the whole point of
   // the handler is lost). Listeners fire in registration order, so ours must be registered first.
   hub.attach(server);
+  // The owner's interface language, restored before anything can produce a message in it.
+  try { setUiLang(getSetting('uiLang')); } catch { /* first boot, no settings row yet */ }
   server.listen(PORT, '127.0.0.1', () => {
     const addr = server.address();
     const url = `http://127.0.0.1:${addr.port}`;

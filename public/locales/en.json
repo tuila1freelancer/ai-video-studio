@@ -1,0 +1,6 @@
+{
+  "error.hint.rateLimit": "The provider is rate-limiting — the app will wait and carry on by itself.",
+  "error.hint.resource": "A machine-level problem (missing binary, full disk, permissions) — check ffmpeg / Chrome / free space, then press Continue.",
+  "error.hint.config": "A configuration problem (API key, voice, input) — open Settings to fix it, then press Continue. Retrying on its own will not help.",
+  "error.hint.transient": "A temporary error — the app is carrying on by itself."
+}

@@ -84,6 +84,9 @@ export function resolvePaths(platform = process.platform, env = process.env) {
   ];
 
   return {
+    // The app's own web assets, including the interface translation catalogues that the
+    // server and the browser both read.
+    publicDir: join(ROOT, 'public'),
     ffmpeg: env.AVS_FFMPEG || firstExisting(
       ...systemFfmpeg,
       join(VENDOR_DIR, 'ffmpeg', exe('ffmpeg')),

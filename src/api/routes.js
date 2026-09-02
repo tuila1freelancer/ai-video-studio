@@ -26,6 +26,7 @@ import { licenseGate } from '../license/gate.js';
 import { activate, publicStatus, refreshNow } from '../license/index.js';
 import { adoptWithStoredSession, sessionAccount, signIn, signOut } from '../license/auth.js';
 import { checkUpdate, downloadUrl } from '../license/update.js';
+import { t, uiLang, setUiLang } from '../i18n/t.js';
 
 const upload = multer({ dest: DIRS.uploads, limits: { fileSize: 512 * 1024 * 1024 } });
 
@@ -153,14 +154,20 @@ export function mountRoutes(app, { version }) {
   // Secrets are masked '••' on EVERY egress (recursive — covers nested tts.providers.*.apiKey)
   // and a masked round-trip on ingest keeps the saved value. Never ship raw keys to the client.
   r.get('/settings', (req, res) => {
-    res.json({ settings: maskSecrets(DB.aiSettings()) });
+    res.json({ settings: maskSecrets(DB.aiSettings()), uiLang: uiLang() });
   });
   r.put('/settings', (req, res) => {
+    // The INTERFACE language is a different axis from the VIDEO language and is stored apart from
+    // the AI settings blob on purpose — someone can want a Japanese interface for English videos.
+    if (req.body?.uiLang !== undefined) {
+      DB.setSetting('uiLang', setUiLang(req.body.uiLang));
+      if (Object.keys(req.body).length === 1) return res.json({ ok: true, uiLang: uiLang() });
+    }
     const prev = DB.aiSettings();
     const next = applyMaskedUpdate(prev, req.body || {});
     syncLlmAccounts(prev, next, req.body?.llm);
     DB.setSetting('ai', next);
-    res.json({ ok: true });
+    res.json({ ok: true, uiLang: uiLang() });
   });
 
   // ---- voice catalog (normalized, cached) ----
