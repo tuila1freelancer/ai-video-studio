@@ -19,7 +19,13 @@ export async function suggestTopics({ channelId = null, niche = '', count = 8, a
     ...DB.listProjects().filter((p) => !channelId || p.channel_id === channel?.id).map((p) => fold(p.title)),
     ...DB.suggestionBlockSet(channel?.id, { includePending: true }),
   ]);
-  const trends = await trendsFetcher({ niche, packs: sources.packs || [], feeds: sources.feeds || [] });
+  // The channel's own language decides which market's trends are research material. Without it,
+  // an English channel asked Google News in Vietnamese and got Vietnamese headlines to write from.
+  const chLang = declaredLang(channel?.config) || DEFAULT_LANG;
+  const trends = await trendsFetcher({
+    niche, packs: sources.packs || [], feeds: sources.feeds || [],
+    language: chLang, geo: sources.geo || '',
+  });
   const llm = ai?.llm || null;
   const persist = (topics, origin) => {
     const rows = DB.recordSuggestionBatch({ channelId: channel?.id || null, niche, origin, topics });
@@ -31,11 +37,10 @@ export async function suggestTopics({ channelId = null, niche = '', count = 8, a
       .map((t) => ({ topic: t.title, angle: '', source: t.source })), 'trends-only');
   }
   // P34: propose in the CHANNEL's language, not hard-coded Vietnamese
-  const chLang = declaredLang(channel?.config) || DEFAULT_LANG;
   const langLabel = langName(chLang);
   const parsed = await chatJson([
     { role: 'system', content: 'You are a YouTube content strategist. Reply with pure JSON.' },
-    { role: 'user', content: `Channel: ${channel?.name || 'Vietnamese channel'}.${memory.bible ? `\nChannel context: ${memory.bible.slice(0, 500)}` : ''}${niche ? `\nNiche: ${niche}` : ''}
+    { role: 'user', content: `Channel: ${channel?.name || `${langLabel} channel`}.${memory.bible ? `\nChannel context: ${memory.bible.slice(0, 500)}` : ''}${niche ? `\nNiche: ${niche}` : ''}
 Today's trend signals:\n${trends.slice(0, 20).map((t) => `- ${t.title}`).join('\n') || '(unavailable — propose from the niche yourself)'}
 Topics ALREADY covered (never repeat any): ${[...past].slice(0, 25).join('; ') || '(none yet)'}
 Propose ${count} VIDEO TOPICS in ${langLabel}, in the channel's voice (topic, angle, why and titles all in ${langLabel}). For EACH topic, score it objectively:

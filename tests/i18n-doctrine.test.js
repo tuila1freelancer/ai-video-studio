@@ -71,3 +71,29 @@ test('doctrine: production metadata is never spoken, in any language', () => {
   assert.equal(isMetaLeakVoice('Description: three ways to use AI'), true);
   assert.equal(isMetaLeakVoice('Hôm nay mình sẽ chỉ cho các bạn ba cách.'), false, 'real narration is not metadata');
 });
+
+// ---- research and distribution follow the market, not the house language ----
+
+test('market: trend research asks the channel language\'s own edition of the news', async () => {
+  const { newsLocale, FEED_PACKS } = await import('../src/providers/trends.js');
+  // hl, gl and ceid have to agree with each other; sending hl=vi to a French channel returned
+  // Vietnamese headlines as the research material for a French video.
+  assert.deepEqual(newsLocale('fr'), { hl: 'fr', gl: 'FR', ceid: 'FR:fr' });
+  assert.deepEqual(newsLocale('pt'), { hl: 'pt-BR', gl: 'BR', ceid: 'BR:pt' });
+  assert.deepEqual(newsLocale('vi'), { hl: 'vi', gl: 'VN', ceid: 'VN:vi' });
+  // An explicit country wins — a Spanish-language channel aimed at Mexico is a real thing.
+  assert.equal(newsLocale('es', 'MX').gl, 'MX');
+  // An unknown language falls back to English rather than to Vietnamese.
+  assert.equal(newsLocale('kl').hl, 'en-US');
+  assert.ok(Object.keys(FEED_PACKS).some((k) => k.startsWith('world-')), 'non-Vietnamese feed packs exist');
+});
+
+test('market: the platforms an international channel actually posts to', async () => {
+  const { PLATFORMS, COVER_SIZES } = await import('../src/publish/platforms.js');
+  const ids = PLATFORMS.map((p) => p.id);
+  for (const id of ['x', 'linkedin']) assert.ok(ids.includes(id), `${id} is missing`);
+  // COVER_SIZES has carried an X canvas since it was written, with no platform to put it on.
+  assert.ok(COVER_SIZES.some((c) => c.id === 'x'));
+  const x = PLATFORMS.find((p) => p.id === 'x');
+  assert.equal(x.fields.find((f) => f.key === 'caption').limit, 280, "X's cap is the whole constraint");
+});

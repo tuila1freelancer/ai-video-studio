@@ -12,7 +12,7 @@ import { clampPlatforms } from '../src/providers/llm.js';
 
 test('every platform the owner publishes to has a spec', () => {
   const ids = PLATFORMS.map((p) => p.id);
-  assert.deepEqual(ids, ['youtube', 'shorts', 'tiktok', 'instagram', 'facebook']);
+  assert.deepEqual(ids, ['youtube', 'shorts', 'tiktok', 'instagram', 'facebook', 'x', 'linkedin']);
   for (const p of PLATFORMS) {
     assert.ok(p.fields.length, `${p.id} has no fields`);
     assert.ok(p.brief && p.brief.length > 40, `${p.id} has no brief for the writer`);
@@ -41,13 +41,13 @@ test('the model is not trusted — its answer goes through the table', () => {
     youtube: { title: 'A'.repeat(140), description: 'ok', tags: ['#alpha', 'beta'], pinnedComment: 'q?' },
     shorts: { title: 'ngắn', hashtags: ['shorts', 'ai'] },
     tiktok: { caption: 'hook', hashtags: ['#fyp'] },
-    linkedin: { caption: 'a platform we do not publish to' },
+    mastodon: { caption: 'a platform we do not publish to' },
   });
   assert.equal(out.youtube.title.length, 100, 'trimmed to the hard cap');
   // …and the two list conventions each site expects to be pasted
   assert.deepEqual(out.youtube.tags, ['alpha', 'beta'], 'YouTube tags carry no #');
   assert.deepEqual(out.shorts.hashtags, ['#shorts', '#ai'], 'hashtags always do');
-  assert.ok(!('linkedin' in out), 'an unknown platform is dropped, not passed through');
+  assert.ok(!('mastodon' in out), 'an unknown platform is dropped, not passed through');
 });
 
 test('cover sizes are real platform pixels, grouped by the orientation a design can fill', () => {
