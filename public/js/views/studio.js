@@ -15,7 +15,7 @@ import { initPendingChanges, schedulePendingCheck, resetPendingCheck } from '../
 import { openSrt } from '../features/srt.js';
 import { confirmDialog, menuDialog, publishDialog, promptDialog } from '../ui/dialog.js';
 import { renderThumbPanel } from './thumbnail.js';
-import { t } from '../i18n.js';
+import { t, setLabel } from '../i18n.js';
 
 let ws = null;
 // Caption tracks the owner can export. Named in the language itself, like the interface picker.
@@ -30,21 +30,21 @@ export function initWs() { ws = new WS(onWsMessage); }
 
 export function initStudio() {
   // SVG icon labels (markup keeps plain text for graceful no-JS degradation)
-  $('#btnFetch').innerHTML = `${icon('link', 13)} Lấy thông tin`;
-  $('#btnImgSearch').innerHTML = `${icon('image', 13)} Tìm ảnh AI`;
-  $('#btnStart').innerHTML = `${icon('play', 15)} Bắt đầu`;
-  $('#btnRender').innerHTML = `${icon('refresh', 14)} Render lại`;
-  $('#btnStop').innerHTML = `${icon('stop', 14)} Dừng`;
-  $('#btnResume').innerHTML = `${icon('play', 14)} Tiếp tục`;
-  $('#btnSrt').innerHTML = `${icon('subtitles', 14)} SRT`;
-  $('#btnMeta').innerHTML = `${icon('gauge', 14)} Metadata`;
-  $('#btnRegenVoiceSel').innerHTML = `${icon('mic', 13)} Voice đã chọn`;
-  $('#btnRegenHtmlSel').innerHTML = `${icon('refresh', 13)} HTML đã chọn`;
-  $('#btnRenderSel').innerHTML = `${icon('film', 13)} Render đã chọn`;
-  $('#btnRenderAll').innerHTML = `${icon('check', 13)} Render + Ghép`;
-  $('#btnDownload').innerHTML = `${icon('download', 14)} Tải video`;
-  $('#btnDownloadSrt').innerHTML = `${icon('subtitles', 14)} Tải .SRT`;
-  $('#btnOpenFolder').innerHTML = `${icon('folder', 14)} Mở thư mục`;
+  setLabel('#btnFetch', icon('link', 13));
+  setLabel('#btnImgSearch', icon('image', 13));
+  setLabel('#btnStart', icon('play', 15));
+  setLabel('#btnRender', icon('refresh', 14));
+  setLabel('#btnStop', icon('stop', 14));
+  setLabel('#btnResume', icon('play', 14));
+  setLabel('#btnSrt', icon('subtitles', 14));
+  setLabel('#btnMeta', icon('gauge', 14));
+  setLabel('#btnRegenVoiceSel', icon('mic', 13));
+  setLabel('#btnRegenHtmlSel', icon('refresh', 13));
+  setLabel('#btnRenderSel', icon('film', 13));
+  setLabel('#btnRenderAll', icon('check', 13));
+  setLabel('#btnDownload', icon('download', 14));
+  setLabel('#btnDownloadSrt', icon('subtitles', 14));
+  setLabel('#btnOpenFolder', icon('folder', 14));
   // fullscreen for the finished video (native controls also offer it; this is the explicit button)
   $('#btnFinalFs')?.addEventListener('click', () => {
     const v = $('#finalVideo'); if (!v) return;
