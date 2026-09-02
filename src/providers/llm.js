@@ -8,6 +8,13 @@ import { recordUsage } from '../util/usage.js';
 import { PLATFORMS, checkField } from '../publish/platforms.js';
 import { withPreset } from './llm-presets.js';
 import { countWords, sentences as segmentSentences } from '../i18n/segment.js';
+import { phrase, chapterLabel } from '../i18n/script-phrases.js';
+import { lang as langRow } from '../i18n/languages.js';
+
+/** The language's own forward connectors, quoted for a prompt. */
+const connectorList = (code) => langRow(code).connectors.map((c) => `"${c}"`).join(', ');
+/** The narration register note for this language, or nothing when it has none. */
+const voiceNoteFor = (code) => langRow(code).voiceNote || '';
 
 // llm param (optional) = a resolved settings.llm object (e.g. per-channel override);
 // omitted → global settings, exactly as before.
@@ -206,7 +213,7 @@ export function topNouns(text, n = 4) {
 }
 
 // Build a script from arbitrary text, chunked to fit sceneCount scenes ~ wordsPerScene.
-export function offlineScript(sourceText, { title, sceneCount, wordsPerScene, structure = false }) {
+export function offlineScript(sourceText, { title, sceneCount, wordsPerScene, structure = false, language }) {
   // Long-video structure without an LLM: paragraphs become chapters with a
   // chapter-break scene (narrated heading) so tens-of-minutes videos get an arc.
   if (structure && sceneCount >= 18) {
@@ -217,26 +224,26 @@ export function offlineScript(sourceText, { title, sceneCount, wordsPerScene, st
       paras.forEach((p, i) => {
         // spoken heading must be a WHOLE clause — never a mid-word slice(0,60) cut; the card's
         // short heading is derived on a word boundary from it.
-        const firstSent = (splitSentences(p)[0] || p).trim();
+        const firstSent = (splitSentences(p, language)[0] || p).trim();
         const head = firstSent.length > 90 ? firstSent.slice(0, 90).replace(/\s+\S*$/, '') : firstSent;
         const cardHeading = head.length > 40 ? head.slice(0, 40).replace(/\s+\S*$/, '') : head;
         scenes.push({
           voice: head, keywords: topNouns(p, 3), visualPrompt: head,
-          template: 'chapter-break', props: { chapter: `PHẦN ${String(i + 1).padStart(2, '0')}`, heading: cardHeading },
+          template: 'chapter-break', props: { chapter: chapterLabel(language, i + 1), heading: cardHeading },
         });
-        const sub = offlineScript(p, { title, sceneCount: per, wordsPerScene });
+        const sub = offlineScript(p, { title, sceneCount: per, wordsPerScene, language });
         scenes.push(...sub.scenes);
       });
-      scenes.push({ voice: 'Nếu video hữu ích với bạn, hãy đăng ký kênh và bật chuông thông báo để không bỏ lỡ những phần tiếp theo nhé.', keywords: ['đăng ký'], visualPrompt: title });
+      scenes.push({ voice: phrase(language, 'subscribe'), keywords: [phrase(language, 'subscribeKw')], visualPrompt: title });
       return { title, scenes };
     }
   }
-  const sentences = splitSentences(sourceText);
+  const sentences = splitSentences(sourceText, language);
   const scenes = [];
   if (!sentences.length) {
     // no usable text — fabricate evenly from the topic
     for (let i = 0; i < sceneCount; i++) {
-      scenes.push({ voice: `${title}. Phần ${i + 1}.`, visualPrompt: title, keywords: topNouns(title, 3) });
+      scenes.push({ voice: `${title}. ${phrase(language, 'part')} ${i + 1}.`, visualPrompt: title, keywords: topNouns(title, 3) });
     }
     return { title, scenes };
   }
@@ -385,7 +392,7 @@ export async function generateScript({ topic, inputType, fetched, config, ai, me
       const hfVisualRules = `
 Requirements for "visualPrompt" — a BRIEF for one premium animated INFOGRAPHIC scene (think motion designer, NOT a static website). Follow this exact frame, concise, 3-5 sentences:
 [MAIN OBJECT] one meaning-bearing hero graphic filling ~60% of the frame (e.g. an answer card with mock bullets; a node chain Assumption→Evidence→Conclusion lighting up in turn; sticky notes clustering into a workflow; a scanner line sweeping a card; a big stat with a rising line/bar) — built from SVG/divs + line-art icons.
-[ON-SCREEN TEXT] 1 short headline of 2-4 words + 2-3 short labels, CHOSEN BY MEANING (never paste the voice line), in the SAME LANGUAGE as the narration (Vietnamese narration → Vietnamese text).
+[ON-SCREEN TEXT] 1 short headline of 2-4 words + 2-3 short labels, CHOSEN BY MEANING (never paste the voice line), in the SAME LANGUAGE as the narration (${LANG_NAME[language] || language} narration → ${LANG_NAME[language] || language} text).
 [MOTION] entry → reveal part by part following the order of ideas in the voice line (beat-synced) → hold → soft exit. [MOOD] 1-2 words.
 VARIETY: NEVER repeat the same MAIN OBJECT type in 2 consecutive scenes (rotate: card / node-chain / big stat / list / split-compare / scanner…).
 CONTINUITY: the scenes share ONE evolving visual language (a consistent accent logic + a carried motif) so cuts feel smooth — vary the composition every scene, keep the language continuous.
@@ -398,14 +405,14 @@ PLAN THEN WRITE (fill the JSON in THIS order — the plan is written BEFORE the 
 DURATION SHAPE: about ${sceneCount} scenes for a ${videoDuration}s video — ${minS}–${maxS} is all fine, let the CONTENT set the count (never pad with filler to hit a number, never cram two ideas into one scene). ${wordBudgetNote(wordsPerScene, wps)} — treat this as the SIZE of each slice when you segment, NOT a rule to make each scene self-contained. Vary the rhythm: a few short punchy scenes, most standard, a couple longer to land a concrete example. Target ~${sceneCount * wordsPerScene} words of narration total so the video fits ${videoDuration}s.
 VALUE ARCHITECTURE (most important — this is the reason someone keeps watching):
 - Every scene must TEACH one concrete, true, non-obvious thing from the source: state the claim, then the WHY/HOW, then ONE specific named example (an exact phrasing, a setting, a step, a before→after) that ALSO moves the through-line one step forward — not a self-contained tip. A scene that is only setup, only a transition, or only a rhetorical question is a FAILED scene.
-- Be specific, not general — name the exact thing. "Add 'giải thích như cho người mới bắt đầu' to the end of your prompt" beats "write a better prompt".
+- Be specific, not general — name the exact thing. "Add 'explain it as if I am a complete beginner' to the end of your prompt" beats "write a better prompt".
 - Ground every figure in the source: use a number ONLY if it appears in the provided content — NEVER invent a statistic, percentage, or count. A precise verb beats a fake number.
-- CONNECT scenes by LOGIC, not by filler: each scene CONTINUES the previous one — build on it, complicate it, or draw its consequence — joined by a forward logical connector (${language === 'vi' ? '"vì vậy…", "nhưng…", "vậy nên…", "và đây là lúc…"' : '"so…", "but that breaks when…", "which is why…"'}), NEVER a tease-question. Read end to end, the scenes must sound like ONE unbroken talk, not numbered separate tips; do NOT restart a new topic each scene. Do NOT end scenes with throwaway questions or empty teases ("còn bạn?", "muốn thử không?", "bạn biết chưa?", "điều bất ngờ ở phần sau…", "right?"). At most ONE genuine viewer-directed question in the WHOLE video, and never two scenes in a row ending with "?".
+- CONNECT scenes by LOGIC, not by filler: each scene CONTINUES the previous one — build on it, complicate it, or draw its consequence — joined by a forward logical connector (${connectorList(language)}), NEVER a tease-question. Read end to end, the scenes must sound like ONE unbroken talk, not numbered separate tips; do NOT restart a new topic each scene. Do NOT end scenes with throwaway questions or empty teases (${phrase(language, 'teases')}). At most ONE genuine viewer-directed question in the WHOLE video, and never two scenes in a row ending with "?".
 FLOW:
 - Scene 1: open cold and concrete — name the exact situation/gap the through-line will resolve and the specific, real payoff of this video (no greetings, no hyped fake numbers).
 - Middle scenes: each takes the SAME argument one dependent step further with its own concrete example; momentum comes from the idea deepening, never from asking questions.
 - Final scene: resolve the exact gap opened in Scene 1 as the single clearest takeaway, plus one natural line to subscribe.
-Natural conversational tone${language === 'vi' ? ', using the fixed Vietnamese forms of address "mình" (speaker) – "các bạn" (audience)' : ''}; ALL narration written in ${LANG_NAME[language] || language}.
+Natural conversational tone. ${voiceNoteFor(language)} ALL narration written in ${LANG_NAME[language] || language}.
 "keywords": 2-4 words/phrases present VERBATIM in THIS scene's "voice" — pick the strongest ones (numbers, power nouns); the graphics will emphasize these words AT THE EXACT MOMENT they are spoken, so a wrong pick desyncs visuals from audio.${hfVisualRules}${bibleBlock(memory)}${angleLine}
 Content:\n${sourceText.slice(0, 6000)}`;
       // enforce the scene count (≥70% of target) — lazy models love returning 2 scenes for a
@@ -422,7 +429,7 @@ Content:\n${sourceText.slice(0, 6000)}`;
   }
 
   // 3) offline deterministic (with chapter structure for long videos)
-  const off = offlineScript(sourceText, { title, sceneCount, wordsPerScene, structure: videoDuration >= 240 });
+  const off = offlineScript(sourceText, { title, sceneCount, wordsPerScene, structure: videoDuration >= 240, language });
   // Honor the ordered duration offline too: a long source must not balloon the scene count
   // (auto mode is the verbatim path — reaching here means the owner asked for a TARGET).
   if (off.scenes.length > sceneCount * 1.25) off.scenes = off.scenes.slice(0, Math.max(1, Math.round(sceneCount * 1.25)));
@@ -486,7 +493,7 @@ Script:\n${listing.slice(0, 6500)}` },
 async function twoStageScript({ sourceText, title, sceneCount, wordsPerScene, videoDuration, language = 'vi', llm, memory = null, angleLine = '' }) {
   const nCh = Math.max(3, Math.min(8, Math.round(videoDuration / 150)));
   const langLine = `All narration written in ${LANG_NAME[language] || language}.${bibleBlock(memory)}${angleLine}`;
-  const persona = language === 'vi' ? ' Use the fixed Vietnamese forms of address "mình" (speaker) – "các bạn" (audience).' : '';
+  const persona = ` ${voiceNoteFor(language)}`;
   const outline = await chatJson([
     { role: 'system', content: 'You are a professional YouTube content director. Reply with pure JSON.' },
     { role: 'user', content: `Outline a ~${Math.round(videoDuration / 60)}-minute video from the content below. ${langLine}
@@ -505,14 +512,14 @@ Content:\n${sourceText.slice(0, 7000)}` },
     const ch = chapters[i];
     scenes.push({
       voice: ch.heading, keywords: topNouns(ch.heading, 3), visualPrompt: ch.heading,
-      template: 'chapter-break', props: { chapter: `PHẦN ${String(i + 1).padStart(2, '0')}`, heading: String(ch.heading || '').slice(0, 40) },
+      template: 'chapter-break', props: { chapter: chapterLabel(language, i + 1), heading: String(ch.heading || '').slice(0, 40) },
     });
     try {
       const det = await chatJson([
         { role: 'system', content: 'You are a captivating storyteller. Reply with pure JSON.' },
         { role: 'user', content: `Video "${outline.title || title}" (narration in ${LANG_NAME[language] || language}), chapter ${i + 1}/${chapters.length}: "${ch.heading}".${outline.throughline ? `\nThe whole video argues: "${outline.throughline}" — advance THIS argument, do not drift.` : ''}
 Points that must all be covered: ${(ch.points || []).join('; ')}.${prevTail ? `\nThe CLOSING narration of the previous chapter (for continuity — CONTINUE this thread, do NOT repeat ideas already said): "…${prevTail}"` : ''}
-Write detailed narration as ONE continuous talk — each scene CONTINUES the previous one (build on it, complicate it, or draw its consequence) via a forward connector (${language === 'vi' ? '"vì vậy…", "nhưng…", "vậy nên…"' : '"so…", "but…", "which is why…"'}), never a tease-question; scene N+1 picks up where scene N ended. Each scene teaches ONE concrete, non-obvious thing with a specific named example the viewer can copy; do NOT invent statistics. Never restate the chapter heading.${persona}
+Write detailed narration as ONE continuous talk — each scene CONTINUES the previous one (build on it, complicate it, or draw its consequence) via a forward connector (${connectorList(language)}), never a tease-question; scene N+1 picks up where scene N ended. Each scene teaches ONE concrete, non-obvious thing with a specific named example the viewer can copy; do NOT invent statistics. Never restate the chapter heading.${persona}
 Output JSON {"scenes":[{"voice":"1-2 sentences"}]} — return about ${perCh} elements (let the content decide; ${Math.max(1, Math.ceil(perCh * 0.6))}–${perCh + 2} is fine), ${wordBudgetNote(wordsPerScene)}.` },
       ], { maxTokens: perCh * Math.max(130, wordsPerScene * 4) + 400, attempts: 3,
         validate: (p) => Array.isArray(p.scenes) && p.scenes.filter((s) => s.voice || s.text).length >= Math.max(1, Math.ceil(perCh * 0.6)), llm });
@@ -524,7 +531,7 @@ Output JSON {"scenes":[{"voice":"1-2 sentences"}]} — return about ${perCh} ele
     } catch {
       // chapter-level degradation: offline-split this chapter's points
       const body = [ch.heading, ...(ch.points || [])].join('. ');
-      const chScenes = offlineScript(body, { title, sceneCount: perCh, wordsPerScene }).scenes;
+      const chScenes = offlineScript(body, { title, sceneCount: perCh, wordsPerScene, language }).scenes;
       scenes.push(...chScenes);
       prevTail = chScenes.slice(-2).map((s) => s.voice).join(' ').slice(-240);
     }
