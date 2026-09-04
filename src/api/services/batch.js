@@ -8,6 +8,7 @@ import { resolveProjectConfig } from '../../core/config.js';
 import * as Pipeline from '../../pipeline/queue.js';
 import { coded } from '../../core/errors.js';
 
+import { m, tp } from '../../i18n/t.js';
 /**
  * @param {{topics?:string[], config?:object}} req
  * @returns {{projects:string[], count:number}}
@@ -15,7 +16,7 @@ import { coded } from '../../core/errors.js';
  */
 export function startBatch({ topics = [], config = {} } = {}) {
   const clean = topics.map((t) => String(t || '').trim()).filter((t) => t.length > 3);
-  if (!clean.length) { const e = coded(new Error('không có chủ đề hợp lệ'), 'config.bad-input'); e.status = 400; throw e; }
+  if (!clean.length) { const e = coded(new Error(m('không có chủ đề hợp lệ')), 'config.bad-input'); e.status = 400; throw e; }
   const batchChannel = DB.getChannel(DB.activeChannelId());
   const batchConfig = resolveProjectConfig({
     channel: batchChannel, preset: DB.defaultPresetFor(batchChannel?.id), request: config,
@@ -43,7 +44,7 @@ export function startBatch({ topics = [], config = {} } = {}) {
     (async () => {
       for (const p of created) {
         try { await Pipeline.startProject(p.id); }
-        catch (e) { logger.error(`Hàng loạt: mục lỗi (${e.message})`, { projectId: p.id }); }
+        catch (e) { logger.error(tp`Hàng loạt: mục lỗi (${e.message})`, { projectId: p.id }); }
       }
       hub.broadcast({ type: 'batch-done', count: created.length });
     })();

@@ -12,6 +12,7 @@
 //     out of their own work the moment their wifi drops.
 import { createVerify, randomBytes } from 'node:crypto';
 
+import { m } from '../i18n/t.js';
 const REQUEST_TIMEOUT_MS = 10_000;
 
 /** Thrown for anything the store answered. `.status` is the HTTP code. */
@@ -55,7 +56,7 @@ export class LicenseClient {
       });
     } catch (e) {
       // DNS failure, refused connection, timeout — the store said nothing at all.
-      throw new OfflineError(e?.message || 'không kết nối được tới cửa hàng');
+      throw new OfflineError(e?.message || m('không kết nối được tới cửa hàng'));
     }
     const text = await res.text().catch(() => '');
     const json = text ? safeJson(text) : null;
@@ -103,7 +104,7 @@ function safeJson(text) {
  */
 export function verifyLicenseToken(token, publicKeyPem) {
   const parts = String(token || '').split('.');
-  if (parts.length !== 3) throw tokenError('malformed', 'license token không đúng định dạng');
+  if (parts.length !== 3) throw tokenError('malformed', m('license token không đúng định dạng'));
   const [headerB64, payloadB64, signatureB64] = parts;
 
   const verifier = createVerify('RSA-SHA256');
@@ -115,16 +116,16 @@ export function verifyLicenseToken(token, publicKeyPem) {
   } catch {
     ok = false; // a malformed public key must read as "not verified", never as a crash
   }
-  if (!ok) throw tokenError('invalid-signature', 'chữ ký license không hợp lệ');
+  if (!ok) throw tokenError('invalid-signature', m('chữ ký license không hợp lệ'));
 
   let claims;
   try {
     claims = JSON.parse(Buffer.from(payloadB64, 'base64url').toString('utf8'));
   } catch {
-    throw tokenError('malformed', 'không đọc được nội dung license token');
+    throw tokenError('malformed', m('không đọc được nội dung license token'));
   }
   if (typeof claims.exp === 'number' && claims.exp * 1000 < Date.now()) {
-    throw tokenError('token-expired-offline', 'license token đã quá hạn, cần kết nối mạng để làm mới');
+    throw tokenError('token-expired-offline', m('license token đã quá hạn, cần kết nối mạng để làm mới'));
   }
   return claims;
 }
@@ -173,7 +174,7 @@ async function desktopRequest(baseUrl, path, body) {
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
   } catch (e) {
-    throw new OfflineError(e?.message || 'không kết nối được tới cửa hàng');
+    throw new OfflineError(e?.message || m('không kết nối được tới cửa hàng'));
   }
   const text = await res.text().catch(() => '');
   const json = text ? safeJson(text) : null;
@@ -208,7 +209,7 @@ export async function listMyLicenses(baseUrl, accessToken) {
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
   } catch (e) {
-    throw new OfflineError(e?.message || 'không kết nối được tới cửa hàng');
+    throw new OfflineError(e?.message || m('không kết nối được tới cửa hàng'));
   }
   const text = await res.text().catch(() => '');
   const json = text ? safeJson(text) : null;

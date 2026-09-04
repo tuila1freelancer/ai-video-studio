@@ -11,6 +11,7 @@ import { writeFileSync } from 'node:fs';
 import { probeDuration } from '../../media/ffmpeg.js';
 import { supertonicUrl, ensureSupertonic } from '../../media/tts-server.js';
 
+import { m, tp } from '../../i18n/t.js';
 // Shipped with the model — ids are stable, the descriptions come from the upstream voice card.
 const CATALOG = [
   { id: 'M1', name: 'M1 — sôi nổi, tự tin', gender: 'm', note: 'Promo, giải thích, đời thường' },
@@ -33,7 +34,7 @@ const clamp = (v, lo, hi, dflt) => {
 };
 
 export default {
-  id: 'supertonic', name: 'Supertonic (chạy máy mình — miễn phí)', free: true, needsNetwork: false,
+  id: 'supertonic', get name() { return m('Supertonic (chạy máy mình — miễn phí)'); }, free: true, needsNetwork: false,
   ext: '.wav',
   configSchema: [
     { key: 'serverUrl', label: 'Địa chỉ server', type: 'text', required: false, placeholder: 'http://127.0.0.1:7788' },
@@ -67,7 +68,7 @@ export default {
     });
     if (!res.ok) throw new Error(`Supertonic ${res.status}: ${(await res.text()).slice(0, 200)}`);
     const buf = Buffer.from(await res.arrayBuffer());
-    if (buf.length < 200) throw new Error('Supertonic: audio trả về rỗng');
+    if (buf.length < 200) throw new Error(m('Supertonic: audio trả về rỗng'));
     writeFileSync(outPath, buf);
     return { path: outPath, duration: await probeDuration(outPath) };
   },
@@ -78,9 +79,10 @@ export default {
       if (cfg?.autoStart) await ensureSupertonic(cfg);
       const tmp = `${process.env.TMPDIR || '/tmp'}/supertonic_test_${Date.now()}.wav`;
       const r = await this.synthesize('Xin chào, đây là giọng đọc thử nghiệm.', CATALOG[0].id, cfg, tmp, { lang: 'vi' });
-      return { ok: true, message: `Kết nối OK tại ${base} — synth thử ${r.duration.toFixed(1)}s audio` };
+      return { ok: true, message: tp`Kết nối OK tại ${base} — synth thử ${r.duration.toFixed(1)}s audio` };
     } catch (e) {
-      return { ok: false, message: `${e.message.slice(0, 160)} — cài bằng \`pip install supertonic\` rồi bật "tự khởi động", hoặc chạy \`supertonic serve --port 7788\`` };
+      // m(), not tp: an escaped backtick extracts WITH its backslash, so the msgid never matches at runtime.
+      return { ok: false, message: `${e.message.slice(0, 160)} ${m('— cài bằng `pip install supertonic` rồi bật "tự khởi động", hoặc chạy `supertonic serve --port 7788`')}` };
     }
   },
 };

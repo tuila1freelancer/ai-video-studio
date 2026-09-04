@@ -2,6 +2,7 @@
 import { listVoices as sayList, synthesize as saySynth, pickVoice } from '../../media/say.js';
 import { detectLang } from '../../util/lang.js';
 
+import { tp } from '../../i18n/t.js';
 const LOCALE = { vi: 'vi_VN', en: 'en_US', ja: 'ja_JP', ko: 'ko_KR', zh: 'zh_CN', ru: 'ru_RU', fr: 'fr_FR', de: 'de_DE', es: 'es_ES' };
 
 export default {
@@ -32,6 +33,6 @@ export default {
 
   async testConnection() {
     const voices = await this.listVoices();
-    return { ok: voices.length > 0, message: `OK — ${voices.length} giọng hệ thống (offline)` };
+    return { ok: voices.length > 0, message: tp`OK — ${voices.length} giọng hệ thống (offline)` };
   },
 };

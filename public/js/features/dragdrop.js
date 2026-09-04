@@ -13,6 +13,7 @@ import { $, el, esc } from '../ui/dom.js';
 import { toast } from '../ui/toast.js';
 import { api, fileUrl } from '../api.js';
 import { state } from '../state.js';
+import { m, tp } from '../i18n.js';
 
 const IMG = /\.(png|jpe?g|webp|gif|svg)$/i;
 const VID = /\.(mp4|mov|m4v|webm)$/i;
@@ -43,7 +44,7 @@ export function initDragDrop() {
   const zone = document.body;
   let depth = 0;
   const hint = el('div', 'dropzone-hint');
-  hint.textContent = '⬇ Thả file vào đây — ảnh vào asset, video vào Sửa video, nhạc vào thư viện';
+  hint.textContent = m('⬇ Thả file vào đây — ảnh vào asset, video vào Sửa video, nhạc vào thư viện');
   hint.style.cssText = 'position:fixed;inset:0;z-index:9999;display:none;place-items:center;'
     + 'background:rgba(6,8,18,.72);backdrop-filter:blur(3px);font-size:18px;font-weight:700;color:#fff;pointer-events:none';
   document.body.appendChild(hint);
@@ -68,7 +69,7 @@ export function initDragDrop() {
           state.assets.push(f.path);
           $('#assetList')?.appendChild(el('span', 'badge', esc(f.name.slice(0, 14))));
         });
-        done.push(`${r.files?.length || 0} ảnh → asset dự án`);
+        done.push(tp`${r.files?.length || 0} ảnh → asset dự án`);
       }
       if (kinds.videos.length) {
         const r = await uploadTo('/upload', files.filter((f) => VID.test(f.name)));
@@ -78,7 +79,7 @@ export function initDragDrop() {
           if ($('#evName')) $('#evName').textContent = r.files[0].name;
           const v = $('#evPreview');
           if (v) { v.src = fileUrl(p); v.classList.remove('hidden'); }
-          done.push('video → tab Sửa video');
+          done.push(m('video → tab Sửa video'));
         }
       }
       if (kinds.audio.length) {
@@ -86,16 +87,16 @@ export function initDragDrop() {
         // duration here, so go by the folder the owner is looking at, defaulting to BGM.
         const kind = state.libKind === 'sfx' ? 'sfx' : 'bgm';
         const r = await uploadTo(`/library/${kind}`, files.filter((f) => AUD.test(f.name)));
-        done.push(`${r.items?.length || 0} audio → thư viện ${kind.toUpperCase()}`);
+        done.push(tp`${r.items?.length || 0} audio → thư viện ${kind.toUpperCase()}`);
       }
       if (kinds.fonts.length) {
         const r = await uploadTo('/library/font', files.filter((f) => FONT.test(f.name)));
-        done.push(`${r.items?.length || 0} font → thư viện`);
+        done.push(tp`${r.items?.length || 0} font → thư viện`);
       }
     } catch (err) {
-      return toast('Thả file lỗi: ' + (err?.message || err), 'error');
+      return toast(tp`Thả file lỗi: ${err?.message || err}`, 'error');
     }
-    if (kinds.unknown.length) done.push(`bỏ qua ${kinds.unknown.length} file không hỗ trợ`);
-    toast(done.length ? `✅ ${done.join(' · ')}` : 'Không có file nào dùng được', done.length ? 'success' : 'error');
+    if (kinds.unknown.length) done.push(tp`bỏ qua ${kinds.unknown.length} file không hỗ trợ`);
+    toast(done.length ? `✅ ${done.join(' · ')}` : m('Không có file nào dùng được'), done.length ? 'success' : 'error');
   });
 }

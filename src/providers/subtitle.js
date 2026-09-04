@@ -12,6 +12,7 @@ import { correctCues } from '../subtitles/llm-correct.js';
 import { logger } from '../util/log.js';
 import { padMsFor } from '../util/lang.js';
 
+import { m, tp } from '../i18n/t.js';
 // Ratio of ACTUAL spoken pace to the LANG_WPS writing budget. LANG_WPS (vi 4.4) sizes how
 // much text fits a slot; measured LarVoice vi delivery runs at ~4.29 words/s (36 words →
 // 8.39s speech), i.e. ~97% of budget — 0.95 leaves a touch of slack for slower voices.
@@ -75,16 +76,16 @@ export async function buildSubtitles(audioPath, text, duration, { language, onLo
           }
           const aligned = alignWords(text, r.words, duration);
           if (aligned) return { words: aligned, cues: groupWordsIntoCues(aligned) };
-          logger.warn('Phụ đề: khớp cưỡng bức <50% — dùng nhịp ước tính (giữ nguyên chữ kịch bản)');
+          logger.warn(m('Phụ đề: khớp cưỡng bức <50% — dùng nhịp ước tính (giữ nguyên chữ kịch bản)'));
           break;
         }
-        logger.warn(`Phụ đề: whisper không trả về từ nào (lần ${attempt + 1}/2)`);
+        logger.warn(tp`Phụ đề: whisper không trả về từ nào (lần ${attempt + 1}/2)`);
       } catch (e) {
-        logger.warn(`Phụ đề: whisper lỗi (${e.message}) — lần ${attempt + 1}/2`);
+        logger.warn(tp`Phụ đề: whisper lỗi (${e.message}) — lần ${attempt + 1}/2`);
       }
       if (attempt === 0) await new Promise((r) => setTimeout(r, 1500));
     }
-    if (engine === 'whisper') logger.warn('Phụ đề: whisper thất bại hết lượt — chuyển sang nhịp ước tính');
+    if (engine === 'whisper') logger.warn(m('Phụ đề: whisper thất bại hết lượt — chuyển sang nhịp ước tính'));
   }
   return estimateWordTiming(text, duration);
 }

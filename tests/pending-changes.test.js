@@ -10,8 +10,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { CONCAT_CONFIG_KEYS } from '../src/pipeline/concat-plan.js';
+import { unwrapI18n } from './_source.mjs';
 
-const src = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
+const src = (p) => unwrapI18n(readFileSync(new URL(p, import.meta.url), 'utf8'));
 
 test('every setting the final assembly reads is classified as final-assembly work', () => {
   // A key MISSING from this list is not a wrong estimate — it is the opposite. The change queue

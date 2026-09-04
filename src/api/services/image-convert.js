@@ -8,6 +8,7 @@ import { spawn } from 'node:child_process';
 import { existsSync, unlinkSync, statSync } from 'node:fs';
 import { PATHS } from '../../config/paths.js';
 
+import { m, tp } from '../../i18n/t.js';
 /** Formats the renderer and the browser preview both handle as-is — stored untouched. */
 export const WEB_SAFE = new Set(['.png', '.jpg', '.jpeg', '.webp', '.svg', '.gif']);
 
@@ -33,7 +34,7 @@ function run(bin, args) {
  * The source file is removed on success — it is a multer temp upload, not the owner's original.
  */
 export async function toPng(src, dest, ext) {
-  if (!CONVERTIBLE.has(ext)) throw new Error(`không đọc được ảnh định dạng ${ext.replace('.', '') || 'không rõ'}`);
+  if (!CONVERTIBLE.has(ext)) throw new Error(tp`không đọc được ảnh định dạng ${ext.replace('.', '') || m('không rõ')}`);
   const apple = ext === '.heic' || ext === '.heif';
   const attempts = apple
     ? [['/usr/bin/sips', ['-s', 'format', 'png', src, '--out', dest]], [PATHS.ffmpeg, ['-y', '-v', 'error', '-i', src, dest]]]
@@ -49,5 +50,5 @@ export async function toPng(src, dest, ext) {
       }
     } catch (e) { last = e; }
   }
-  throw new Error(`không chuyển được ${ext.replace('.', '').toUpperCase()} sang PNG${last ? `: ${last.message.slice(0, 120)}` : ''}`);
+  throw new Error(tp`không chuyển được ${ext.replace('.', '').toUpperCase()} sang PNG${last ? `: ${last.message.slice(0, 120)}` : ''}`);
 }

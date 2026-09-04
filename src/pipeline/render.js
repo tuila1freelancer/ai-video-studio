@@ -7,8 +7,9 @@ import { perimeterExpr, WM_SPEEDS } from '../media/watermark.js';
 import { planOffsets, programCues, XFADE_DUR } from '../subtitles/timeline.js';
 import { buildAss, cueText } from '../subtitles/ass.js';
 import { measureCaptions } from '../subtitles/box.js';
-import { concatFingerprint, needsVideoFilter, planConcat, TIER_LOG } from './concat-plan.js';
+import { concatFingerprint, needsVideoFilter, planConcat, tierLog } from './concat-plan.js';
 import { ratioToSize, newId } from '../util/util.js';
+import { m, tp } from '../i18n/t.js';
 
 const FPS = 30; // fallback only — the real rate is probed off the clips
 
@@ -110,7 +111,7 @@ export async function concatScenes(sceneVideos, project, {
   // Forwarded straight to the encoder so a stop can end the join instead of waiting it out.
   signal = undefined,
 }) {
-  if (!sceneVideos.length) throw new Error('Không có cảnh nào để ghép');
+  if (!sceneVideos.length) throw new Error(m('Không có cảnh nào để ghép'));
   const ow = size.w, oh = size.h;
 
   // The frame an overlay lands on is whatever the CLIPS are — not what the caller believes.
@@ -169,7 +170,7 @@ export async function concatScenes(sceneVideos, project, {
       const path = join(dir, `subs_${newId('')}.ass`);
       writeFileSync(path, text, 'utf8');
       ass = { text, path, fontsDir: subtitles.fontsDir || null, shaping: subtitles.shaping || null };
-      (onNote || onLog)?.(`💬 In ${cues.length} dòng phụ đề lên video (font ${subtitles.style.font})`);
+      (onNote || onLog)?.(tp`💬 In ${cues.length} dòng phụ đề lên video (font ${subtitles.style.font})`);
     }
   }
 
@@ -189,7 +190,7 @@ export async function concatScenes(sceneVideos, project, {
   });
   const videoFilter = needsVideoFilter({ logo, watermark, assText, transitions: effPlan, masterFade });
   const { tier, why } = planConcat({ fp, prev: prevFp, prevPath, videoFilter, allowSkip });
-  (onNote || onLog)?.(`${TIER_LOG[tier]} — ${why}`);
+  (onNote || onLog)?.(`${tierLog(tier)} — ${why}`);
   if (tier === 'skip') {
     return { path: prevPath, thumb: project.thumb_path || null, duration: total, timeline, fp, tier };
   }
@@ -357,17 +358,17 @@ export async function concatScenes(sceneVideos, project, {
   // programme duration is the percentage. They stay on the TICKER: progress.js deliberately keeps
   // `· NN%` lines out of the journal, or one join would write a hundred rows into it.
   args.unshift('-progress', 'pipe:1', '-nostats'); // global options must precede the inputs
-  const label = copyVideo ? (tier === 'audio' ? '🔊 Trộn lại âm thanh' : '⚡ Sao chép video') : '🎞 Mã hoá video hoàn chỉnh';
+  const label = copyVideo ? (tier === 'audio' ? m('🔊 Trộn lại âm thanh') : m('⚡ Sao chép video')) : m('🎞 Mã hoá video hoàn chỉnh');
   const note = onNote || onLog;
   // The bracketing lines carry no percentage, so they DO reach the journal — the ticker shows
   // the live count, the journal keeps the record of what ran and how long it took.
-  note?.(`${label} — ${sceneVideos.length} clip · ${Math.round(cut)}s${ass ? ' · có phụ đề in trực tiếp' : ''}`);
+  note?.(`${label} — ${sceneVideos.length} clip · ${Math.round(cut)}s${ass ? ` · ${m('có phụ đề in trực tiếp')}` : ''}`);
   const t0 = Date.now();
   await (useAssBinary ? ffmpegAss : ffmpeg)(args, {
     signal,
     onLog: ffProgress(cut, (pct) => note?.(`${label} · ${pct}%`), onLog),
   });
-  note?.(`✅ Ghép xong sau ${Math.round((Date.now() - t0) / 1000)}s → ${finalOut.split('/').pop()}`);
+  note?.(tp`✅ Ghép xong sau ${Math.round((Date.now() - t0) / 1000)}s → ${finalOut.split('/').pop()}`);
 
   const thumb = join(project.outputDir || dir, `thumb_${newId('')}.jpg`);
   await ffmpeg(['-ss', String(Math.min(1.5, total / 2)), '-i', finalOut, '-frames:v', '1', '-q:v', '3', thumb], { signal });

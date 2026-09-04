@@ -10,6 +10,7 @@
 //   missing — no licence yet; ask for a key
 import { isWithinGrace, verifyLicenseToken } from './sdk.js';
 
+import { m } from '../i18n/t.js';
 const DAY_MS = 86_400_000;
 
 /**
@@ -100,22 +101,20 @@ export function isRunnable(status) {
   return status?.state === 'valid' || status?.state === 'grace';
 }
 
-/** What the lock screen says. Vietnamese: this is user-facing. */
-export const REASON_TEXT = {
-  'no-key': 'Đăng nhập bằng tài khoản Google đã mua license để bắt đầu.',
-  'no-token': 'License chưa được kích hoạt trên máy này. Đăng nhập để kích hoạt.',
-  revoked: 'License này đã bị thu hồi. Liên hệ shop nếu bạn cho rằng đây là nhầm lẫn.',
-  suspended: 'License này đang tạm ngưng. Kiểm tra lại tình trạng thanh toán.',
-  expired: 'License đã hết hạn. Gia hạn để tiếp tục sử dụng.',
-  'device-mismatch': 'License này được kích hoạt cho một máy khác. Hãy kích hoạt lại trên máy này.',
-  'token-expired-offline': 'Cần kết nối mạng một lần để làm mới license.',
-  'clock-rollback': 'Đồng hồ máy đang lệch về quá khứ. Chỉnh lại giờ hệ thống rồi làm mới license.',
-  'invalid-signature': 'License token không hợp lệ. Hãy kích hoạt lại.',
-  'invalid-token': 'License token không hợp lệ. Hãy kích hoạt lại.',
-  malformed: 'License token không hợp lệ. Hãy kích hoạt lại.',
-  'no-public-key': 'Bản cài đặt này thiếu khoá xác thực license. Hãy tải lại bản mới từ cửa hàng.',
-};
-
+/** What the lock screen says. Built per call so it follows the interface language. */
 export function reasonText(reason) {
-  return REASON_TEXT[reason] || 'Không xác thực được license.';
+  return {
+    'no-key': m('Đăng nhập bằng tài khoản Google đã mua license để bắt đầu.'),
+    'no-token': m('License chưa được kích hoạt trên máy này. Đăng nhập để kích hoạt.'),
+    revoked: m('License này đã bị thu hồi. Liên hệ shop nếu bạn cho rằng đây là nhầm lẫn.'),
+    suspended: m('License này đang tạm ngưng. Kiểm tra lại tình trạng thanh toán.'),
+    expired: m('License đã hết hạn. Gia hạn để tiếp tục sử dụng.'),
+    'device-mismatch': m('License này được kích hoạt cho một máy khác. Hãy kích hoạt lại trên máy này.'),
+    'token-expired-offline': m('Cần kết nối mạng một lần để làm mới license.'),
+    'clock-rollback': m('Đồng hồ máy đang lệch về quá khứ. Chỉnh lại giờ hệ thống rồi làm mới license.'),
+    'invalid-signature': m('License token không hợp lệ. Hãy kích hoạt lại.'),
+    'invalid-token': m('License token không hợp lệ. Hãy kích hoạt lại.'),
+    malformed: m('License token không hợp lệ. Hãy kích hoạt lại.'),
+    'no-public-key': m('Bản cài đặt này thiếu khoá xác thực license. Hãy tải lại bản mới từ cửa hàng.'),
+  }[reason] || m('Không xác thực được license.');
 }

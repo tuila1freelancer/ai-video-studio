@@ -5,6 +5,7 @@ import { probeDuration } from '../../media/ffmpeg.js';
 import { recordUsage } from '../../util/usage.js';
 import { failed } from '../../core/errors.js';
 
+import { m, tp } from '../../i18n/t.js';
 const BASE = 'https://vbee.vn/api/v1';
 
 // Common Vietnamese voice_codes (North/Central/South). Users can also type any code manually.
@@ -24,7 +25,7 @@ const CATALOG = [
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 export default {
-  id: 'vbee', name: 'Vbee AIVoice (tiếng Việt)', free: false, needsNetwork: true,
+  id: 'vbee', get name() { return m('Vbee AIVoice (tiếng Việt)'); }, free: false, needsNetwork: true,
   configSchema: [
     { key: 'token', label: 'API Token (Bearer)', type: 'password', required: true },
     { key: 'appId', label: 'App ID', type: 'text', required: true },
@@ -37,7 +38,7 @@ export default {
   },
 
   async synthesize(text, voiceId, cfg, outPath) {
-    if (!cfg?.token || !cfg?.appId) throw failed('config.no-key', 'Vbee: chưa cấu hình token/appId');
+    if (!cfg?.token || !cfg?.appId) throw failed('config.no-key', m('Vbee: chưa cấu hình token/appId'));
     const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${cfg.token}` };
     // 1) submit async job
     const sub = await fetch(`${BASE}/tts`, {
@@ -70,7 +71,7 @@ export default {
         if ((r.status || '').toUpperCase() === 'FAILURE') throw new Error('Vbee job FAILURE');
       }
     }
-    if (!audioLink) throw new Error('Vbee: không nhận được audio_link (kiểm tra token/appId/voice_code)');
+    if (!audioLink) throw new Error(m('Vbee: không nhận được audio_link (kiểm tra token/appId/voice_code)'));
     // 2) download the mp3
     const audio = await fetch(audioLink, { signal: AbortSignal.timeout(60000) });
     if (!audio.ok) throw new Error(`Vbee download ${audio.status}`);
@@ -84,7 +85,7 @@ export default {
     try {
       const tmp = `/tmp/vbee_test_${Date.now()}.mp3`;
       const r = await this.synthesize('Xin chào', CATALOG[0].id, cfg, tmp);
-      return { ok: true, message: `Kết nối OK — synth thử ${r.duration.toFixed(1)}s audio` };
+      return { ok: true, message: tp`Kết nối OK — synth thử ${r.duration.toFixed(1)}s audio` };
     } catch (e) { return { ok: false, message: e.message.slice(0, 200) }; }
   },
 };

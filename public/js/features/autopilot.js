@@ -13,8 +13,10 @@ import {
   addRecurrenceDialog, channelAssistant, configSheet,
 } from './assistant-sheet.js';
 import { initHistoryTab, renderHistory } from './assistant-history.js';
+import { m, tp } from '../i18n.js';
 
-const PACK_LABELS = { 'vn-news': '📰 Tin tức VN', 'vn-tech': '💻 Công nghệ VN', 'vn-business': '📈 Kinh doanh VN' };
+// Built per call, never at module load: the catalogue arrives after these modules are imported.
+const packLabels = () => ({ 'vn-news': m('📰 Tin tức VN'), 'vn-tech': m('💻 Công nghệ VN'), 'vn-business': m('📈 Kinh doanh VN') });
 
 let pool = []; // pending suggestion rows shown in the suggest tab
 let recs = []; // fixed weekly production windows (templates)
@@ -72,8 +74,8 @@ function loadPrefs() {
   if ($('#apPrefTimes')) $('#apPrefTimes').value = (a.preferredTimes || []).join(', ');
   if ($('#apPrefCfgState')) {
     $('#apPrefCfgState').textContent = a.defaultConfig
-      ? `✓ Đã có config trợ lý (${a.defaultConfig.visualMode || 'hyperframe'} · ${a.defaultConfig.aspectRatio || 'theo kênh'})`
-      : 'Chưa có config trợ lý riêng — video từ trợ lý dùng mặc định kênh.';
+      ? tp`✓ Đã có config trợ lý (${a.defaultConfig.visualMode || 'hyperframe'} · ${a.defaultConfig.aspectRatio || m('theo kênh')})`
+      : m('Chưa có config trợ lý riêng — video từ trợ lý dùng mặc định kênh.');
   }
 }
 
@@ -97,7 +99,7 @@ async function savePrefs() {
 
 async function saveAssistantConfig(config) {
   if (await putChannelAssistant({ defaultConfig: config })) {
-    toast(config ? '📋 Panel Studio hiện tại đã thành config trợ lý của kênh.' : '🗑 Đã xoá config trợ lý.', 'success');
+    toast(config ? m('📋 Panel Studio hiện tại đã thành config trợ lý của kênh.') : m('🗑 Đã xoá config trợ lý.'), 'success');
     loadPrefs();
   }
 }
@@ -108,7 +110,7 @@ async function loadSources() {
   try {
     const { assistant } = await api.get('/assistant/settings');
     const packs = new Set(assistant.packs || []);
-    $('#apPacks').innerHTML = Object.entries(PACK_LABELS).map(([id, label]) =>
+    $('#apPacks').innerHTML = Object.entries(packLabels()).map(([id, label]) =>
       `<label class="hint" style="display:flex;align-items:center;gap:6px;cursor:pointer">
         <input type="checkbox" data-pack="${id}" ${packs.has(id) ? 'checked' : ''}> ${label}</label>`).join('');
     $('#apFeeds').value = (assistant.feeds || []).map((f) => f.url).join('\n');
@@ -144,36 +146,36 @@ async function refreshOverview() {
     const f = d.funnel || {};
     const next = (d.upcoming || [])[0];
     $('#apStats').innerHTML = [
-      chip('🎞 Video', d.projects.total),
-      chip('✅ Hoàn thành', st.done || 0),
-      chip('⚙️ Job chạy/chờ', `${runningJobs}/${queuedJobs}`),
-      chip('💸 Chi phí ước tính', '$' + cost.toFixed(2)),
-      chip('💡 Gợi ý 30 ngày', `${f.accepted || 0}+${f.scheduled || 0}/${(f.suggested || 0) + (f.accepted || 0) + (f.scheduled || 0) + (f.dismissed || 0)}`,
-        'đã dùng + đã hẹn / tổng gợi ý'),
-      next ? chip('⏭ Slot kế tiếp', nextIn(next.due_at), next.topic) : chip('🗓 Lịch chờ', (d.calendar || []).length),
+      chip(m('🎞 Video'), d.projects.total),
+      chip(m('✅ Hoàn thành'), st.done || 0),
+      chip(m('⚙️ Job chạy/chờ'), `${runningJobs}/${queuedJobs}`),
+      chip(m('💸 Chi phí ước tính'), '$' + cost.toFixed(2)),
+      chip(m('💡 Gợi ý 30 ngày'), `${f.accepted || 0}+${f.scheduled || 0}/${(f.suggested || 0) + (f.accepted || 0) + (f.scheduled || 0) + (f.dismissed || 0)}`,
+        m('đã dùng + đã hẹn / tổng gợi ý')),
+      next ? chip(m('⏭ Slot kế tiếp'), nextIn(next.due_at), next.topic) : chip(m('🗓 Lịch chờ'), (d.calendar || []).length),
       d.week ? sparkChip(d.week) : '',
     ].join('');
     renderCalendar(await api.get('/calendar'));
-  } catch (e) { toast('Lỗi tải tổng quan: ' + e.message, 'error'); }
+  } catch (e) { toast(tp`Lỗi tải tổng quan: ${e.message}`, 'error'); }
 }
 function chip(label, val, title = '') {
   return `<div class="ap-chip" ${title ? `title="${esc(title)}"` : ''}><b>${esc(String(val))}</b><span>${esc(label)}</span></div>`;
 }
 function nextIn(dueAt) {
   const mins = Math.max(0, Math.round((dueAt - Date.now()) / 60000));
-  if (mins < 60) return `${mins} phút`;
-  if (mins < 48 * 60) return `${Math.round(mins / 60)} giờ`;
-  return `${Math.round(mins / 1440)} ngày`;
+  if (mins < 60) return tp`${mins} phút`;
+  if (mins < 48 * 60) return tp`${Math.round(mins / 60)} giờ`;
+  return tp`${Math.round(mins / 1440)} ngày`;
 }
 // 7-day created/done sparkline — inline SVG, no library
 function sparkChip(week) {
   const max = Math.max(1, ...week.createdByDay, ...week.doneByDay);
   const pts = (arr) => arr.map((v, i) => `${6 + i * 14},${26 - (v / max) * 20}`).join(' ');
-  return `<div class="ap-chip" title="7 ngày: tạo (mờ) / hoàn thành (đậm)">
+  return `<div class="ap-chip" title="${esc(m('7 ngày: tạo (mờ) / hoàn thành (đậm)'))}">
     <svg width="96" height="28" viewBox="0 0 96 28" aria-hidden="true">
       <polyline points="${pts(week.createdByDay)}" fill="none" stroke="rgba(124,140,255,.45)" stroke-width="2"/>
       <polyline points="${pts(week.doneByDay)}" fill="none" stroke="#7C8CFF" stroke-width="2"/>
-    </svg><span>📈 Nhịp 7 ngày</span></div>`;
+    </svg><span>${m('📈 Nhịp 7 ngày')}</span></div>`;
 }
 
 // ---- suggestion pool (pending rows from history — survives reloads) ----
@@ -182,21 +184,21 @@ async function renderPool() {
   if (!box) return;
   try { ({ suggestions: pool } = await api.get('/topics/history?status=suggested&limit=30')); }
   catch (e) { box.innerHTML = `<div class="hint">✗ ${esc(e.message)}</div>`; return; }
-  if (!pool.length) { box.innerHTML = '<div class="hint">Pool trống — bấm "Gợi ý" để trợ lý quét xu hướng và đề xuất chủ đề.</div>'; return; }
+  if (!pool.length) { box.innerHTML = `<div class="hint">${m('Pool trống — bấm "Gợi ý" để trợ lý quét xu hướng và đề xuất chủ đề.')}</div>`; return; }
   box.innerHTML = pool.map((t) => {
     const score = t.score ? `<span class="as-score" title="${esc(t.score.why || '')}">🔥${t.score.viral ?? '–'} 🌲${t.score.evergreen ?? '–'} ⚙${t.score.difficulty ?? '–'}</span>` : '';
     // pending ideas silently expire after 14 days — surface the countdown near the end (P34)
     const daysLeft = 14 - Math.floor((Date.now() - (t.created_at || Date.now())) / 86400000);
-    const expiry = daysLeft <= 3 ? `<span class="as-score" style="color:#fbbf24" title="Gợi ý chờ quá 14 ngày sẽ tự hết hạn">⏳ còn ${Math.max(0, daysLeft)} ngày</span>` : '';
+    const expiry = daysLeft <= 3 ? `<span class="as-score" style="color:#fbbf24" title="${esc(m('Gợi ý chờ quá 14 ngày sẽ tự hết hạn'))}">${tp`⏳ còn ${Math.max(0, daysLeft)} ngày`}</span>` : '';
     return `<div class="ap-topic" data-id="${esc(t.id)}">
       <div style="flex:1;min-width:0">
         <div class="t">${esc(t.topic)} ${score} ${expiry}</div>
         ${t.angle || t.source ? `<div class="hint">${esc(t.angle || '')}${t.source ? `${t.angle ? ' · ' : ''}${esc(t.source)}` : ''}</div>` : ''}
       </div>
-      <button class="btn sm" data-act="now" title="Chọn cấu hình rồi tạo ngay">▶ Làm ngay</button>
-      <button class="btn sm" data-act="plan" title="Chọn cấu hình + thời điểm">🗓 Hẹn lịch</button>
-      <button class="btn sm" data-act="series" title="Phát triển thành mini-series nhiều tập">📚</button>
-      <button class="btn sm" data-act="dismiss" title="Bỏ qua (khôi phục được trong Lịch sử)">✕</button>
+      <button class="btn sm" data-act="now" title="${esc(m('Chọn cấu hình rồi tạo ngay'))}">${m('▶ Làm ngay')}</button>
+      <button class="btn sm" data-act="plan" title="${esc(m('Chọn cấu hình + thời điểm'))}">${m('🗓 Hẹn lịch')}</button>
+      <button class="btn sm" data-act="series" title="${esc(m('Phát triển thành mini-series nhiều tập'))}">📚</button>
+      <button class="btn sm" data-act="dismiss" title="${esc(m('Bỏ qua (khôi phục được trong Lịch sử)'))}">✕</button>
     </div>`;
   }).join('');
 }
@@ -214,7 +216,7 @@ async function onPoolAction(e) {
 // ---- mini-series: LLM designs N connected episodes → pending suggestions ----
 async function seriesFlow(row) {
   const n = await menuDialog({
-    title: `📚 Lên series từ: ${row.topic.slice(0, 60)}`,
+    title: tp`📚 Lên series từ: ${row.topic.slice(0, 60)}`,
     items: [
       { id: '3', label: '3 tập (gọn)' },
       { id: '5', label: '5 tập (chuẩn)' },
@@ -223,34 +225,34 @@ async function seriesFlow(row) {
   });
   if (!n) return;
   const note = $('#apSuggestNote');
-  if (note) note.textContent = '⏳ AI đang thiết kế series…';
+  if (note) note.textContent = m('⏳ AI đang thiết kế series…');
   try {
     const r = await api.post('/topics/series', { suggestionId: row.id, episodes: +n });
-    if (note) note.textContent = `✓ Series "${r.series.name}" — ${r.suggestions.length} tập đã vào pool.`;
+    if (note) note.textContent = tp`✓ Series "${r.series.name}" — ${r.suggestions.length} tập đã vào pool.`;
     await renderPool();
     refreshOverview();
     const times = preferredTimes() || ['08:00'];
     if (await confirmDialog({
       title: 'Xếp lịch cả series?',
-      body: `${r.suggestions.length} tập, mỗi ngày 1 tập lúc ${times[0]}, bắt đầu từ ngày mai.`,
+      body: tp`${r.suggestions.length} tập, mỗi ngày 1 tập lúc ${times[0]}, bắt đầu từ ngày mai.`,
       okText: '🗓 Xếp lịch',
     })) {
       // P34: the series episodes get a REVIEWED config too (one sheet, applied to every
       // episode) — before this they were scheduled with no config at all
-      const picked = await configSheet({ row: { topic: `📚 ${r.series.name} (áp cho mọi tập)` }, mode: 'edit' });
+      const picked = await configSheet({ row: { topic: tp`📚 ${r.series.name} (áp cho mọi tập)` }, mode: 'edit' });
       const p = await api.post('/calendar/plan', {
         topicIds: r.suggestions.map((s) => s.id),
         days: r.suggestions.length + 1, perDay: 1, times: [times[0]],
         config: picked?.config || {},
       });
-      toast(`📅 Đã xếp ${p.planned} tập vào lịch.`, 'success');
+      toast(tp`📅 Đã xếp ${p.planned} tập vào lịch.`, 'success');
       renderPool(); refreshOverview();
     }
   } catch (e) { if (note) note.textContent = '✗ ' + e.message; }
 }
 
 // ---- fixed weekly windows (recurrences) ----
-const WEEKDAYS = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+const weekday = (i) => [m('CN'), m('T2'), m('T3'), m('T4'), m('T5'), m('T6'), m('T7')][i];
 function nextOccurrence(rec) {
   const [hh, mm] = rec.time.split(':').map((n) => parseInt(n, 10));
   const d = new Date();
@@ -266,13 +268,13 @@ async function renderRecs() {
   if (!box) return;
   try { ({ recurrences: recs } = await api.get('/calendar/recurrences')); }
   catch { recs = []; }
-  if (!recs.length) { box.innerHTML = '<div class="hint">Chưa có khung giờ cố định nào.</div>'; return; }
+  if (!recs.length) { box.innerHTML = `<div class="hint">${m('Chưa có khung giờ cố định nào.')}</div>`; return; }
   box.innerHTML = recs.map((r) => `
     <div class="ap-slot" data-id="${esc(r.id)}">
-      <span class="when">${WEEKDAYS[r.weekday]} · ${esc(r.time)}</span>
-      <span class="t hint" style="flex:1">kế tiếp: ${new Date(nextOccurrence(r)).toLocaleString('vi-VN')}</span>
-      <button class="btn sm" data-rec="fill">＋ Chọn chủ đề</button>
-      <button class="btn sm" data-rec="del" title="Xoá khung giờ">✕</button>
+      <span class="when">${weekday(r.weekday)} · ${esc(r.time)}</span>
+      <span class="t hint" style="flex:1">${tp`kế tiếp: ${new Date(nextOccurrence(r)).toLocaleString('vi-VN')}`}</span>
+      <button class="btn sm" data-rec="fill">${m('＋ Chọn chủ đề')}</button>
+      <button class="btn sm" data-rec="del" title="${esc(m('Xoá khung giờ'))}">✕</button>
     </div>`).join('');
 }
 
@@ -290,7 +292,7 @@ async function onRecAction(e) {
   if (!pool.length) await renderPool();
   if (!pool.length) { toast('Pool trống — tạo gợi ý ở tab 💡 trước đã.', 'error'); return; }
   const pick = await menuDialog({
-    title: `＋ Chủ đề cho ${WEEKDAYS[rec.weekday]} · ${rec.time}`,
+    title: tp`＋ Chủ đề cho ${weekday(rec.weekday)} · ${rec.time}`,
     items: pool.slice(0, 8).map((t) => ({ id: t.id, label: t.topic.slice(0, 70) })),
   });
   if (!pick) return;
@@ -301,18 +303,18 @@ async function onRecAction(e) {
 
 async function suggest() {
   const note = $('#apSuggestNote');
-  if (note) note.textContent = '⏳ Đang quét xu hướng + soạn gợi ý…';
+  if (note) note.textContent = m('⏳ Đang quét xu hướng + soạn gợi ý…');
   try {
     const count = parseInt($('#apCount')?.value, 10) || 8;
     const r = await api.post('/topics/suggest', { niche: $('#apNiche').value.trim(), count });
     if (note) {
       // honest sourcing (P34): "AI + xu hướng" only when trend signals actually arrived
       const src = r.source === 'llm'
-        ? (r.trends ? `AI + ${r.trends} tín hiệu xu hướng` : 'AI thuần — không lấy được nguồn xu hướng nào (mạng/feed lỗi)')
-        : 'xu hướng thô — bật LLM để có góc tiếp cận & điểm số';
+        ? (r.trends ? tp`AI + ${r.trends} tín hiệu xu hướng` : m('AI thuần — không lấy được nguồn xu hướng nào (mạng/feed lỗi)'))
+        : m('xu hướng thô — bật LLM để có góc tiếp cận & điểm số');
       note.textContent = r.topics.length
-        ? `✓ Thêm ${r.topics.length} gợi ý mới (${src})`
-        : 'Không có gợi ý mới — mọi ý tưởng đã có trong pool/lịch sử hoặc trùng chủ đề cũ.';
+        ? tp`✓ Thêm ${r.topics.length} gợi ý mới (${src})`
+        : m('Không có gợi ý mới — mọi ý tưởng đã có trong pool/lịch sử hoặc trùng chủ đề cũ.');
     }
     await renderPool();
   } catch (e) { if (note) note.textContent = '✗ ' + e.message; }
@@ -321,16 +323,16 @@ async function suggest() {
 function renderCalendar({ slots }) {
   const box = $('#apCalendar');
   if (!box) return;
-  if (!slots?.length) { box.innerHTML = '<div class="hint">Chưa có lịch nào — hẹn từ một gợi ý ở tab 💡.</div>'; return; }
+  if (!slots?.length) { box.innerHTML = `<div class="hint">${m('Chưa có lịch nào — hẹn từ một gợi ý ở tab 💡.')}</div>`; return; }
   box.innerHTML = slots.slice(-20).map((s) => `
     <div class="ap-slot" data-id="${esc(s.id)}">
       <span class="when">${new Date(s.due_at).toLocaleString('vi-VN')}</span>
       <span class="t" style="flex:1">${esc(s.topic)}</span>
-      <span class="badge ${s.status === 'created' ? 'done' : s.status === 'cancelled' ? 'error' : 'paused'}">${s.status === 'queued' ? 'Chờ đến hạn' : s.status === 'created' ? 'Đã tạo video' : 'Đã huỷ'}</span>
+      <span class="badge ${s.status === 'created' ? 'done' : s.status === 'cancelled' ? 'error' : 'paused'}">${s.status === 'queued' ? m('Chờ đến hạn') : s.status === 'created' ? m('Đã tạo video') : m('Đã huỷ')}</span>
       ${s.status === 'queued' ? `
-      <button class="btn sm" data-slot="cfg" title="Sửa cấu hình slot">⚙</button>
-      <button class="btn sm" data-slot="time" title="Dời lịch">🕐</button>
-      <button class="btn sm" data-slot="del" title="Huỷ lịch (ý tưởng quay về pool)">✕</button>` : ''}
+      <button class="btn sm" data-slot="cfg" title="${esc(m('Sửa cấu hình slot'))}">⚙</button>
+      <button class="btn sm" data-slot="time" title="${esc(m('Dời lịch'))}">🕐</button>
+      <button class="btn sm" data-slot="del" title="${esc(m('Huỷ lịch (ý tưởng quay về pool)'))}">✕</button>` : ''}
     </div>`).join('');
   box.querySelectorAll('[data-slot]').forEach((b) => b.addEventListener('click', async () => {
     const slot = slots.find((s) => s.id === b.closest('.ap-slot')?.dataset.id);

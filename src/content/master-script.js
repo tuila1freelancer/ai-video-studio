@@ -36,6 +36,7 @@ import { wordCount, safeJson } from '../util/util.js';
 import { words, countWords, wordJoiner } from '../i18n/segment.js';
 import { column, LANGUAGES, lang as langRow } from '../i18n/languages.js';
 
+import { tp } from '../i18n/t.js';
 // The 8 canonical visual sections (factory schema hard gate). A master visual must carry
 // [MAIN FOCUS] plus at least MIN_BRACKETS of these to count as "directed".
 export const VISUAL_BRACKETS = ['ENVIRONMENT', 'MAIN FOCUS', 'CAMERA', 'MOTION FLOW', 'LIGHTING & FX', 'TEXT STYLE', 'ON-SCREEN TEXT', 'MOOD'];
@@ -541,10 +542,10 @@ function enforceCtaFloor(scenes, onLog = () => {}) {
     if (!mid.has(i)) { out.push(sc); return; }
     const { voice, removed, gutted } = stripCtaSentences(sc.voice, { farewellOnly: true });
     if (gutted) {
-      onLog(`Kỷ luật CTA: cảnh ${i + 1} chỉ là lời chào tạm biệt giữa video — XOÁ cảnh (video vẫn còn tiếp diễn)`);
+      onLog(tp`Kỷ luật CTA: cảnh ${i + 1} chỉ là lời chào tạm biệt giữa video — XOÁ cảnh (video vẫn còn tiếp diễn)`);
       return;
     }
-    onLog(`Kỷ luật CTA: cảnh ${i + 1} — bỏ câu tạm biệt giữa video: "${removed.join(' | ').slice(0, 90)}"`);
+    onLog(tp`Kỷ luật CTA: cảnh ${i + 1} — bỏ câu tạm biệt giữa video: "${removed.join(' | ').slice(0, 90)}"`);
     out.push({ ...sc, voice });
   });
   return out.map((s, i) => ({ ...s, stt: i + 1 }));
@@ -616,10 +617,10 @@ HARD RULES: chapters cover scenes 1..${targetCount} exactly, in order, no gaps o
       spine: parsed.spine.map((s) => String(s).trim()).filter(Boolean).slice(0, 12),
       chapters: normalizeChapters(parsed.chapters, targetCount),
     };
-    onLog(`Kịch bản: đã ghim dàn ý — ${outline.chapters.length} chương, throughline: "${outline.throughline.slice(0, 80)}"`);
+    onLog(tp`Kịch bản: đã ghim dàn ý — ${outline.chapters.length} chương, throughline: "${outline.throughline.slice(0, 80)}"`);
     return outline;
   } catch (e) {
-    onLog(`Kịch bản: không tạo được dàn ý ghim (${String(e.message).slice(0, 80)}) — chạy kiểu cũ`);
+    onLog(tp`Kịch bản: không tạo được dàn ý ghim (${String(e.message).slice(0, 80)}) — chạy kiểu cũ`);
     return null;
   }
 }
@@ -639,7 +640,7 @@ async function askOnce({ messages, expect, plan, mode, source, language, llm, on
     },
   });
   const v = validateScenesJson(parsed, { mode, plan, source, language, expect });
-  onLog(`Kịch bản: nhận ${v.spec.scenes.length}/${expect} cảnh, ${v.defects.length} lỗi${v.defects.length ? ` [${[...new Set(v.defects.map((d) => d.code))].join(',')}]` : ''}`);
+  onLog(tp`Kịch bản: nhận ${v.spec.scenes.length}/${expect} cảnh, ${v.defects.length} lỗi${v.defects.length ? ` [${[...new Set(v.defects.map((d) => d.code))].join(',')}]` : ''}`);
   return v;
 }
 
@@ -655,7 +656,7 @@ async function generateChunk({ mode, input, plan, expect, sttBase, batchNote, la
       if (!best || v.defects.length < best.defects.length) best = v;
       if (v.ok) break;
     } catch (e) {
-      onLog(`Kịch bản: lần thử ${round + 1} thất bại (${String(e.message).slice(0, 100)})`);
+      onLog(tp`Kịch bản: lần thử ${round + 1} thất bại (${String(e.message).slice(0, 100)})`);
       if (round === 1 && !best) throw e;
     }
   }
@@ -756,7 +757,7 @@ async function generateSpan({ common, from, to, targetCount, label, tail, closes
   // batch/sub-spans take their word-balanced share of the sentence partition.
   const input = slice ? (from === 1 && to === targetCount ? topicText : slice(from, to)) : topicText;
   if (slice && !input) {
-    common.onLog(`Kịch bản: cảnh ${from}–${to} không có từ nguồn (câu dài rơi sang span kề) — bỏ qua`);
+    common.onLog(tp`Kịch bản: cảnh ${from}–${to} không có từ nguồn (câu dài rơi sang span kề) — bỏ qua`);
     return { spec: { title: '', thumbnail: null, scenes: [] }, defects: [] };
   }
   const batchNote = batchNoteFor({
@@ -772,7 +773,7 @@ async function generateSpan({ common, from, to, targetCount, label, tail, closes
     if (expect < MIN_SPLIT * 2) throw e;
     why = String(e.message).slice(0, 80);
   }
-  common.onLog(`Kịch bản: cảnh ${from}–${to} (${why}) — chia thành 2 lần gọi nhỏ hơn`);
+  common.onLog(tp`Kịch bản: cảnh ${from}–${to} (${why}) — chia thành 2 lần gọi nhỏ hơn`);
   const mid = from + Math.ceil(expect / 2) - 1;
   const a = await generateSpan({ common, from, to: mid, targetCount, label, tail, closes: false, slice, topicText });
   const b = await generateSpan({
@@ -802,7 +803,7 @@ export async function generateMasterScenes({ input, source = null, config = {}, 
     const v = validateScenesJson(pasted, { mode: 'json', language });
     const spec = v.ok ? v.spec : repairScenesSpec(v.spec, v.defects);
     if (!spec.scenes.length) throw new Error('Scenes JSON has no usable narration scenes');
-    for (const d of v.defects) onLog(`Nhập scenes-json: ${d.code}${d.stt != null ? ` @${Array.isArray(d.stt) ? d.stt.join(',') : d.stt}` : ''} — ${d.detail}`);
+    for (const d of v.defects) onLog(tp`Nhập scenes-json: ${d.code}${d.stt != null ? ` @${Array.isArray(d.stt) ? d.stt.join(',') : d.stt}` : ''} — ${d.detail}`);
     return toPipelineShape(spec, { mode: 'json', defects: v.defects, onLog });
   }
 
@@ -854,7 +855,7 @@ export async function generateMasterScenes({ input, source = null, config = {}, 
 
   // 4) Long video → adaptive batches of 25 with rolling context; thumbnail comes from batch 1.
   const nBatches = Math.ceil(targetCount / BATCH_SIZE);
-  onLog(`Kịch bản: video dài (${targetCount} cảnh) → ${nBatches} đợt × ~${BATCH_SIZE} cảnh`);
+  onLog(tp`Kịch bản: video dài (${targetCount} cảnh) → ${nBatches} đợt × ~${BATCH_SIZE} cảnh`);
   if (mode !== 'script') {
     common.outline = await generateOutline({ plan, language, llm, onLog, targetCount, topicText: text, sourceDoc, mode });
   }

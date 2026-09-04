@@ -1,7 +1,7 @@
 // Promise-based dialogs replacing native confirm()/prompt(): glass surface, Esc/backdrop
 // close, focus management, spring in/out (uses .modal-bg/.modal/.dlg styles in app.css).
 import { el, esc } from './dom.js';
-import { t } from '../i18n.js';
+import { t, m } from '../i18n.js';
 
 /** Translate a dialog's own words, keyed by their Vietnamese text — same trick as toast(). */
 const tr = (v) => (typeof v === 'string' && v ? t(`ui.msg.${v}`, null, v) : v);
@@ -39,7 +39,7 @@ export function openDialog(innerHtml, { onReady } = {}) {
   });
 }
 
-export function confirmDialog({ title, body = '', okText = 'Xác nhận', cancelText = 'Huỷ', danger = false }) {
+export function confirmDialog({ title, body = '', okText = m('Xác nhận'), cancelText = m('Huỷ'), danger = false }) {
   return openDialog(`
     <div class="dlg-title">${esc(tr(title))}</div>
     ${body ? `<div class="dlg-body">${esc(tr(body))}</div>` : ''}
@@ -55,7 +55,7 @@ export function confirmDialog({ title, body = '', okText = 'Xác nhận', cancel
   }).then((v) => !!v);
 }
 
-export function promptDialog({ title, label = '', value = '', placeholder = '', okText = 'Lưu', cancelText = 'Huỷ' }) {
+export function promptDialog({ title, label = '', value = '', placeholder = '', okText = m('Lưu'), cancelText = m('Huỷ') }) {
   return openDialog(`
     <div class="dlg-title">${esc(tr(title))}</div>
     <div class="field" style="margin-bottom:16px">
@@ -84,7 +84,7 @@ export function menuDialog({ title, items }) {
     <div class="dlg-menu">
       ${items.map((it) => `<button data-mi="${esc(it.id)}" class="${it.danger ? 'danger' : ''}">${it.icon || ''}<span>${esc(tr(it.label))}</span></button>`).join('')}
     </div>
-    <div class="dlg-actions"><button class="btn" data-a="cancel">Đóng</button></div>`, {
+    <div class="dlg-actions"><button class="btn" data-a="cancel">${esc(m('Đóng'))}</button></div>`, {
     onReady(dlg, close) {
       dlg.querySelectorAll('[data-mi]').forEach((b) => b.addEventListener('click', () => close(b.dataset.mi)));
       dlg.querySelector('[data-a=cancel]').addEventListener('click', () => close(null));
@@ -99,28 +99,28 @@ export function menuDialog({ title, items }) {
  * cover that — you cannot fix a typo in a caption you never saw.
  * @returns {Promise<{caption,title,when}|null>} `when` is unix SECONDS, or null for "now".
  */
-export function publishDialog({ title = 'Đăng video', platform = 'facebook', caption = '', postTitle = '', canSchedule = true }) {
+export function publishDialog({ title = m('Đăng video'), platform = 'facebook', caption = '', postTitle = '', canSchedule = true }) {
   const QUICK = [
-    { id: '', label: 'Đăng ngay' },
-    { id: '1h', label: '+1 giờ' },
-    { id: '3h', label: '+3 giờ' },
-    { id: 'tonight', label: 'Tối nay 20h' },
-    { id: 'tmr9', label: 'Mai 9h' },
-    { id: 'tmr20', label: 'Mai 20h' },
+    { id: '', label: m('Đăng ngay') },
+    { id: '1h', label: m('+1 giờ') },
+    { id: '3h', label: m('+3 giờ') },
+    { id: 'tonight', label: m('Tối nay 20h') },
+    { id: 'tmr9', label: m('Mai 9h') },
+    { id: 'tmr20', label: m('Mai 20h') },
   ];
   return openDialog(`
     <h3>${esc(tr(title))}</h3>
-    <label class="label">Nội dung bài đăng (hỗ trợ #hashtag)</label>
+    <label class="label">${esc(m('Nội dung bài đăng (hỗ trợ #hashtag)'))}</label>
     <textarea class="input" id="dlgCaption" rows="6">${esc(caption)}</textarea>
-    <label class="label" style="margin-top:8px">Tiêu đề (tuỳ chọn)</label>
+    <label class="label" style="margin-top:8px">${esc(m('Tiêu đề (tuỳ chọn)'))}</label>
     <input class="input" id="dlgTitle" value="${esc(postTitle)}">
-    ${canSchedule ? `<label class="label" style="margin-top:10px">Thời điểm đăng</label>
+    ${canSchedule ? `<label class="label" style="margin-top:10px">${esc(m('Thời điểm đăng'))}</label>
     <div class="row" id="dlgWhen" style="flex-wrap:wrap;gap:6px">${
-      QUICK.map((q, i) => `<button class="gtab${i === 0 ? ' active' : ''}" data-w="${q.id}">${q.label}</button>`).join('')
+      QUICK.map((q, i) => `<button class="gtab${i === 0 ? ' active' : ''}" data-w="${q.id}">${esc(q.label)}</button>`).join('')
     }</div>
     <input class="input" id="dlgWhenAt" type="datetime-local" style="margin-top:6px">` : ''}
     <div class="row" style="justify-content:flex-end;gap:8px;margin-top:14px">
-      <button class="btn" data-x>Huỷ</button><button class="btn primary" data-ok>Đăng</button>
+      <button class="btn" data-x>${esc(m('Huỷ'))}</button><button class="btn primary" data-ok>${esc(m('Đăng'))}</button>
     </div>`, {
     onReady(dlg, close) {
       let quick = '';

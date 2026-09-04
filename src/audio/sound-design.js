@@ -9,6 +9,7 @@ import { chat, llmEnabled } from '../providers/llm.js';
 import { safeJson } from '../util/util.js';
 import { langName, majorityLang } from '../util/lang.js';
 
+import { m, tp } from '../i18n/t.js';
 export const BGM_VOL_MIN = 0.14, BGM_VOL_MAX = 0.28;   // pre-duck linear mix level bounds
 export const SFX_VOL_MIN = 0.3, SFX_VOL_MAX = 1.0;     // per-event linear volume bounds
 export const SFX_MIN_GAP_S = 1.0;                       // reference rule: no two SFX within 1s
@@ -103,12 +104,12 @@ export async function planSoundDesign({ scenes, lossBeforeScene, bgm = [], sfx =
         onLog(`sound design: ${plan.bgmPath ? 'BGM chosen' : 'no BGM'}, ${plan.events.length} SFX placed`);
         return plan;
       }
-      onLog(`sound design: plan unusable (lần ${attempt}/${PLAN_TRIES})`);
+      onLog(tp`sound design: plan unusable (lần ${attempt}/${PLAN_TRIES})`);
     } catch (e) {
-      onLog(`sound design failed (${String(e.message).slice(0, 80)}) — lần ${attempt}/${PLAN_TRIES}`);
+      onLog(tp`sound design failed (${String(e.message).slice(0, 80)}) — lần ${attempt}/${PLAN_TRIES}`);
     }
   }
-  onLog('sound design: không dựng được kế hoạch — dùng nhạc nền chọn sẵn từ thư viện');
+  onLog(m('sound design: không dựng được kế hoạch — dùng nhạc nền chọn sẵn từ thư viện'));
   return null;
 }
 

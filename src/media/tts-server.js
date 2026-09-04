@@ -7,6 +7,7 @@
 import { spawn, spawnSync } from 'node:child_process';
 import { logger } from '../util/log.js';
 
+import { tp } from '../i18n/t.js';
 const DEFAULT_URL = 'http://127.0.0.1:7788';
 const procs = new Map();
 
@@ -79,7 +80,7 @@ export async function ensureSupertonic(cfg = {}, { restart = false, waitMs = 600
   if (restart) stopSupertonic(cfg);
   else if (await isAlive(base)) {
     if (await canSynthesize(base)) return true;
-    logger.warn(`[TTS] Supertonic tại ${base} trả HTTP nhưng synth lỗi — khởi động lại`);
+    logger.warn(tp`[TTS] Supertonic tại ${base} trả HTTP nhưng synth lỗi — khởi động lại`);
     stopSupertonic(cfg);
   }
   const launcher = supertonicLauncher();
@@ -95,7 +96,7 @@ export async function ensureSupertonic(cfg = {}, { restart = false, waitMs = 600
   child.stdout?.on('data', (b) => { const s = String(b).trim(); if (s) logger.info(`[TTS][supertonic] ${s}`); });
   child.stderr?.on('data', (b) => { const s = String(b).trim(); if (s) logger.info(`[TTS][supertonic] ${s}`); });
   child.on('exit', (code) => { if (procs.get('supertonic') === child) { procs.delete('supertonic'); logger.info(`[TTS] Supertonic thoát code ${code}`); } });
-  child.on('error', (e) => { procs.delete('supertonic'); logger.warn(`[TTS] Supertonic lỗi process: ${e.message}`); });
+  child.on('error', (e) => { procs.delete('supertonic'); logger.warn(tp`[TTS] Supertonic lỗi process: ${e.message}`); });
   procs.set('supertonic', child);
 
   const deadline = Date.now() + waitMs;
@@ -103,7 +104,7 @@ export async function ensureSupertonic(cfg = {}, { restart = false, waitMs = 600
     if (await isAlive(base, 2000)) { logger.info(`[TTS] Supertonic sẵn sàng tại ${base}`); return true; }
     await sleep(1000);
   }
-  logger.warn(`[TTS] Supertonic không sẵn sàng trong ${Math.round(waitMs / 1000)}s`);
+  logger.warn(tp`[TTS] Supertonic không sẵn sàng trong ${Math.round(waitMs / 1000)}s`);
   return false;
 }
 

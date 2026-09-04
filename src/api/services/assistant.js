@@ -6,10 +6,11 @@ import * as DB from '../../db/index.js';
 import { startBatch } from './batch.js';
 import { chatJson, llmEnabled } from '../../providers/llm.js';
 
+import { m, tp } from '../../i18n/t.js';
 function loadPending(id) {
   const row = DB.getSuggestion(id);
-  if (!row) { const e = new Error('gợi ý không tồn tại'); e.status = 404; throw e; }
-  if (row.status !== 'suggested') { const e = new Error(`gợi ý đã ở trạng thái '${row.status}'`); e.status = 400; throw e; }
+  if (!row) { const e = new Error(m('gợi ý không tồn tại')); e.status = 404; throw e; }
+  if (row.status !== 'suggested') { const e = new Error(tp`gợi ý đã ở trạng thái '${row.status}'`); e.status = 400; throw e; }
   return row;
 }
 
@@ -86,16 +87,16 @@ export function planWeek({ channelId = null, days = 7, perDay = 1, times = ['08:
  */
 export async function buildSeries({ suggestionId = null, seed = '', episodes = 5, ai = null } = {}) {
   const llm = ai?.llm || null;
-  if (!llmEnabled(llm)) { const e = new Error('cần bật LLM để lên series'); e.status = 400; throw e; }
+  if (!llmEnabled(llm)) { const e = new Error(m('cần bật LLM để lên series')); e.status = 400; throw e; }
   let seedTopic = String(seed || '').trim();
   let seedAngle = '';
   let channelId = DB.activeChannelId();
   if (suggestionId) {
     const row = DB.getSuggestion(suggestionId);
-    if (!row) { const e = new Error('gợi ý không tồn tại'); e.status = 404; throw e; }
+    if (!row) { const e = new Error(m('gợi ý không tồn tại')); e.status = 404; throw e; }
     seedTopic = row.topic; seedAngle = row.angle || ''; channelId = row.channel_id || channelId;
   }
-  if (seedTopic.length < 4) { const e = new Error('thiếu chủ đề gốc cho series'); e.status = 400; throw e; }
+  if (seedTopic.length < 4) { const e = new Error(m('thiếu chủ đề gốc cho series')); e.status = 400; throw e; }
   const channel = channelId ? DB.getChannel(channelId) : null;
   const memory = channel ? DB.getChannelMemory(channel.id) : { bible: '', topics: [] };
   const n = Math.min(10, Math.max(2, parseInt(episodes, 10) || 5));
@@ -114,7 +115,7 @@ JSON: {"series":{"name":"series name ≤60 chars","description":"1-2 sentences",
       angle: [String(ep.angle || '').slice(0, 150), String(ep.hook || '').slice(0, 100)].filter(Boolean).join(' — '),
       source: `series #${ep.order || i + 1}`,
     }));
-  if (!eps.length) { const e = new Error('mọi tập đề xuất đều trùng chủ đề đã có'); e.status = 400; throw e; }
+  if (!eps.length) { const e = new Error(m('mọi tập đề xuất đều trùng chủ đề đã có')); e.status = 400; throw e; }
   const series = DB.createSeries({ channelId, name: parsed.series.name || seedTopic, description: parsed.series.description || '' });
   const rows = DB.recordSuggestionBatch({
     channelId, niche: `📚 ${series.name}`, origin: 'series', seriesId: series.id, topics: eps,

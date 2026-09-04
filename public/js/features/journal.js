@@ -6,12 +6,14 @@ import { $, $$, el, esc } from '../ui/dom.js';
 import { api } from '../api.js';
 import { state } from '../state.js';
 import { toast } from '../ui/toast.js';
+import { m, tp } from '../i18n.js';
 
-const STAGE_META = {
-  b2: ['📝', 'Kịch bản'], b5: ['🎨', 'Dựng cảnh'], b34: ['🎙', 'Lồng tiếng + Phụ đề'],
-  b6: ['🎬', 'Render'], b7: ['🎞', 'Ghép & Mix'], sys: ['⚙️', 'Hệ thống'],
-};
-const RUN_STATUS = { queued: '⏳ chờ', running: '▶ đang chạy', done: '✅ xong', error: '⛔ lỗi', cancelled: '🚫 huỷ' };
+// Both built on call, not at import: the catalogue is fetched after this module is evaluated.
+const stageMeta = () => ({
+  b2: ['📝', m('Kịch bản')], b5: ['🎨', m('Dựng cảnh')], b34: ['🎙', m('Lồng tiếng + Phụ đề')],
+  b6: ['🎬', m('Render')], b7: ['🎞', m('Ghép & Mix')], sys: ['⚙️', m('Hệ thống')],
+});
+const runStatus = () => ({ queued: m('⏳ chờ'), running: m('▶ đang chạy'), done: m('✅ xong'), error: m('⛔ lỗi'), cancelled: m('🚫 huỷ') });
 
 const J = {
   projectId: null, runs: [], events: [], run: 'latest', level: '', q: '',
@@ -110,12 +112,13 @@ async function reload() {
 function renderRunPicker() {
   const s = $('#jrRun'); if (!s) return;
   s.innerHTML = '';
-  s.appendChild(el('option', null, 'Tất cả các lần chạy')).value = 'all';
+  s.appendChild(el('option', null, m('Tất cả các lần chạy'))).value = 'all';
+  const status = runStatus();
   J.runs.forEach((r, i) => {
     const n = J.runs.length - i;
     const t = new Date(r.created_at).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' });
     const dur = r.durMs ? ` · ${fmtMs(r.durMs)}` : '';
-    const o = el('option', null, `Lần chạy #${n} · ${t} · ${RUN_STATUS[r.status] || r.status}${dur}`);
+    const o = el('option', null, tp`Lần chạy #${n} · ${t} · ${status[r.status] || r.status}${dur}`);
     o.value = r.id;
     s.appendChild(o);
   });
@@ -136,7 +139,7 @@ function render(fresh = false, liveAppend = false) {
   body.innerHTML = '';
   const evs = J.events.filter(passes);
   if (!evs.length) {
-    body.appendChild(el('div', 'jr-empty', J.events.length ? 'Không có dòng nào khớp bộ lọc.' : 'Chưa có nhật ký cho dự án/lần chạy này.'));
+    body.appendChild(el('div', 'jr-empty', J.events.length ? m('Không có dòng nào khớp bộ lọc.') : m('Chưa có nhật ký cho dự án/lần chạy này.')));
     return;
   }
   const groups = [];
@@ -153,13 +156,14 @@ function render(fresh = false, liveAppend = false) {
     g.appendChild(gh); g.appendChild(gb);
     body.appendChild(g); groups.push(g);
   };
+  const stages = stageMeta();
   for (const e of evs) {
     if (e.kind === 'step' && e.data?.state === 'running') {
-      const [icn, name] = STAGE_META[e.stage] || ['⚙️', e.stage || 'Khác'];
+      const [icn, name] = stages[e.stage] || ['⚙️', e.stage || m('Khác')];
       openGroup(icn, name);
       continue; // the group header IS the running line
     }
-    if (!gb) openGroup('🗒', 'Chung');
+    if (!gb) openGroup('🗒', m('Chung'));
     if (e.kind === 'step' && e.data?.state === 'done') {
       const d = gh?.querySelector('.jr-gd');
       if (d) d.textContent = `✓${e.data?.durMs ? ' ' + fmtMs(e.data.durMs) : ''}`;
@@ -183,7 +187,7 @@ function line(e) {
   const d = el('div', 'jr-l lg-' + (e.level || 'info'));
   d.appendChild(el('span', 'jr-t', `[${t}]`));
   if (e.scene_idx != null) {
-    const chip = el('button', 'jr-chip', `Cảnh ${e.scene_idx + 1}`);
+    const chip = el('button', 'jr-chip', tp`Cảnh ${e.scene_idx + 1}`);
     chip.addEventListener('click', () => jumpToScene(e.scene_idx));
     d.appendChild(chip);
   }
@@ -194,7 +198,7 @@ function line(e) {
 function jumpToScene(idx) {
   const sc = (state.scenes || []).find((s) => s.idx === idx);
   const card = sc && document.querySelector(`#sceneGrid .scene[data-id="${sc.id}"]`);
-  if (!card) { toast(`Cảnh ${idx + 1} chưa hiển thị trong danh sách`, 'error'); return; }
+  if (!card) { toast(tp`Cảnh ${idx + 1} chưa hiển thị trong danh sách`, 'error'); return; }
   card.scrollIntoView({ behavior: 'smooth', block: 'center' });
   card.classList.add('jr-flash');
   setTimeout(() => card.classList.remove('jr-flash'), 1600);
@@ -221,7 +225,7 @@ function nearBottom() {
 function exportText() {
   return J.events.filter(passes).map((e) => {
     const t = new Date(e.ts).toLocaleString('vi-VN');
-    const sc = e.scene_idx != null ? ` [Cảnh ${e.scene_idx + 1}]` : '';
+    const sc = e.scene_idx != null ? ` [${tp`Cảnh ${e.scene_idx + 1}`}]` : '';
     return `[${t}] [${(e.level || 'info').toUpperCase()}]${sc} ${e.msg}`;
   }).join('\n');
 }

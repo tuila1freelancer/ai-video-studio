@@ -6,7 +6,9 @@ import { createHash } from 'node:crypto';
 import { DIRS } from '../../config/paths.js';
 import * as DB from '../../db/index.js';
 import { detectLang } from '../../util/lang.js';
+import { m } from '../../i18n/t.js';
 
+// i18n-exempt: what the voice SAYS in the language being auditioned, not text the app shows.
 const SAMPLES = {
   vi: 'Xin chào, tôi là giọng đọc cho video của bạn.', en: 'Hello, I will narrate your videos.',
   ja: 'こんにちは、あなたの動画のナレーターです。', ko: '안녕하세요, 영상 내레이터입니다.',
@@ -19,7 +21,7 @@ const SAMPLES = {
  * @throws {Error} with .status=400 when voiceId is missing
  */
 export async function synthPreview({ provider: pid = 'edge', voiceId, text } = {}) {
-  if (!voiceId) { const e = new Error('thiếu voiceId'); e.status = 400; throw e; }
+  if (!voiceId) { const e = new Error(m('thiếu voiceId')); e.status = 400; throw e; }
   const { getProvider, providerConfig, providerExt } = await import('../../providers/voice/index.js');
   const prov = getProvider(pid);
   // ElevenLabs voices ship their own sample — no credits burned

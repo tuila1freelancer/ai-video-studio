@@ -15,6 +15,7 @@ import { readFileSync, statSync } from 'node:fs';
 import { getSetting, setSetting } from '../db/index.js';
 import { logger } from '../util/log.js';
 
+import { m, tp } from '../i18n/t.js';
 const VERSION = 'v23.0';
 const GRAPH = `https://graph.facebook.com/${VERSION}`;
 const RUPLOAD = `https://rupload.facebook.com/video-upload/${VERSION}`;
@@ -51,7 +52,7 @@ function savePage(page) {
 export function selectPage(pageId) {
   const c = cfg();
   const hit = (Array.isArray(c.pages) ? c.pages : []).find((p) => p.id === String(pageId));
-  if (!hit) throw new Error('chưa kết nối Page này');
+  if (!hit) throw new Error(m('chưa kết nối Page này'));
   saveCfg({ pageId: hit.id, pageToken: hit.token, pageName: hit.name, expiresAt: hit.expiresAt || null });
   return { pageId: hit.id, pageName: hit.name };
 }
@@ -69,10 +70,10 @@ export async function checkToken(pageId) {
   const c = cfg();
   const page = (Array.isArray(c.pages) ? c.pages : []).find((p) => p.id === String(pageId))
     || (c.pageId === String(pageId) ? { id: c.pageId, token: c.pageToken, name: c.pageName } : null);
-  if (!page?.token) throw new Error('chưa kết nối Page này');
+  if (!page?.token) throw new Error(m('chưa kết nối Page này'));
   const url = `${GRAPH}/debug_token?input_token=${encodeURIComponent(page.token)}&access_token=${encodeURIComponent(page.token)}`;
   const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
-  if (!res.ok) throw new Error(`Không kiểm tra được token: ${await graphError(res)}`);
+  if (!res.ok) throw new Error(tp`Không kiểm tra được token: ${await graphError(res)}`);
   const d = (await res.json())?.data || {};
   // expires_at 0 means "never" — a long-lived Page token derived from a long-lived user token
   const expiresAt = d.expires_at ? d.expires_at * 1000 : null;
@@ -93,14 +94,14 @@ export async function extendToken({ appId, appSecret, pageId } = {}) {
   const id = String(pageId || c.pageId || '');
   const page = (Array.isArray(c.pages) ? c.pages : []).find((p) => p.id === id)
     || (c.pageId === id ? { id, token: c.pageToken, name: c.pageName } : null);
-  if (!page?.token) throw new Error('chưa kết nối Page này');
+  if (!page?.token) throw new Error(m('chưa kết nối Page này'));
   const aid = String(appId || c.appId || '').trim(), sec = String(appSecret || c.appSecret || '').trim();
-  if (!aid || !sec) throw new Error('cần App ID + App Secret của app Meta đã cấp token này');
+  if (!aid || !sec) throw new Error(m('cần App ID + App Secret của app Meta đã cấp token này'));
   const q = new URLSearchParams({ grant_type: 'fb_exchange_token', client_id: aid, client_secret: sec, fb_exchange_token: page.token });
   const res = await fetch(`${GRAPH}/oauth/access_token?${q}`, { signal: AbortSignal.timeout(20000) });
-  if (!res.ok) throw new Error(`Gia hạn thất bại: ${await graphError(res)}`);
+  if (!res.ok) throw new Error(tp`Gia hạn thất bại: ${await graphError(res)}`);
   const long = (await res.json())?.access_token;
-  if (!long) throw new Error('Facebook không trả về token dài hạn');
+  if (!long) throw new Error(m('Facebook không trả về token dài hạn'));
   // re-derive the PAGE token from the long-lived USER token
   const accRes = await fetch(`${GRAPH}/${encodeURIComponent(id)}?fields=access_token,name&access_token=${encodeURIComponent(long)}`, { signal: AbortSignal.timeout(15000) });
   const acc = accRes.ok ? await accRes.json() : {};
@@ -125,10 +126,10 @@ async function graphError(res) {
 export async function connect({ pageId, pageToken } = {}) {
   const id = String(pageId || cfg().pageId || '').trim();
   const token = String(pageToken || cfg().pageToken || '').trim();
-  if (!id || !token) throw new Error('Cần Page ID và Page Access Token');
+  if (!id || !token) throw new Error(m('Cần Page ID và Page Access Token'));
   const url = `${GRAPH}/${encodeURIComponent(id)}?fields=id,name&access_token=${encodeURIComponent(token)}`;
   const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
-  if (!res.ok) throw new Error(`Không xác thực được Page: ${await graphError(res)}`);
+  if (!res.ok) throw new Error(tp`Không xác thực được Page: ${await graphError(res)}`);
   const page = await res.json();
   savePage({ id, name: String(page.name || ''), token, expiresAt: null });
   return { pageId: id, pageName: String(page.name || '') };
@@ -147,11 +148,11 @@ async function uploadReel({ pageId, token, videoPath, description, scheduledAt, 
     body: new URLSearchParams({ upload_phase: 'start', access_token: token }),
     signal: AbortSignal.timeout(30000),
   });
-  if (!start.ok) throw new Error(`Khởi tạo upload thất bại: ${await graphError(start)}`);
+  if (!start.ok) throw new Error(tp`Khởi tạo upload thất bại: ${await graphError(start)}`);
   const { video_id: videoId } = await start.json();
-  if (!videoId) throw new Error('Facebook không trả về video_id ở phase start');
+  if (!videoId) throw new Error(m('Facebook không trả về video_id ở phase start'));
 
-  onLog(`⬆ Đang tải reel lên (${(statSync(videoPath).size / 1e6).toFixed(1)} MB)…`);
+  onLog(tp`⬆ Đang tải reel lên (${(statSync(videoPath).size / 1e6).toFixed(1)} MB)…`);
   const bytes = readFileSync(videoPath);
   const put = await fetch(`${RUPLOAD}/${encodeURIComponent(videoId)}`, {
     method: 'POST',
@@ -164,8 +165,8 @@ async function uploadReel({ pageId, token, videoPath, description, scheduledAt, 
     body: bytes,
     signal: AbortSignal.timeout(600000),
   });
-  if (!put.ok) throw new Error(`Tải video thất bại: ${await graphError(put)}`);
-  if ((await put.json().catch(() => ({}))).success === false) throw new Error('Tải video thất bại (success=false)');
+  if (!put.ok) throw new Error(tp`Tải video thất bại: ${await graphError(put)}`);
+  if ((await put.json().catch(() => ({}))).success === false) throw new Error(m('Tải video thất bại (success=false)'));
 
   const finishBody = new URLSearchParams({
     upload_phase: 'finish', access_token: token, video_id: String(videoId),
@@ -177,13 +178,13 @@ async function uploadReel({ pageId, token, videoPath, description, scheduledAt, 
     method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: finishBody, signal: AbortSignal.timeout(60000),
   });
-  if (!fin.ok) throw new Error(`Hoàn tất reel thất bại: ${await graphError(fin)}`);
+  if (!fin.ok) throw new Error(tp`Hoàn tất reel thất bại: ${await graphError(fin)}`);
   return { videoId: String(videoId), url: `https://www.facebook.com/reel/${videoId}` };
 }
 
 /** Feed lane: one multipart POST. */
 async function uploadFeedVideo({ pageId, token, videoPath, title, description, scheduledAt, onLog }) {
-  onLog(`⬆ Đang tải video lên feed Trang (${(statSync(videoPath).size / 1e6).toFixed(1)} MB)…`);
+  onLog(tp`⬆ Đang tải video lên feed Trang (${(statSync(videoPath).size / 1e6).toFixed(1)} MB)…`);
   const form = new FormData();
   form.append('access_token', token);
   if (description) form.append('description', description);
@@ -198,9 +199,9 @@ async function uploadFeedVideo({ pageId, token, videoPath, title, description, s
   const res = await fetch(`${GRAPH}/${encodeURIComponent(pageId)}/videos`, {
     method: 'POST', body: form, signal: AbortSignal.timeout(600000),
   });
-  if (!res.ok) throw new Error(`Đăng video thất bại: ${await graphError(res)}`);
+  if (!res.ok) throw new Error(tp`Đăng video thất bại: ${await graphError(res)}`);
   const out = await res.json().catch(() => ({}));
-  if (!out.id) throw new Error('Facebook không trả về video id');
+  if (!out.id) throw new Error(m('Facebook không trả về video id'));
   return { videoId: String(out.id), url: `https://www.facebook.com/${out.id}` };
 }
 
@@ -213,7 +214,7 @@ export async function comment(objectId, message) {
     body: new URLSearchParams({ message, access_token: c.pageToken }),
     signal: AbortSignal.timeout(30000),
   });
-  if (!res.ok) throw new Error(`Bình luận thất bại: ${await graphError(res)}`);
+  if (!res.ok) throw new Error(tp`Bình luận thất bại: ${await graphError(res)}`);
   return { ok: true, id: (await res.json().catch(() => ({}))).id || '' };
 }
 
@@ -228,7 +229,7 @@ export async function upload({
   scheduledAt = null, firstComment = '', aspectRatio = '', onLog = () => {},
 } = {}) {
   const c = cfg();
-  if (!connected()) throw new Error('Chưa kết nối Facebook Page — vào Cài đặt → Đăng video');
+  if (!connected()) throw new Error(m('Chưa kết nối Facebook Page — vào Cài đặt → Đăng video'));
   const hashtags = (tags || []).map((t) => `#${String(t).replace(/^#/, '').replace(/\s+/g, '')}`).join(' ');
   const body = [description, hashtags].filter(Boolean).join('\n\n').slice(0, 5000);
   // Staging: a non-public request schedules instead of going live. Facebook requires a
@@ -237,9 +238,10 @@ export async function upload({
   const vertical = /^(9:16|4:5)$/.test(String(aspectRatio));
   const args = { pageId: c.pageId, token: c.pageToken, videoPath, title, description: body, scheduledAt: when, onLog };
   const out = vertical ? await uploadReel(args) : await uploadFeedVideo(args);
+  // i18n-exempt: logger.info carries no projectId, so this line never leaves the terminal (util/log.js).
   logger.info(`Facebook: ${when ? 'đã lên lịch' : 'đã đăng'} ${vertical ? 'reel' : 'video'} ${out.videoId}`);
   if (firstComment) {
-    try { await comment(out.videoId, firstComment); onLog('💬 Đã đăng bình luận đầu tiên'); }
+    try { await comment(out.videoId, firstComment); onLog(m('💬 Đã đăng bình luận đầu tiên')); }
     catch (e) { logger.warn(`Facebook first comment: ${e.message}`); }
   }
   return { ...out, scheduled: !!when, pageName: c.pageName || '' };

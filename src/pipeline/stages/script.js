@@ -18,14 +18,15 @@ import { withRetry } from '../../util/retry.js';
 import { checkStop, notStopped } from '../stop.js';
 import { step, op, retryHook } from '../progress.js';
 
+import { m, tp } from '../../i18n/t.js';
 /** @param {import('../context.js').PipelineContext} ctx */
 export async function runScript(ctx) {
   const { projectId, project, config, ai, channel, resume, dir } = ctx;
   let scenes = DB.getScenes(projectId);
   if (!resume || scenes.length === 0) {
-    step(projectId, 'b2', 'running', 'Tạo kịch bản');
+    step(projectId, 'b2', 'running', m('Tạo kịch bản'));
     DB.updateProject(projectId, { current_step: 'b2' });
-    op(projectId, 'Đang tạo kịch bản…');
+    op(projectId, m('Đang tạo kịch bản…'));
     // The source article: what the owner PULLED and looked at in the Studio wins over a fresh
     // fetch. They may have edited it, the page may have changed since, and re-fetching would
     // quietly write the video from something they never saw. A pasted link with no visit to the
@@ -34,16 +35,16 @@ export async function runScript(ctx) {
     const saved = config.sourceDoc;
     if (String(saved?.text || '').trim()) {
       fetched = { title: saved.title || '', text: String(saved.text).trim(), url: saved.url || '', images: [] };
-      op(projectId, `🔗 Viết từ tư liệu đã lấy (${fetched.text.length} ký tự)`);
+      op(projectId, tp`🔗 Viết từ tư liệu đã lấy (${fetched.text.length} ký tự)`);
     } else if (project.input_type === 'url') {
       try {
         fetched = await fetchLink(project.topic.trim().split(/\s+/)[0], {
           llm: ai?.llm,
           onLog: (m) => op(projectId, `🔗 ${m}`),
         });
-        op(projectId, `🔗 Đã lấy ${fetched.chars} ký tự từ link${fetched.ai ? '' : ' (lọc theo cấu trúc)'}${fetched.truncated ? ' (bài dài — đã cắt ở mức engine đọc được)' : ''}`);
+        op(projectId, tp`🔗 Đã lấy ${fetched.chars} ký tự từ link${fetched.ai ? '' : ` (${m('lọc theo cấu trúc')})`}${fetched.truncated ? ` (${m('bài dài — đã cắt ở mức engine đọc được')})` : ''}`);
         if (fetched.note) logger.warn(fetched.note, { projectId });
-      } catch (e) { logger.warn(`Lấy nội dung link lỗi: ${e.message}`, { projectId }); }
+      } catch (e) { logger.warn(tp`Lấy nội dung link lỗi: ${e.message}`, { projectId }); }
     }
     // Show Bible: channel persona + anti-repeat ledger, injected additively into the prompt
     const memory = channel ? DB.getChannelMemory(channel.id) : null;
@@ -82,17 +83,17 @@ export async function runScript(ctx) {
       DB.updateProject(projectId, { metadata: { ...md, thumbnail: script.thumbnail } });
     }
     if (script.warnings?.length) {
-      op(projectId, `🧹 Kịch bản: đã tự sửa ${script.warnings.length} lỗi định dạng (${[...new Set(script.warnings.map((w) => w.code))].join(', ')})`);
+      op(projectId, tp`🧹 Kịch bản: đã tự sửa ${script.warnings.length} lỗi định dạng (${[...new Set(script.warnings.map((w) => w.code))].join(', ')})`);
     }
     // Canonical scenes.json artifact (factory format) next to the project's other outputs.
     // The DB stays the source of truth — the export route rebuilds from rows on demand.
     try {
       writeFileSync(join(dir, 'scenes.json'), `${JSON.stringify(scenesJsonFromRows(DB.getProject(projectId), scenes), null, 2)}\n`);
-    } catch (e) { logger.warn(`Không lưu được scenes.json: ${e.message}`, { projectId }); }
-    logger.info(`📜 Kịch bản: ${scenes.length} cảnh${useMaster ? ` (engine master, chế độ ${script.mode || 'n/a'})` : ''}`, { projectId, stage: 'b2' });
-    step(projectId, 'b2', 'done', `${scenes.length} cảnh`);
+    } catch (e) { logger.warn(tp`Không lưu được scenes.json: ${e.message}`, { projectId }); }
+    logger.info(tp`📜 Kịch bản: ${scenes.length} cảnh${useMaster ? tp` (engine master, chế độ ${script.mode || 'n/a'})` : ''}`, { projectId, stage: 'b2' });
+    step(projectId, 'b2', 'done', tp`${scenes.length} cảnh`);
   } else {
-    step(projectId, 'b2', 'done', `${scenes.length} cảnh`);
+    step(projectId, 'b2', 'done', tp`${scenes.length} cảnh`);
   }
   checkStop(projectId);
 }

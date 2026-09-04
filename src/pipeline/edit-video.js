@@ -28,6 +28,7 @@ import { clearStop, isStopped } from './stop.js';
 import { step, op } from './progress.js';
 import { jlog } from './journal.js';
 
+import { m, tp } from '../i18n/t.js';
 /** Aspect ratio label closest to the source's real pixels, so overlays are authored at its shape. */
 export function ratioOf(w, h) {
   if (!w || !h) return '16:9';
@@ -158,13 +159,13 @@ export async function repairTranscript(segments = [], { language = 'vi', llm = n
     const fixed = safeJson(reply, null);
     const arr = Array.isArray(fixed) ? fixed : (Array.isArray(fixed?.lines) ? fixed.lines : null);
     if (!arr || arr.length !== list.length) {
-      onLog(`sửa lời thoại: bỏ qua (model trả ${arr ? arr.length : 'không phải'} dòng, cần ${list.length})`);
+      onLog(tp`sửa lời thoại: bỏ qua (model trả ${arr ? arr.length : m('không phải')} dòng, cần ${list.length})`);
       return segments;
     }
-    onLog(`sửa lời thoại: đã hiệu đính ${list.length} dòng bằng AI`);
+    onLog(tp`sửa lời thoại: đã hiệu đính ${list.length} dòng bằng AI`);
     return list.map((s, i) => ({ ...s, text: String(arr[i] || s.text).trim() || s.text }));
   } catch (e) {
-    onLog(`sửa lời thoại: bỏ qua (${e.message.slice(0, 100)})`);
+    onLog(tp`sửa lời thoại: bỏ qua (${e.message.slice(0, 100)})`);
     return segments;
   }
 }
@@ -181,11 +182,11 @@ export function isEditVideo(config) {
  */
 export async function createEditVideoProject({ source, title = '', language = 'auto', config = {}, channelId = null } = {}) {
   const src = String(source || '');
-  if (!src || !existsSync(src)) throw new Error('không tìm thấy file video nguồn');
-  if (!whisperAvailable()) throw new Error('cần whisper để bóc lời thoại từ video (kiểm tra Cài đặt → phụ đề)');
+  if (!src || !existsSync(src)) throw new Error(m('không tìm thấy file video nguồn'));
+  if (!whisperAvailable()) throw new Error(m('cần whisper để bóc lời thoại từ video (kiểm tra Cài đặt → phụ đề)'));
 
   const total = await probeDuration(src);
-  if (!(total > 0.5)) throw new Error('video nguồn không đọc được thời lượng');
+  if (!(total > 0.5)) throw new Error(m('video nguồn không đọc được thời lượng'));
   const dims = await probeSize(src);
   const aspectRatio = config.aspectRatio || ratioOf(dims.w, dims.h);
 
@@ -223,19 +224,19 @@ export async function createEditVideoProject({ source, title = '', language = 'a
 export async function runEditVideo(ctx) {
   const { projectId, config } = ctx;
   const src = config.editVideo.source;
-  if (!existsSync(src)) throw new Error(`video nguồn không còn ở ${src}`);
+  if (!existsSync(src)) throw new Error(tp`video nguồn không còn ở ${src}`);
   clearStop(projectId);
 
   const existing = DB.getScenes(projectId);
   if (!existing.length) {
-    step(projectId, 'b2', 'running', 'Bóc lời thoại từ video');
-    jlog(projectId, { kind: 'status', msg: `🎬 Sửa video: ${src.split('/').pop()}` });
+    step(projectId, 'b2', 'running', m('Bóc lời thoại từ video'));
+    jlog(projectId, { kind: 'status', msg: tp`🎬 Sửa video: ${src.split('/').pop()}` });
     // DEAD AIR FIRST (P44). The reference cuts silence AFTER it has split scenes from the
     // transcript, so every scene then reads the shortened footage at its OLD timestamp and
     // drifts. Cutting before the transcript means whisper only ever sees the final footage and
     // the timings are right by construction.
     const useSrc = await maybeRemoveSilence(ctx, src);
-    op(projectId, '🎧 Đang bóc lời thoại (whisper)…');
+    op(projectId, m('🎧 Đang bóc lời thoại (whisper)…'));
     const total = useSrc === src
       ? (config.editVideo.sourceDuration || await probeDuration(src))
       : await probeDuration(useSrc);
@@ -243,24 +244,24 @@ export async function runEditVideo(ctx) {
     // drives the design), so decoding accuracy beats per-word karaoke timing.
     const { segments: raw } = await transcribeWords(useSrc, { language: config.language || 'auto', granularity: 'segment' });
     if (isStopped(projectId)) throw Object.assign(new Error('stopped'), { stopped: true });
-    op(projectId, `📝 Bóc được ${raw.length} câu — đang hiệu đính…`);
+    op(projectId, tp`📝 Bóc được ${raw.length} câu — đang hiệu đính…`);
     const fixed = await repairTranscript(raw, {
       language: config.language, llm: ctx.ai?.llm, // repairTranscript resolves from the transcript
       onLog: (m) => op(projectId, `📝 ${m}`),
     });
 
     const segments = segmentTranscript(fixed, { target: Math.max(3, +config.sceneDuration || 7), total });
-    if (!segments.length) throw new Error('không cắt được cảnh nào từ video nguồn');
+    if (!segments.length) throw new Error(m('không cắt được cảnh nào từ video nguồn'));
     const rows = scenesFromSegments(segments);
     DB.replaceScenes(projectId, rows);
     // Duration + word timings are per-scene state, not script content, so they are written after.
     DB.getScenes(projectId).forEach((sc, i) => {
       DB.updateScene(sc.id, { duration: rows[i]._duration, srt_json: rows[i]._srt, status: 'script' });
     });
-    step(projectId, 'b2', 'done', `${segments.length} cảnh · ${Math.round(total)}s`);
-    op(projectId, `✂️ Đã cắt ${segments.length} cảnh từ ${Math.round(total)}s video`);
+    step(projectId, 'b2', 'done', tp`${segments.length} cảnh · ${Math.round(total)}s`);
+    op(projectId, tp`✂️ Đã cắt ${segments.length} cảnh từ ${Math.round(total)}s video`);
   } else {
-    op(projectId, `▶ Tiếp tục: ${existing.length} cảnh đã bóc sẵn`);
+    op(projectId, tp`▶ Tiếp tục: ${existing.length} cảnh đã bóc sẵn`);
   }
 
   // From here the ordinary stages do the work — same codegen, same renderer, same concat.
@@ -288,10 +289,10 @@ async function maybeRemoveSilence(ctx, src) {
     DB.updateProject(projectId, { config });
   };
   if (existsSync(out) && config.editVideo.processed === out) {
-    op(projectId, '▶ Tiếp tục: đã cắt khoảng lặng sẵn');
+    op(projectId, m('▶ Tiếp tục: đã cắt khoảng lặng sẵn'));
     return out;
   }
-  op(projectId, '✂️ Đang cắt khoảng lặng khỏi video…');
+  op(projectId, m('✂️ Đang cắt khoảng lặng khỏi video…'));
   try {
     const r = await removeSilence(src, out, {
       noiseDb: Number.isFinite(+config.silenceThresholdDb) ? +config.silenceThresholdDb : -30,
@@ -299,10 +300,10 @@ async function maybeRemoveSilence(ctx, src) {
     });
     if (!r.segmentsRemoved || !(r.newDuration > 0.5)) return src;
     repoint(out);
-    jlog(projectId, { kind: 'status', msg: `✂️ Cắt lặng: ${r.originalDuration.toFixed(1)}s → ${r.newDuration.toFixed(1)}s (${r.segmentsRemoved} khoảng)` });
+    jlog(projectId, { kind: 'status', msg: tp`✂️ Cắt lặng: ${r.originalDuration.toFixed(1)}s → ${r.newDuration.toFixed(1)}s (${r.segmentsRemoved} khoảng)` });
     return out;
   } catch (e) {
-    op(projectId, `⚠️ Cắt khoảng lặng thất bại (${e.message.slice(0, 80)}) — dùng video gốc`);
+    op(projectId, tp`⚠️ Cắt khoảng lặng thất bại (${e.message.slice(0, 80)}) — dùng video gốc`);
     return src;
   }
 }

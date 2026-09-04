@@ -6,6 +6,7 @@ import { api, fileUrl } from '../api.js';
 import { state } from '../state.js';
 import { prog, markProgressDirty } from './progress.js';
 import { openSceneStudio } from '../features/scene-studio.js';
+import { m, tp } from '../i18n.js';
 
 // perf instrumentation (asserted by the stress gate: fullRenders must not grow during WS bursts)
 export const scenePerf = { fullRenders: 0, patches: 0 };
@@ -85,15 +86,15 @@ function sceneCard(s) {
   const vid = s.video_path ? `<video data-src="${fileUrl(s.video_path)}" muted loop playsinline preload="none"></video>` : '';
   const nBeats = s.hfBeats ?? (Array.isArray(s.props?.beats) ? s.props.beats.length : null);
   const hfBadge = s.template === 'hyperframe' && nBeats
-    ? ` <span class="hf-badge" title="visual bám theo ${nBeats} beat của lời thoại">✨${nBeats}</span>` : '';
-  c.innerHTML = `<div class="sv"><input type="checkbox" class="chk">${poster}${vid}${s.duration ? (() => { const voiced = s.audio_path || ['tts', 'rendered'].includes(s.status); return `<span class="dur"${voiced ? '' : ' title="thời lượng ước lượng — sẽ chốt khi lồng tiếng"'}>${voiced ? '' : '~'}${s.duration.toFixed(1)}s</span>`; })() : ''}</div>
-    <div class="si"><div class="n"><span>Cảnh ${s.idx + 1}${hfBadge}</span><span>${statusIcon(s.status)}</span></div><div class="vt">${esc(s.voice_text || '')}</div></div>
+    ? ` <span class="hf-badge" title="${esc(tp`visual bám theo ${nBeats} beat của lời thoại`)}">✨${nBeats}</span>` : '';
+  c.innerHTML = `<div class="sv"><input type="checkbox" class="chk">${poster}${vid}${s.duration ? (() => { const voiced = s.audio_path || ['tts', 'rendered'].includes(s.status); return `<span class="dur"${voiced ? '' : ` title="${esc(m('thời lượng ước lượng — sẽ chốt khi lồng tiếng'))}"`}>${voiced ? '' : '~'}${s.duration.toFixed(1)}s</span>`; })() : ''}</div>
+    <div class="si"><div class="n"><span>${tp`Cảnh ${s.idx + 1}`}${hfBadge}</span><span>${statusIcon(s.status)}</span></div><div class="vt">${esc(s.voice_text || '')}</div></div>
     <div class="sa">
-      <button class="btn sm" data-act="studio" title="Scene Studio: xem trước + sửa lời thoại/visual/HTML">🎬</button>
-      <button class="btn sm" data-act="live" title="Xem trước animation + tiếng">${icon('play', 13)}</button>
-      <button class="btn sm" data-act="voice" title="Tạo lại giọng">${icon('mic', 13)}</button>
-      <button class="btn sm" data-act="html" title="AI dựng lại visual cảnh này">${icon('wand', 13)}</button>
-      <button class="btn sm warn" data-act="render" title="Render cảnh">${icon('film', 13)}</button>
+      <button class="btn sm" data-act="studio" title="${esc(m('Scene Studio: xem trước + sửa lời thoại/visual/HTML'))}">🎬</button>
+      <button class="btn sm" data-act="live" title="${esc(m('Xem trước animation + tiếng'))}">${icon('play', 13)}</button>
+      <button class="btn sm" data-act="voice" title="${esc(m('Tạo lại giọng'))}">${icon('mic', 13)}</button>
+      <button class="btn sm" data-act="html" title="${esc(m('AI dựng lại visual cảnh này'))}">${icon('wand', 13)}</button>
+      <button class="btn sm warn" data-act="render" title="${esc(m('Render cảnh'))}">${icon('film', 13)}</button>
     </div>`;
   return c;
 }
@@ -140,7 +141,7 @@ export function patchScene(card, s) {
     const nameSpan = card.querySelector('.si .n span:first-child');
     let b = nameSpan?.querySelector('.hf-badge');
     const txt = `✨${nBeats}`;
-    if (nameSpan && !b) { b = el('span', 'hf-badge'); b.title = `visual bám theo ${nBeats} beat của lời thoại`; nameSpan.appendChild(document.createTextNode(' ')); nameSpan.appendChild(b); }
+    if (nameSpan && !b) { b = el('span', 'hf-badge'); b.title = tp`visual bám theo ${nBeats} beat của lời thoại`; nameSpan.appendChild(document.createTextNode(' ')); nameSpan.appendChild(b); }
     if (b && b.textContent !== txt) b.textContent = txt;
   }
 }
@@ -156,7 +157,7 @@ export function updateSelCount() {
   ['#btnRegenVoiceSel', '#btnRegenHtmlSel', '#btnRenderSel'].forEach((id) => $(id).disabled = !n);
 }
 export async function regenScene(id, what) {
-  toast(`Đang tạo lại ${what === 'voice' ? 'giọng' : 'cảnh'}…`);
+  toast(what === 'voice' ? m('Đang tạo lại giọng…') : m('Đang tạo lại cảnh…'));
   await api.post(`/scenes/${id}/regen-${what}`, {});
 }
 export async function renderScenes2(mode, ids) {
@@ -168,9 +169,9 @@ export async function renderScenes2(mode, ids) {
 // ---- WS coalescing: burst of 'scene' messages → one patch pass per 80ms window ----
 const pendingScene = new Map();
 let flushTimer = null;
-export function onSceneUpdate(m) {
-  if (m.status && prog.counts[m.status] !== undefined) { prog.counts[m.status]++; markProgressDirty(); }
-  pendingScene.set(m.sceneId, { ...(pendingScene.get(m.sceneId) || {}), ...m });
+export function onSceneUpdate(ev) {
+  if (ev.status && prog.counts[ev.status] !== undefined) { prog.counts[ev.status]++; markProgressDirty(); }
+  pendingScene.set(ev.sceneId, { ...(pendingScene.get(ev.sceneId) || {}), ...ev });
   if (!flushTimer) flushTimer = setTimeout(flushSceneUpdates, 80);
 }
 // Called on the 80ms timer AND immediately on step/status/done/error (terminal states never wait).
@@ -180,16 +181,16 @@ export async function flushSceneUpdates() {
   const batch = [...pendingScene.values()];
   pendingScene.clear();
   let needFull = false;
-  for (const m of batch) {
-    const s = state.scenes.find((x) => x.id === m.sceneId);
+  for (const ev of batch) {
+    const s = state.scenes.find((x) => x.id === ev.sceneId);
     if (!s) { needFull = true; continue; }
-    if (m.image) s.image_path = decodeURIComponent(m.image.split('path=')[1] || '');
-    if (m.video) s.video_path = decodeURIComponent(m.video.split('path=')[1] || '');
-    if (m.duration) s.duration = m.duration;
-    if (m.status) s.status = m.status;
-    if (m.template) s.template = m.template;
-    if (m.beats != null) s.hfBeats = m.beats;
-    const card = document.querySelector(`#sceneGrid .scene[data-id="${m.sceneId}"]`);
+    if (ev.image) s.image_path = decodeURIComponent(ev.image.split('path=')[1] || '');
+    if (ev.video) s.video_path = decodeURIComponent(ev.video.split('path=')[1] || '');
+    if (ev.duration) s.duration = ev.duration;
+    if (ev.status) s.status = ev.status;
+    if (ev.template) s.template = ev.template;
+    if (ev.beats != null) s.hfBeats = ev.beats;
+    const card = document.querySelector(`#sceneGrid .scene[data-id="${ev.sceneId}"]`);
     if (card) patchScene(card, s); else needFull = true;
   }
   if (needFull && state.current) {

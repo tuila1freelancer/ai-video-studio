@@ -22,6 +22,7 @@ import { $ } from '../ui/dom.js';
 import { api } from '../api.js';
 import { toast } from '../ui/toast.js';
 import { state } from '../state.js';
+import { m, tp } from '../i18n.js';
 import { gatherConfig } from '../views/config.js';
 import { openChangePlan } from './changeplan.js';
 import { showJournal } from './journal.js';
@@ -30,9 +31,9 @@ const SETTLE_MS = 550; // long enough that dragging a slider is one question, no
 
 const fmt = (s) => {
   const n = Math.max(1, Math.round(s));
-  if (n < 60) return `~${n} giây`;
-  if (n < 3600) return `~${Math.round(n / 60)} phút`;
-  return `~${(n / 3600).toFixed(1)} giờ`;
+  if (n < 60) return tp`~${n} giây`;
+  if (n < 3600) return tp`~${Math.round(n / 60)} phút`;
+  return tp`~${(n / 3600).toFixed(1)} giờ`;
 };
 
 let timer = 0;
@@ -58,11 +59,11 @@ function paint(plan) {
   // The summary names the WORK, not the settings: "render lại 46 cảnh" is the number that decides
   // whether the owner presses the button.
   bar.querySelector('[data-pc-text]').innerHTML =
-    `<b>${n} thay đổi chưa áp dụng</b> · ${fmt(plan.totalSec)}`
+    `<b>${tp`${n} thay đổi chưa áp dụng`}</b> · ${fmt(plan.totalSec)}`
     + `<span class="pc-why">${plan.items.map((i) => i.label).join(' · ')}</span>`
-    + (costly ? '<span class="pc-warn">⚠ có bước lồng tiếng lại — tốn tiền API</span>' : '');
+    + (costly ? `<span class="pc-warn">${m('⚠ có bước lồng tiếng lại — tốn tiền API')}</span>` : '');
   const go = bar.querySelector('[data-pc-go]');
-  go.textContent = plan.concatOnly ? `🔗 Ghép lại (${fmt(plan.totalSec)})` : 'Xem chi phí…';
+  go.textContent = plan.concatOnly ? tp`🔗 Ghép lại (${fmt(plan.totalSec)})` : m('Xem chi phí…');
   go.classList.toggle('primary', plan.concatOnly);
   go.disabled = busy;
   bar.dataset.mode = plan.concatOnly ? 'join' : 'plan';
@@ -121,7 +122,7 @@ export function initPendingChanges() {
     const go = bar.querySelector('[data-pc-go]');
     busy = true; go.disabled = true;
     const was = go.textContent;
-    go.textContent = '⏳ Đang ghép…';
+    go.textContent = m('⏳ Đang ghép…');
     try {
       const r = await api.post(`/projects/${state.current.id}/apply-changes`, { config: gatherConfig() });
       if (!r?.started) { toast('Không có gì để ghép lại', 'success'); bar.classList.add('hidden'); return; }

@@ -1,6 +1,8 @@
 // Tiny API + WebSocket client. Every request checks res.ok (a 500/HTML reply becomes a
 // readable error instead of a silent JSON-parse throw), carries a timeout, and idempotent
 // GETs retry once on network/5xx failure.
+import { m } from './i18n.js';
+
 export class ApiError extends Error {
   constructor(message, status) { super(message); this.status = status || 0; }
 }
@@ -26,7 +28,7 @@ async function request(method, path, { body, formData } = {}) {
         // other caller keeps its normal error handling.
         if (res.status === 403 && data?.error === 'license_required') {
           window.dispatchEvent(new CustomEvent('license-required', { detail: data }));
-          throw new ApiError(data.message || 'Cần license để tiếp tục', 403);
+          throw new ApiError(data.message || m('Cần license để tiếp tục'), 403);
         }
         throw new ApiError(data?.error || `HTTP ${res.status}${data ? '' : ` — ${text.slice(0, 120)}`}`, res.status);
       }
@@ -34,7 +36,7 @@ async function request(method, path, { body, formData } = {}) {
     } catch (e) {
       const retriable = !(e instanceof ApiError) || e.status >= 500;
       if (attempt < retries && retriable) { await new Promise((r) => setTimeout(r, 600)); continue; }
-      throw e instanceof ApiError ? e : new ApiError(e.name === 'TimeoutError' ? 'Máy chủ không phản hồi (timeout)' : (e.message || 'Mất kết nối máy chủ'), 0);
+      throw e instanceof ApiError ? e : new ApiError(e.name === 'TimeoutError' ? m('Máy chủ không phản hồi (timeout)') : (e.message || m('Mất kết nối máy chủ')), 0);
     }
   }
 }

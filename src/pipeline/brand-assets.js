@@ -17,6 +17,7 @@ import { DIRS } from '../config/paths.js';
 import { chat, llmEnabled } from '../providers/llm.js';
 import { safeJson } from '../util/util.js';
 
+import { tp } from '../i18n/t.js';
 /** A mascot cutout follows the reference naming scheme; everything else is concept art. */
 export function isCharacterAsset(name) {
   return /^character\b/i.test(String(name || '').trim());
@@ -200,11 +201,11 @@ export async function castBrandAssets({ scenes = [], catalog = [], title = '', l
     ], { json: true, temperature: 0.4, maxTokens: 2000, llm });
     const cast = sanitizeCast(safeJson(reply, null), catalog);
     onLog(cast.size
-      ? `brand assets: cast into ${cast.size}/${scenes.length} cảnh`
+      ? tp`brand assets: cast into ${cast.size}/${scenes.length} cảnh`
       : 'brand assets: model chose none — scenes stay media-free');
     return cast;
   } catch (e) {
-    onLog(`brand assets: bỏ qua (${e.message})`);
+    onLog(tp`brand assets: bỏ qua (${e.message})`);
     return new Map();
   }
 }

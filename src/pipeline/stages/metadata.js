@@ -7,11 +7,12 @@ import { withRetry } from '../../util/retry.js';
 import { notStopped } from '../stop.js';
 import { op } from '../progress.js';
 
+import { m, tp } from '../../i18n/t.js';
 /** @param {import('../context.js').PipelineContext} ctx */
 export async function runMetadata(ctx) {
   const { projectId, config, ai } = ctx;
   try {
-    op(projectId, '📊 Tạo metadata…');
+    op(projectId, m('📊 Tạo metadata…'));
     // config.metadataPrompt (channel/preset/request layered) = owner-defined SEO style
     // prompt prefix — the reference app's "metadata styles" as one config knob.
     // The narration is the only honest source for SEO: from a title alone the model invents tags
@@ -36,5 +37,5 @@ export async function runMetadata(ctx) {
     // merge, don't overwrite — B2 may have stored the master script's thumbnail {title,prompt}
     const prev = DB.getProject(projectId).metadata || {};
     DB.updateProject(projectId, { metadata: { ...prev, ...md } });
-  } catch (e) { logger.warn(`Tạo metadata lỗi: ${e.message}`, { projectId }); }
+  } catch (e) { logger.warn(tp`Tạo metadata lỗi: ${e.message}`, { projectId }); }
 }

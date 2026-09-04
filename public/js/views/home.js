@@ -5,7 +5,7 @@ import { fileUrl, withLock } from '../api.js';
 import { state } from '../state.js';
 import { registerPageHook, switchPage } from './nav.js';
 import { openProject, createAndStart } from './studio.js';
-import { setLabel } from '../i18n.js';
+import { setLabel, m, tp } from '../i18n.js';
 
 export function initHome() {
   registerPageHook('home', renderGallery);
@@ -32,8 +32,8 @@ export function renderGallery() {
     return;
   }
   const list = state.projects.filter((p) => state.galleryCat === 'landscape' ? p.aspect_ratio === '16:9' : p.aspect_ratio !== '16:9');
-  if (cnt) cnt.textContent = `${list.length} video`;
-  if (!list.length) { grid.innerHTML = '<div class="empty">Chưa có dự án. Nhập chủ đề phía trên để tạo video đầu tiên.</div>'; return; }
+  if (cnt) cnt.textContent = tp`${list.length} video`;
+  if (!list.length) { grid.innerHTML = `<div class="empty">${m('Chưa có dự án. Nhập chủ đề phía trên để tạo video đầu tiên.')}</div>`; return; }
   grid.innerHTML = '';
   list.forEach((p) => {
     const c = el('div', 'gcard');

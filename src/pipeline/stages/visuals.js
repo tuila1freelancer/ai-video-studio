@@ -20,6 +20,7 @@ import { step, op } from '../progress.js';
 import { mapPool } from '../helpers.js';
 import { resolveLang } from '../../util/lang.js';
 
+import { m, tp } from '../../i18n/t.js';
 /** @param {import('../context.js').PipelineContext} ctx */
 export async function runVisuals(ctx) {
   const { projectId, project, config, ai } = ctx;
@@ -27,9 +28,9 @@ export async function runVisuals(ctx) {
   const videoLang = resolveLang(config, scenes); // one answer for the art brief AND the codegen
   // HyperFrame: the LLM art-directs each scene's graphics against the REAL voice timeline
   // (beats from srt_json word timestamps).
-  step(projectId, 'b5', 'running', 'AI đạo diễn visual từng cảnh');
+  step(projectId, 'b5', 'running', m('AI đạo diễn visual từng cảnh'));
   DB.updateProject(projectId, { current_step: 'b5' });
-  op(projectId, '✨ HyperFrame: AI dàn dựng đồ hoạ theo lời thoại…');
+  op(projectId, m('✨ HyperFrame: AI dàn dựng đồ hoạ theo lời thoại…'));
   const guide = resolveGuide(config);
   const hfSize = animSize(project.aspect_ratio, 1); // codegen/validate in the LOGICAL canvas — output upscales losslessly
   const totalHf = scenes.length;
@@ -49,7 +50,7 @@ export async function runVisuals(ctx) {
     && !(sc.template === 'hyperframe' && sc.props?.script)
     && !(sc.template === 'chapter-break' && sc.props));
   if (undirected.length && llmEnabled(hfAi?.llm)) {
-    op(projectId, `🎬 AI viết chỉ đạo hình ảnh ${undirected.length} cảnh…`);
+    op(projectId, tp`🎬 AI viết chỉ đạo hình ảnh ${undirected.length} cảnh…`);
     const dirs = await generateDirections(undirected, {
       title: project.title, total: totalHf, guide, ai: hfAi, language: videoLang,
       onLog: (m) => logger.info(m, { projectId }),
@@ -60,7 +61,7 @@ export async function runVisuals(ctx) {
       DB.updateScene(sc.id, { visual_prompt: d.visual });
       sc.visual_prompt = d.visual;
     }
-    logger.info(`🎬 Chỉ đạo hình ảnh: ${dirs.size}/${undirected.length} cảnh có brief`, { projectId, stage: 'b5' });
+    logger.info(tp`🎬 Chỉ đạo hình ảnh: ${dirs.size}/${undirected.length} cảnh có brief`, { projectId, stage: 'b5' });
   }
   const hookVisual = scenes[0]?.visual_prompt || '';
   // Image-full lane (reference-app parity): resolve each scene's master-assigned asset
@@ -75,7 +76,7 @@ export async function runVisuals(ctx) {
   const catalog = brandFolder ? brandCatalog(brandFolder) : [];
   const uncast = catalog.length ? scenes.filter((sc) => !(Array.isArray(sc.assets) && sc.assets.length)) : [];
   if (uncast.length) {
-    op(projectId, `🎭 AI chọn asset thương hiệu cho ${uncast.length} cảnh…`);
+    op(projectId, tp`🎭 AI chọn asset thương hiệu cho ${uncast.length} cảnh…`);
     const cast = await castBrandAssets({
       scenes: uncast, catalog, title: project.title, llm: hfAi?.llm,
       onLog: (m) => logger.info(m, { projectId, stage: 'b5' }),
@@ -109,7 +110,7 @@ export async function runVisuals(ctx) {
     // chapter-break cards stay as-is: they render on the guide theme (one visual identity),
     // keep the channel's section-title punch, and anchor the transition SFX bed.
     if (sc.template === 'chapter-break' && sc.props) return;
-    op(projectId, `🎨 AI dựng cảnh ${sc.idx + 1}/${totalHf}`);
+    op(projectId, tp`🎨 AI dựng cảnh ${sc.idx + 1}/${totalHf}`);
     try {
       const { props, beats } = await generateSceneSpec({
         scene: sc, guide, w: hfSize.w, h: hfSize.h, idx: sc.idx, total: totalHf, ai: hfAi,
@@ -135,14 +136,14 @@ export async function runVisuals(ctx) {
       hub.toProject(projectId, { type: 'scene', sceneId: sc.id, idx: sc.idx, status: 'html', template: 'hyperframe', beats: beats.length });
     } catch (e) {
       if (e.stopped) throw e;
-      logger.warn(`Cảnh ${sc.idx + 1}: codegen thất bại sau mọi lần thử với model chính: ${e.message}`, { projectId, stage: 'b5', sceneIdx: sc.idx });
+      logger.warn(tp`Cảnh ${sc.idx + 1}: codegen thất bại sau mọi lần thử với model chính: ${e.message}`, { projectId, stage: 'b5', sceneIdx: sc.idx });
       DB.updateScene(sc.id, { status: 'error', error: `codegen: ${String(e.message).slice(0, 300)}` });
       hub.toProject(projectId, { type: 'scene', sceneId: sc.id, idx: sc.idx, status: 'error', error: e.message });
       codegenFailures.push(sc.idx + 1);
     }
   });
   if (codegenFailures.length) {
-    throw new Error(`HyperFrame codegen thất bại ở ${codegenFailures.length} cảnh (${codegenFailures.slice(0, 8).join(', ')}${codegenFailures.length > 8 ? '…' : ''}) sau 10 lần thử với model chính — không dùng fallback. Kiểm tra model/AI settings rồi resume để thử lại đúng các cảnh lỗi.`);
+    throw new Error(tp`HyperFrame codegen thất bại ở ${codegenFailures.length} cảnh (${codegenFailures.slice(0, 8).join(', ')}${codegenFailures.length > 8 ? '…' : ''}) sau 10 lần thử với model chính — không dùng fallback. Kiểm tra model/AI settings rồi resume để thử lại đúng các cảnh lỗi.`);
   }
   step(projectId, 'b5', 'done');
   checkStop(projectId);

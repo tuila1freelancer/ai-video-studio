@@ -2,6 +2,7 @@
 import { writeFileSync } from 'node:fs';
 import { probeDuration } from '../../media/ffmpeg.js';
 
+import { m, tp } from '../../i18n/t.js';
 const AUTO = {
   vi: 'vi-VN-HoaiMyNeural', en: 'en-US-AriaNeural', ja: 'ja-JP-NanamiNeural',
   ko: 'ko-KR-SunHiNeural', zh: 'zh-CN-XiaoxiaoNeural', ru: 'ru-RU-SvetlanaNeural',
@@ -29,7 +30,7 @@ export function edgeProsody(cfg = {}) {
 }
 
 export default {
-  id: 'edge', name: 'Edge Neural (miễn phí)', free: true, needsNetwork: true,
+  id: 'edge', get name() { return m('Edge Neural (miễn phí)'); }, free: true, needsNetwork: true,
   configSchema: [
     { key: 'rate', label: 'Tốc độ (%) — âm là chậm hơn, vd -10', type: 'text', required: false, placeholder: '0' },
     { key: 'pitch', label: 'Cao độ (Hz) — vd +20 cho giọng tươi hơn', type: 'text', required: false, placeholder: '0' },
@@ -74,6 +75,6 @@ export default {
 
   async testConnection() {
     const voices = await this.listVoices();
-    return { ok: voices.length > 0, message: `OK — ${voices.length} giọng khả dụng (không cần key)` };
+    return { ok: voices.length > 0, message: tp`OK — ${voices.length} giọng khả dụng (không cần key)` };
   },
 };

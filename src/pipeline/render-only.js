@@ -14,6 +14,7 @@ import { jlog } from './journal.js';
 import { mapPool } from './helpers.js';
 import { finalize } from './stages/finalize.js';
 
+import { m, tp } from '../i18n/t.js';
 export async function renderOnly(projectId, { mode = 'all', sceneIds = [], configOverrides = null, variantName = null, alsoJoin = false }) {
   clearStop(projectId);
   const project = DB.getProject(projectId);
@@ -22,12 +23,12 @@ export async function renderOnly(projectId, { mode = 'all', sceneIds = [], confi
   // second deliverable from the same clips (no logo, no music, different music), not a change of
   // mind about the video, so nothing is written back.
   const config = configOverrides ? { ...(project.config || {}), ...configOverrides } : (project.config || {});
-  if (configOverrides) op(projectId, `🎛 Xuất bản biến thể — ${Object.keys(configOverrides).join(', ')}`);
+  if (configOverrides) op(projectId, tp`🎛 Xuất bản biến thể — ${Object.keys(configOverrides).join(', ')}`);
   const size = ratioToSize(project.aspect_ratio);
   const dir = DB.projectDirFor(projectId);
   DB.updateProject(projectId, { status: 'running' });
   hub.toProject(projectId, { type: 'status', status: 'running' });
-  jlog(projectId, { kind: 'status', msg: `🎬 Bắt đầu render lại (${mode === 'scenes' ? `${sceneIds.length} cảnh đã chọn` : mode === 'concat' ? 'ghép lại' : 'toàn bộ'})` });
+  jlog(projectId, { kind: 'status', msg: tp`🎬 Bắt đầu render lại (${mode === 'scenes' ? tp`${sceneIds.length} cảnh đã chọn` : mode === 'concat' ? m('ghép lại') : m('toàn bộ')})` });
   try {
     const allScenes = DB.getScenes(projectId);
     let scenes = allScenes;
@@ -51,13 +52,13 @@ export async function renderOnly(projectId, { mode = 'all', sceneIds = [], confi
     const unvoiced = renderPass ? scenes.filter((s) => !s.audio_path) : [];
     if (unvoiced.length) {
       scenes = scenes.filter((s) => s.audio_path);
-      op(projectId, `⏭️ Bỏ qua ${unvoiced.length} cảnh chưa có lồng tiếng — hãy lồng tiếng trước rồi render`);
+      op(projectId, tp`⏭️ Bỏ qua ${unvoiced.length} cảnh chưa có lồng tiếng — hãy lồng tiếng trước rồi render`);
       if (!scenes.length) {
         // Nothing renderable — exit CLEANLY (before any b6 step event, so the progress bar
         // never jumps) and restore the entry status: flipping a scene-gate hold to 'error'
         // would read as a crashed run in the UI. Only a RENDER pass can be empty this way;
         // a concat of a fully-voiced project with clips on disk is perfectly valid work.
-        op(projectId, '🎙 Chưa cảnh nào có lồng tiếng — bấm "Lồng tiếng & Render" (hoặc tạo giọng từng cảnh) trước');
+        op(projectId, m('🎙 Chưa cảnh nào có lồng tiếng — bấm "Lồng tiếng & Render" (hoặc tạo giọng từng cảnh) trước'));
         const back = project.status === 'running' ? 'paused' : project.status;
         DB.updateProject(projectId, { status: back });
         hub.toProject(projectId, { type: 'status', status: back });
@@ -96,8 +97,8 @@ export async function renderOnly(projectId, { mode = 'all', sceneIds = [], confi
       }
       scenes = fresh;
       op(projectId, skipped
-        ? `♻️ ${scenes.length}/${skipped + scenes.length} cảnh cần dựng lại — giữ nguyên ${skipped} cảnh không đổi`
-        : `♻️ Tất cả ${scenes.length} cảnh đều cần dựng lại`);
+        ? tp`♻️ ${scenes.length}/${skipped + scenes.length} cảnh cần dựng lại — giữ nguyên ${skipped} cảnh không đổi`
+        : tp`♻️ Tất cả ${scenes.length} cảnh đều cần dựng lại`);
       // "Render + Ghép" does not run TTS. A scene whose LINE was edited but never re-voiced would
       // therefore be skipped here and sound unchanged in the finished video — correctly, since its
       // clip still matches the audio on disk, but silently. Say it, or the owner reads a no-op as
@@ -107,7 +108,7 @@ export async function renderOnly(projectId, { mode = 'all', sceneIds = [], confi
       const unvoicedEdits = allScenes.filter((s) => s.audio_path
         && !fpCurrent(s, 'tts', ttsFingerprint(s, { config, channel, ai })));
       if (unvoicedEdits.length) {
-        op(projectId, `⚠️ ${unvoicedEdits.length} cảnh có lời thoại/giọng đã đổi nhưng CHƯA thu âm lại — bước này không tự lồng tiếng, hãy dùng "Voice đã chọn"`);
+        op(projectId, tp`⚠️ ${unvoicedEdits.length} cảnh có lời thoại/giọng đã đổi nhưng CHƯA thu âm lại — bước này không tự lồng tiếng, hãy dùng "Voice đã chọn"`);
       }
     }
     if (renderPass && scenes.length) {
@@ -116,10 +117,10 @@ export async function renderOnly(projectId, { mode = 'all', sceneIds = [], confi
       const pp = progressPlan(allScenes, config);
       await mapPool(scenes, rC, async (sc) => {
         checkStop(projectId);
-        op(projectId, `🎬 Render cảnh ${sc.idx + 1}`);
+        op(projectId, tp`🎬 Render cảnh ${sc.idx + 1}`);
         const r = await renderAnimationScene(sc, project, config, {
           dir: join(dir, 'render'), progressStart: pp.offsets[sc.idx] || 0, progressTotal: pp.total, total: allScenes.length,
-          onLog: (s) => op(projectId, `cảnh ${sc.idx + 1}: ${s}`),
+          onLog: (s) => op(projectId, tp`cảnh ${sc.idx + 1}: ${s}`),
         });
         const { path, duration, preview } = r;
         // STAMP the clip. Without this the fresh file keeps the OLD fingerprint, so the skip above
@@ -134,7 +135,7 @@ export async function renderOnly(projectId, { mode = 'all', sceneIds = [], confi
       }, { pool: 'render' }); // same process-wide bound as pipeline renders
       step(projectId, 'b6', 'done');
     } else {
-      op(projectId, `🔗 Ghép lại từ ${allScenes.filter((s) => s.video_path).length} clip đã có — không render lại`);
+      op(projectId, tp`🔗 Ghép lại từ ${allScenes.filter((s) => s.video_path).length} clip đã có — không render lại`);
     }
     // finalize's missing-clip repair renders EVERY clip-less scene — including unvoiced
     // ones, as silent clips cut to their estimate — so concat is only allowed once every
@@ -142,7 +143,7 @@ export async function renderOnly(projectId, { mode = 'all', sceneIds = [], confi
     // half-silent "final" video.
     const stillUnvoiced = DB.getScenes(projectId).some((s) => !s.audio_path);
     if (doJoin && stillUnvoiced) {
-      op(projectId, '⏭️ Bỏ qua ghép — còn cảnh chưa có lồng tiếng; hoàn tất lồng tiếng rồi ghép sau');
+      op(projectId, m('⏭️ Bỏ qua ghép — còn cảnh chưa có lồng tiếng; hoàn tất lồng tiếng rồi ghép sau'));
     } else if (doJoin) {
       // mode:'concat' skips the scene loop above entirely, so without this the "ghép lại" path
       // reached finalize without ever having asked whether the owner still wanted it.
@@ -157,22 +158,22 @@ export async function renderOnly(projectId, { mode = 'all', sceneIds = [], confi
     DB.updateProject(projectId, { status: endStatus });
     if (endStatus !== 'done') {
       hub.toProject(projectId, { type: 'status', status: endStatus });
-      jlog(projectId, { kind: 'status', msg: `✓ Render xong — trạng thái: ${endStatus}` });
+      jlog(projectId, { kind: 'status', msg: tp`✓ Render xong — trạng thái: ${endStatus}` });
     } else {
       const fin = DB.getProject(projectId);
       hub.toProject(projectId, { type: 'done', video: fin.video_path ? `/api/file?path=${encodeURIComponent(fin.video_path)}` : null,
         thumb: fin.thumb_path ? `/api/file?path=${encodeURIComponent(fin.thumb_path)}` : null });
-      jlog(projectId, { kind: 'done', level: 'success', msg: '🎉 Render + ghép hoàn tất' });
+      jlog(projectId, { kind: 'done', level: 'success', msg: m('🎉 Render + ghép hoàn tất') });
     }
   } catch (e) {
     if (e.stopped) {
       DB.updateProject(projectId, { status: 'paused' });
       DB.clearStopRequest(projectId); // honoured — a later start must not be cancelled at boot
       hub.toProject(projectId, { type: 'status', status: 'paused' });
-      jlog(projectId, { kind: 'status', msg: '⏹ Đã dừng render theo yêu cầu' });
+      jlog(projectId, { kind: 'status', msg: m('⏹ Đã dừng render theo yêu cầu') });
     } else {
       DB.updateProject(projectId, { status: 'error', error: e.message }); hub.toProject(projectId, { type: 'error', msg: e.message });
-      jlog(projectId, { kind: 'error', level: 'error', msg: `⛔ Render lỗi: ${e.message}` });
+      jlog(projectId, { kind: 'error', level: 'error', msg: tp`⛔ Render lỗi: ${e.message}` });
     }
   } finally { clearStop(projectId); }
 }

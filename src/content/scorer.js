@@ -18,6 +18,7 @@ import { wordCount } from '../util/util.js';
 import { LANG_WPS, splitSentences } from '../providers/llm.js';
 import { auditCtas } from './cta-audit.js';
 
+import { m, tp } from '../i18n/t.js';
 function fold(s) {
   return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase();
 }
@@ -56,30 +57,30 @@ export function scoreScript(scenes, config = {}) {
 
   scenes.forEach((s, i) => {
     const t = texts[i].trim();
-    if (!t) { issues.push({ idx: s.idx, type: 'empty', detail: 'lời thoại rỗng' }); return; }
+    if (!t) { issues.push({ idx: s.idx, type: 'empty', detail: m('lời thoại rỗng') }); return; }
     const wc = wordCount(t);
     if (langs[i] !== expected && wc >= 4) {
-      issues.push({ idx: s.idx, type: 'lang-leak', detail: `lời thoại là '${langs[i]}' trong video '${expected}'` });
+      issues.push({ idx: s.idx, type: 'lang-leak', detail: tp`lời thoại là '${langs[i]}' trong video '${expected}'` });
     }
     // truncated: an unterminated line at wc>=6, OR a short line that ends "open" on a
     // conjunction/preposition (a clear mid-thought cut even under the old 6-word floor)
     if (!ENDS_CLEAN.test(t) && (wc >= 6 || (wc >= 3 && ENDS_OPEN.test(t)))) {
-      issues.push({ idx: s.idx, type: 'truncated', detail: 'câu kết thúc lửng (thiếu dấu chấm câu / dừng ở từ nối) — khả năng bị cắt cụt' });
+      issues.push({ idx: s.idx, type: 'truncated', detail: m('câu kết thúc lửng (thiếu dấu chấm câu / dừng ở từ nối) — khả năng bị cắt cụt') });
     }
     if (wc < target * 0.5) {
-      issues.push({ idx: s.idx, type: 'under-budget', detail: `${wc} từ < 50% ngân sách ~${Math.round(target)} — cảnh sẽ hụt thời lượng` });
+      issues.push({ idx: s.idx, type: 'under-budget', detail: tp`${wc} từ < 50% ngân sách ~${Math.round(target)} — cảnh sẽ hụt thời lượng` });
     } else if (wc > target * 2.1) {
-      issues.push({ idx: s.idx, type: 'over-budget', detail: `${wc} từ > 210% ngân sách ~${Math.round(target)} — cảnh sẽ tràn slot` });
+      issues.push({ idx: s.idx, type: 'over-budget', detail: tp`${wc} từ > 210% ngân sách ~${Math.round(target)} — cảnh sẽ tràn slot` });
     }
     // formulaic-hook: the scene ends on a short filler question ("còn bạn?", "muốn thử không?")
     const last = lastSentence(t);
     if (isQuestion(last) && wordCount(last) <= 7) {
-      issues.push({ idx: s.idx, type: 'formulaic-hook', detail: 'kết bằng câu hỏi mồi ngắn — thay bằng một ý giá trị cụ thể' });
+      issues.push({ idx: s.idx, type: 'formulaic-hook', detail: m('kết bằng câu hỏi mồi ngắn — thay bằng một ý giá trị cụ thể') });
     }
     // thin: the whole scene is only rhetorical question(s) with no concrete anchor — teaches nothing
     const sents = splitSentences(t);
     if (wc >= 4 && sents.length > 0 && sents.every(isQuestion) && !/\d/.test(t)) {
-      issues.push({ idx: s.idx, type: 'thin', detail: 'cảnh chỉ gồm câu hỏi tu từ, không có thông tin cụ thể để người xem áp dụng' });
+      issues.push({ idx: s.idx, type: 'thin', detail: m('cảnh chỉ gồm câu hỏi tu từ, không có thông tin cụ thể để người xem áp dụng') });
     }
   });
 
@@ -90,7 +91,7 @@ export function scoreScript(scenes, config = {}) {
     const dm = new Set(qEnders.slice(1)); // every question-ender past the first
     for (let i = 1; i < scenes.length; i++) if (isQuestion(texts[i]) && isQuestion(texts[i - 1])) dm.add(i);
     for (const i of [...dm].sort((a, b) => a - b)) {
-      issues.push({ idx: scenes[i].idx, type: 'device-monotony', detail: 'nhiều cảnh cùng kết bằng câu hỏi — chỉ giữ tối đa 1 câu hỏi cho cả video' });
+      issues.push({ idx: scenes[i].idx, type: 'device-monotony', detail: m('nhiều cảnh cùng kết bằng câu hỏi — chỉ giữ tối đa 1 câu hỏi cho cả video') });
     }
   }
 
@@ -103,7 +104,7 @@ export function scoreScript(scenes, config = {}) {
       let shared = 0;
       for (const g of a) if (b.has(g)) shared++;
       if (shared / Math.min(a.size, b.size) > 0.6) {
-        issues.push({ idx: scenes[j].idx, type: 'repetition', detail: `lặp gần nguyên văn cảnh ${scenes[i].idx + 1}` });
+        issues.push({ idx: scenes[j].idx, type: 'repetition', detail: tp`lặp gần nguyên văn cảnh ${scenes[i].idx + 1}` });
       }
     }
   }
@@ -121,7 +122,7 @@ export function scoreScript(scenes, config = {}) {
   if (texts.length) {
     const h = fold(texts[0]);
     if (/(xin chao|chao mung|chao cac ban|chao tat ca|hello everyone|welcome (back |to ))/.test(h)) {
-      issues.push({ idx: scenes[0].idx, type: 'hook-weak', detail: 'cảnh mở đầu chào hỏi thay vì vào thẳng vấn đề — hook phải lạnh và cụ thể' });
+      issues.push({ idx: scenes[0].idx, type: 'hook-weak', detail: m('cảnh mở đầu chào hỏi thay vì vào thẳng vấn đề — hook phải lạnh và cụ thể') });
     }
   }
 
@@ -138,7 +139,7 @@ export function scoreScript(scenes, config = {}) {
       let inter = 0;
       for (const t of a) if (b.has(t)) inter++;
       if (inter / (a.size + b.size - inter) >= 0.6) {
-        issues.push({ idx: scenes[j].idx, type: 'idea-repeat', detail: `diễn đạt lại ý của cảnh ${scenes[i].idx + 1} mà không thêm khía cạnh mới` });
+        issues.push({ idx: scenes[j].idx, type: 'idea-repeat', detail: tp`diễn đạt lại ý của cảnh ${scenes[i].idx + 1} mà không thêm khía cạnh mới` });
         repFlagged.add(scenes[j].idx);
       }
     }
@@ -155,7 +156,7 @@ export function scoreScript(scenes, config = {}) {
     // complements under-budget (a short scene that ALSO lacks anchors gets both tags — the
     // rewrite then expands it WITH a concrete example, not just more words)
     if (!hasDigit && !hasProper && !issues.some((x) => x.idx === s.idx && x.type === 'thin')) {
-      issues.push({ idx: s.idx, type: 'anchorless', detail: 'cảnh ngắn, không có con số hay ví dụ/tên cụ thể — khẳng định suông, chưa dạy được gì' });
+      issues.push({ idx: s.idx, type: 'anchorless', detail: m('cảnh ngắn, không có con số hay ví dụ/tên cụ thể — khẳng định suông, chưa dạy được gì') });
     }
   });
 

@@ -13,6 +13,7 @@ import { getProvider, providerConfig, legacyVoice, providerExt } from './voice/i
 import { logger } from '../util/log.js';
 import { detectLang } from '../util/lang.js';
 
+import { m, tp } from '../i18n/t.js';
 // Re-exported so existing importers of detectLang keep working.
 export { detectLang };
 
@@ -88,7 +89,7 @@ async function synthWith(pid, voice, text, s, outPath, style, lang) {
   const cfg = style ? { ...providerConfig(s, pid), _style: style } : providerConfig(s, pid);
   let v = voice;
   if (!v || v === 'auto') v = provider.autoVoiceFor(lang);
-  if (v == null && pid !== 'say') throw new Error(`${pid}: không có giọng phù hợp cho ngôn ngữ`);
+  if (v == null && pid !== 'say') throw new Error(tp`${pid}: không có giọng phù hợp cho ngôn ngữ`);
   // Container follows what the provider actually writes — a wrong extension would make
   // ffprobe/concat guess. The provider declares it, so adding one needs no edit here.
   const out = outPath.replace(/\.\w+$/, providerExt(pid));
@@ -103,7 +104,7 @@ async function synthWith(pid, voice, text, s, outPath, style, lang) {
     catch (e) {
       lastErr = e;
       if (!keyExhausted(e) || i === pool.keys.length - 1) throw e;
-      logger.warn(`${pid}: key ${i + 1}/${pool.keys.length} không dùng được (${e.message.slice(0, 80)}) — đổi key`);
+      logger.warn(tp`${pid}: key ${i + 1}/${pool.keys.length} không dùng được (${e.message.slice(0, 80)}) — đổi key`);
     }
   }
   throw lastErr;
@@ -147,12 +148,12 @@ export async function synthesizeVoice(text, outPath, opts = {}) {
         // stretched take must never be accepted into the video.
         const { min, max } = ttsDurationBounds(text);
         if (r.duration > max || r.duration < min) {
-          throw new Error(`giọng đọc dài bất thường (${r.duration.toFixed(1)}s cho ${String(text).length} ký tự — hợp lý: ${min.toFixed(1)}–${max.toFixed(0)}s)`);
+          throw new Error(tp`giọng đọc dài bất thường (${r.duration.toFixed(1)}s cho ${String(text).length} ký tự — hợp lý: ${min.toFixed(1)}–${max.toFixed(0)}s)`);
         }
         return { ...r, provider: pid, fallback: ci > 0 };
       } catch (e) {
         lastErr = e;
-        logger.warn(`Giọng đọc ${pid} lỗi (${e.message.slice(0, 120)})${a < tries - 1 ? ' — thử lại cùng giọng' : ' — chuyển giọng kế tiếp'}`);
+        logger.warn(tp`Giọng đọc ${pid} lỗi (${e.message.slice(0, 120)})${a < tries - 1 ? ` — ${m('thử lại cùng giọng')}` : ` — ${m('chuyển giọng kế tiếp')}`}`);
         if (a < tries - 1) await sleep(1200 * (a + 1));
       }
     }

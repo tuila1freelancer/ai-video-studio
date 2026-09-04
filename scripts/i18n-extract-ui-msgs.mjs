@@ -46,10 +46,10 @@ function run() {
     for (const re of CALLS) {
       for (const m of src.matchAll(re)) if (VN.test(m[1])) found.set(`ui.msg.${m[1]}`, m[1]);
     }
-    // m('…') and tp`…` say outright that a string is interface text, so they need no guesswork
-    // about the position it sits in — the two helpers exist for the labels no position identifies.
-    for (const text of msgCalls(src)) if (VN.test(text)) found.set(`ui.msg.${text}`, text);
-    for (const text of tpTemplates(src)) if (VN.test(text)) found.set(`ui.msg.${text}`, text);
+    // m('…') and tp`…` DECLARE a string to be interface text, so no diacritic test applies: the
+    // author already said what it is. '● offline' carries no Vietnamese and still has to translate.
+    for (const text of msgCalls(src)) found.set(`ui.msg.${text}`, text);
+    for (const text of tpTemplates(src)) found.set(`ui.msg.${text}`, text);
     for (const m of src.matchAll(/\btoast\(\s*`[^`]*\$\{[^`]*`/g)) if (VN.test(m[0]) && !/\btp`/.test(m[0])) interpolated++;
   }
 

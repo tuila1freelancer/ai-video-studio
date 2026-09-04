@@ -9,6 +9,7 @@ import { DIRS, PATHS } from '../config/paths.js';
 // database) into the process-spawn path.
 import { stopError } from '../pipeline/stop.js';
 
+import { m, tp } from '../i18n/t.js';
 // internal spawn wrapper — callers use ffmpeg()/ffmpegAss() below.
 //
 // `signal` is how "Dừng" reaches a running encode. A concat can occupy one ffmpeg process for a
@@ -204,10 +205,10 @@ export function measureLoudness(inPath, { I = -16, TP = -1.5, LRA = 11 } = {}) {
 export async function normalizeVoice(inPath, outPath, { padMs = 500 } = {}) {
   const pad = Math.max(0, padMs) / 1000;
   let ln = 'loudnorm=I=-16:TP=-1.5:LRA=11'; // fallback: single-pass dynamic (previous behavior)
-  const m = await measureLoudness(inPath);
-  if (m) {
-    ln += `:measured_I=${m.input_i}:measured_TP=${m.input_tp}:measured_LRA=${m.input_lra}`
-      + `:measured_thresh=${m.input_thresh}:offset=${m.target_offset}:linear=true`;
+  const meas = await measureLoudness(inPath);
+  if (meas) {
+    ln += `:measured_I=${meas.input_i}:measured_TP=${meas.input_tp}:measured_LRA=${meas.input_lra}`
+      + `:measured_thresh=${meas.input_thresh}:offset=${meas.target_offset}:linear=true`;
   }
   await ffmpeg([
     '-i', inPath,
@@ -215,7 +216,7 @@ export async function normalizeVoice(inPath, outPath, { padMs = 500 } = {}) {
     '-c:a', 'aac', '-b:a', '160k', '-ar', '44100', outPath,
   ]);
   const duration = await probeDuration(outPath);
-  if (!duration || duration <= pad) throw new Error('chuẩn hoá âm lượng thất bại (audio rỗng)');
+  if (!duration || duration <= pad) throw new Error(m('chuẩn hoá âm lượng thất bại (audio rỗng)'));
   return { path: outPath, duration };
 }
 
@@ -344,8 +345,8 @@ export async function removeSilence(inPath, outPath, {
   const ranges = silenceKeepRanges(silences, originalDuration, { keepMs, padMs });
   const nothingToDo = !silences.length || ranges.length <= 1 || ranges.length > maxSegments;
   if (nothingToDo) {
-    if (ranges.length > maxSegments) onLog(`bỏ qua cắt lặng: ${ranges.length} đoạn là quá vụn`);
-    else onLog('không có khoảng lặng đáng cắt — giữ nguyên file');
+    if (ranges.length > maxSegments) onLog(tp`bỏ qua cắt lặng: ${ranges.length} đoạn là quá vụn`);
+    else onLog(m('không có khoảng lặng đáng cắt — giữ nguyên file'));
     await copyFile(inPath, outPath);
     return { originalDuration, newDuration: originalDuration, segmentsRemoved: 0, ranges: [] };
   }
@@ -361,7 +362,7 @@ export async function removeSilence(inPath, outPath, {
     '-c:a', 'aac', '-b:a', '192k', outPath,
   ]);
   const newDuration = await probeDuration(outPath);
-  onLog(`đã cắt ${silences.length} khoảng lặng: ${originalDuration.toFixed(1)}s → ${newDuration.toFixed(1)}s`);
+  onLog(tp`đã cắt ${silences.length} khoảng lặng: ${originalDuration.toFixed(1)}s → ${newDuration.toFixed(1)}s`);
   return { originalDuration, newDuration, segmentsRemoved: silences.length, ranges };
 }
 
@@ -461,7 +462,7 @@ export async function makeWhoosh(outPath, { dur = 0.9 } = {}) {
 // mixed into the final cut like a second BGM track (section punctuation, reference-app style).
 export async function makeSfxBed(outPath, { events = [], whooshPath, total = 0 }) {
   const evts = events.filter((e) => Number.isFinite(+e.at) && +e.at >= 0).slice(0, 60);
-  if (!evts.length || !total) throw new Error('sfx bed: không có event/thời lượng');
+  if (!evts.length || !total) throw new Error(m('sfx bed: không có event/thời lượng'));
   const args = [];
   // per-event source + gain (Scene Studio audio director); {at}-only events keep the
   // legacy whoosh output byte-identical (no volume filter inserted)

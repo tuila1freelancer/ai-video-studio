@@ -19,6 +19,7 @@ import { getBrowser, chromeAvailable } from '../media/puppeteer.js';
 import { assAlpha, toAssColor } from './color.js';
 import { layoutTokens, wordJoiner } from '../i18n/segment.js';
 
+import { m } from '../i18n/t.js';
 /**
  * A rounded rectangle in ASS drawing commands, top-left at 0,0.
  *
@@ -152,8 +153,8 @@ export async function measureCaptions(texts, style, fontFile, size) {
   const wanted = [...new Set(texts.filter((t) => t && t.trim()))];
   if (!wanted.length) return new Map();
   if (!chromeAvailable()) {
-    throw new Error('cần Chrome để đo bề rộng chữ cho khung nền phụ đề — hãy tắt "Khung nền" '
-      + 'trong phần Phụ đề, hoặc cài Chrome.');
+    throw new Error(m('cần Chrome để đo bề rộng chữ cho khung nền phụ đề — hãy tắt "Khung nền" ')
+      + m('trong phần Phụ đề, hoặc cài Chrome.'));
   }
   const { marginH } = captionAnchor(style, size);
   const pad = (style.box?.padding?.left || 0) + (style.box?.padding?.right || 0);

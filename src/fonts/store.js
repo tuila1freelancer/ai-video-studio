@@ -14,6 +14,7 @@ import { DIRS } from '../config/paths.js';
 import { normFamily, webFontDir, downloadedCssPath } from './files.js';
 import { catalogueEntry } from './registry.js';
 
+import { tp } from '../i18n/t.js';
 // Google's css2 endpoint serves woff2 to a modern browser UA and TTF to an old one. Both are
 // wanted: the browser lane needs woff2's size, libass needs a format it can rasterise.
 const UA_WOFF2 = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
@@ -37,7 +38,7 @@ export function removeFamily(family) {
 
 async function fetchText(url, ua) {
   const res = await fetch(url, { headers: { 'User-Agent': ua } });
-  if (!res.ok) throw new Error(`Google Fonts trả về HTTP ${res.status}`);
+  if (!res.ok) throw new Error(tp`Google Fonts trả về HTTP ${res.status}`);
   return res.text();
 }
 
@@ -52,13 +53,13 @@ const cssUrl = (family, weights) => `https://fonts.googleapis.com/css2?family=${
  */
 export async function downloadFamily(family) {
   const entry = catalogueEntry(family);
-  if (!entry) throw new Error(`"${family}" không có trong danh mục font`);
-  if (!entry.google) throw new Error(`"${family}" là font hệ thống — không cần tải`);
+  if (!entry) throw new Error(tp`"${family}" không có trong danh mục font`);
+  if (!entry.google) throw new Error(tp`"${family}" là font hệ thống — không cần tải`);
 
   const webCss = await fetchText(cssUrl(entry.google, entry.weights), UA_WOFF2);
   const blocks = [...webCss.matchAll(/\/\*\s*([a-z-]+)\s*\*\/\s*(@font-face\s*\{[^}]*\})/g)]
     .filter((m) => SUBSETS.includes(m[1]));
-  if (!blocks.length) throw new Error(`Google Fonts không trả về @font-face nào cho "${family}"`);
+  if (!blocks.length) throw new Error(tp`Google Fonts không trả về @font-face nào cho "${family}"`);
 
   let out = '';
   let bytes = 0;
@@ -66,7 +67,7 @@ export async function downloadFamily(family) {
     const url = /url\((https:[^)]+)\)/.exec(block)?.[1];
     if (!url) continue;
     const res = await fetch(url);
-    if (!res.ok) throw new Error(`tải file font thất bại: HTTP ${res.status}`);
+    if (!res.ok) throw new Error(tp`tải file font thất bại: HTTP ${res.status}`);
     const buf = Buffer.from(await res.arrayBuffer());
     bytes += buf.length;
     out += `/* ${subset} */\n${block.replace(url, `data:font/woff2;base64,${buf.toString('base64')}`)}\n`;

@@ -4,6 +4,7 @@ import { probeDuration } from '../../media/ffmpeg.js';
 import { presetById, presetsForLane } from '../llm-presets.js';
 import { recordUsage } from '../../util/usage.js';
 
+import { m, tp } from '../../i18n/t.js';
 const VOICES = ['alloy', 'ash', 'ballad', 'coral', 'echo', 'fable', 'nova', 'onyx', 'sage', 'shimmer', 'verse'];
 
 // Several providers speak the same /audio/speech shape — Groq's playai-tts is free where
@@ -61,7 +62,7 @@ export default {
       const res = await fetch(`${endpointFor(cfg).base}/models`, {
         headers: { Authorization: `Bearer ${cfg.apiKey}` }, signal: AbortSignal.timeout(10000),
       });
-      return res.ok ? { ok: true, message: 'Kết nối OK' } : { ok: false, message: `HTTP ${res.status} — key sai hoặc hết hạn?` };
+      return res.ok ? { ok: true, message: m('Kết nối OK') } : { ok: false, message: tp`HTTP ${res.status} — key sai hoặc hết hạn?` };
     } catch (e) { return { ok: false, message: e.message }; }
   },
 };

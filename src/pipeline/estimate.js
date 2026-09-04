@@ -10,6 +10,7 @@ import { LANG_WPS } from '../providers/llm.js';
 import { detectLang, declaredLang, padMsFor } from '../util/lang.js';
 import { logger } from '../util/log.js';
 
+import { tp } from '../i18n/t.js';
 /** @param {import('./context.js').PipelineContext} ctx */
 export function seedEstimatedTiming(ctx) {
   const { projectId, config } = ctx;
@@ -24,6 +25,6 @@ export function seedEstimatedTiming(ctx) {
     DB.updateScene(sc.id, { duration, srt_json: cues });
     seeded++;
   }
-  if (seeded) logger.info(`⏱ Ước tính nhịp thời gian cho ${seeded} cảnh (giọng thật sẽ ghi đè sau)`, { projectId });
+  if (seeded) logger.info(tp`⏱ Ước tính nhịp thời gian cho ${seeded} cảnh (giọng thật sẽ ghi đè sau)`, { projectId });
   return seeded;
 }

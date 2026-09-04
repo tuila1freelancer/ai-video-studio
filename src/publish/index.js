@@ -3,11 +3,12 @@
 import youtube from './youtube.js';
 import facebook from './facebook.js';
 
+import { tp } from '../i18n/t.js';
 export const PUBLISHERS = { youtube, facebook };
 
 export function getPublisher(id) {
   const p = PUBLISHERS[id];
-  if (!p) throw new Error(`nền tảng chưa hỗ trợ: ${id}`);
+  if (!p) throw new Error(tp`nền tảng chưa hỗ trợ: ${id}`);
   return p;
 }
 

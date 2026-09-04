@@ -5,6 +5,7 @@
 import { $ } from '../ui/dom.js';
 import { api, withLock } from '../api.js';
 import { state } from '../state.js';
+import { m, tp } from '../i18n.js';
 
 let status = null;
 
@@ -29,21 +30,21 @@ function renderLock() {
   const account = status.account;
   const noLicense = account && (status.reason === 'no-key' || status.reason === 'no-token');
   $('#licenseLockMsg').textContent = noLicense
-    ? `Tài khoản ${account.email} chưa có license cho app này.`
-    : status.message || 'Đăng nhập bằng tài khoản Google đã mua license để sử dụng.';
+    ? tp`Tài khoản ${account.email} chưa có license cho app này.`
+    : status.message || m('Đăng nhập bằng tài khoản Google đã mua license để sử dụng.');
   const accountRow = $('#licenseAccount');
   if (accountRow) {
-    accountRow.textContent = account ? `Đang đăng nhập: ${account.email}` : '';
+    accountRow.textContent = account ? tp`Đang đăng nhập: ${account.email}` : '';
     show(accountRow, Boolean(account));
   }
   const login = $('#btnLicenseLogin');
-  if (login) login.textContent = account ? 'Đăng nhập tài khoản khác' : 'Đăng nhập với Google';
+  if (login) login.textContent = account ? m('Đăng nhập tài khoản khác') : m('Đăng nhập với Google');
   const buy = $('#btnLicenseBuy');
   show(buy, Boolean(status.buyUrl));
   // A key that is already on the machine but refused (expired, wrong device) is worth showing:
   // it tells the owner WHICH licence the message is about.
   const known = $('#licenseKnownKey');
-  known.textContent = status.key ? `License hiện tại: ${status.key}` : '';
+  known.textContent = status.key ? tp`License hiện tại: ${status.key}` : '';
   show(known, Boolean(status.key));
 }
 
@@ -53,18 +54,19 @@ function renderBadge() {
   if (status.reason === 'bypass' || status.reason === 'unconfigured') { show(badge, false); return; }
   show(badge, true);
   const days = status.daysLeft;
-  const plan = status.plan || 'License';
+  const plan = status.plan || m('License');
   if (status.state === 'grace') {
     badge.className = 'license-badge warn';
-    badge.innerHTML = `<b>Hết hạn</b><small>còn ${days ?? 0} ngày ân hạn</small>`;
+    badge.innerHTML = `<b>${m('Hết hạn')}</b><small>${tp`còn ${days ?? 0} ngày ân hạn`}</small>`;
   } else if (days == null) {
     badge.className = 'license-badge';
-    badge.innerHTML = `<b>${plan}</b><small>trọn đời</small>`;
+    badge.innerHTML = `<b>${plan}</b><small>${m('trọn đời')}</small>`;
   } else {
     badge.className = `license-badge${days <= 7 ? ' warn' : ''}`;
-    badge.innerHTML = `<b>${plan}</b><small>còn ${days} ngày</small>`;
+    badge.innerHTML = `<b>${plan}</b><small>${tp`còn ${days} ngày`}</small>`;
   }
-  badge.title = `Thiết bị: ${status.deviceId || '—'}\nLicense: ${status.key || '—'}`;
+  // Two msgids, not one: a \n inside a tp template extracts as two characters and never matches.
+  badge.title = `${tp`Thiết bị: ${status.deviceId || '—'}`}\n${tp`License: ${status.key || '—'}`}`;
 }
 
 async function renderUpdate() {
@@ -73,8 +75,9 @@ async function renderUpdate() {
   try { info = await api.get('/license/update'); } catch { return; }
   const banner = $('#updateBanner');
   if (!banner || !info.hasUpdate) return;
+  const latest = `<b>${info.latest}</b>`;
   $('#updateBannerText').innerHTML =
-    `Có bản <b>${info.latest}</b> (bạn đang dùng ${info.current})` +
+    tp`Có bản ${latest} (bạn đang dùng ${info.current})` +
     (info.changelog ? `<small>${info.changelog}</small>` : '');
   banner.dataset.versionId = info.versionId || '';
   show(banner, true);
@@ -109,7 +112,7 @@ export function initLicense() {
   $('#btnLicenseLogin')?.addEventListener('click', (e) => withLock(e.currentTarget, async () => {
     const err = $('#licenseLockErr');
     err.textContent = '';
-    $('#licenseLockMsg').textContent = 'Đang mở trình duyệt để đăng nhập…';
+    $('#licenseLockMsg').textContent = m('Đang mở trình duyệt để đăng nhập…');
     try {
       status = await api.post('/license/login');
       state.license = status;

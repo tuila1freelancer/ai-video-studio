@@ -11,6 +11,7 @@ import { openDialog } from '../ui/dialog.js';
 import { gatherConfig } from '../views/config.js';
 import { closeModal } from '../ui/modals.js';
 import { openProject } from '../views/studio.js';
+import { m, tp } from '../i18n.js';
 
 function toLocalInput(ts) {
   const d = new Date(ts);
@@ -48,15 +49,16 @@ function voiceOptions() {
     const fav = favs.has(v.provider + '/' + v.id) ? '★ ' : '';
     return `<option value="${esc(key)}">${fav}${esc(v.name)} · ${esc(v.provider)}</option>`;
   });
-  const label = current ? `— Theo cài đặt chung (${esc(current.voice)} · ${esc(current.provider)}) —` : '— Theo cài đặt chung —';
+  const label = current ? tp`— Theo cài đặt chung (${esc(current.voice)} · ${esc(current.provider)}) —` : m('— Theo cài đặt chung —');
   return `<option value="">${label}</option>` + opts.join('');
 }
 
-const SHEET_LABELS = {
-  now: ['🎬 Tạo video từ gợi ý', '🎬 Tạo ngay'],
-  schedule: ['🗓 Hẹn lịch sản xuất', '🗓 Hẹn lịch'],
-  edit: ['⚙ Cấu hình cho slot lịch', '💾 Lưu cấu hình'],
-};
+// Built per call, never at module load: the catalogue arrives after these modules are imported.
+const sheetLabels = (mode) => ({
+  now: [m('🎬 Tạo video từ gợi ý'), m('🎬 Tạo ngay')],
+  schedule: [m('🗓 Hẹn lịch sản xuất'), m('🗓 Hẹn lịch')],
+  edit: [m('⚙ Cấu hình cho slot lịch'), m('💾 Lưu cấu hình')],
+}[mode]);
 
 /**
  * Open the sheet for one suggestion row. Resolves {config, title?, dueAt?} on confirm,
@@ -68,63 +70,64 @@ export function configSheet({ row, mode, due = null }) {
   const presets = state.presets || [];
   const canStudio = !!document.getElementById('cfgHfDensity');
   const chDefault = channelAssistant()?.defaultConfig || null;
+  const labels = sheetLabels(mode);
   return openDialog(`
-    <div class="dlg-title">${SHEET_LABELS[mode][0]}</div>
+    <div class="dlg-title">${labels[0]}</div>
     <div class="dlg-body" style="margin-bottom:10px">${esc(row.topic)}</div>
     ${titles.length ? `
     <div class="field as-block">
-      <label class="label">Tiêu đề video</label>
-      <label class="as-radio"><input type="radio" name="asTitle" value="" checked> <span>${esc(row.topic)} <i class="hint">(chủ đề gốc)</i></span></label>
+      <label class="label">${m('Tiêu đề video')}</label>
+      <label class="as-radio"><input type="radio" name="asTitle" value="" checked> <span>${esc(row.topic)} <i class="hint">${m('(chủ đề gốc)')}</i></span></label>
       ${titles.map((t, i) => `<label class="as-radio"><input type="radio" name="asTitle" value="${i}"> <span>${esc(t)}</span></label>`).join('')}
     </div>` : ''}
     <div class="field as-block">
-      <label class="label">Nguồn cấu hình</label>
-      <label class="as-radio"><input type="radio" name="asSrc" value="channel" checked> <span>⭐ Mặc định kênh (config kênh + preset mặc định)</span></label>
+      <label class="label">${m('Nguồn cấu hình')}</label>
+      <label class="as-radio"><input type="radio" name="asSrc" value="channel" checked> <span>${m('⭐ Mặc định kênh (config kênh + preset mặc định)')}</span></label>
       <label class="as-radio${presets.length ? '' : ' disabled'}">
         <input type="radio" name="asSrc" value="preset" ${presets.length ? '' : 'disabled'}>
-        <span>Preset:</span>
+        <span>${m('Preset:')}</span>
         <select class="input" data-a="preset" style="flex:1;min-width:0" ${presets.length ? '' : 'disabled'}>
           ${presets.map((p) => `<option value="${esc(p.id)}">${p.is_default ? '⭐ ' : ''}${esc(p.name)}</option>`).join('')}
         </select>
       </label>
-      <label class="as-radio${canStudio ? '' : ' disabled'}"><input type="radio" name="asSrc" value="studio" ${canStudio ? '' : 'disabled'}> <span>📋 Panel Studio hiện tại (toàn bộ lựa chọn đang mở)</span></label>
-      ${chDefault ? '<label class="as-radio"><input type="radio" name="asSrc" value="assistant"> <span>🤖 Config trợ lý của kênh (đã lưu trong ⚙ Cài đặt trợ lý)</span></label>' : ''}
+      <label class="as-radio${canStudio ? '' : ' disabled'}"><input type="radio" name="asSrc" value="studio" ${canStudio ? '' : 'disabled'}> <span>${m('📋 Panel Studio hiện tại (toàn bộ lựa chọn đang mở)')}</span></label>
+      ${chDefault ? `<label class="as-radio"><input type="radio" name="asSrc" value="assistant"> <span>${m('🤖 Config trợ lý của kênh (đã lưu trong ⚙ Cài đặt trợ lý)')}</span></label>` : ''}
     </div>
     <div class="field as-block">
-      <label class="label">Ghi đè nhanh <span class="hint">(chỉ mục nào bạn đổi mới được áp)</span></label>
+      <label class="label">${m('Ghi đè nhanh')} <span class="hint">${m('(chỉ mục nào bạn đổi mới được áp)')}</span></label>
       <div class="as-grid">
-        <label>Khung hình <select class="input" data-a="ar">
-          <option value="">(giữ nguyên)</option><option>9:16</option><option>16:9</option><option>1:1</option><option>4:5</option>
+        <label>${m('Khung hình')} <select class="input" data-a="ar">
+          <option value="">${m('(giữ nguyên)')}</option><option>9:16</option><option>16:9</option><option>1:1</option><option>4:5</option>
         </select></label>
-        <label>Thời lượng <select class="input" data-a="vd">
-          <option value="">(giữ nguyên)</option><option value="30">30 giây</option><option value="60">1 phút</option>
-          <option value="90">1,5 phút</option><option value="180">3 phút</option><option value="300">5 phút</option>
+        <label>${m('Thời lượng')} <select class="input" data-a="vd">
+          <option value="">${m('(giữ nguyên)')}</option><option value="30">${m('30 giây')}</option><option value="60">${m('1 phút')}</option>
+          <option value="90">${m('1,5 phút')}</option><option value="180">${m('3 phút')}</option><option value="300">${m('5 phút')}</option>
         </select></label>
-        <label>Phụ đề <select class="input" data-a="sub">
-          <option value="">(giữ nguyên)</option><option value="on">Bật</option><option value="off">Tắt</option>
+        <label>${m('Phụ đề')} <select class="input" data-a="sub">
+          <option value="">${m('(giữ nguyên)')}</option><option value="on">${m('Bật')}</option><option value="off">${m('Tắt')}</option>
         </select></label>
       </div>
     </div>
     <div class="field as-block">
-      <label class="label">Giọng đọc video này</label>
+      <label class="label">${m('Giọng đọc video này')}</label>
       <select class="input" data-a="voice">${voiceOptions()}</select>
     </div>
     <label class="as-radio" style="margin:2px 0 6px">
       <input type="checkbox" data-a="gate" ${mode === 'now' ? 'checked' : ''}>
-      <span>🔍 Duyệt kịch bản trước khi dựng <i class="hint">${mode === 'now'
-    ? '(dừng chờ bạn xem storyboard — chưa tốn phí lồng tiếng)'
-    : '(video hẹn lịch vốn chạy tự động — bật nếu muốn nó dừng chờ bạn duyệt)'}</i></span>
+      <span>${m('🔍 Duyệt kịch bản trước khi dựng')} <i class="hint">${mode === 'now'
+    ? m('(dừng chờ bạn xem storyboard — chưa tốn phí lồng tiếng)')
+    : m('(video hẹn lịch vốn chạy tự động — bật nếu muốn nó dừng chờ bạn duyệt)')}</i></span>
     </label>
     ${mode === 'schedule' ? `
     <div class="field as-block">
-      <label class="label">Thời điểm sản xuất</label>
+      <label class="label">${m('Thời điểm sản xuất')}</label>
       <input class="input" type="datetime-local" data-a="due" value="${due ? toLocalInput(due) : defaultDue()}">
     </div>` : ''}
     <div class="hint" id="asCost" style="margin:2px 0 4px"></div>
-    <div class="hint" style="margin:4px 0 12px">Máy chủ vẫn xếp lớp: mặc định app → kênh → preset mặc định → lựa chọn ở đây.</div>
+    <div class="hint" style="margin:4px 0 12px">${m('Máy chủ vẫn xếp lớp: mặc định app → kênh → preset mặc định → lựa chọn ở đây.')}</div>
     <div class="dlg-actions">
-      <button class="btn" data-a="cancel">Huỷ</button>
-      <button class="btn primary" data-a="ok">${SHEET_LABELS[mode][1]}</button>
+      <button class="btn" data-a="cancel">${m('Huỷ')}</button>
+      <button class="btn primary" data-a="ok">${labels[1]}</button>
     </div>`, {
     onReady(dlg, close) {
       // picking a preset from the dropdown implies the preset source
@@ -140,11 +143,11 @@ export function configSheet({ row, mode, due = null }) {
           const ch = (state.channels || []).find((c) => c.id === state.activeChannel);
           const vd = +(dlg.querySelector('[data-a=vd]')?.value) || ch?.config?.videoDuration || 60;
           const est = await api.post('/estimate-cost', { videoDuration: vd, config: { language: channelLang() } });
-          const bits = [`~${est.scenes} cảnh`];
-          if (est.credits != null) bits.push(`${est.credits.toLocaleString('vi-VN')} credits LarVoice`);
-          else if (est.ttsUsd) bits.push(`TTS ≈ $${est.ttsUsd.toFixed(2)}`);
-          if (est.llmUsd != null) bits.push(`LLM ≈ $${est.llmUsd.toFixed(2)} (${est.basis})`);
-          costLine.textContent = `💸 Ước tính: ${bits.join(' · ')}`;
+          const bits = [tp`~${est.scenes} cảnh`];
+          if (est.credits != null) bits.push(tp`${est.credits.toLocaleString('vi-VN')} credits LarVoice`);
+          else if (est.ttsUsd) bits.push(tp`TTS ≈ $${est.ttsUsd.toFixed(2)}`);
+          if (est.llmUsd != null) bits.push(tp`LLM ≈ $${est.llmUsd.toFixed(2)} (${est.basis})`);
+          costLine.textContent = tp`💸 Ước tính: ${bits.join(' · ')}`;
         } catch { costLine.textContent = ''; }
       };
       refreshCost();
@@ -206,12 +209,12 @@ export function slotTimeDialog(slot) {
   const p = (n) => String(n).padStart(2, '0');
   const cur = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
   return openDialog(`
-    <div class="dlg-title">🕐 Dời lịch sản xuất</div>
+    <div class="dlg-title">${m('🕐 Dời lịch sản xuất')}</div>
     <div class="dlg-body" style="margin-bottom:10px">${esc(slot.topic)}</div>
     <div class="field" style="margin-bottom:14px"><input class="input" type="datetime-local" data-a="due" value="${cur}"></div>
     <div class="dlg-actions">
-      <button class="btn" data-a="cancel">Huỷ</button>
-      <button class="btn primary" data-a="ok">🕐 Dời lịch</button>
+      <button class="btn" data-a="cancel">${m('Huỷ')}</button>
+      <button class="btn primary" data-a="ok">${m('🕐 Dời lịch')}</button>
     </div>`, {
     onReady(dlg, close) {
       dlg.querySelector('[data-a=cancel]').addEventListener('click', () => close(false));
@@ -235,24 +238,24 @@ export function slotTimeDialog(slot) {
 export function planWeekDialog({ times = null } = {}) {
   const prefTimes = (times && times.length ? times : ['08:00']).join(', ');
   return openDialog(`
-    <div class="dlg-title">📅 Lên kế hoạch tuần</div>
-    <div class="dlg-body" style="margin-bottom:10px">Tự xếp các gợi ý đang chờ (điểm viral cao trước) vào lịch sản xuất.</div>
+    <div class="dlg-title">${m('📅 Lên kế hoạch tuần')}</div>
+    <div class="dlg-body" style="margin-bottom:10px">${m('Tự xếp các gợi ý đang chờ (điểm viral cao trước) vào lịch sản xuất.')}</div>
     <div class="as-grid" style="margin-bottom:12px">
-      <label>Số ngày <select class="input" data-a="days">
-        <option value="7">7 ngày</option><option value="3">3 ngày</option><option value="14">14 ngày</option><option value="30">30 ngày</option>
+      <label>${m('Số ngày')} <select class="input" data-a="days">
+        <option value="7">${m('7 ngày')}</option><option value="3">${m('3 ngày')}</option><option value="14">${m('14 ngày')}</option><option value="30">${m('30 ngày')}</option>
       </select></label>
-      <label>Video mỗi ngày <select class="input" data-a="perDay">
+      <label>${m('Video mỗi ngày')} <select class="input" data-a="perDay">
         <option value="1">1</option><option value="2">2</option><option value="3">3</option>
       </select></label>
     </div>
     <div class="field as-block">
-      <label class="label">Khung giờ (cách nhau bằng dấu phẩy)</label>
+      <label class="label">${m('Khung giờ (cách nhau bằng dấu phẩy)')}</label>
       <input class="input" data-a="times" value="${esc(prefTimes)}">
     </div>
-    <label class="as-radio" style="margin-bottom:12px"><input type="checkbox" data-a="useStudio"> <span>📋 Áp cấu hình từ panel Studio hiện tại cho mọi slot</span></label>
+    <label class="as-radio" style="margin-bottom:12px"><input type="checkbox" data-a="useStudio"> <span>${m('📋 Áp cấu hình từ panel Studio hiện tại cho mọi slot')}</span></label>
     <div class="dlg-actions">
-      <button class="btn" data-a="cancel">Huỷ</button>
-      <button class="btn primary" data-a="ok">📅 Xếp lịch</button>
+      <button class="btn" data-a="cancel">${m('Huỷ')}</button>
+      <button class="btn primary" data-a="ok">${m('📅 Xếp lịch')}</button>
     </div>`, {
     onReady(dlg, close) {
       dlg.querySelector('[data-a=cancel]').addEventListener('click', () => close(false));
@@ -263,9 +266,11 @@ export function planWeekDialog({ times = null } = {}) {
         const config = v('useStudio').checked ? { ...gatherConfig() } : {};
         try {
           const r = await api.post('/calendar/plan', { days: +v('days').value, perDay: +v('perDay').value, times, config });
+          // kept out of the sentence below: a tp nested inside a tp is not extractable
+          const rest = r.skipped ? tp` (còn ${r.skipped} chờ đợt sau)` : '';
           toast(r.planned
-            ? `📅 Đã xếp ${r.planned} chủ đề vào lịch${r.skipped ? ` (còn ${r.skipped} chờ đợt sau)` : ''}.`
-            : 'Không có gợi ý đang chờ để xếp — tạo thêm gợi ý trước đã.', r.planned ? 'success' : 'error');
+            ? tp`📅 Đã xếp ${r.planned} chủ đề vào lịch${rest}.`
+            : m('Không có gợi ý đang chờ để xếp — tạo thêm gợi ý trước đã.'), r.planned ? 'success' : 'error');
           close(!!r.planned);
         } catch (e) { toast('✗ ' + e.message, 'error'); close(false); }
       });
@@ -275,16 +280,16 @@ export function planWeekDialog({ times = null } = {}) {
 
 /** Add a fixed weekly production window (weekday + time). Template only — never auto-runs. */
 export function addRecurrenceDialog() {
-  const days = ['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
+  const days = [m('Chủ nhật'), m('Thứ 2'), m('Thứ 3'), m('Thứ 4'), m('Thứ 5'), m('Thứ 6'), m('Thứ 7')];
   return openDialog(`
-    <div class="dlg-title">⏰ Thêm khung giờ cố định</div>
+    <div class="dlg-title">${m('⏰ Thêm khung giờ cố định')}</div>
     <div class="as-grid" style="margin-bottom:14px">
-      <label>Thứ <select class="input" data-a="wd">${days.map((d, i) => `<option value="${i}" ${i === 1 ? 'selected' : ''}>${d}</option>`).join('')}</select></label>
-      <label>Giờ <input class="input" type="time" data-a="time" value="08:00"></label>
+      <label>${m('Thứ')} <select class="input" data-a="wd">${days.map((d, i) => `<option value="${i}" ${i === 1 ? 'selected' : ''}>${d}</option>`).join('')}</select></label>
+      <label>${m('Giờ')} <input class="input" type="time" data-a="time" value="08:00"></label>
     </div>
     <div class="dlg-actions">
-      <button class="btn" data-a="cancel">Huỷ</button>
-      <button class="btn primary" data-a="ok">⏰ Thêm</button>
+      <button class="btn" data-a="cancel">${m('Huỷ')}</button>
+      <button class="btn primary" data-a="ok">${m('⏰ Thêm')}</button>
     </div>`, {
     onReady(dlg, close) {
       dlg.querySelector('[data-a=cancel]').addEventListener('click', () => close(false));

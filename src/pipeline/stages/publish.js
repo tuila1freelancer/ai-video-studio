@@ -9,6 +9,7 @@ import { logger } from '../../util/log.js';
 import { getPublisher } from '../../publish/index.js';
 import { op } from '../progress.js';
 
+import { tp } from '../../i18n/t.js';
 /** @param {import('../context.js').PipelineContext} ctx */
 export async function runPublish(ctx) {
   const { projectId, config } = ctx;
@@ -17,13 +18,13 @@ export async function runPublish(ctx) {
   const project = DB.getProject(projectId);
   if (!project?.video_path || !existsSync(project.video_path)) return;
   let pub;
-  try { pub = getPublisher(platform); } catch (e) { logger.warn(`Đăng video: ${e.message}`, { projectId, kind: 'publish' }); return; }
-  if (!pub.connected()) { logger.warn(`Đăng video: ${platform} chưa kết nối OAuth — bỏ qua B9`, { projectId, kind: 'publish' }); return; }
+  try { pub = getPublisher(platform); } catch (e) { logger.warn(tp`Đăng video: ${e.message}`, { projectId, kind: 'publish' }); return; }
+  if (!pub.connected()) { logger.warn(tp`Đăng video: ${platform} chưa kết nối OAuth — bỏ qua B9`, { projectId, kind: 'publish' }); return; }
 
   const privacy = ['private', 'unlisted', 'public'].includes(config.publishPrivacy) ? config.publishPrivacy : 'private';
   const md = project.metadata || {};
   const recId = DB.recordPublish({ projectId, platform, privacy });
-  op(projectId, `📤 Đăng ${platform} (${privacy})…`);
+  op(projectId, tp`📤 Đăng ${platform} (${privacy})…`);
   try {
     const r = await pub.upload({
       videoPath: project.video_path,
@@ -34,12 +35,12 @@ export async function runPublish(ctx) {
       thumbPath: project.thumb_path && existsSync(project.thumb_path) ? project.thumb_path : null,
     });
     DB.settlePublish(recId, { status: 'done', videoId: r.videoId, url: r.url });
-    logger.info(`📤 Đã đăng ${platform} (${r.privacy}): ${r.url}`, { projectId, kind: 'publish', jlevel: 'success' });
-    op(projectId, `📤 Đã đăng (${r.privacy}): ${r.url}`);
+    logger.info(tp`📤 Đã đăng ${platform} (${r.privacy}): ${r.url}`, { projectId, kind: 'publish', jlevel: 'success' });
+    op(projectId, tp`📤 Đã đăng (${r.privacy}): ${r.url}`);
     hub.toProject(projectId, { type: 'published', platform, url: r.url, privacy: r.privacy });
   } catch (e) {
     DB.settlePublish(recId, { status: 'error', error: e.message });
-    logger.warn(`Đăng ${platform} thất bại: ${e.message}`, { projectId, kind: 'publish' });
-    op(projectId, `⚠️ Đăng ${platform} lỗi: ${String(e.message).slice(0, 120)} — video vẫn ở máy`);
+    logger.warn(tp`Đăng ${platform} thất bại: ${e.message}`, { projectId, kind: 'publish' });
+    op(projectId, tp`⚠️ Đăng ${platform} lỗi: ${String(e.message).slice(0, 120)} — video vẫn ở máy`);
   }
 }

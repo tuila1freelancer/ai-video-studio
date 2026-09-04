@@ -3,10 +3,11 @@ import { closeModal } from '../ui/modals.js';
 import { toast } from '../ui/toast.js';
 import { api } from '../api.js';
 import { state } from '../state.js';
-import { uiLang, setUiLanguage, t } from '../i18n.js';
+import { uiLang, setUiLanguage, t, m, tp } from '../i18n.js';
 
 // The languages the app can be shown in, named in themselves — a picker that says "Japanese" to
 // someone who cannot read English is a picker they cannot use.
+// i18n-exempt: endonyms — a language names itself, so the picker stays usable in any interface.
 const UI_LANGS = [
   ['vi', '🇻🇳 Tiếng Việt'], ['en', '🇺🇸 English'], ['ja', '🇯🇵 日本語'], ['ko', '🇰🇷 한국어'],
   ['zh', '🇨🇳 中文'], ['es', '🇪🇸 Español'], ['fr', '🇫🇷 Français'], ['de', '🇩🇪 Deutsch'],
@@ -43,7 +44,7 @@ export function initSettings() {
   // P42: check the LLM endpoint before saving it, not mid-render
   $('#btnTestLlm')?.addEventListener('click', async () => {
     const out = $('#llmTestResult');
-    out.textContent = '⏳ đang kiểm tra…';
+    out.textContent = m('⏳ đang kiểm tra…');
     const r = await api.post('/llm/test', {
       preset: $('#setLlmPreset').value,
       baseUrl: $('#setLlmUrl').value.trim(), apiKey: $('#setLlmKey').value.trim(), model: $('#setLlmModel').value.trim(),
@@ -63,7 +64,7 @@ export function initSettings() {
       pageId: $('#pubFbPage').value.trim(), pageToken: $('#pubFbToken').value.trim(),
     });
     if (r?.error) return toast(r.error, 'error');
-    toast(`✅ Đã kết nối Page: ${r.pageName || r.pageId}`, 'success');
+    toast(tp`✅ Đã kết nối Page: ${r.pageName || r.pageId}`, 'success');
     loadPublishStatus(); loadFbPages();
   });
   $('#pubFbRefresh')?.addEventListener('click', () => { loadPublishStatus(); loadFbPages(); });
@@ -83,9 +84,9 @@ export async function loadFbPages() {
   try { pages = (await api.get('/publish/pages')).pages || []; } catch { return; }
   if (!pages.length) { box.innerHTML = `<span style="opacity:.6">${esc(t('ui.settings.chua-ket-noi-page', null, 'Chưa kết nối Page nào.'))}</span>`; return; }
   box.innerHTML = pages.map((p) => `<div>${p.active ? '🟢' : '⚪️'} <strong>${esc(p.name || p.id)}</strong>
-    <button class="btn sm" data-fbsel="${esc(p.id)}">Dùng</button>
-    <button class="btn sm" data-fbchk="${esc(p.id)}">Kiểm tra token</button>
-    <button class="btn sm danger" data-fbdel="${esc(p.id)}">Xoá</button>
+    <button class="btn sm" data-fbsel="${esc(p.id)}">${esc(m('Dùng'))}</button>
+    <button class="btn sm" data-fbchk="${esc(p.id)}">${esc(m('Kiểm tra token'))}</button>
+    <button class="btn sm danger" data-fbdel="${esc(p.id)}">${esc(m('Xoá'))}</button>
     <span data-fbinfo="${esc(p.id)}"></span></div>`).join('');
   box.querySelectorAll('[data-fbsel]').forEach((b) => { b.onclick = async () => { await api.post(`/publish/pages/${b.dataset.fbsel}/select`, {}); loadFbPages(); loadPublishStatus(); }; });
   box.querySelectorAll('[data-fbdel]').forEach((b) => { b.onclick = async () => { await api.del(`/publish/pages/${b.dataset.fbdel}`); loadFbPages(); loadPublishStatus(); }; });
@@ -95,7 +96,7 @@ export async function loadFbPages() {
       info.textContent = '⏳';
       const r = await api.post(`/publish/pages/${b.dataset.fbchk}/check`, {});
       info.textContent = r?.error ? `❌ ${r.error}`
-        : (r.neverExpires ? '✅ token không hết hạn' : (r.valid ? `✅ còn ${r.daysLeft} ngày` : '❌ token đã hỏng'));
+        : (r.neverExpires ? m('✅ token không hết hạn') : (r.valid ? tp`✅ còn ${r.daysLeft} ngày` : m('❌ token đã hỏng')));
     };
   });
 }
@@ -122,19 +123,21 @@ export async function loadVoices() {
   state.voiceCatalog = voices || [];
   state.providers = providers || [];
   $('#setTtsProvider').innerHTML = state.providers
-    .map((p) => `<option value="${p.id}">${esc(p.name)}${p.free ? ' · miễn phí' : ''}</option>`).join('');
+    .map((p) => `<option value="${p.id}">${esc(p.name)}${p.free ? ' · ' + esc(m('miễn phí')) : ''}</option>`).join('');
 }
 // ---- LLM provider picker (ai-providers) ----
 // Typing a base URL from memory was the single biggest thing standing between "installed" and
 // "actually using the AI stages". The catalogue lives on the server (providers/llm-presets.js);
 // this only renders it.
-const TIER_LABELS = {
-  free: 'Miễn phí — không cần thẻ',
-  cheap: 'Giá rẻ — trả theo lượng dùng',
-  premium: 'Cao cấp',
-  local: 'Chạy trên máy bạn',
-  custom: 'Khác',
-};
+//
+// Built per render, never at module load: m() only has a catalogue once initI18n has run.
+const tierLabels = () => ({
+  free: m('Miễn phí — không cần thẻ'),
+  cheap: m('Giá rẻ — trả theo lượng dùng'),
+  premium: m('Cao cấp'),
+  local: m('Chạy trên máy bạn'),
+  custom: m('Khác'),
+});
 
 export async function loadLlmPresets() {
   try {
@@ -145,13 +148,13 @@ export async function loadLlmPresets() {
   // graphics run off this one setting — offering a provider that makes the second half fail is
   // not a choice, it is a trap.
   const forLlm = state.llmPresets.filter((p) => p.lanes?.llm);
-  const html = Object.entries(TIER_LABELS).map(([tier, label]) => {
+  const html = Object.entries(tierLabels()).map(([tier, label]) => {
     const rows = forLlm.filter((p) => p.tier === tier);
     if (!rows.length) return '';
     return `<optgroup label="${esc(label)}">${rows.map((p) =>
       `<option value="${esc(p.id)}">${esc(p.label)}</option>`).join('')}</optgroup>`;
   }).join('');
-  $('#setLlmPreset').innerHTML = html || '<option value="custom">✏️ Tuỳ chỉnh (tự nhập Base URL)</option>';
+  $('#setLlmPreset').innerHTML = html || `<option value="custom">${esc(m('✏️ Tuỳ chỉnh (tự nhập Base URL)'))}</option>`;
 }
 
 const normUrl = (u) => String(u || '').trim().toLowerCase().replace(/\/+$/, '').replace(/\/chat\/completions$/, '');
@@ -221,7 +224,7 @@ function renderLlmPreset() {
   $('#setLlmUrl').value = isCustom ? acc.baseUrl : p.baseUrl;
   $('#llmKeyField').classList.toggle('hidden', !!p?.keyless);
   $('#setLlmKey').value = acc.apiKey;
-  $('#setLlmKey').placeholder = acc.apiKey ? 'sk-...' : `dán API key của ${p?.label || 'provider'}…`;
+  $('#setLlmKey').placeholder = acc.apiKey ? 'sk-...' : tp`dán API key của ${p?.label || 'provider'}…`;
   $('#setLlmModel').value = acc.model;
   $('#setLlmCodegenModel').value = acc.codegenModel;
   llmShownPreset = id;
@@ -240,14 +243,14 @@ function renderLlmPreset() {
   $('#btnFetchModels').disabled = !(p?.listsModels ?? true);
   $('#llmModelsOut').textContent = '';
   const badges = [];
-  if (p?.noCard && !p?.keyless) badges.push('🎁 không cần thẻ');
-  if (p?.keyless) badges.push('💻 không cần key');
-  if (p && !p.modelsVerified && p.models?.length) badges.push('↻ nên lấy lại danh sách model');
+  if (p?.noCard && !p?.keyless) badges.push(m('🎁 không cần thẻ'));
+  if (p?.keyless) badges.push(m('💻 không cần key'));
+  if (p && !p.modelsVerified && p.models?.length) badges.push(m('↻ nên lấy lại danh sách model'));
   $('#llmPresetNote').innerHTML = [
     p?.note ? esc(p.note) : '',
-    badges.join(' · '),
+    esc(badges.join(' · ')),
     // A local server has no key to fetch — its link is where to download the thing.
-    p?.keyUrl ? `<a href="${esc(p.keyUrl)}" target="_blank" rel="noreferrer noopener">${p.keyless ? '⬇ Tải phần mềm ↗' : '🔑 Lấy API key ↗'}</a>` : '',
+    p?.keyUrl ? `<a href="${esc(p.keyUrl)}" target="_blank" rel="noreferrer noopener">${p.keyless ? esc(m('⬇ Tải phần mềm ↗')) : esc(m('🔑 Lấy API key ↗'))}</a>` : '',
   ].filter(Boolean).join('<br>');
   setModelSuggestions(p?.models || []);
 }
@@ -255,10 +258,11 @@ function renderLlmPreset() {
 // A datalist, not a select: a suggestion list must never stop the owner typing a model the
 // app has not heard of — and a select would silently blank a saved value it has no option for.
 function setModelSuggestions(models) {
-  $('#llmModelList').innerHTML = models.map((m) => {
-    const p = m.price;
-    const price = Array.isArray(p) ? (p[0] || p[1] ? `$${p[0]}/$${p[1]} mỗi 1M token` : 'miễn phí') : '';
-    return `<option value="${esc(m.id)}">${esc([m.label, price].filter(Boolean).join(' — '))}</option>`;
+  // `mo`, not `m`: the parameter must not shadow the m() the free-price branch calls.
+  $('#llmModelList').innerHTML = models.map((mo) => {
+    const p = mo.price;
+    const price = Array.isArray(p) ? (p[0] || p[1] ? tp`$${p[0]}/$${p[1]} mỗi 1M token` : m('miễn phí')) : '';
+    return `<option value="${esc(mo.id)}">${esc([mo.label, price].filter(Boolean).join(' — '))}</option>`;
   }).join('');
 }
 
@@ -278,19 +282,19 @@ function llmAccountsForSave() {
 
 async function fetchLlmModels() {
   const out = $('#llmModelsOut');
-  out.textContent = '⏳ đang hỏi provider…';
+  out.textContent = m('⏳ đang hỏi provider…');
   out.style.color = '';
   const r = await api.post('/llm/models', {
     preset: $('#setLlmPreset').value, baseUrl: $('#setLlmUrl').value.trim(), apiKey: $('#setLlmKey').value.trim(),
   });
   if (!r?.ok) {
     // A provider that cannot list its models is not a broken provider — keep the suggestions.
-    out.textContent = `❌ ${r?.message || 'không lấy được danh sách'}`;
+    out.textContent = `❌ ${r?.message || m('không lấy được danh sách')}`;
     out.style.color = 'var(--red)';
     return;
   }
   setModelSuggestions(r.models.map((id) => ({ id, label: '', price: null })));
-  out.textContent = `✅ ${r.models.length} model — bấm vào ô Model để chọn`;
+  out.textContent = tp`✅ ${r.models.length} model — bấm vào ô Model để chọn`;
   out.style.color = 'var(--green)';
 }
 
@@ -336,7 +340,7 @@ function renderProviderFields() {
         <input class="input prov-field" data-key="${f.key}" type="${f.type === 'password' ? 'password' : 'text'}"
           placeholder="${esc(f.placeholder || '')}" value="${esc(saved[f.key] || '')}"></div>`)).join('')
       + serverControls(pid)
-    : '<div class="hint" style="margin-bottom:8px">Provider này không cần cấu hình — dùng ngay.</div>';
+    : `<div class="hint" style="margin-bottom:8px">${esc(m('Provider này không cần cấu hình — dùng ngay.'))}</div>`;
   $('#provTestResult').textContent = '';
   wireServerControls(pid);
 }
@@ -353,12 +357,12 @@ function collectProviderFields() {
 // configured (P40, Supertonic).
 function serverControls(pid) {
   if (pid !== 'supertonic') return '';
-  return `<div class="field"><label class="label">Server cục bộ</label>
-    <button class="btn sm" id="ttsSrvStart">▶ Khởi động</button>
-    <button class="btn sm" id="ttsSrvStop">⏹ Dừng</button>
-    <button class="btn sm" id="ttsSrvStatus">🔄 Kiểm tra</button>
-    <button class="btn sm" id="ttsSrvInstall">⬇ Cài đặt</button>
-    <div class="hint" id="ttsSrvOut" style="margin-top:6px">Cài một lần: <code>pip install supertonic</code></div></div>`;
+  return `<div class="field"><label class="label">${esc(m('Server cục bộ'))}</label>
+    <button class="btn sm" id="ttsSrvStart">${esc(m('▶ Khởi động'))}</button>
+    <button class="btn sm" id="ttsSrvStop">${esc(m('⏹ Dừng'))}</button>
+    <button class="btn sm" id="ttsSrvStatus">${esc(m('🔄 Kiểm tra'))}</button>
+    <button class="btn sm" id="ttsSrvInstall">${esc(m('⬇ Cài đặt'))}</button>
+    <div class="hint" id="ttsSrvOut" style="margin-top:6px">${esc(m('Cài một lần:'))} <code>pip install supertonic</code></div></div>`;
 }
 function wireServerControls(pid) {
   if (pid !== 'supertonic') return;
@@ -367,26 +371,26 @@ function wireServerControls(pid) {
     const s = r?.supertonic || {};
     out.textContent = r?.error
       ? `❌ ${r.error}`
-      : `${s.running ? '🟢 đang chạy' : '⚪️ chưa chạy'} · ${s.url || ''}${s.installed ? '' : ' · chưa cài (pip install supertonic)'}`;
+      : `${s.running ? m('🟢 đang chạy') : m('⚪️ chưa chạy')} · ${s.url || ''}${s.installed ? '' : ' · ' + m('chưa cài (pip install supertonic)')}`;
   };
   $('#ttsSrvStart')?.addEventListener('click', async () => {
-    out.textContent = '⏳ đang khởi động…';
+    out.textContent = m('⏳ đang khởi động…');
     show(await api.post('/tts/server/start', collectProviderFields()));
   });
   $('#ttsSrvStop')?.addEventListener('click', async () => {
     const r = await api.post('/tts/server/stop', {});
-    out.textContent = r?.error ? `❌ ${r.error}` : (r?.stopped ? '⏹ đã dừng' : 'không có server nào do app quản lý');
+    out.textContent = r?.error ? `❌ ${r.error}` : (r?.stopped ? m('⏹ đã dừng') : m('không có server nào do app quản lý'));
   });
   $('#ttsSrvStatus')?.addEventListener('click', async () => show(await api.get('/tts/server/status')));
   $('#ttsSrvInstall')?.addEventListener('click', async () => {
-    out.textContent = '⏳ đang cài (pip install supertonic) — có thể mất vài phút…';
+    out.textContent = m('⏳ đang cài (pip install supertonic) — có thể mất vài phút…');
     const r = await api.post('/tts/server/install', {});
     out.textContent = (r.ok ? '✅ ' : '❌ ') + (r.message || r.error || '');
   });
 }
 async function testProvider() {
   const pid = $('#setTtsProvider').value;
-  $('#provTestResult').textContent = '⏳ đang kiểm tra…';
+  $('#provTestResult').textContent = m('⏳ đang kiểm tra…');
   const r = await api.post('/voices/test', { provider: pid, cfg: collectProviderFields() });
   $('#provTestResult').textContent = (r.ok ? '✅ ' : '❌ ') + (r.message || '');
   $('#provTestResult').style.color = r.ok ? 'var(--green)' : 'var(--red)';
@@ -398,7 +402,7 @@ function renderLangVoiceList() {
   const rows = Object.entries(lv).map(([lang, v]) =>
     `<div>${LANG_FLAGS[lang] || '🏳️'} <strong>${lang}</strong> → ${esc(v.voice)} <span style="opacity:.6">(${esc(v.provider)})</span>
       <button class="btn sm danger" style="padding:1px 7px;font-size:10px" data-rmlang="${lang}">×</button></div>`).join('');
-  $('#langVoiceList').innerHTML = rows || 'Chưa đặt — hệ thống tự chọn giọng theo ngôn ngữ văn bản.';
+  $('#langVoiceList').innerHTML = rows || esc(m('Chưa đặt — hệ thống tự chọn giọng theo ngôn ngữ văn bản.'));
 }
 async function removeLangVoice(lang) {
   // deep-merge PUT: null = explicit delete (sending the object minus the key would resurrect it)

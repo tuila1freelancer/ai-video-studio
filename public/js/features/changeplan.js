@@ -14,6 +14,7 @@ import { $ } from '../ui/dom.js';
 import { api } from '../api.js';
 import { toast } from '../ui/toast.js';
 import { state } from '../state.js';
+import { m, tp } from '../i18n.js';
 import { gatherConfig } from '../views/config.js';
 import { confirmDialog } from '../ui/dialog.js';
 import { showJournal } from './journal.js';
@@ -21,9 +22,9 @@ import { switchPage } from '../views/nav.js';
 
 const fmt = (s) => {
   const n = Math.max(1, Math.round(s));
-  if (n < 60) return `~${n} giây`;
-  if (n < 3600) return `~${Math.round(n / 60)} phút`;
-  return `~${(n / 3600).toFixed(1)} giờ`;
+  if (n < 60) return tp`~${n} giây`;
+  if (n < 3600) return tp`~${Math.round(n / 60)} phút`;
+  return tp`~${(n / 3600).toFixed(1)} giờ`;
 };
 const ICON = { tts: '🎙', render: '🎬', concat: '🔗' };
 
@@ -46,7 +47,7 @@ export async function openChangePlan() {
   try {
     plan = await api.post(`/projects/${id}/plan-changes`, { config });
   } catch (e) {
-    toast(`✖ Không tính được chi phí: ${e.message}`, 'error');
+    toast(tp`✖ Không tính được chi phí: ${e.message}`, 'error');
     return;
   }
   const host = $('#changePlanModal');
@@ -54,25 +55,25 @@ export async function openChangePlan() {
 
   if (!plan.items.length) {
     host.querySelector('[data-body]').innerHTML =
-      '<div class="hint" style="padding:12px 0">Không có gì thay đổi so với bản đã xuất — video hiện tại đã đúng với cấu hình này.</div>';
-    host.querySelector('[data-actions]').innerHTML = '<button class="btn" data-close>Đóng</button>';
+      `<div class="hint" style="padding:12px 0">${m('Không có gì thay đổi so với bản đã xuất — video hiện tại đã đúng với cấu hình này.')}</div>`;
+    host.querySelector('[data-actions]').innerHTML = `<button class="btn" data-close>${m('Đóng')}</button>`;
   } else {
     const cheap = plan.items.filter((i) => i.kind === 'concat');
     const canSplit = cheap.length && cheap.length < plan.items.length;
     host.querySelector('[data-body]').innerHTML =
-      `<div class="hint" style="margin-bottom:4px">${plan.items.length} thay đổi đang chờ`
-      + `${plan.measured ? '' : ' · ước tính theo số liệu mặc định, chưa đo dự án này'}</div>`
+      `<div class="hint" style="margin-bottom:4px">${tp`${plan.items.length} thay đổi đang chờ`}`
+      + `${plan.measured ? '' : m(' · ước tính theo số liệu mặc định, chưa đo dự án này')}</div>`
       + plan.items.map(row).join('')
       + `<div class="row" style="justify-content:space-between;padding-top:8px;border-top:1px solid var(--line);font-weight:600">
-           <span>Tổng</span><span style="font-variant-numeric:tabular-nums">${fmt(plan.totalSec)}</span></div>`
+           <span>${m('Tổng')}</span><span style="font-variant-numeric:tabular-nums">${fmt(plan.totalSec)}</span></div>`
       + (plan.fadeBlocksFastJoin
-        ? '<div class="hint" style="margin-top:8px">💡 Chỉ còn hiệu ứng mờ đầu/cuối video buộc phải encode lại. '
-          + 'Tắt nó ở <strong>Nâng cao</strong> thì lượt ghép này gần như tức thì.</div>'
+        ? `<div class="hint" style="margin-top:8px">${m('💡 Chỉ còn hiệu ứng mờ đầu/cuối video buộc phải encode lại.')} `
+          + `${tp`Tắt nó ở ${`<strong>${m('Nâng cao')}</strong>`} thì lượt ghép này gần như tức thì.`}</div>`
         : '');
     host.querySelector('[data-actions]').innerHTML =
-      `<button class="btn" data-close>Huỷ</button>`
-      + (canSplit ? '<button class="btn" id="cpCheap">Chỉ ghép lại</button>' : '')
-      + `<button class="btn primary" id="cpAll">Áp dụng${plan.items.length > 1 ? ' tất cả' : ''}</button>`;
+      `<button class="btn" data-close>${m('Huỷ')}</button>`
+      + (canSplit ? `<button class="btn" id="cpCheap">${m('Chỉ ghép lại')}</button>` : '')
+      + `<button class="btn primary" id="cpAll">${plan.items.length > 1 ? m('Áp dụng tất cả') : m('Áp dụng')}</button>`;
   }
   host.classList.add('open');
 
@@ -116,8 +117,8 @@ export async function offerRerender(reason) {
   const ok = await confirmDialog({
     title: 'Dựng lại video đang mở?',
     // confirmDialog escapes its body — plain text only, no markup
-    body: `${reason}. Video "${p.title || 'đang mở'}" đã xuất trước đó — có thể dựng lại bản hoàn chỉnh `
-      + 'với thiết lập mới ngay bây giờ. Bước tiếp theo hiện bảng chi phí trước khi chạy bất cứ thứ gì.',
+    body: tp`${reason}. Video "${p.title || m('đang mở')}" đã xuất trước đó — có thể dựng lại bản hoàn chỉnh`
+      + ` ${m('với thiết lập mới ngay bây giờ. Bước tiếp theo hiện bảng chi phí trước khi chạy bất cứ thứ gì.')}`,
     okText: 'Xem chi phí & dựng lại',
     cancelText: 'Để sau',
   });

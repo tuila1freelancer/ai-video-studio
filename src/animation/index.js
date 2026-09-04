@@ -17,6 +17,7 @@ import { wordJoiner } from '../i18n/segment.js';
 import { lang as langRow } from '../i18n/languages.js';
 import { scriptFallback } from '../styleguide/script-fonts.js';
 
+import { m, tp } from '../i18n/t.js';
 // Per-project seed salt (P31): scene N of two different videos must NOT share randomness
 // (particles, ambient layout, FX picks) — before this, seed was `idx + 1` for every video,
 // so same-index scenes came out near-identical across projects. Determinism per project is
@@ -255,12 +256,12 @@ export async function renderAnimationScene(scene, project, config, { dir, progre
   // silently, so the alternative is 95 clips in the wrong typeface discovered by eye — the same
   // failure mode the burn path refuses, refused here too. Only explicit picks are fatal; a font
   // the codegen model invented inside its own CSS surfaces as a warning from the render itself.
-  for (const [label, family] of [['phụ đề', config.subtitleFont], ['chữ đồ hoạ', config.fonts?.display]]) {
+  for (const [label, family] of [[m('phụ đề'), config.subtitleFont], [m('chữ đồ hoạ'), config.fonts?.display]]) {
     const fam = familyName(family);
     if (fam && !familyReady(fam)) {
       throw new Error(
-        `font ${label} "${fam}" chưa có trên máy — Chrome sẽ thay bằng font khác mà không báo. `
-        + 'Vào Thư viện → Font chữ để tải về, hoặc chọn font khác.',
+        tp`font ${label} "${fam}" chưa có trên máy — Chrome sẽ thay bằng font khác mà không báo. `
+        + m('Vào Thư viện → Font chữ để tải về, hoặc chọn font khác.'),
       );
     }
   }
@@ -296,7 +297,7 @@ export async function renderAnimationScene(scene, project, config, { dir, progre
   // survives the join, ships, and is only visible in ffprobe. It cost a whole render pass once.
   const got = await probeImageSize(res.path);
   if (got && (got.w !== w || got.h !== h)) {
-    throw new Error(`cảnh ${scene.idx + 1}: kích thước không khớp — yêu cầu ${w}×${h}, nhận ${got.w}×${got.h}`);
+    throw new Error(tp`cảnh ${scene.idx + 1}: kích thước không khớp — yêu cầu ${w}×${h}, nhận ${got.w}×${got.h}`);
   }
   return { ...res, preview: existsSync(previewPath) ? previewPath : null };
 }

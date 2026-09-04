@@ -7,6 +7,7 @@ import { budgetState } from '../core/budget.js';
 import { logger } from '../util/log.js';
 import { resolveOutputDir } from './helpers.js';
 
+import { tp } from '../i18n/t.js';
 /**
  * @typedef {object} PipelineContext
  * @property {string} projectId
@@ -39,7 +40,7 @@ export function buildContext(projectId, { resume = false } = {}) {
   // edge→say chain via the same explicit-override lane a user's per-video pick uses).
   const budget = budgetState(projectId);
   if (budget.capped) {
-    logger.warn(`💸 Chạm trần ngân sách ($${budget.spent.toFixed(2)}/$${budget.cap}) — lần chạy này dùng chế độ miễn phí`, { projectId });
+    logger.warn(tp`💸 Chạm trần ngân sách ($${budget.spent.toFixed(2)}/$${budget.cap}) — lần chạy này dùng chế độ miễn phí`, { projectId });
     ai = { ...ai, llm: { ...(ai.llm || {}), enabled: false } };
     config = { ...config, tts: { ...(config.tts || {}), provider: 'edge', voice: 'auto' } };
   }

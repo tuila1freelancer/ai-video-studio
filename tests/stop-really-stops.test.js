@@ -14,8 +14,9 @@ import { ffmpeg } from '../src/media/ffmpeg.js';
 import {
   abortSignalFor, checkStop, clearStop, hydrateStops, isStopped, notStopped, requestStop, stopError,
 } from '../src/pipeline/stop.js';
+import { unwrapI18n } from './_source.mjs';
 
-const src = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
+const src = (p) => unwrapI18n(readFileSync(new URL(p, import.meta.url), 'utf8'));
 
 /** A project with one job in it, claimed so the row reads 'running' like a live render. */
 function runningProject(title) {

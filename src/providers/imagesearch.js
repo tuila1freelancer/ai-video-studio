@@ -13,6 +13,7 @@ import { makeGradientImage } from '../media/ffmpeg.js';
 import { generateKeywords } from './llm.js';
 import { newId } from '../util/util.js';
 
+import { m, tp } from '../i18n/t.js';
 const PALETTES = [
   ['0x1e3a8a', '0x0f172a'], ['0x7c2d12', '0x1c1917'], ['0x064e3b', '0x052e16'],
   ['0x581c87', '0x1e1b4b'], ['0x9d174d', '0x4a044e'], ['0x155e75', '0x0c4a6e'],
@@ -111,10 +112,10 @@ export async function imageSearch(query, count = 6) {
       if (res.status === 429) {
         // The limit is per CLIENT, not per query, so the remaining rungs would each buy another
         // 429 and another wait.
-        note = 'Openverse đang giới hạn truy cập (429) — thử lại sau ít phút';
+        note = m('Openverse đang giới hạn truy cập (429) — thử lại sau ít phút');
         break;
       }
-      if (!res.ok) { note = `Openverse trả về lỗi ${res.status}`; continue; }
+      if (!res.ok) { note = tp`Openverse trả về lỗi ${res.status}`; continue; }
       const data = await res.json();
       const items = (data.results || [])
         // `url` is the ORIGINAL, which is what a scene should use — often several MB, which is why
@@ -123,10 +124,10 @@ export async function imageSearch(query, count = 6) {
         .filter(Boolean)
         .slice(0, n);
       if (items.length) return { keywords, items, images: items.map((i) => i.url), source: 'openverse' };
-      note = note || `không có ảnh nào khớp “${term}”`;
+      note = note || tp`không có ảnh nào khớp “${term}”`;
     } catch (e) {
       // offline → the deterministic placeholders below, but say which wall we hit
-      note = e.name === 'TimeoutError' ? 'Openverse không phản hồi trong 15 giây' : 'không kết nối được Openverse (offline?)';
+      note = e.name === 'TimeoutError' ? m('Openverse không phản hồi trong 15 giây') : m('không kết nối được Openverse (offline?)');
     }
   }
 
@@ -137,7 +138,7 @@ export async function imageSearch(query, count = 6) {
     const [c1, c2] = PALETTES[i % PALETTES.length];
     await makeGradientImage(out, { w: 800, h: 800, c1, c2 });
     const url = `/api/file?path=${encodeURIComponent(out)}`;
-    items.push({ url, thumb: url, title: `Nền chuyển sắc ${i + 1}`, page: '', provider: 'placeholder' });
+    items.push({ url, thumb: url, title: tp`Nền chuyển sắc ${i + 1}`, page: '', provider: 'placeholder' });
   }
   return { keywords, items, images: items.map((i) => i.url), source: 'placeholder', note };
 }

@@ -15,6 +15,7 @@ import { jlog } from './journal.js';
 import { status as licenseStatus } from '../license/index.js';
 import { isRunnable } from '../license/state.js';
 
+import { m, tp } from '../i18n/t.js';
 const licensed = () => isRunnable(licenseStatus());
 
 // Per-kind lanes: how many jobs of a kind may run at once across the whole process.
@@ -110,12 +111,12 @@ export function promoteDueSlots() {
       try { DB.linkSuggestionProject(slot.id, project.id); } catch { /* best-effort */ }
       const j = DB.enqueueJob({ kind: 'pipeline', projectId: project.id, payload: {}, priority: -1 });
       hub.broadcast({ type: 'calendar', slotId: slot.id, projectId: project.id, topic: slot.topic });
-      jlog(project.id, { kind: 'enqueue', jobId: j.id, msg: '⏳ Đã xếp vào hàng đợi sản xuất (video hẹn lịch)' });
-      logger.info(`🗓 Đến hạn lịch — tạo dự án "${slot.topic}"`, { projectId: project.id });
+      jlog(project.id, { kind: 'enqueue', jobId: j.id, msg: m('⏳ Đã xếp vào hàng đợi sản xuất (video hẹn lịch)') });
+      logger.info(tp`🗓 Đến hạn lịch — tạo dự án "${slot.topic}"`, { projectId: project.id });
     } catch (e) {
       logger.error(`calendar promote failed: ${e.message}`);
       // system lane: no project exists yet, but the failed task must still be auditable
-      jlog(null, { kind: 'sys', level: 'error', stage: 'sys', msg: `⛔ Slot lịch "${slot.topic}" không tạo được video: ${e.message} — ý tưởng đã trả về pool gợi ý` });
+      jlog(null, { kind: 'sys', level: 'error', stage: 'sys', msg: tp`⛔ Slot lịch "${slot.topic}" không tạo được video: ${e.message} — ý tưởng đã trả về pool gợi ý` });
       DB.cancelSlot(slot.id); // a broken slot must not wedge every future tick
       // P34: the idea must not be stranded — same restore the manual slot-delete path does
       try { DB.restoreSuggestionBySlot(slot.id); } catch { /* linkage is best-effort */ }
@@ -167,7 +168,7 @@ export function submit({ kind, projectId, batchId = null, payload = {}, priority
   const job = DB.enqueueJob({ kind, projectId, batchId, payload, priority });
   hub.broadcast({ type: 'job', id: job.id, kind, projectId, status: 'queued' });
   jlog(projectId, { kind: 'enqueue', jobId: job.id,
-    msg: kind === 'render' ? '⏳ Đã xếp render vào hàng đợi' : '⏳ Đã xếp vào hàng đợi sản xuất' });
+    msg: kind === 'render' ? m('⏳ Đã xếp render vào hàng đợi') : m('⏳ Đã xếp vào hàng đợi sản xuất') });
   const done = promiseFor(job.id);
   scheduleTick(0);
   return { job, done };
@@ -187,7 +188,7 @@ export function startScheduler() {
   if (requeued || dead) {
     logger.info(`job recovery: ${requeued} requeued, ${dead} marked dead`);
     jlog(null, { kind: 'sys', level: 'warn', stage: 'sys',
-      msg: `🧯 Khôi phục sau khởi động: ${requeued} tác vụ xếp lại hàng đợi, ${dead} đánh dấu lỗi` });
+      msg: tp`🧯 Khôi phục sau khởi động: ${requeued} tác vụ xếp lại hàng đợi, ${dead} đánh dấu lỗi` });
   }
   scheduleTick(500); // give boot a beat before resuming heavy work
 }

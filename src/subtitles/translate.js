@@ -12,6 +12,7 @@
 import { chatJson, llmEnabled } from '../providers/llm.js';
 import { langName } from '../util/lang.js';
 
+import { m, tp } from '../i18n/t.js';
 const BATCH = 30;
 
 /** `00:00:01,240` — SRT's own timestamp shape. */
@@ -41,7 +42,7 @@ export function buildVtt(cues) {
 export async function translateCues(cues, { from, to, llm, onLog = () => {} } = {}) {
   const list = Array.isArray(cues) ? cues : [];
   if (!list.length) return [];
-  if (!llmEnabled(llm)) throw new Error('cần bật LLM để dịch phụ đề');
+  if (!llmEnabled(llm)) throw new Error(m('cần bật LLM để dịch phụ đề'));
   if (from === to) return list.map((c) => ({ ...c }));
 
   const out = list.map((c) => ({ ...c }));
@@ -70,13 +71,13 @@ RULES:
       const v = reply?.[String(i + j)];
       if (typeof v === 'string' && v.trim()) { out[i + j].text = v.trim(); filled++; }
     }
-    if (filled < slice.length) throw new Error(`dịch phụ đề: thiếu ${slice.length - filled} dòng — bỏ, không ghép tạm`);
-    onLog(`phụ đề ${langName(to)}: ${Math.min(i + BATCH, list.length)}/${list.length} dòng`);
+    if (filled < slice.length) throw new Error(tp`dịch phụ đề: thiếu ${slice.length - filled} dòng — bỏ, không ghép tạm`);
+    onLog(tp`phụ đề ${langName(to)}: ${Math.min(i + BATCH, list.length)}/${list.length} dòng`);
   }
   // The contract, asserted rather than trusted.
-  if (out.length !== list.length) throw new Error('dịch phụ đề: số dòng thay đổi');
+  if (out.length !== list.length) throw new Error(m('dịch phụ đề: số dòng thay đổi'));
   for (let i = 0; i < list.length; i++) {
-    if (out[i].start !== list[i].start || out[i].end !== list[i].end) throw new Error('dịch phụ đề: mốc thời gian bị đổi');
+    if (out[i].start !== list[i].start || out[i].end !== list[i].end) throw new Error(m('dịch phụ đề: mốc thời gian bị đổi'));
   }
   return out;
 }

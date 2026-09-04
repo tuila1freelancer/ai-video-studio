@@ -6,8 +6,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { keyPool } from '../src/providers/tts.js';
+import { unwrapI18n } from './_source.mjs';
 
-const src = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
+const src = (p) => unwrapI18n(readFileSync(new URL(p, import.meta.url), 'utf8'));
 
 test('P40: SEO metadata is written from the NARRATION, not from the title alone', () => {
   const llm = src('../src/providers/llm.js');
@@ -112,7 +113,7 @@ test('P40: the media library is browsable per brand, renameable and auditionable
   assert.match(lib, /fd\.append\('brand', state\.libBrand/, 'an upload lands in the folder being browsed');
   assert.match(lib, /<audio controls preload="none"/, 'BGM/SFX can be auditioned before use');
   assert.match(lib, /api\.patch\('\/library\/' \+ it\.id, \{ name \}\)/, 'entries can be renamed');
-  assert.match(lib, /it\.onDisk \? ' disabled/, 'a file that only exists on disk is not pretend-editable');
+  assert.match(lib, /it\.onDisk \? [`'] disabled/, 'a file that only exists on disk is not pretend-editable');
   const routes = src('../src/api/routes.js');
   assert.match(routes, /r\.patch\('\/library\/:id'/, 'the rename route exists');
   assert.match(src('../src/db/repositories/catalogs.js'), /export function renameLibrary/);

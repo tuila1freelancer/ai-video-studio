@@ -5,6 +5,7 @@ import { state, activeChannelBrand } from '../state.js';
 import { openVoicePicker } from '../features/voicepicker.js';
 import { confirmDialog, promptDialog, menuDialog } from '../ui/dialog.js';
 import { icon } from '../ui/icons.js';
+import { m, tp } from '../i18n.js';
 
 // Output resolution: the value stored in config.resolutionScale, and the label on the chip.
 // Mirrors resRung() in src/animation/index.js — 1.3333 lands on exactly 2560×1440.
@@ -46,11 +47,11 @@ const SUB_FIELDS = [
   { k: 'subtitleBaseColor', el: '#cfgSubBaseColor', t: 'color', dflt: '#FFFFFF' },
   { k: 'subtitleDimUnread', el: '#cfgSubDimUnread', t: 'pct', off: 40, out: '#cfgSubDimUL' },
   { k: 'subtitleOutlineColor', el: '#cfgSubOutlineColor', t: 'color', dflt: '#000000' },
-  { k: 'subtitleOutlineWidth', el: '#cfgSubOutlineWidth', t: 'num', off: 0, out: '#cfgSubOwL', auto: 'theo bộ mẫu' },
+  { k: 'subtitleOutlineWidth', el: '#cfgSubOutlineWidth', t: 'num', off: 0, out: '#cfgSubOwL', auto: () => m('theo bộ mẫu') },
   { k: 'subtitleShadowColor', el: '#cfgSubShadowColor', t: 'color', dflt: '#000000' },
-  { k: 'subtitleShadowDepth', el: '#cfgSubShadowDepth', t: 'num', off: 0, out: '#cfgSubSdL', auto: 'theo bộ mẫu' },
+  { k: 'subtitleShadowDepth', el: '#cfgSubShadowDepth', t: 'num', off: 0, out: '#cfgSubSdL', auto: () => m('theo bộ mẫu') },
   { k: 'subtitleGlowColor', el: '#cfgSubGlowColor', t: 'color', dflt: '#00E5FF' },
-  { k: 'subtitleGlow', el: '#cfgSubGlow', t: 'num', off: 0, out: '#cfgSubGlowL', auto: 'tắt' },
+  { k: 'subtitleGlow', el: '#cfgSubGlow', t: 'num', off: 0, out: '#cfgSubGlowL', auto: () => m('tắt') },
 
   { k: 'subtitleBox', el: '#cfgSubBox', t: 'bool' },
   { k: 'subtitleBoxColor', el: '#cfgSubBoxColor', t: 'color', dflt: '#0A0A10' },
@@ -113,7 +114,8 @@ function writeSubField(f, cfg) {
   syncSubOut(f);
 }
 
-const WEIGHT_NAME = { 100: 'Mảnh', 200: 'Rất nhẹ', 300: 'Nhẹ', 400: 'Thường', 500: 'Vừa', 600: 'Hơi đậm', 700: 'Đậm', 800: 'Rất đậm', 900: 'Đen' };
+// Built per call, never at import: the catalogue is fetched after this module is evaluated.
+const weightName = (w) => ({ 100: m('Mảnh'), 200: m('Rất nhẹ'), 300: m('Nhẹ'), 400: m('Thường'), 500: m('Vừa'), 600: m('Hơi đậm'), 700: m('Đậm'), 800: m('Rất đậm'), 900: m('Đen') }[w] || '');
 
 /**
  * Offer only the weights this font actually has.
@@ -130,8 +132,8 @@ export function syncSubWeights() {
   const entry = (state.fontFamilies || []).find((f) => f.family === fam);
   const weights = (entry?.weights?.length ? entry.weights : [400, 700]).slice().sort((a, b) => a - b);
   const cur = sel.value;
-  sel.innerHTML = '<option value="">Theo bộ mẫu</option>'
-    + weights.map((w) => `<option value="${w}">${w} — ${WEIGHT_NAME[w] || ''}</option>`).join('');
+  sel.innerHTML = `<option value="">${m('Theo bộ mẫu')}</option>`
+    + weights.map((w) => `<option value="${w}">${w} — ${weightName(w)}</option>`).join('');
   sel.value = weights.includes(+cur) ? cur : '';
 }
 
@@ -149,7 +151,7 @@ function syncSubStudio() {
  * slider started at.
  */
 async function resetSubStudio() {
-  const ok = await confirmDialog('Trả mọi tinh chỉnh phụ đề về mặc định? Bộ mẫu đang chọn được giữ nguyên.');
+  const ok = await confirmDialog(m('Trả mọi tinh chỉnh phụ đề về mặc định? Bộ mẫu đang chọn được giữ nguyên.'));
   if (!ok) return;
   SUB_FIELDS.forEach((f) => writeSubField(f, {}));
   syncSubStudio(); updateSubPreview(); updateCfgChips();
@@ -182,7 +184,7 @@ function syncSubOut(f) {
   const out = $(f.out); const el = $(f.el);
   if (!out || !el) return;
   const off = f.t === 'pct' ? f.off : f.off;
-  out.textContent = f.auto && +el.value === (off ?? 0) ? f.auto : el.value;
+  out.textContent = f.auto && +el.value === (off ?? 0) ? f.auto() : el.value;
 }
 
 export function initConfig() {
@@ -194,8 +196,8 @@ export function initConfig() {
   $$('.cfg-arr').forEach((a) => { a.innerHTML = icon('edit', 13); });
   const ps = $('#btnPresetSave'); if (ps) ps.innerHTML = icon('save', 14);
   const pm = $('#btnPresetMenu'); if (pm) pm.innerHTML = icon('more', 14);
-  const be = $('#btnBrandEditor'); if (be) be.innerHTML = `${icon('palette', 14)} Chỉnh Brand Kit của kênh…`;
-  const cv = $('#btnCfgVoice'); if (cv) cv.innerHTML = `${icon('mic', 14)} Chọn giọng đọc (nghe thử)…`;
+  const be = $('#btnBrandEditor'); if (be) be.innerHTML = `${icon('palette', 14)} ${m('Chỉnh Brand Kit của kênh…')}`;
+  const cv = $('#btnCfgVoice'); if (cv) cv.innerHTML = `${icon('mic', 14)} ${m('Chọn giọng đọc (nghe thử)…')}`;
   wireConfig();
   wireConfigGroups();
   wirePresetBar();
@@ -447,16 +449,16 @@ function wireConfig() {
   $('#cfgSubFontGet')?.addEventListener('click', async () => {
     const fam = $('#cfgSubFont').value;
     const btn = $('#cfgSubFontGet');
-    btn.disabled = true; btn.textContent = '⏳ Đang tải…';
+    btn.disabled = true; btn.textContent = m('⏳ Đang tải…');
     try {
       const r = await downloadFont(fam);
-      toast(`🔤 Đã tải font ${r.family} (${r.faces} kiểu chữ, ${Math.round(r.bytes / 1024)}KB)`, 'success');
+      toast(tp`🔤 Đã tải font ${r.family} (${r.faces} kiểu chữ, ${Math.round(r.bytes / 1024)}KB)`, 'success');
       $('#cfgSubFont').value = fam;
       btn.classList.add('hidden');
       saveSubtitleDefaults(); // setting .value fires no 'change' — the pick would go unsaved
     } catch (e) {
-      toast(`✖ Không tải được font: ${e.message}`, 'error');
-    } finally { btn.disabled = false; btn.textContent = '⬇︎ Tải'; }
+      toast(tp`✖ Không tải được font: ${e.message}`, 'error');
+    } finally { btn.disabled = false; btn.textContent = m('⬇︎ Tải'); }
   });
 }
 export function updateEstimate() {
@@ -464,18 +466,18 @@ export function updateEstimate() {
   const auto = $('#cfgDurMode')?.value === 'auto';
   $('#cfgVd').disabled = auto;
   $('#cfgVd').closest('.field')?.classList.toggle('durmode-auto', auto);
-  $('#cfgVdL').textContent = auto ? 'tự động' : (vd >= 60 ? `${Math.round(vd / 60 * 10) / 10} phút` : `${vd} giây`);
-  $('#cfgSdL').textContent = `${sd} giây`;
+  $('#cfgVdL').textContent = auto ? m('tự động') : (vd >= 60 ? tp`${Math.round(vd / 60 * 10) / 10} phút` : tp`${vd} giây`);
+  $('#cfgSdL').textContent = tp`${sd} giây`;
   if (auto) {
-    $('#cfgEst').textContent = '🪄 Giữ NGUYÊN VĂN kịch bản bạn dán vào — thời lượng video = tổng lời thoại (cần ≥80 từ, nếu ngắn hơn sẽ chạy theo mục tiêu). ⚠ HyperFrame gọi AI theo TỪNG cảnh — kịch bản dài sẽ tốn chi phí tương ứng.';
+    $('#cfgEst').textContent = m('🪄 Giữ NGUYÊN VĂN kịch bản bạn dán vào — thời lượng video = tổng lời thoại (cần ≥80 từ, nếu ngắn hơn sẽ chạy theo mục tiêu). ⚠ HyperFrame gọi AI theo TỪNG cảnh — kịch bản dài sẽ tốn chi phí tương ứng.');
     return;
   }
   const scenes = Math.max(1, Math.round(vd / sd));
   const hfWarn = scenes > 40
-    ? ` — ⚠ HyperFrame gọi AI cho từng cảnh (${scenes} lần): video dài sẽ tốn thời gian + chi phí` : '';
+    ? tp` — ⚠ HyperFrame gọi AI cho từng cảnh (${scenes} lần): video dài sẽ tốn thời gian + chi phí` : '';
   // (sd − 0.65s nghỉ) × 4.4 wps × 0.95 — đúng công thức wordsForSlot của máy viết kịch bản (vi)
   const wpsScene = Math.max(8, Math.round((sd - 0.65) * 4.4 * 0.95));
-  $('#cfgEst').textContent = `Ước tính ${scenes} cảnh, ~${wpsScene} từ/cảnh, tổng ~${scenes * wpsScene} từ${hfWarn}`;
+  $('#cfgEst').textContent = tp`Ước tính ${scenes} cảnh, ~${wpsScene} từ/cảnh, tổng ~${scenes * wpsScene} từ${hfWarn}`;
 }
 export function buildSubColors() {
   const box = $('#cfgSubColors'); if (!box) return; box.innerHTML = '';
@@ -503,12 +505,11 @@ export function updateSubLaneHint(cfg = null) {
   const el = $('#subLaneHint');
   if (!el) return;
   const legacy = cfg && cfg.subtitleLane !== 'final' && !!state.current?.video_path;
-  el.innerHTML = '💡 Phụ đề được in <strong>sau khi ghép video hoàn chỉnh</strong>, không nướng vào từng cảnh — '
-    + 'nên đổi chữ, font, cỡ, màu hay vị trí về sau chỉ tốn <strong>một lượt ghép</strong>.'
+  // ONE msgid per sentence: the source split these only to wrap the line, and a translator
+  // handed half a clause cannot reorder it.
+  el.innerHTML = m('💡 Phụ đề được in <strong>sau khi ghép video hoàn chỉnh</strong>, không nướng vào từng cảnh — nên đổi chữ, font, cỡ, màu hay vị trí về sau chỉ tốn <strong>một lượt ghép</strong>.')
     + (legacy
-      ? '<br>⚠ Video này được dựng theo cách cũ (phụ đề nằm sẵn trong từng cảnh). Lần lưu cấu hình tới sẽ '
-        + 'chuyển nó sang cách mới: phải dựng lại clip <em>không có</em> phụ đề <strong>một lần duy nhất</strong> — '
-        + 'bảng chi phí sẽ báo trước khi chạy.'
+      ? '<br>' + m('⚠ Video này được dựng theo cách cũ (phụ đề nằm sẵn trong từng cảnh). Lần lưu cấu hình tới sẽ chuyển nó sang cách mới: phải dựng lại clip <em>không có</em> phụ đề <strong>một lần duy nhất</strong> — bảng chi phí sẽ báo trước khi chạy.')
       : '');
 }
 
@@ -544,11 +545,11 @@ export function saveSubtitleDefaults({ now = false } = {}) {
       const ch = (state.channels || []).find((c) => c.id === state.activeChannel);
       if (ch && r.channel) ch.config = r.channel.config; // keep the in-memory copy honest
       if (note) {
-        note.textContent = `💾 Đã lưu kiểu phụ đề cho kênh ${ch?.name || ''}`.trim()
-          + (r.presetUpdated ? ' (kể cả preset mặc định)' : '') + ' — video sau tự dùng lại.';
+        note.textContent = tp`💾 Đã lưu kiểu phụ đề cho kênh ${ch?.name || ''}`.trim()
+          + (r.presetUpdated ? m(' (kể cả preset mặc định)') : '') + m(' — video sau tự dùng lại.');
       }
     } catch (e) {
-      if (note) note.textContent = `⚠ Chưa lưu được kiểu phụ đề cho kênh: ${e.message}`;
+      if (note) note.textContent = tp`⚠ Chưa lưu được kiểu phụ đề cho kênh: ${e.message}`;
     }
   };
   if (now) go(); else subSaveTimer = setTimeout(go, 700);
@@ -598,7 +599,7 @@ export function updateSubPreview() {
   const base = preset?.baseColor || '#FFFFFF';
   const effect = preset?.effect || 'glow';
 
-  let txt = plain ? 'Phụ đề thường — dòng tĩnh' : 'Phụ đề mẫu của bạn';
+  let txt = plain ? m('Phụ đề thường — dòng tĩnh') : m('Phụ đề mẫu của bạn');
   // same precedence as captionStyleFrom / assStyleFrom: an explicit pick, else the preset's
   const c = $('#cfgSubCase').value || preset?.textCase || 'original';
   if (c === 'uppercase') txt = txt.toUpperCase();
@@ -690,7 +691,7 @@ export async function refreshFramePreview() {
   const btn = $('#btnFramePreview');
   if (!img || !state.current?.id) return;
   const t = +($('#framePreviewAt')?.value || 15);
-  btn.disabled = true; note.textContent = '⏳ Đang dựng khung thật…';
+  btn.disabled = true; note.textContent = m('⏳ Đang dựng khung thật…');
   try {
     // the panel's LIVE values, not what is saved — the owner is previewing a change in progress
     const cfg = encodeURIComponent(JSON.stringify(gatherConfig()));
@@ -700,7 +701,7 @@ export async function refreshFramePreview() {
     const warn = res.headers.get('X-Preview-Note');
     img.src = URL.createObjectURL(await res.blob());
     img.classList.remove('hidden');
-    note.textContent = warn ? `⚠ ${decodeURIComponent(warn)}` : 'Khung thật của video — logo và phụ đề đi qua đúng đường ghép cuối.';
+    note.textContent = warn ? `⚠ ${decodeURIComponent(warn)}` : m('Khung thật của video — logo và phụ đề đi qua đúng đường ghép cuối.');
   } catch (e) {
     note.textContent = `✖ ${e.message}`;
   } finally { btn.disabled = false; }
@@ -764,13 +765,13 @@ function wireHfStyle() {
     const describe = $('#hfDescribe').value.trim();
     if (!describe) { toast('Mô tả phong cách bạn muốn trước đã.', 'error'); return; }
     const note = $('#hfGenNote');
-    note.textContent = '⏳ AI đang thiết kế phong cách…';
+    note.textContent = m('⏳ AI đang thiết kế phong cách…');
     try {
       const r = await api.post('/hyperframe/styleguide', { describe, topic: $('#topic')?.value || '' });
       if (r.error) throw new Error(r.error);
       state.hfGuide = r.guide; state.hfStyleId = 'custom';
       renderHfPresetGrid(); renderHfStyleButton(); updateCfgChips();
-      note.textContent = r.source === 'llm' ? `✓ Đã tạo phong cách "${r.guide.name}"` : '⚠ LLM chưa cấu hình — dùng phong cách mặc định';
+      note.textContent = r.source === 'llm' ? tp`✓ Đã tạo phong cách "${r.guide.name}"` : m('⚠ LLM chưa cấu hình — dùng phong cách mặc định');
     } catch (e) { note.textContent = '✗ ' + e.message; }
   });
   // Persistent brand kit: pin the selected style as the CHANNEL's canonical guide —
@@ -783,7 +784,7 @@ function wireHfStyle() {
       const g = hfCurrentStyle();
       const guide = state.hfGuide || g; // custom guide object, or the chosen preset's full data
       await api.post(`/channels/${active}/style-guide`, { guide });
-      note.textContent = `✓ Đã đặt "${guide.name || guide.id}" làm phong cách mặc định của kênh`;
+      note.textContent = tp`✓ Đã đặt "${guide.name || guide.id}" làm phong cách mặc định của kênh`;
       toast('Đã lưu phong cách cho kênh 🎨', 'success');
     } catch (e) { note.textContent = '✗ ' + e.message; }
   });
@@ -799,9 +800,9 @@ export async function loadBrandFolders() {
   try { brands = (await api.get('/brands')).brands || []; } catch { return; }
   const cur = sel.value || 'auto';
   const extra = brands.filter((b) => b && b !== 'Default');
-  sel.innerHTML = '<option value="auto">Tự động — thư mục Default</option>'
-    + extra.map((b) => `<option value="${esc(b)}">Thư mục: ${esc(b)}</option>`).join('')
-    + '<option value="none">Tắt</option>';
+  sel.innerHTML = `<option value="auto">${m('Tự động — thư mục Default')}</option>`
+    + extra.map((b) => `<option value="${esc(b)}">${tp`Thư mục: ${esc(b)}`}</option>`).join('')
+    + `<option value="none">${m('Tắt')}</option>`;
   sel.value = [...sel.options].some((o) => o.value === cur) ? cur : 'auto';
 }
 // Named SEO styles (P40): rows in the shared `styles` table, kind 'metadata'. Picking one fills
@@ -812,7 +813,7 @@ export async function loadMetadataStyles() {
   let styles = [];
   try { styles = (await api.get('/styles?kind=metadata')).styles || []; } catch { return; }
   const cur = sel.value;
-  sel.innerHTML = '<option value="">— Mặc định —</option>'
+  sel.innerHTML = `<option value="">${m('— Mặc định —')}</option>`
     + styles.map((st) => `<option value="${esc(st.id)}" data-prompt="${esc(st.prompt || '')}">${esc(st.name)}</option>`).join('');
   sel.value = [...sel.options].some((o) => o.value === cur) ? cur : '';
   sel.onchange = () => {
@@ -842,7 +843,7 @@ export async function loadMetadataStyles() {
 }
 export async function loadBgmOptions() {
   const { items } = await api.get('/library/bgm');
-  $('#cfgBgm').innerHTML = '<option value="">— Không —</option>' + items.map((i) => `<option value="${esc(i.path)}">${esc(i.name)}</option>`).join('');
+  $('#cfgBgm').innerHTML = `<option value="">${m('— Không —')}</option>` + items.map((i) => `<option value="${esc(i.path)}">${esc(i.name)}</option>`).join('');
 }
 // ---------------- fonts ----------------
 // Both pickers are built from /fonts/families, which is the app's ONE list. index.html used to
@@ -878,12 +879,12 @@ export async function loadFontFamilies() {
   let families = [];
   try { families = (await api.get('/fonts/families')).families || []; } catch { return; }
   state.fontFamilies = families;
-  const label = (f) => `${SOURCE_MARK[f.source] || ''}${f.family}${f.ready ? '' : ' — chưa tải'}`;
+  const label = (f) => `${SOURCE_MARK[f.source] || ''}${f.family}${f.ready ? '' : m(' — chưa tải')}`;
 
   const bf = $('#cfgBrandFont');
   if (bf) {
     const cur = bf.value;
-    bf.innerHTML = '<option value="">— Theo style guide —</option>'
+    bf.innerHTML = `<option value="">${m('— Theo style guide —')}</option>`
       + families.filter((f) => f.ready).map((f) => `<option value="${esc(f.family)}">${esc(label(f))}</option>`).join('');
     bf.value = cur;
   }
@@ -916,10 +917,11 @@ export async function downloadFont(family) {
 // Each .cfg-group is a read-only summary card; clicking it MOVES the group's live
 // .cfg-body node into #cfgModal (ids + listeners travel with the node — never clone),
 // and moves it back after the close animation.
-const GRP_TITLES = {
-  grpFormat: 'Định dạng & chất lượng', grpBrand: 'Thương hiệu kênh', grpSubtitle: 'Phụ đề',
-  grpAudio: 'Giọng đọc & nhạc', grpAdvanced: 'Nâng cao',
-};
+// Resolved per call, never at import: the catalogue is fetched after this module is evaluated.
+const grpTitle = (id) => ({
+  grpFormat: m('Định dạng & chất lượng'), grpBrand: m('Thương hiệu kênh'), grpSubtitle: m('Phụ đề'),
+  grpAudio: m('Giọng đọc & nhạc'), grpAdvanced: m('Nâng cao'),
+}[id] || m('Cấu hình'));
 function restoreParkedBody() {
   const slot = $('#cfgModalBody');
   const body = slot?.querySelector('.cfg-body');
@@ -933,7 +935,7 @@ function openCfgGroupModal(group) {
   if (!slot || !body) return;
   slot.dataset.owner = group.id;
   slot.appendChild(body);
-  $('#cfgModalTitle').textContent = GRP_TITLES[group.id] || 'Cấu hình';
+  $('#cfgModalTitle').textContent = grpTitle(group.id);
   // All five groups share this one shell, so the extra width has to be put on and taken off with
   // the body rather than living on .cfgm — the other four are single columns and would look lost.
   $('#cfgModal').querySelector('.modal')?.classList.toggle('sub-wide', group.id === 'grpSubtitle');
@@ -967,29 +969,32 @@ export function updateCfgChips() {
   const mode = 'HyperFrame ✨';
   const theme = ` · ${hfCurrentStyle().name || 'Chrome Kinetic'}`;
   const res = RES_LABEL[$('#cfgRes').value] || '1080p';
-  const durTxt = $('#cfgDurMode')?.value === 'auto' ? '🪄 tự động' : fmtDur(+$('#cfgVd').value);
-  set('format', `${mode}${theme} — ${$('#cfgAr').value} · ${$('#cfgFps').value}fps · ${res} · ${durTxt} · cảnh ${$('#cfgSd').value}s`);
+  const durTxt = $('#cfgDurMode')?.value === 'auto' ? m('🪄 tự động') : fmtDur(+$('#cfgVd').value);
+  set('format', tp`${mode}${theme} — ${$('#cfgAr').value} · ${$('#cfgFps').value}fps · ${res} · ${durTxt} · cảnh ${$('#cfgSd').value}s`);
   const bk = activeChannelBrand();
   set('brand', bk
-    ? `${bk.channelName || 'Brand kit (chỉ logo)'}${bk.finalOverlay?.enabled && bk.logo ? ' · đóng dấu logo' : ''}${bk.watermark?.enabled ? ' · watermark trôi' : ''}${bk.nameBadge?.enabled !== false && bk.channelName ? ' · tên kênh' : ''}`
-    : ($('#cfgWatermark').value.trim() ? `Watermark: ${$('#cfgWatermark').value.trim()}` : 'Chưa cấu hình — bấm để thiết lập'));
+    ? `${bk.channelName || m('Brand kit (chỉ logo)')}${bk.finalOverlay?.enabled && bk.logo ? m(' · đóng dấu logo') : ''}${bk.watermark?.enabled ? m(' · watermark trôi') : ''}${bk.nameBadge?.enabled !== false && bk.channelName ? m(' · tên kênh') : ''}`
+    : ($('#cfgWatermark').value.trim() ? tp`Watermark: ${$('#cfgWatermark').value.trim()}` : m('Chưa cấu hình — bấm để thiết lập')));
   const sp = state.subPresets.find((p) => p.id === state.subPreset);
-  const pos = { bot: 'dưới', mid: 'giữa', top: 'trên' }[$('#cfgSubPos').value] || 'dưới';
-  const subMode = $('#cfgSubMode')?.value === 'plain' ? 'thường' : 'karaoke';
-  const subChunk = $('#cfgSubChunk')?.value === 'sentence' ? ' · theo câu'
-    : $('#cfgSubChunk')?.value === 'words' ? ` · ${$('#cfgSubWords')?.value || 4} từ/dòng` : '';
+  const pos = { bot: m('dưới'), mid: m('giữa'), top: m('trên') }[$('#cfgSubPos').value] || m('dưới');
+  const subMode = $('#cfgSubMode')?.value === 'plain' ? m('thường') : 'karaoke';
+  const subChunk = $('#cfgSubChunk')?.value === 'sentence' ? m(' · theo câu')
+    : $('#cfgSubChunk')?.value === 'words' ? tp` · ${$('#cfgSubWords')?.value || 4} từ/dòng` : '';
+  // lifted out of the tagged template: a regex literal inside tp`…` derails msgid extraction
+  const subFont = $('#cfgSubFont').value.split(',')[0].replace(/['"]/g, '');
   set('subtitle', $('#cfgSub').checked
-    ? `${sp ? sp.name : 'Tuỳ chỉnh'} · ${subMode}${subChunk} · ${$('#cfgSubFont').value.split(',')[0].replace(/['"]/g, '')} · cỡ ${$('#cfgSubSize').value} · vị trí ${pos}`
-    : 'Tắt phụ đề');
+    ? tp`${sp ? sp.name : m('Tuỳ chỉnh')} · ${subMode}${subChunk} · ${subFont} · cỡ ${$('#cfgSubSize').value} · vị trí ${pos}`
+    : m('Tắt phụ đề'));
   const lv = state.settings?.tts?.langVoices?.vi;
-  const voice = lv ? `${lv.voice} (${lv.provider})` : (state.settings?.tts?.provider ? `provider ${state.settings.tts.provider}` : 'tự chọn');
-  set('audio', `Giọng: ${voice} · ${$('#cfgBgm').value ? `BGM: ${selText('#cfgBgm')}` : ($('#cfgBgmAuto').checked ? 'BGM tự động' : 'không BGM')}`);
+  const voice = lv ? `${lv.voice} (${lv.provider})` : (state.settings?.tts?.provider ? `provider ${state.settings.tts.provider}` : m('tự chọn'));
+  const bgm = $('#cfgBgm').value ? tp`BGM: ${selText('#cfgBgm')}` : ($('#cfgBgmAuto').checked ? m('BGM tự động') : m('không BGM'));
+  set('audio', tp`Giọng: ${voice} · ${bgm}`);
   const flags = [
-    $('#cfgSceneGate')?.checked && 'Duyệt cảnh trước 🎬', $('#cfgReview')?.checked && 'Duyệt trước ghép',
+    $('#cfgSceneGate')?.checked && m('Duyệt cảnh trước 🎬'), $('#cfgReview')?.checked && m('Duyệt trước ghép'),
     $('#cfgTrans').checked && 'Xfade',
     $('#cfgMeta').checked && 'Metadata', $('#cfgPTts').checked && `TTS ×${$('#cfgTtsC').value}`, $('#cfgPRender').checked && `Render ×${$('#cfgRenderC').value}`,
   ].filter(Boolean).join(' · ');
-  set('advanced', flags || 'Mặc định');
+  set('advanced', flags || m('Mặc định'));
 }
 
 // ================= channel presets bar =================
@@ -1000,17 +1005,17 @@ export async function loadChannelPresets() {
     state.presets = presets || [];
   } catch { state.presets = []; }
   const sel = $('#cfgPresetSelect');
-  sel.innerHTML = '<option value="">— Config gốc kênh —</option>'
+  sel.innerHTML = `<option value="">${m('— Config gốc kênh —')}</option>`
     + state.presets.map((p) => `<option value="${p.id}">${p.is_default ? '⭐ ' : ''}${esc(p.name)}</option>`).join('');
 }
 function wirePresetBar() {
   $('#cfgPresetSelect').addEventListener('change', () => {
     const p = state.presets.find((x) => x.id === $('#cfgPresetSelect').value);
-    if (p) { applyConfig(p.config || {}); toast(`Đã áp preset "${p.name}"`, 'success'); }
+    if (p) { applyConfig(p.config || {}); toast(tp`Đã áp preset "${p.name}"`, 'success'); }
     updateCfgChips();
   });
   $('#btnPresetSave').addEventListener('click', async () => {
-    const name = await promptDialog({ title: 'Lưu preset', label: 'Tên preset (lưu toàn bộ panel hiện tại)', value: 'Preset mới' });
+    const name = await promptDialog({ title: 'Lưu preset', label: 'Tên preset (lưu toàn bộ panel hiện tại)', value: m('Preset mới') });
     if (!name) return;
     const r = await api.post(`/channels/${state.activeChannel}/presets`, { name, config: gatherConfig() });
     if (r.error) return toast(r.error, 'error');
@@ -1033,7 +1038,7 @@ function wirePresetBar() {
       return;
     }
     const act = await menuDialog({
-      title: `Preset "${p.name}"`,
+      title: tp`Preset "${p.name}"`,
       items: [
         { id: 'default', label: 'Đặt làm mặc định kênh', icon: icon('star', 15) },
         { id: 'rename', label: 'Đổi tên', icon: icon('edit', 15) },
@@ -1043,7 +1048,7 @@ function wirePresetBar() {
     if (!act) return;
     if (act === 'default') { await api.put(`/presets/${id}`, { isDefault: true }); toast('⭐ Preset mặc định của kênh', 'success'); }
     else if (act === 'rename') { const n = await promptDialog({ title: 'Đổi tên preset', label: 'Tên mới', value: p.name }); if (n) await api.put(`/presets/${id}`, { name: n }); }
-    else if (act === 'delete') { if (await confirmDialog({ title: `Xoá preset "${p.name}"?`, okText: 'Xoá', danger: true })) await api.del(`/presets/${id}`); }
+    else if (act === 'delete') { if (await confirmDialog({ title: tp`Xoá preset "${p.name}"?`, okText: 'Xoá', danger: true })) await api.del(`/presets/${id}`); }
     await loadChannelPresets();
   });
 }
@@ -1060,16 +1065,16 @@ export function renderSubPresetGrid() {
       : p.effect === 'box' ? `background:${p.boxBg || 'rgba(10,10,16,.85)'};padding:1px 6px;border-radius:4px;`
       : p.effect === 'shadow' ? 'text-shadow:0 1px 0 rgba(0,0,0,.8),0 3px 8px rgba(0,0,0,.6);'
       : `text-shadow:0 0 8px ${p.activeColor}AA;`;
-    const txt = p.textCase === 'uppercase' ? 'PHỤ ĐỀ' : p.textCase === 'lowercase' ? 'phụ đề' : 'Phụ đề';
+    const txt = p.textCase === 'uppercase' ? m('PHỤ ĐỀ') : p.textCase === 'lowercase' ? m('phụ đề') : m('Phụ đề');
     return `<div class="sub-preset-card${state.subPreset === p.id ? ' sel' : ''}" data-id="${p.id}">
-      ${p.mine ? '<button class="spc-del" title="Xoá bộ mẫu này">×</button>' : ''}
-      <div class="spc-demo" style="font-family:${p.fontStack};font-weight:${p.weight};color:${p.activeColor};${fx}">${txt} <span style="color:${p.baseColor};opacity:.75">mẫu</span></div>
+      ${p.mine ? `<button class="spc-del" title="${m('Xoá bộ mẫu này')}">×</button>` : ''}
+      <div class="spc-demo" style="font-family:${p.fontStack};font-weight:${p.weight};color:${p.activeColor};${fx}">${txt} <span style="color:${p.baseColor};opacity:.75">${m('mẫu')}</span></div>
       <div class="spc-name">${p.mine ? '★ ' : ''}${esc(p.name)}</div>
     </div>`;
   }).join('');
   grid.innerHTML = `<div class="sub-preset-card${!state.subPreset ? ' sel' : ''}" data-id="">
-      <div class="spc-demo" style="font-weight:800;color:var(--text)">Tự chỉnh</div>
-      <div class="spc-name">Tuỳ biến tay</div>
+      <div class="spc-demo" style="font-weight:800;color:var(--text)">${m('Tự chỉnh')}</div>
+      <div class="spc-name">${m('Tuỳ biến tay')}</div>
     </div>` + cards;
   grid.querySelectorAll('.sub-preset-card').forEach((c) => c.addEventListener('click', async (e) => {
     if (e.target.closest('.spc-del')) { await deleteSubPreset(c.dataset.id); return; }
@@ -1102,21 +1107,21 @@ export function renderSubPresetGrid() {
 
 async function deleteSubPreset(id) {
   const p = state.subPresets.find((x) => x.id === id);
-  if (!p || !await confirmDialog(`Xoá bộ mẫu "${p.name}"?`)) return;
+  if (!p || !await confirmDialog(tp`Xoá bộ mẫu "${p.name}"?`)) return;
   try {
     await api.del(`/subtitle-presets/${id}`);
     await loadSubtitlePresets();
-    toast(`🗑 Đã xoá bộ mẫu ${p.name}`, 'success');
-  } catch (e) { toast(`✖ Không xoá được: ${e.message}`, 'error'); }
+    toast(tp`🗑 Đã xoá bộ mẫu ${p.name}`, 'success');
+  } catch (e) { toast(tp`✖ Không xoá được: ${e.message}`, 'error'); }
 }
 
 /** Name the current look and keep it — usable on every channel, not just this one. */
 async function saveSubPreset() {
-  const name = await promptDialog('Đặt tên cho bộ mẫu phụ đề này:', '');
+  const name = await promptDialog(m('Đặt tên cho bộ mẫu phụ đề này:'), '');
   if (!name || !name.trim()) return;
   try {
     const r = await api.post('/subtitle-presets', { name: name.trim(), config: gatherSubtitleConfig() });
     await loadSubtitlePresets();
-    toast(`💾 Đã lưu bộ mẫu "${r.preset.name}" — dùng lại được ở mọi kênh`, 'success');
-  } catch (e) { toast(`✖ Không lưu được bộ mẫu: ${e.message}`, 'error'); }
+    toast(tp`💾 Đã lưu bộ mẫu "${r.preset.name}" — dùng lại được ở mọi kênh`, 'success');
+  } catch (e) { toast(tp`✖ Không lưu được bộ mẫu: ${e.message}`, 'error'); }
 }

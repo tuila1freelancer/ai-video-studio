@@ -12,6 +12,7 @@ import { api, fileUrl } from '../api.js';
 import { state, activeChannelBrand } from '../state.js';
 import { updateCfgChips, resRung } from '../views/config.js';
 import { offerRerender } from './changeplan.js';
+import { m, tp } from '../i18n.js';
 
 // Output resolution per aspect — mirrors src/util/util.js ratioToSize (P26 readout numbers).
 const RATIO_SIZE = { '9:16': [1080, 1920], '16:9': [1920, 1080], '1:1': [1080, 1080], '4:5': [1080, 1350] };
@@ -27,15 +28,15 @@ export function refreshBrandSummary() {
   if (!th) return;
   if (bk) {
     th.innerHTML = bk.logo?.assetPath ? `<img src="${fileUrl(bk.logo.assetPath)}">` : '🏷';
-    nm.textContent = bk.channelName || 'Brand kit (chỉ logo)';
+    nm.textContent = bk.channelName || m('Brand kit (chỉ logo)');
     const bits = [];
-    if (bk.finalOverlay?.enabled && bk.logo?.assetPath) bits.push('đóng dấu logo');
-    if (bk.watermark?.enabled) bits.push('watermark trôi');
-    if (bk.nameBadge?.enabled !== false && bk.channelName) bits.push('tên kênh');
-    mt.textContent = bits.length ? `Cố định: ${bits.join(' · ')}` : 'Chưa bật thành phần nào';
+    if (bk.finalOverlay?.enabled && bk.logo?.assetPath) bits.push(m('đóng dấu logo'));
+    if (bk.watermark?.enabled) bits.push(m('watermark trôi'));
+    if (bk.nameBadge?.enabled !== false && bk.channelName) bits.push(m('tên kênh'));
+    mt.textContent = bits.length ? tp`Cố định: ${bits.join(' · ')}` : m('Chưa bật thành phần nào');
   } else {
-    th.textContent = '🏷'; nm.textContent = 'Chưa cấu hình brand';
-    mt.textContent = 'Logo đóng dấu + watermark + tên kênh (đều cố định, WYSIWYG)';
+    th.textContent = '🏷'; nm.textContent = m('Chưa cấu hình brand');
+    mt.textContent = m('Logo đóng dấu + watermark + tên kênh (đều cố định, WYSIWYG)');
   }
   const lw = $('#legacyWatermark'); if (lw) lw.style.display = bk ? 'none' : 'block';
   updateCfgChips();
@@ -102,14 +103,14 @@ export function openBrandEditor() {
   $('#wmOpacity').value = Math.round(d.watermark.opacity * 100);
   // per-channel AI overrides (compact)
   const ai = ch.config?.ai || {};
-  $('#brandAiTts').innerHTML = '<option value="">— Dùng cấu hình chung —</option>'
+  $('#brandAiTts').innerHTML = `<option value="">${esc(m('— Dùng cấu hình chung —'))}</option>`
     + (state.providers || []).map((p) => `<option value="${p.id}"${ai.tts?.provider === p.id ? ' selected' : ''}>${esc(p.name)}</option>`).join('');
   $('#brandAiLlmModel').value = ai.llm?.model || '';
   $('#brandAiSub').value = ai.subtitle?.engine || '';
   api.get('/fonts/families').then(({ families }) => {
     const sel = $('#brandFont');
     if (!sel) return;
-    sel.innerHTML = '<option value="">— Theo style guide —</option>'
+    sel.innerHTML = `<option value="">${esc(m('— Theo style guide —'))}</option>`
       + (families || []).map((f) => `<option value="${esc(f.name)}">${f.source === 'uploaded' ? '📤 ' : ''}${esc(f.name)}</option>`).join('');
     sel.value = ch.config?.fonts?.display || '';
   }).catch(() => { /* picker just stays on the default option */ });
@@ -124,7 +125,7 @@ export function openBrandEditor() {
   const bg = scenePrev ? `url('${fileUrl(scenePrev)}')` : (proj ? `url('${fileUrl(proj.thumb_path)}')` : '');
   stage.style.backgroundImage = bg;
   stage.classList.toggle('checker', !bg);
-  $('#bstStageMeta').textContent = `Khung xem trước đúng tỉ lệ render: ${W}×${H} (${ar})`;
+  $('#bstStageMeta').textContent = tp`Khung xem trước đúng tỉ lệ render: ${W}×${H} (${ar})`;
   applyControlState();
   syncBrandStage();
   startWmPreview();
@@ -161,11 +162,11 @@ function syncBrandStage() {
   } else logoEl.classList.add('hidden');
   if (d.badge.enabled && (d.channelName || '').trim()) {
     badgeEl.classList.remove('hidden');
-    badgeEl.textContent = (d.channelName || 'TÊN KÊNH').toUpperCase();
+    badgeEl.textContent = (d.channelName || m('TÊN KÊNH')).toUpperCase();
     badgeEl.style.left = (d.badge.position.xPct * 100) + '%';
     badgeEl.style.top = (d.badge.position.yPct * 100) + '%';
   } else badgeEl.classList.add('hidden');
-  $('#brandLogoSizeL').textContent = (d.stamp.wPct * 100).toFixed(1) + '% rộng khung';
+  $('#brandLogoSizeL').textContent = tp`${(d.stamp.wPct * 100).toFixed(1)}% rộng khung`;
   $('#brandLogoOpacityL').textContent = Math.round(d.stamp.opacity * 100) + '%';
   $('#wmOpacityL').textContent = Math.round(d.watermark.opacity * 100) + '%';
   const wmSize = d.watermark.source === 'logo' ? d.watermark.logoSizePct : d.watermark.textSizePct;
@@ -180,13 +181,13 @@ function updateReadout() {
   const el = $('#bstReadout'); if (!el) return;
   const d = state.brandDraft;
   if (!d?.stamp.enabled) { el.textContent = ''; return; }
-  if (!d?.logo?.assetPath) { el.textContent = 'Tải logo lên để đóng dấu.'; return; }
+  if (!d?.logo?.assetPath) { el.textContent = m('Tải logo lên để đóng dấu.'); return; }
   const [W, H] = frameWH();
   const img = $('#bstLogoImg');
   const iw = img.naturalWidth || 1, ih = img.naturalHeight || 1;
   const lw = Math.round(d.stamp.wPct * W), lh = Math.round(lw * (ih / iw));
   const x = Math.round(d.stamp.position.xPct * W - lw / 2), y = Math.round(d.stamp.position.yPct * H - lh / 2);
-  el.textContent = `Đóng dấu: x=${x}px · y=${y}px · logo ${lw}×${lh}px @ ${W}×${H}`;
+  el.textContent = tp`Đóng dấu: x=${x}px · y=${y}px · logo ${lw}×${lh}px @ ${W}×${H}`;
 }
 
 // ---- corner presets: logo box edges sit CORNER_GAP·min(W,H) from the frame edges ----
@@ -390,15 +391,15 @@ export function initBrandKit() {
     // rejected upload produced an unhandled rejection and the UI did NOTHING AT ALL: no toast,
     // no message, the logo simply never appeared. Every failure has to be visible.
     try {
-      if (!state.brandDraft) throw new Error('Mở Brand Kit của kênh trước khi tải logo');
+      if (!state.brandDraft) throw new Error(m('Mở Brand Kit của kênh trước khi tải logo'));
       const fd = new FormData(); fd.append('file', f);
       const r = await api.upload(`/channels/${state.activeChannel}/brand-logo`, fd);
       state.brandDraft.logo = { assetPath: r.path };
       if (!$('#stampOn').checked) { $('#stampOn').checked = true; state.brandDraft.stamp.enabled = true; applyControlState(); }
       syncBrandStage();
-      toast(r.converted ? `🖼 Logo đã tải lên (đổi từ ${r.converted} sang PNG)` : '🖼 Logo đã tải lên', 'success');
+      toast(r.converted ? tp`🖼 Logo đã tải lên (đổi từ ${r.converted} sang PNG)` : m('🖼 Logo đã tải lên'), 'success');
     } catch (err) {
-      toast(`✖ Không tải được logo: ${err.message}`, 'error');
+      toast(tp`✖ Không tải được logo: ${err.message}`, 'error');
     } finally {
       // let the SAME file be picked again after a failure — a file input does not re-fire
       // 'change' for an unchanged value, so without this a retry needs a different file
@@ -445,6 +446,6 @@ export function initBrandKit() {
     // …and the video already on screen? finalize reads the brand kit LIVE from the channel, so
     // one join is all it takes — but nothing said so, and the only route to it was knowing that
     // the resume button on a finished project had become an apply-changes button.
-    await offerRerender('Đã đổi nhận diện thương hiệu của kênh');
+    await offerRerender(m('Đã đổi nhận diện thương hiệu của kênh'));
   });
 }

@@ -10,6 +10,7 @@ import { openVoicePicker } from '../features/voicepicker.js';
 import { openBrandEditor } from '../features/brandkit.js';
 import { renderChannelList } from '../features/channels.js';
 import { toast } from './toast.js';
+import { m, tp } from '../i18n.js';
 
 let bg = null, listEl = null, inputEl = null, items = [], sel = 0;
 
@@ -22,24 +23,24 @@ export function initPalette() {
 
 function commands() {
   const cmds = [
-    { icn: 'wand', label: 'Tạo video mới', hint: 'nhập chủ đề ở Trang chủ', run: () => { switchPage('home'); $('#heroTopic').focus(); } },
-    { icn: 'home', label: 'Trang chủ', run: () => switchPage('home') },
-    { icn: 'clapperboard', label: 'Tạo Video (Studio)', run: () => switchPage('studio') },
-    { icn: 'library', label: 'Thư viện', run: () => switchPage('library') },
-    { icn: 'palette', label: 'Brand Asset', run: () => switchPage('brandgen') },
-    { icn: 'scissors', label: 'Edit Video', run: () => switchPage('editvideo') },
-    { icn: 'book', label: 'Hướng dẫn', run: () => switchPage('tutorials') },
-    { icn: 'settings', label: 'AI Setting', run: openSettings },
-    { icn: 'mic', label: 'Chọn giọng đọc', run: openVoicePicker },
-    { icn: 'tv', label: 'Quản lý kênh', run: () => { renderChannelList(); $('#channelModal').classList.add('open'); } },
-    { icn: 'star', label: 'Brand Kit của kênh', run: openBrandEditor },
+    { icn: 'wand', label: m('Tạo video mới'), hint: m('nhập chủ đề ở Trang chủ'), run: () => { switchPage('home'); $('#heroTopic').focus(); } },
+    { icn: 'home', label: m('Trang chủ'), run: () => switchPage('home') },
+    { icn: 'clapperboard', label: m('Tạo Video (Studio)'), run: () => switchPage('studio') },
+    { icn: 'library', label: m('Thư viện'), run: () => switchPage('library') },
+    { icn: 'palette', label: m('Brand Asset'), run: () => switchPage('brandgen') },
+    { icn: 'scissors', label: m('Edit Video'), run: () => switchPage('editvideo') },
+    { icn: 'book', label: m('Hướng dẫn'), run: () => switchPage('tutorials') },
+    { icn: 'settings', label: m('AI Setting'), run: openSettings },
+    { icn: 'mic', label: m('Chọn giọng đọc'), run: openVoicePicker },
+    { icn: 'tv', label: m('Quản lý kênh'), run: () => { renderChannelList(); $('#channelModal').classList.add('open'); } },
+    { icn: 'star', label: m('Brand Kit của kênh'), run: openBrandEditor },
   ];
   (state.presets || []).forEach((p) => cmds.push({
-    icn: 'save', label: `Áp preset: ${p.name}`, hint: 'config panel',
-    run: () => { applyConfig(p.config || {}); updateCfgChips(); switchPage('studio'); toast(`Đã áp preset "${p.name}"`, 'success'); },
+    icn: 'save', label: tp`Áp preset: ${p.name}`, hint: m('config panel'),
+    run: () => { applyConfig(p.config || {}); updateCfgChips(); switchPage('studio'); toast(tp`Đã áp preset "${p.name}"`, 'success'); },
   }));
   (state.projects || []).slice(0, 8).forEach((p) => cmds.push({
-    icn: 'film', label: p.title, hint: 'dự án gần đây',
+    icn: 'film', label: p.title, hint: m('dự án gần đây'),
     run: () => openProject(p.id),
   }));
   return cmds;
@@ -50,7 +51,7 @@ function togglePalette() { bg ? closePalette() : openPalette(); }
 function openPalette() {
   bg = el('div', 'palette-bg');
   bg.innerHTML = `<div class="palette">
-    <div class="pal-input">${icon('search', 16)}<input type="text" placeholder="Gõ lệnh, tên trang, dự án…" spellcheck="false"><kbd>esc</kbd></div>
+    <div class="pal-input">${icon('search', 16)}<input type="text" placeholder="${esc(m('Gõ lệnh, tên trang, dự án…'))}" spellcheck="false"><kbd>esc</kbd></div>
     <div class="pal-list"></div>
   </div>`;
   document.body.appendChild(bg);
@@ -92,7 +93,7 @@ function renderList(q) {
   sel = 0;
   listEl.innerHTML = items.length
     ? items.map((c, i) => `<button class="pal-item${i === sel ? ' sel' : ''}" data-i="${i}">${icon(c.icn, 15)}<span>${esc(c.label)}</span>${c.hint ? `<small>${esc(c.hint)}</small>` : ''}</button>`).join('')
-    : '<div class="pal-empty">Không tìm thấy lệnh nào.</div>';
+    : `<div class="pal-empty">${esc(m('Không tìm thấy lệnh nào.'))}</div>`;
 }
 
 function move(d) {

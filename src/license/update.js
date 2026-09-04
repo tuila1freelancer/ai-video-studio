@@ -10,6 +10,7 @@ import { LicenseClient, OfflineError } from './sdk.js';
 import { appVersion } from './index.js';
 import { readStore } from './store.js';
 
+import { m, tp } from '../i18n/t.js';
 const CHECK_TTL_MS = 6 * 60 * 60 * 1000;
 
 let cache = null;
@@ -65,7 +66,7 @@ export async function checkUpdate({ force = false } = {}) {
 export async function downloadUrl({ versionId } = {}) {
   const file = readStore();
   if (!configured() || !file.key) {
-    const e = new Error('Cần kích hoạt license trước khi tải bản mới.');
+    const e = new Error(m('Cần kích hoạt license trước khi tải bản mới.'));
     e.statusCode = 403;
     throw e;
   }
@@ -80,8 +81,8 @@ export async function downloadUrl({ versionId } = {}) {
   } catch (e) {
     const err = new Error(
       e instanceof OfflineError
-        ? 'Không kết nối được tới cửa hàng để lấy link tải.'
-        : `Không lấy được link tải: ${e.message}`,
+        ? m('Không kết nối được tới cửa hàng để lấy link tải.')
+        : tp`Không lấy được link tải: ${e.message}`,
     );
     err.statusCode = e?.status || 502;
     throw err;

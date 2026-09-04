@@ -9,6 +9,7 @@ import { hub } from '../ws/hub.js';
 import { logger } from '../util/log.js';
 import { jlog } from '../pipeline/journal.js';
 
+import { tp } from '../i18n/t.js';
 // Journal throttle: a cost line only on meaningful growth — every call would flood P32.
 const lastJournaled = new Map(); // projectId -> estCost at the last journal row
 
@@ -29,7 +30,7 @@ onUsage((kind, d) => {
         completionTokens: agg.completionTokens, chars: agg.chars, calls: agg.calls });
       if (agg.estCost - (lastJournaled.get(projectId) || 0) >= 0.01) {
         lastJournaled.set(projectId, agg.estCost);
-        jlog(projectId, { kind: 'usage', msg: `💸 Chi phí ước tính: $${agg.estCost.toFixed(2)} (${agg.calls} lượt gọi AI)`,
+        jlog(projectId, { kind: 'usage', msg: tp`💸 Chi phí ước tính: $${agg.estCost.toFixed(2)} (${agg.calls} lượt gọi AI)`,
           data: { estCost: +agg.estCost.toFixed(4), calls: agg.calls } });
       }
     }

@@ -13,6 +13,7 @@ import { join, extname, basename } from 'node:path';
 import { VENDOR_DIR, DIRS } from '../config/paths.js';
 import { userFontRows, familyOf } from '../animation/userfonts.js';
 
+import { m, tp } from '../i18n/t.js';
 /** Formats libass can rasterise. woff/woff2 are web-only — the browser reads them, libass cannot. */
 const BURNABLE = new Set(['.ttf', '.otf', '.ttc']);
 
@@ -152,8 +153,8 @@ export function prepareBurnFontDir(family, weight, workDir) {
   const face = resolveFace(family, weight);
   if (face && face.burnable === false) {
     throw new Error(
-      `font "${family}" đang ở dạng ${face.ext} — libass chỉ đọc được .ttf/.otf. `
-      + 'Hãy tải lên bản .ttf hoặc .otf trong Thư viện → Font chữ.',
+      tp`font "${family}" đang ở dạng ${face.ext} — libass chỉ đọc được .ttf/.otf. `
+      + m('Hãy tải lên bản .ttf hoặc .otf trong Thư viện → Font chữ.'),
     );
   }
   if (face && existsSync(face.path)) {
@@ -168,8 +169,8 @@ export function prepareBurnFontDir(family, weight, workDir) {
     return { fontsDir: null, file: null, source: 'system' };
   }
   throw new Error(
-    `không tìm thấy font "${family}" để in lên video. `
-    + 'Chọn font khác, hoặc tải file .ttf/.otf của nó lên trong Thư viện → Font chữ.',
+    tp`không tìm thấy font "${family}" để in lên video. `
+    + m('Chọn font khác, hoặc tải file .ttf/.otf của nó lên trong Thư viện → Font chữ.'),
   );
 }
 

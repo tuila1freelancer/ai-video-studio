@@ -9,6 +9,7 @@ import { writeFileSync } from 'node:fs';
 import { probeDuration } from '../../media/ffmpeg.js';
 import { recordUsage } from '../../util/usage.js';
 
+import { m, tp } from '../../i18n/t.js';
 const API = 'https://texttospeech.googleapis.com/v1';
 
 // Locale per language; the voice NAME carries the tier, and `auto` resolves it from the live
@@ -53,7 +54,7 @@ export default {
   },
 
   async synthesize(text, voiceId, cfg, outPath, opts = {}) {
-    if (!cfg?.apiKey) throw new Error('Chưa nhập Google API Key');
+    if (!cfg?.apiKey) throw new Error(m('Chưa nhập Google API Key'));
     // 'xx-XX//auto' from autoVoiceFor: let Google pick the locale's default rather than naming a
     // voice that may have been retired since this table was written.
     const [autoLocale] = String(voiceId || '').split('//auto');
@@ -78,7 +79,7 @@ export default {
     });
     if (!res.ok) throw new Error(`Google TTS ${res.status}: ${(await res.text()).slice(0, 160)}`);
     const data = await res.json();
-    if (!data.audioContent) throw new Error('Google TTS: phản hồi không có audio');
+    if (!data.audioContent) throw new Error(m('Google TTS: phản hồi không có audio'));
     writeFileSync(outPath, Buffer.from(data.audioContent, 'base64'));
     recordUsage('tts', { provider: 'google', chars: String(text).length });
     return { path: outPath, duration: await probeDuration(outPath) };
@@ -92,7 +93,7 @@ export default {
       if (!res.ok) return { ok: false, message: `HTTP ${res.status}` };
       const voices = (await res.json()).voices || [];
       const langs = new Set(voices.flatMap((v) => v.languageCodes || []));
-      return { ok: true, message: `OK — ${voices.length} giọng, ${langs.size} ngôn ngữ` };
+      return { ok: true, message: tp`OK — ${voices.length} giọng, ${langs.size} ngôn ngữ` };
     } catch (e) { return { ok: false, message: e.message }; }
   },
 };

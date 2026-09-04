@@ -1,15 +1,17 @@
 import { $, el } from '../ui/dom.js';
 import { icon } from '../ui/icons.js';
+import { m } from '../i18n.js';
 
 // Pipeline progress engine: weighted B2→B7 percent + step badges + current-op line + log.
 // Scenes-first order: visuals (b5) run BEFORE the voice (b34) so the owner can review the
 // storyboard at the scene gate without spending TTS credits.
+// `n` is a getter: PIPE is built at import time, before the catalogue has been fetched.
 export const PIPE = [
-  { k: 'b2', icn: 'edit', n: 'Kịch bản' },
-  { k: 'b5', icn: 'wand', n: 'Dựng cảnh' },
-  { k: 'b34', icn: 'mic', n: 'TTS + Phụ đề' },
-  { k: 'b6', icn: 'film', n: 'Render' },
-  { k: 'b7', icn: 'scissors', n: 'Ghép & Mix' },
+  { k: 'b2', icn: 'edit', get n() { return m('Kịch bản'); } },
+  { k: 'b5', icn: 'wand', get n() { return m('Dựng cảnh'); } },
+  { k: 'b34', icn: 'mic', get n() { return m('TTS + Phụ đề'); } },
+  { k: 'b6', icn: 'film', get n() { return m('Render'); } },
+  { k: 'b7', icn: 'scissors', get n() { return m('Ghép & Mix'); } },
 ];
 export const PHASE_W = { b2: 8, b5: 25, b34: 32, b6: 25, b7: 10 };
 export const PHASE_ORDER = ['b2', 'b5', 'b34', 'b6', 'b7'];

@@ -18,6 +18,8 @@
 // properly, and resolve image URLs against the page instead of demanding they already be absolute.
 
 /** Everything that is on the page but is not the article. Removed before any text is read. */
+import { m, tp } from '../i18n/t.js';
+
 const CHROME_TAGS = ['script', 'style', 'noscript', 'template', 'svg', 'iframe', 'form', 'nav', 'header', 'footer', 'aside', 'figure>figcaption'];
 const BLOCK_RE = /<(p|li|h1|h2|h3|h4|blockquote|pre|dd)\b[^>]*>([\s\S]*?)<\/\1>/gi;
 /**
@@ -352,7 +354,7 @@ export async function refineArticle({ title = '', url = '', blocks, images, llm 
   const fallback = (note) => ({ blocks, images: images.filter((c) => c.inArticle).length ? images.filter((c) => c.inArticle) : images, ai: false, note });
   if (!blocks.length) return fallback(null);
   const { chatJson, llmEnabled } = await import('./llm.js');
-  if (!llmEnabled(llm)) return fallback('AI chưa bật — lọc theo cấu trúc trang');
+  if (!llmEnabled(llm)) return fallback(m('AI chưa bật — lọc theo cấu trúc trang'));
 
   // A preview is all a classifier needs, and its LENGTH is what decides whether a long page is
   // affordable. Fixed at 110 characters, base.vn's 112 blocks made a 15,000-character prompt;
@@ -415,24 +417,24 @@ Reply exactly:
       validate: (o) => typeof o?.body === 'string' && o.body.trim().length > 0,
     });
     const idx = parseRanges(raw.body, blocks.length);
-    if (!idx.length) return fallback('AI không chọn được đoạn nào — giữ bản lọc theo cấu trúc');
+    if (!idx.length) return fallback(m('AI không chọn được đoạn nào — giữ bản lọc theo cấu trúc'));
     const share = keptShare(blocks, idx);
     if (share < 0.25) {
       // Not "aggressive" — wrong. A body that is a fifth of its own candidates means the model
       // misread the list, and shipping that would delete most of the article in silence.
-      return fallback(`AI chỉ giữ ${Math.round(share * 100)}% nội dung — nghi lọc sai, giữ bản theo cấu trúc`);
+      return fallback(tp`AI chỉ giữ ${Math.round(share * 100)}% nội dung — nghi lọc sai, giữ bản theo cấu trúc`);
     }
     const keepImg = Array.isArray(raw.images)
       ? raw.images.map((n) => images[+n]).filter(Boolean)
       : images.filter((c) => c.inArticle);
-    onLog?.(`AI lọc bài: giữ ${idx.length}/${blocks.length} đoạn · ${keepImg.length}/${images.length} ảnh${raw.why ? ` — ${String(raw.why).slice(0, 90)}` : ''}`);
+    onLog?.(tp`AI lọc bài: giữ ${idx.length}/${blocks.length} đoạn · ${keepImg.length}/${images.length} ảnh${raw.why ? ` — ${String(raw.why).slice(0, 90)}` : ''}`);
     return { blocks: idx.map((i) => blocks[i]), images: keepImg, ai: true, note: null, kind: raw.kind || 'article' };
   } catch (e) {
     const secs = Math.round((Date.now() - t0) / 1000);
     const why = /\b429\b|rate.?limit|too many/i.test(e.message)
-      ? 'AI đang bị giới hạn truy cập (429)'
-      : `AI lọc lỗi (${e.message.slice(0, 60)})`;
-    return fallback(`${why} sau ${secs}s — giữ bản lọc theo cấu trúc`);
+      ? m('AI đang bị giới hạn truy cập (429)')
+      : tp`AI lọc lỗi (${e.message.slice(0, 60)})`;
+    return fallback(tp`${why} sau ${secs}s — giữ bản lọc theo cấu trúc`);
   }
 }
 
@@ -457,7 +459,7 @@ export function metaContent(html, prop) {
  *   siteName:string, chars:number, truncated:boolean, blocks:number, ai:boolean, note:string|null}>}
  */
 export async function fetchLink(url, { llm = null, ai = true, onLog = null } = {}) {
-  if (!/^https?:\/\//i.test(url || '')) throw new Error('URL không hợp lệ');
+  if (!/^https?:\/\//i.test(url || '')) throw new Error(m('URL không hợp lệ'));
   const res = await fetch(url, {
     headers: {
       // Some publishers serve a stub to anything that does not look like a browser; the old

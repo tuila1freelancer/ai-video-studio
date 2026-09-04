@@ -3,12 +3,13 @@
 import db from '../connection.js';
 import { newId, safeJson } from '../../util/util.js';
 
+import { m } from '../../i18n/t.js';
 function row(r) { return r ? { ...r, config: safeJson(r.config, {}) } : null; }
 
 export function addSlot({ channelId = null, topic, config = {}, dueAt }) {
   const t = String(topic || '').trim();
-  if (t.length < 4) throw new Error('chủ đề quá ngắn');
-  if (!Number.isFinite(+dueAt)) throw new Error('thiếu thời điểm hẹn');
+  if (t.length < 4) throw new Error(m('chủ đề quá ngắn'));
+  if (!Number.isFinite(+dueAt)) throw new Error(m('thiếu thời điểm hẹn'));
   const id = newId('cal');
   db.prepare(`INSERT INTO calendar_slots(id,channel_id,topic,config,due_at,status,created_at)
     VALUES(?,?,?,?,?,'queued',?)`).run(id, channelId, t, JSON.stringify(config || {}), +dueAt, Date.now());
@@ -41,7 +42,7 @@ export function updateSlot(id, { config, dueAt } = {}) {
   const args = [];
   if (config !== undefined) { sets.push('config=?'); args.push(JSON.stringify(config || {})); }
   if (dueAt !== undefined) {
-    if (!Number.isFinite(+dueAt)) throw new Error('thiếu thời điểm hẹn');
+    if (!Number.isFinite(+dueAt)) throw new Error(m('thiếu thời điểm hẹn'));
     sets.push('due_at=?'); args.push(+dueAt);
   }
   if (!sets.length) return 0;
@@ -59,8 +60,8 @@ export function slotForProject(projectId) {
 // owner fills with a picked suggestion. They never promote or create anything by themselves.
 export function addRecurrence({ channelId = null, weekday, time, config = {} }) {
   const wd = parseInt(weekday, 10);
-  if (!(wd >= 0 && wd <= 6)) throw new Error('thứ trong tuần không hợp lệ');
-  if (!/^\d{1,2}:\d{2}$/.test(String(time || ''))) throw new Error('khung giờ không hợp lệ (HH:mm)');
+  if (!(wd >= 0 && wd <= 6)) throw new Error(m('thứ trong tuần không hợp lệ'));
+  if (!/^\d{1,2}:\d{2}$/.test(String(time || ''))) throw new Error(m('khung giờ không hợp lệ (HH:mm)'));
   const id = newId('rec');
   db.prepare('INSERT INTO calendar_recurrences(id,channel_id,weekday,time,config,active,created_at) VALUES(?,?,?,?,?,1,?)')
     .run(id, channelId, wd, String(time), JSON.stringify(config || {}), Date.now());

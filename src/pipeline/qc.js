@@ -8,6 +8,7 @@ import { spawn } from 'node:child_process';
 import { PATHS } from '../config/paths.js';
 import { probeDuration } from '../media/ffmpeg.js';
 
+import { m, tp } from '../i18n/t.js';
 export function probeStreams(file) {
   return new Promise((resolve) => {
     const ps = spawn(PATHS.ffprobe, ['-v', 'error', '-show_entries', 'stream=codec_type', '-of', 'csv=p=0', file]);
@@ -32,12 +33,12 @@ export async function qcFinalVideo(path, { expectDur = 0, tolerancePct = 8 } = {
   const issues = [];
   const duration = await probeDuration(path);
   const { hasAudio, hasVideo } = await probeStreams(path);
-  if (!hasVideo) issues.push({ type: 'no-video', detail: 'video ghép không có video stream', sceneIdx: null });
-  if (!hasAudio) issues.push({ type: 'no-audio', detail: 'video ghép không có audio stream', sceneIdx: null });
+  if (!hasVideo) issues.push({ type: 'no-video', detail: m('video ghép không có video stream'), sceneIdx: null });
+  if (!hasAudio) issues.push({ type: 'no-audio', detail: m('video ghép không có audio stream'), sceneIdx: null });
   if (expectDur > 0 && duration > 0) {
     const drift = Math.abs(duration - expectDur) / expectDur * 100;
     if (drift > tolerancePct) {
-      issues.push({ type: 'duration', detail: `thời lượng ${duration.toFixed(1)}s lệch ${drift.toFixed(1)}% so với kỳ vọng ${expectDur.toFixed(1)}s`, sceneIdx: null });
+      issues.push({ type: 'duration', detail: tp`thời lượng ${duration.toFixed(1)}s lệch ${drift.toFixed(1)}% so với kỳ vọng ${expectDur.toFixed(1)}s`, sceneIdx: null });
     }
   }
   return { ok: issues.length === 0, duration, expectDur, issues };
@@ -49,12 +50,12 @@ export async function qcFinalVideo(path, { expectDur = 0, tolerancePct = 8 } = {
 // still catches a genuinely broken render before it reaches concat.
 export async function qcSceneClip(path, { expectDur = 0 } = {}) {
   const dur = await probeDuration(path);
-  if (!dur || dur < 0.4) return { ok: false, reason: `thời lượng bất thường (${(dur || 0).toFixed(2)}s)` };
+  if (!dur || dur < 0.4) return { ok: false, reason: tp`thời lượng bất thường (${(dur || 0).toFixed(2)}s)` };
   const { hasAudio, hasVideo } = await probeStreams(path);
-  if (!hasVideo) return { ok: false, reason: 'thiếu video stream' };
-  if (!hasAudio) return { ok: false, reason: 'cảnh câm — thiếu audio stream' };
+  if (!hasVideo) return { ok: false, reason: m('thiếu video stream') };
+  if (!hasAudio) return { ok: false, reason: m('cảnh câm — thiếu audio stream') };
   if (expectDur > 0 && Math.abs(dur - expectDur) > Math.max(0.5, expectDur * 0.12)) {
-    return { ok: false, reason: `A/V lệch: clip ${dur.toFixed(2)}s vs voice ${expectDur.toFixed(2)}s` };
+    return { ok: false, reason: tp`A/V lệch: clip ${dur.toFixed(2)}s vs voice ${expectDur.toFixed(2)}s` };
   }
   return { ok: true };
 }
