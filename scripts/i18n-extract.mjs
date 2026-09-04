@@ -62,10 +62,14 @@ function run() {
   const tags = scopes(html);
   // --- attributes ---
   for (const tg of tags) {
-    if (/\bdata-i18n/.test(tg.attrs)) continue;
     for (const a of ATTRS) {
       const m = tg.attrs.match(new RegExp(`\\b${a}="([^"]*)"`));
-      if (!m || !VN.test(m[1])) continue;
+      if (!m) continue;
+      // Already tagged by hand: harvest its text under the key it was given, so a string that is
+      // translatable but carries no Vietnamese diacritic (`API key`, `FPS`) can still be keyed.
+      const tagged = tg.attrs.match(new RegExp(`\\bdata-i18n-${a}="([^"]+)"`));
+      if (tagged) { if (m[1].trim()) found.set(tagged[1], m[1]); continue; }
+      if (/\bdata-i18n/.test(tg.attrs) || !VN.test(m[1])) continue;
       const key = keyFor(tg.scope, m[1]);
       found.set(key, m[1]);
       edits.push({ at: tg.end - (tg.full.endsWith('/>') ? 2 : 1), insert: ` data-i18n-${a}="${key}"` });
@@ -76,9 +80,16 @@ function run() {
   let m;
   while ((m = text.exec(html))) {
     const raw = m[2];
-    if (!VN.test(raw)) continue;
     const trimmed = raw.trim();
     if (!trimmed) continue;
+    {
+      // A node tagged by hand keeps its key and gives up its text — the only route into the
+      // catalogue for interface chrome that happens to be spelled in ASCII.
+      const owner = [...tags].reverse().find((tg) => tg.end === m.index + 1);
+      const key = owner && (owner.attrs.match(/\bdata-i18n="([^"]+)"/) || [])[1];
+      if (key) { found.set(key, trimmed); continue; }
+    }
+    if (!VN.test(raw)) continue;
     // The run may follow an OPEN tag (`<b>text`) or a CLOSE tag (`</span> text`, which is how
     // every switch label is written). Both are translatable; only the first can be tagged in place.
     const open = [...tags].reverse().find((tg) => tg.end === m.index + 1);

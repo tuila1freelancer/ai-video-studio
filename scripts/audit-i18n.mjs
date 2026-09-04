@@ -1,0 +1,113 @@
+// Is there any interface text left that no catalogue can reach?
+//
+//   node scripts/audit-i18n.mjs            # report; exit 1 if anything is unreachable
+//   node scripts/audit-i18n.mjs --verbose  # print every finding, not the first few
+//
+// "Unreachable" is the only thing measured here. A Vietnamese string is fine — Vietnamese IS the
+// source language — as long as some catalogue key can replace it. What this catches is the string
+// no key can ever name, which is the one that stays Vietnamese in a Japanese interface.
+import { readFileSync } from 'node:fs';
+import { join, dirname, relative } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { LANG_CODES } from '../src/i18n/languages.js';
+import { walk, literals, reachable, tpCovered, looksVietnamese, ATTRS } from './lib/i18n-scan.mjs';
+
+const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
+const VERBOSE = process.argv.includes('--verbose');
+const rel = (p) => relative(ROOT, p);
+
+// Text that is deliberately the same in every language: a brand, a machine literal a person types
+// back verbatim, a language's own endonym in the picker that chooses it.
+const NEVER_TRANSLATED = [
+  /^AI Video Studio$/, /^TuiLa1Freelancer$/, /^by TuiLa1Freelancer$/,
+  /^[\d.,:×x/\s]+$/, /^\d+(?:p|K|fps)$/i, /^(?:16:9|9:16|4:5|1:1)/,
+  /^https?:\/\//, /^sk-/, /^~\//, /^[a-z0-9-]+\/[a-z0-9-]+$/i,
+  /^(?:Client ID|Client Secret|Page ID|Page Access Token|Base URL|TOOLS-)/,
+  /^[\p{Extended_Pictographic}\p{Emoji_Presentation}\s‍️●○▶◀·—–|]+$/u,
+];
+const skip = (s) => !s.trim() || NEVER_TRANSLATED.some((re) => re.test(s.trim()));
+
+const findings = { markup: [], browser: [], server: [], catalogue: [] };
+
+// ---- 1. public/index.html: a node a person reads, with no key on it ----------------------------
+{
+  const html = readFileSync(join(ROOT, 'public', 'index.html'), 'utf8').replace(/<!--[\s\S]*?-->/g, '');
+  const body = html.replace(/<script[\s\S]*?<\/script>/g, '').replace(/<style[\s\S]*?<\/style>/g, '');
+  const text = /(>)([^<>]+)(<)/g;
+  let hit;
+  while ((hit = text.exec(body))) {
+    const s = hit[2].trim();
+    if (skip(s) || s.length < 2) continue;
+    const open = body.slice(body.lastIndexOf('<', hit.index), hit.index + 1);
+    if (/data-i18n/.test(open)) continue;
+    // An <option> in the interface-language picker names a language in its OWN script on purpose.
+    if (/<option value="(?:en|vi|fr|de|es|pt|hi|ja|ko|zh|th|id|ru)"/.test(open)) continue;
+    findings.markup.push({ what: `text "${s.slice(0, 60)}"` });
+  }
+  for (const tag of body.matchAll(/<[a-zA-Z][\w-]*[^>]*>/g)) {
+    for (const a of ATTRS) {
+      const v = tag[0].match(new RegExp(`(?<![\\w-])${a}="([^"]*)"`));
+      if (!v || skip(v[1])) continue;
+      if (new RegExp(`data-i18n-${a}=`).test(tag[0])) continue;
+      if (!looksVietnamese(v[1])) continue;   // a machine literal in a placeholder stays as typed
+      findings.markup.push({ what: `@${a}="${v[1].slice(0, 60)}"` });
+    }
+  }
+}
+
+// ---- 2 & 3. a module's own strings ------------------------------------------------------------
+function scanModules(dir, bucket, ignore) {
+  for (const file of walk(join(ROOT, dir))) {
+    if (ignore(rel(file))) continue;
+    const src = readFileSync(file, 'utf8');
+    const covered = reachable(src);
+    const inTagged = tpCovered(src);
+    for (const l of literals(src)) {
+      if (skip(l.text) || covered.has(l.text) || inTagged(l.index)) continue;
+      // A template with a placeholder is only ever reachable by being tagged with tp.
+      findings[bucket].push({ file: rel(file), line: l.line, text: l.text.slice(0, 70) });
+    }
+  }
+}
+scanModules('public/js', 'browser', (f) => f.endsWith('views/guide.js'));   // the manual has its own catalogue
+// src/ is mostly LLM prompts and language data, which must stay Vietnamese. Only the modules that
+// speak to the owner are audited; the rest is engine input and auditing it would report noise.
+const SERVER_UI = /^src\/(?:pipeline\/progress|core\/errors|api\/services\/)/;
+scanModules('src', 'server', (f) => !SERVER_UI.test(f));
+
+// ---- 4. every language has every key ----------------------------------------------------------
+{
+  const base = JSON.parse(readFileSync(join(ROOT, 'public', 'locales', 'vi.json'), 'utf8'));
+  const guide = JSON.parse(readFileSync(join(ROOT, 'public', 'locales', 'guide.vi.json'), 'utf8'));
+  for (const code of LANG_CODES) {
+    for (const [name, src] of [[`${code}.json`, base], [`guide.${code}.json`, guide]]) {
+      let cat;
+      try { cat = JSON.parse(readFileSync(join(ROOT, 'public', 'locales', name), 'utf8')); }
+      catch { findings.catalogue.push({ what: `${name} missing or unreadable` }); continue; }
+      const missing = Object.keys(src).filter((k) => !(k in cat));
+      const extra = Object.keys(cat).filter((k) => !(k in src));
+      if (missing.length) findings.catalogue.push({ what: `${name} missing ${missing.length} keys (e.g. ${missing[0]})` });
+      if (extra.length) findings.catalogue.push({ what: `${name} has ${extra.length} keys vi.json does not (e.g. ${extra[0]})` });
+    }
+  }
+}
+
+// ---- report -----------------------------------------------------------------------------------
+const LABEL = {
+  markup: 'public/index.html — text a person reads with no data-i18n key',
+  browser: 'public/js — interface strings no catalogue can reach',
+  server: 'src — owner-facing strings no catalogue can reach',
+  catalogue: 'public/locales — catalogues out of step with vi.json',
+};
+let total = 0;
+for (const [bucket, rows] of Object.entries(findings)) {
+  total += rows.length;
+  const mark = rows.length ? '✗' : '✓';
+  console.log(`${mark} ${LABEL[bucket]}: ${rows.length}`);
+  for (const r of (VERBOSE ? rows : rows.slice(0, 8))) {
+    console.log(`    ${r.file ? `${r.file}:${r.line}  ` : ''}${r.what ?? JSON.stringify(r.text)}`);
+  }
+  if (!VERBOSE && rows.length > 8) console.log(`    … ${rows.length - 8} more (--verbose)`);
+}
+console.log(total ? `\n${total} unreachable — the interface cannot be fully translated` : '\nnothing unreachable — every interface string can be translated');
+process.exit(total ? 1 : 0);
