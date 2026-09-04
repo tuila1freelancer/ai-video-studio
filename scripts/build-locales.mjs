@@ -51,7 +51,10 @@ function sys(row) {
 
 RULES — every one of these is checked mechanically and a violation is rejected:
 1. Reply with ONLY a JSON object mapping each key to its translation. No prose, no fence.
-2. Keep every placeholder EXACTLY as written: {n}, {title}, {count}. Never translate, reorder or drop one.
+2. Keep every placeholder EXACTLY as written: {n}, {title}, {count}, {0}, {1}. Never translate one,
+   never drop one, never invent one. NUMBERED placeholders ({0}, {1}) MAY be reordered when your
+   language needs a different word order — they carry their identity in the number. NAMED ones
+   should stay where they are.
 3. Keep markdown markers exactly: **bold**, *italic*, \`code\`. Keep leading emoji and trailing punctuation.
 4. Keep it SHORT. These are buttons, labels and toasts in a fixed layout — aim for the source's
    length, never more than 1.4x it. Say it the way the interface of a native app would, not the
