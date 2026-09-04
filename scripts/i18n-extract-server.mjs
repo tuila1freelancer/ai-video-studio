@@ -28,10 +28,23 @@ function walk(dir, out = []) {
 }
 
 // `error: '…'` and `message: '…'` in an HTTP body — anywhere.
+//
+// These take a string in ANY language, unlike the guesses further down. The position is already
+// proof that the owner is shown it, so there is nothing left to infer from the spelling — and
+// `error: 'not found'` is exactly as untranslated to a Japanese owner as a Vietnamese sentence is.
 const PATTERNS = [
   /\b(?:error|message|hint)\s*:\s*'([^'\\]{4,200})'/g,
   /\b(?:error|message|hint)\s*:\s*"([^"\\]{4,200})"/g,
+  // A thrown Error reaches the owner the same way: the route catches it and answers
+  // `{ error: e.message }`, which the egress then translates by that very text. So the message
+  // needs no wrapper at the throw site — only a key here.
+  /\bthrow new Error\(\s*'([^'\\]{4,200})'/g,
+  /\bthrow new Error\(\s*"([^"\\]{4,200})"/g,
+  /\bfailed\(\s*'[^']*'\s*,\s*'([^'\\]{4,200})'/g,
 ];
+
+/** A sentence a person reads, rather than a code a machine matches. */
+const READABLE = (t) => /[A-Za-zÀ-ỹ]/.test(t) && /\s/.test(t) && !/^[A-Z0-9_.:/-]+$/.test(t);
 
 // `label:`, `name:` and `note:` are interface text in a CATALOGUE and DATA everywhere else — a
 // voice's name, a channel's name, a project's name are the owner's own words. So these patterns
@@ -65,7 +78,10 @@ function run() {
     for (const re of patterns) {
       for (const m of src.matchAll(re)) {
         const text = m[1];
-        if (!VN.test(text)) continue;
+        // An HTTP body's error/message/hint is shown whatever language it is written in; every
+        // other pattern here is a guess about position and still needs the Vietnamese to confirm it.
+        const httpBody = PATTERNS.includes(re);
+        if (httpBody ? !READABLE(text) : !VN.test(text)) continue;
         if (text.includes('${')) { interpolated++; continue; }
         found.set(`srv.${text}`, text);
       }
@@ -78,8 +94,12 @@ function run() {
     for (const m of src.matchAll(/`[^`]*\$\{[^`]*`/g)) if (VN.test(m[0]) && !/\btp`/.test(m[0])) interpolated++;
   }
 
+  // Keep a value the catalogue already has. These keys ARE their own source text, so a changed
+  // string is a changed KEY — which means an existing entry can only be a deliberate edit. That
+  // is what lets the Vietnamese side of an ENGLISH message be written down: `srv.not found` can
+  // hold "không tìm thấy" without the next extraction putting the English back.
   const merged = { ...catalogue };
-  for (const [k, v] of found) merged[k] = v;
+  for (const [k, v] of found) if (!(k in merged)) merged[k] = v;
   const sorted = Object.fromEntries(Object.keys(merged).sort().map((k) => [k, merged[k]]));
   console.log(`${found.size} server strings keyable by their own text · ${interpolated} interpolated (left in Vietnamese)`);
   console.log(`catalogue ${Object.keys(catalogue).length} → ${Object.keys(sorted).length} keys`);
