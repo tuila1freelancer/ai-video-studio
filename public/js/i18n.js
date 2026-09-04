@@ -22,6 +22,33 @@ export function t(key, params = null, def = null) {
   return String(s).replace(/\{(\w+)\}/g, (m, name) => (params[name] === undefined ? m : String(params[name])));
 }
 
+/**
+ * Translate a label by the Vietnamese text ITSELF (the gettext msgid model).
+ *
+ * `t()` needs a key somebody invented; this needs nothing. It is what the 400-odd labels built in
+ * JS use — a menu row's `name`, a status map's value, a `textContent =` — so adding a string to the
+ * interface stays a one-line edit and an untranslated one shows its Vietnamese instead of a key.
+ */
+export function m(text) {
+  const s = String(text ?? '');
+  return dict[`ui.msg.${s}`] ?? fallback[`ui.msg.${s}`] ?? s;
+}
+
+/**
+ * The same, for a message assembled by interpolation: tag the template instead of wrapping it.
+ *
+ *   tp`Đã quét ${n} cảnh`   →  msgid "Đã quét {0} cảnh"
+ *
+ * Keying by the STATIC parts is what makes this work — the values differ every call, the sentence
+ * around them does not. Values are substituted after the lookup, so a translation may reorder them
+ * (`{1}` before `{0}`), which languages with a different word order need.
+ */
+export function tp(strings, ...vals) {
+  const msgid = strings.reduce((a, s, i) => a + (i ? `{${i - 1}}` : '') + s, '');
+  const out = dict[`ui.msg.${msgid}`] ?? fallback[`ui.msg.${msgid}`] ?? msgid;
+  return out.replace(/\{(\d+)\}/g, (hit, i) => (vals[i] === undefined ? hit : String(vals[i])));
+}
+
 async function load(code) {
   try {
     const res = await fetch(`/locales/${code}.json`, { cache: 'no-cache' });

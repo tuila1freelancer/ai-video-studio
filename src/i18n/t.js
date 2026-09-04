@@ -56,3 +56,28 @@ export function t(key, params = null) {
   if (!params) return s;
   return String(s).replace(/\{(\w+)\}/g, (m, name) => (params[name] === undefined ? m : String(params[name])));
 }
+
+/**
+ * Translate a string by its own Vietnamese text (the gettext msgid model), for the interface text
+ * the server builds itself — a stage name, a journal line, an error body.
+ */
+export function m(text) {
+  const s = String(text ?? '');
+  const k = `srv.${s}`;
+  return catalogue(current)[k] ?? catalogue('en')[k] ?? s;
+}
+
+/**
+ * The same, for a message assembled by interpolation: tag the template instead of wrapping it.
+ *
+ *   tp`Đã ghép ${n} cảnh`   →  msgid "Đã ghép {0} cảnh"
+ *
+ * The static parts are the key; the values are substituted after the lookup, so a translation may
+ * reorder them for a language whose word order differs.
+ */
+export function tp(strings, ...vals) {
+  const msgid = strings.reduce((a, s, i) => a + (i ? `{${i - 1}}` : '') + s, '');
+  const k = `srv.${msgid}`;
+  const out = catalogue(current)[k] ?? catalogue('en')[k] ?? msgid;
+  return out.replace(/\{(\d+)\}/g, (hit, i) => (vals[i] === undefined ? hit : String(vals[i])));
+}

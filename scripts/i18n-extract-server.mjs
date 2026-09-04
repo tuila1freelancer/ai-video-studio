@@ -11,6 +11,7 @@
 import { readFileSync, writeFileSync, readdirSync, statSync } from 'node:fs';
 import { join, dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { msgCalls, tpTemplates } from './lib/msgid.mjs';
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const CATALOGUE = join(ROOT, 'public', 'locales', 'vi.json');
@@ -69,8 +70,11 @@ function run() {
         found.set(`srv.${text}`, text);
       }
     }
+    // m('…') and tp`…` declare a string to be interface text, wherever it sits.
+    for (const text of msgCalls(src)) if (VN.test(text)) found.set(`srv.${text}`, text);
+    for (const text of tpTemplates(src)) if (VN.test(text)) found.set(`srv.${text}`, text);
     // A template literal that carries Vietnamese AND a placeholder cannot be keyed by its result.
-    for (const m of src.matchAll(/`[^`]*\$\{[^`]*`/g)) if (VN.test(m[0])) interpolated++;
+    for (const m of src.matchAll(/`[^`]*\$\{[^`]*`/g)) if (VN.test(m[0]) && !/\btp`/.test(m[0])) interpolated++;
   }
 
   const merged = { ...catalogue };

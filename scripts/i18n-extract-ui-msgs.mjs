@@ -10,6 +10,7 @@
 import { readFileSync, writeFileSync, readdirSync, statSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { msgCalls, tpTemplates } from './lib/msgid.mjs';
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const CATALOGUE = join(ROOT, 'public', 'locales', 'vi.json');
@@ -45,7 +46,11 @@ function run() {
     for (const re of CALLS) {
       for (const m of src.matchAll(re)) if (VN.test(m[1])) found.set(`ui.msg.${m[1]}`, m[1]);
     }
-    for (const m of src.matchAll(/\btoast\(\s*`[^`]*\$\{[^`]*`/g)) if (VN.test(m[0])) interpolated++;
+    // m('…') and tp`…` say outright that a string is interface text, so they need no guesswork
+    // about the position it sits in — the two helpers exist for the labels no position identifies.
+    for (const text of msgCalls(src)) if (VN.test(text)) found.set(`ui.msg.${text}`, text);
+    for (const text of tpTemplates(src)) if (VN.test(text)) found.set(`ui.msg.${text}`, text);
+    for (const m of src.matchAll(/\btoast\(\s*`[^`]*\$\{[^`]*`/g)) if (VN.test(m[0]) && !/\btp`/.test(m[0])) interpolated++;
   }
 
   const merged = { ...catalogue };
