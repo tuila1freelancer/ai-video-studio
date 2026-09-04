@@ -86,10 +86,10 @@ export default {
   },
 
   async testConnection(cfg) {
-    if (!cfg?.apiKey) return { ok: false, message: 'Chưa nhập API Key' };
+    if (!cfg?.apiKey) return { ok: false, message: m('Chưa nhập API Key') };
     try {
       const res = await fetch(`${API}/voices?key=${encodeURIComponent(cfg.apiKey)}`, { signal: AbortSignal.timeout(15000) });
-      if (res.status === 400 || res.status === 403) return { ok: false, message: 'Key không hợp lệ hoặc chưa bật Text-to-Speech API' };
+      if (res.status === 400 || res.status === 403) return { ok: false, message: m('Key không hợp lệ hoặc chưa bật Text-to-Speech API') };
       if (!res.ok) return { ok: false, message: `HTTP ${res.status}` };
       const voices = (await res.json()).voices || [];
       const langs = new Set(voices.flatMap((v) => v.languageCodes || []));

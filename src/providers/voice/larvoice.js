@@ -169,14 +169,15 @@ export default {
         return { path: outPath, duration: await probeDuration(outPath) };
       }
     }
+    // i18n-exempt: spoken by the voice when no text was given, not text the app shows.
     return runTtsJob(text || 'Xin chào, tôi là giọng đọc cho video của bạn.', voiceId, cfg, outPath, 300);
   },
 
   async testConnection(cfg) {
-    if (!cfg?.apiKey) return { ok: false, message: 'Cần API Key — tạo tại larvoice.com/app/api (Bearer)' };
+    if (!cfg?.apiKey) return { ok: false, message: m('Cần API Key — tạo tại larvoice.com/app/api (Bearer)') };
     try {
       const r = await fetch(`${BASE}/voices?voice_type=all&limit=1`, { headers: headersOf(cfg), signal: AbortSignal.timeout(15000) });
-      if (r.status === 401) return { ok: false, message: 'Key bị từ chối (401). Dùng key Bearer tạo tại larvoice.com/app/api — key Telegram bot thuộc hệ cũ api.larvoice.com, không dùng được ở đây.' };
+      if (r.status === 401) return { ok: false, message: m('Key bị từ chối (401). Dùng key Bearer tạo tại larvoice.com/app/api — key Telegram bot thuộc hệ cũ api.larvoice.com, không dùng được ở đây.') };
       if (!r.ok) return { ok: false, message: `LarVoice /voices ${r.status}: ${(await r.text()).slice(0, 200)}` };
       const total = await fetchCatalog(cfg).then((v) => v.length).catch(() => '?');
       return { ok: true, message: tp`Kết nối OK — key hợp lệ, catalog ${total} giọng (vi/en/zh/ja/ko). Quota trừ theo credit từng job.` };

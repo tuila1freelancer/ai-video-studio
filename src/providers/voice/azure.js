@@ -10,7 +10,7 @@ import { probeDuration } from '../../media/ffmpeg.js';
 import { recordUsage } from '../../util/usage.js';
 import { escapeXml, ssmlProsody } from './ssml.js';
 
-import { tp } from '../../i18n/t.js';
+import { m, tp } from '../../i18n/t.js';
 const host = (cfg) => `${String(cfg?.region || 'eastus').trim()}.tts.speech.microsoft.com`;
 
 // One sensible default per language, so 'auto' never has to guess from a list of four hundred.
@@ -81,13 +81,13 @@ export default {
   },
 
   async testConnection(cfg) {
-    if (!cfg?.apiKey) return { ok: false, message: 'Chưa nhập Subscription Key' };
-    if (!cfg?.region) return { ok: false, message: 'Chưa nhập Region (ví dụ: southeastasia)' };
+    if (!cfg?.apiKey) return { ok: false, message: m('Chưa nhập Subscription Key') };
+    if (!cfg?.region) return { ok: false, message: m('Chưa nhập Region (ví dụ: southeastasia)') };
     try {
       const res = await fetch(`https://${host(cfg)}/cognitiveservices/voices/list`, {
         headers: { 'Ocp-Apim-Subscription-Key': cfg.apiKey }, signal: AbortSignal.timeout(15000),
       });
-      if (res.status === 401 || res.status === 403) return { ok: false, message: 'Key hoặc region không đúng' };
+      if (res.status === 401 || res.status === 403) return { ok: false, message: m('Key hoặc region không đúng') };
       if (!res.ok) return { ok: false, message: `HTTP ${res.status}` };
       const list = await res.json();
       const langs = new Set(list.map((v) => v.Locale));

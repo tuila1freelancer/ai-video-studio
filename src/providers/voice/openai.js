@@ -57,7 +57,7 @@ export default {
   },
 
   async testConnection(cfg) {
-    if (!cfg?.apiKey) return { ok: false, message: 'Chưa nhập API Key' };
+    if (!cfg?.apiKey) return { ok: false, message: m('Chưa nhập API Key') };
     try {
       const res = await fetch(`${endpointFor(cfg).base}/models`, {
         headers: { Authorization: `Bearer ${cfg.apiKey}` }, signal: AbortSignal.timeout(10000),

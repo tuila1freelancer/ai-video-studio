@@ -89,9 +89,11 @@ function scanModules(dir, bucket, ignore) {
   }
 }
 scanModules('public/js', 'browser', (f) => f.endsWith('views/guide.js'));   // the manual has its own catalogue
-// src/ is mostly LLM prompts and language data, which must stay Vietnamese. Only the modules that
-// speak to the owner are audited; the rest is engine input and auditing it would report noise.
-const SERVER_UI = /^src\/(?:pipeline\/progress|core\/errors|api\/services\/)/;
+// src/ is mostly LLM prompts and language data, which must stay Vietnamese — auditing those would
+// report the engine's own input as a defect. What IS audited is every module that describes the
+// app to its owner: the progress ticker, the error classes, the request services, and the two
+// catalogues Settings renders (the TTS providers and the publishing targets).
+const SERVER_UI = /^src\/(?:pipeline\/progress|core\/errors|api\/services\/|providers\/voice\/|publish\/)/;
 scanModules('src', 'server', (f) => !SERVER_UI.test(f));
 
 // ---- 4. every language has every key ----------------------------------------------------------

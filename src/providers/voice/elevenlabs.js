@@ -71,7 +71,7 @@ export default {
   },
 
   async testConnection(cfg) {
-    if (!cfg?.apiKey) return { ok: false, message: 'Chưa nhập API Key' };
+    if (!cfg?.apiKey) return { ok: false, message: m('Chưa nhập API Key') };
     try {
       const res = await fetch('https://api.elevenlabs.io/v1/user', {
         headers: { 'xi-api-key': cfg.apiKey }, signal: AbortSignal.timeout(10000),

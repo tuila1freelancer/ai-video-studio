@@ -73,6 +73,16 @@ function ceiling(src) {
 const ABSOLUTE_MAX = 40;
 
 /**
+ * ...and below this, no label is too long, whatever the ratio says.
+ *
+ * A ratio stops meaning anything at two characters. "Ẩn" is 2, so even 4.5x allows only 9 — and
+ * the correct German is "Ausblenden" (10) and the correct Indonesian "Sembunyikan" (11). Both were
+ * rejected as layout-breaking by a rule that had never seen a source this short. Nothing breaks a
+ * button at fourteen characters, so that is the floor.
+ */
+const ALWAYS_FINE = 14;
+
+/**
  * @returns {string[]} one readable line per problem — empty when the catalogue is sound.
  */
 export function checkCatalogue(source, target, code) {
@@ -92,7 +102,7 @@ export function checkCatalogue(source, target, code) {
       const b = (got.match(marker) || []).length;
       if (a !== b) out.push(`${code} ${key}: markdown marker count ${a} → ${b}`);
     }
-    const max = Math.ceil(src.length * ceiling(src));
+    const max = Math.max(ALWAYS_FINE, Math.ceil(src.length * ceiling(src)));
     const cap = src.length <= 8 ? Math.min(max, ABSOLUTE_MAX) : max;
     if (got.length > cap) out.push(`${code} ${key}: ${got.length} chars for a ${src.length}-char label (max ${cap})`);
     // A translation byte-identical to its source is usually a batch that failed silently and
