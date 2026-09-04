@@ -1,7 +1,7 @@
 {
   "name": "ai-video-studio",
-  "version": "1.0.0",
-  "description": "AI Video Studio \u2014 t\u1ea1o video t\u1ef1 \u0111\u1ed9ng (d\u00e0i tu\u1ef3 \u00fd) cho macOS. Node 22 backend + native WKWebView shell.",
+  "version": "1.0.1",
+  "description": "AI Video Studio — tạo video tự động (dài tuỳ ý) cho macOS. Node 22 backend + native WKWebView shell.",
   "type": "module",
   "main": "shell/electron/main.cjs",
   "engines": {
