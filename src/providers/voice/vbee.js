@@ -9,6 +9,8 @@ import { m, tp } from '../../i18n/t.js';
 const BASE = 'https://vbee.vn/api/v1';
 
 // Common Vietnamese voice_codes (North/Central/South). Users can also type any code manually.
+// i18n-exempt: a voice's NAME. Someone picking "Duy Phương (Huế · nam)" has to read the name the
+// provider gave it, in any interface language.
 const CATALOG = [
   { id: 'hn_female_ngochuyen_full_48k-fhg', name: 'Ngọc Huyền (Bắc · nữ)', gender: 'f' },
   { id: 'hn_male_phuthang_stor80dt_48k-fhg', name: 'Phú Thắng (Bắc · nam)', gender: 'm' },
@@ -81,10 +83,10 @@ export default {
   },
 
   async testConnection(cfg) {
-    if (!cfg?.token || !cfg?.appId) return { ok: false, message: 'Cần API Token + App ID (lấy tại vbee.vn → API)' };
+    if (!cfg?.token || !cfg?.appId) return { ok: false, message: m('Cần API Token + App ID (lấy tại vbee.vn → API)') };
     try {
       const tmp = `/tmp/vbee_test_${Date.now()}.mp3`;
-      const r = await this.synthesize('Xin chào', CATALOG[0].id, cfg, tmp);
+      const r = await this.synthesize('Xin chào', CATALOG[0].id, cfg, tmp); // i18n-exempt: spoken, not shown
       return { ok: true, message: tp`Kết nối OK — synth thử ${r.duration.toFixed(1)}s audio` };
     } catch (e) { return { ok: false, message: e.message.slice(0, 200) }; }
   },

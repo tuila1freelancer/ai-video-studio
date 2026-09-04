@@ -96,45 +96,59 @@ export function msgCalls(raw) {
   return out;
 }
 
-/** Every tp`…` template in `src`, with its placeholders collapsed to {0}, {1}, … */
+/**
+ * Every tp`…` template in `src`, with its placeholders collapsed to {0}, {1}, …
+ *
+ * Scanned character by character rather than by regex: `${fmt(`${x}`)}` nests backticks inside its
+ * own placeholder, and a regex that stops at the first backtick truncates the sentence into a
+ * msgid that never matches at runtime. And the placeholders are scanned in TURN, because a tp
+ * inside another tp's placeholder is an ordinary msgid that would otherwise be silently dropped.
+ */
 export function tpTemplates(raw) {
   const src = stripComments(raw);
   const out = [];
-  const start = /(?<![\w.$])tp`/g;
-  let hit;
-  while ((hit = start.exec(src))) {
-    let i = start.lastIndex;
-    let msgid = '';
-    let n = 0;
-    let closed = false;
-    while (i < src.length) {
-      const c = src[i];
-      if (c === '\\') { msgid += src.slice(i, i + 2); i += 2; continue; }
-      if (c === '`') { closed = true; i++; break; }
-      if (c === '$' && src[i + 1] === '{') {
-        // Skip the expression, counting braces and stepping over nested strings/templates.
-        let depth = 1;
-        i += 2;
-        while (i < src.length && depth) {
-          const d = src[i];
-          if (d === '\\') { i += 2; continue; }
-          if (d === '{') depth++;
-          else if (d === '}') depth--;
-          else if (d === '`' || d === "'" || d === '"') {
-            const q = d;
+  const scan = (from, to) => {
+    const start = /(?<![\w.$])tp`/g;
+    start.lastIndex = from;
+    let hit;
+    while ((hit = start.exec(src)) && hit.index < to) {
+      let i = start.lastIndex;
+      let msgid = '';
+      let n = 0;
+      let closed = false;
+      const holes = [];
+      while (i < to) {
+        const c = src[i];
+        if (c === '\\') { msgid += src.slice(i, i + 2); i += 2; continue; }
+        if (c === '`') { closed = true; i++; break; }
+        if (c === '$' && src[i + 1] === '{') {
+          const exprFrom = i + 2;
+          let depth = 1;
+          i += 2;
+          while (i < to && depth) {
+            const d = src[i];
+            if (d === '\\') { i += 2; continue; }
+            if (d === '{') depth++;
+            else if (d === '}') depth--;
+            else if (d === '`' || d === "'" || d === '"') {
+              const q = d;
+              i++;
+              while (i < to && src[i] !== q) i += src[i] === '\\' ? 2 : 1;
+            }
             i++;
-            while (i < src.length && src[i] !== q) i += src[i] === '\\' ? 2 : 1;
           }
-          i++;
+          holes.push([exprFrom, i - 1]);
+          msgid += `{${n++}}`;
+          continue;
         }
-        msgid += `{${n++}}`;
-        continue;
+        msgid += c;
+        i++;
       }
-      msgid += c;
-      i++;
+      if (closed) out.push(msgid);
+      for (const [a, b] of holes) scan(a, b);
+      start.lastIndex = i;
     }
-    if (closed) out.push(msgid);
-    start.lastIndex = i;
-  }
+  };
+  scan(0, src.length);
   return out;
 }

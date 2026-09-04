@@ -116,10 +116,10 @@ export default {
   },
 
   async testConnection(cfg) {
-    if (!cfg?.accessKeyId || !cfg?.secretAccessKey) return { ok: false, message: 'Chưa nhập Access Key ID / Secret' };
+    if (!cfg?.accessKeyId || !cfg?.secretAccessKey) return { ok: false, message: m('Chưa nhập Access Key ID / Secret') };
     try {
       const voices = await this.listVoices(cfg);
-      if (!voices.length) return { ok: false, message: 'Không lấy được danh sách giọng' };
+      if (!voices.length) return { ok: false, message: m('Không lấy được danh sách giọng') };
       const langs = new Set(voices.map((v) => v.locale));
       return { ok: true, message: tp`OK — ${voices.length} giọng, ${langs.size} ngôn ngữ` };
     } catch (e) {

@@ -13,6 +13,8 @@ import { supertonicUrl, ensureSupertonic } from '../../media/tts-server.js';
 
 import { m, tp } from '../../i18n/t.js';
 // Shipped with the model — ids are stable, the descriptions come from the upstream voice card.
+// i18n-exempt: `name` is the voice's own name and stays; the `note` beside it is a description and
+// IS translated — src/api/routes.js localises that field.
 const CATALOG = [
   { id: 'M1', name: 'M1 — sôi nổi, tự tin', gender: 'm', note: 'Promo, giải thích, đời thường' },
   { id: 'M2', name: 'M2 — trầm, điềm tĩnh', gender: 'm', note: 'Doanh nghiệp, phim tài liệu' },
@@ -78,6 +80,7 @@ export default {
     try {
       if (cfg?.autoStart) await ensureSupertonic(cfg);
       const tmp = `${process.env.TMPDIR || '/tmp'}/supertonic_test_${Date.now()}.wav`;
+      // i18n-exempt: the sentence the voice SPEAKS to prove it works, not text the app shows.
       const r = await this.synthesize('Xin chào, đây là giọng đọc thử nghiệm.', CATALOG[0].id, cfg, tmp, { lang: 'vi' });
       return { ok: true, message: tp`Kết nối OK tại ${base} — synth thử ${r.duration.toFixed(1)}s audio` };
     } catch (e) {
