@@ -6,6 +6,8 @@ import { generateMetadata } from '../../providers/llm.js';
 import { withRetry } from '../../util/retry.js';
 import { notStopped } from '../stop.js';
 import { op } from '../progress.js';
+import { resolveLang } from '../../util/lang.js';
+import { phrase } from '../../i18n/script-phrases.js';
 
 import { m, tp } from '../../i18n/t.js';
 /** @param {import('../context.js').PipelineContext} ctx */
@@ -33,7 +35,10 @@ export async function runMetadata(ctx) {
       acc += Math.max(1.5, sc.duration || config.sceneDuration || 6);
     }
     md.chapters = chapters;
-    md.description = `${md.description || ''}\n\n📑 Chương:\n${chapters.join('\n')}`.trim();
+    // The description belongs to the VIDEO, so its heading follows the video's language, not the
+    // interface's — a French video was getting a Vietnamese "Chương:" on YouTube.
+    const heading = phrase(resolveLang(config, scs), 'chapters');
+    md.description = `${md.description || ''}\n\n📑 ${heading}:\n${chapters.join('\n')}`.trim();
     // merge, don't overwrite — B2 may have stored the master script's thumbnail {title,prompt}
     const prev = DB.getProject(projectId).metadata || {};
     DB.updateProject(projectId, { metadata: { ...prev, ...md } });
