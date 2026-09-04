@@ -4,7 +4,7 @@
 // stay the at-a-glance layer, the journal is the audit layer.
 import { hub } from '../ws/hub.js';
 import { jlog } from './journal.js';
-import { t } from '../i18n/t.js';
+import { t, tp } from '../i18n/t.js';
 
 const STAGE_NAMES = { b2: 'Kịch bản', b5: 'Dựng cảnh', b34: 'Lồng tiếng + Phụ đề', b6: 'Render', b7: 'Ghép & Mix' };
 // The stage names are the most-read strings the server produces — they are the pipeline itself,
@@ -27,8 +27,9 @@ export function step(id, step, state, detail) {
   } else if (state === 'done') {
     const t0 = stageStart.get(key); stageStart.delete(key);
     const durMs = t0 ? Date.now() - t0 : null;
+    const head = tp`✓ ${STAGE_VI[step] || step} hoàn tất`;
     jlog(id, { kind: 'step', stage: step, level: 'success', data: { state, detail, durMs },
-      msg: `✓ ${STAGE_VI[step] || step} hoàn tất${detail ? ` — ${detail}` : ''}${durMs ? ` (${fmtDur(durMs)})` : ''}` });
+      msg: `${head}${detail ? ` — ${detail}` : ''}${durMs ? ` (${fmtDur(durMs)})` : ''}` });
   }
 }
 
@@ -47,7 +48,8 @@ export function op(id, text) {
 export function retryHook(id, stepName, idx) {
   return (attempt, err) => {
     hub.toProject(id, { type: 'retry', scope: idx == null ? 'step' : 'scene', step: stepName, idx, attempt, msg: err.message });
-    const msg = `🩹 ${idx != null ? `Cảnh ${idx + 1}: ` : ''}lỗi "${err.message.slice(0, 80)}" — đang tự thử lại (${attempt + 1})…`;
+    const who = idx != null ? tp`Cảnh ${idx + 1}: ` : '';
+    const msg = `🩹 ${who}${tp`lỗi "${err.message.slice(0, 80)}" — đang tự thử lại (${attempt + 1})…`}`;
     hub.toProject(id, { type: 'op', text: msg }); // ticker only — the retry row below IS the journal line
     jlog(id, { kind: 'retry', level: 'warn', stage: stepName, sceneIdx: idx ?? null, msg, data: { attempt } });
   };

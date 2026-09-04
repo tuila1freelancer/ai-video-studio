@@ -17,8 +17,9 @@ import { readFileSync } from 'node:fs';
 import * as DB from '../src/db/index.js';
 import { ffProgress } from '../src/pipeline/render.js';
 import { planChanges } from '../src/api/services/change-plan.js';
+import { unwrapI18n } from './_source.mjs';
 
-const src = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
+const src = (p) => unwrapI18n(readFileSync(new URL(p, import.meta.url), 'utf8'));
 
 test('the encode reports how far it has got', () => {
   const seen = [];

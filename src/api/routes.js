@@ -27,7 +27,7 @@ import { licenseGate } from '../license/gate.js';
 import { activate, publicStatus, refreshNow } from '../license/index.js';
 import { adoptWithStoredSession, sessionAccount, signIn, signOut } from '../license/auth.js';
 import { checkUpdate, downloadUrl } from '../license/update.js';
-import { t, uiLang, setUiLang } from '../i18n/t.js';
+import { t, m, tp, uiLang, setUiLang } from '../i18n/t.js';
 
 const upload = multer({ dest: DIRS.uploads, limits: { fileSize: 512 * 1024 * 1024 } });
 
@@ -249,7 +249,7 @@ export function mountRoutes(app, { version }) {
       if (!llm.baseUrl || !llm.apiKey) return res.status(400).json({ ok: false, message: 'thiếu Base URL hoặc API Key' });
       const t0 = Date.now();
       const reply = await chat([{ role: 'user', content: 'Reply with the single word: OK' }], { maxTokens: 8, temperature: 0, llm, timeoutMs: 30000 });
-      res.json({ ok: true, model: llm.model, ms: Date.now() - t0, message: `Kết nối OK — model trả lời "${String(reply).trim().slice(0, 40)}"` });
+      res.json({ ok: true, model: llm.model, ms: Date.now() - t0, message: tp`Kết nối OK — model trả lời "${String(reply).trim().slice(0, 40)}"` });
     } catch (e) { res.status(200).json({ ok: false, message: e.message.slice(0, 220) }); }
   });
 
@@ -287,7 +287,7 @@ export function mountRoutes(app, { version }) {
         headers: { Authorization: `Bearer ${llm.apiKey || 'none'}`, ...(llm.extraHeaders || {}) },
         signal: AbortSignal.timeout(15000),
       });
-      if (!out.ok) return res.json({ ok: false, message: `HTTP ${out.status} — key sai, hoặc provider không cho liệt kê model` });
+      if (!out.ok) return res.json({ ok: false, message: tp`HTTP ${out.status} — key sai, hoặc provider không cho liệt kê model` });
       const data = await out.json();
       // OpenAI answers {data:[{id}]}; a few compatible servers answer {models:[{name}]}.
       const ids = [...new Set((data?.data || data?.models || [])
@@ -327,7 +327,7 @@ export function mountRoutes(app, { version }) {
         const installed = !!supertonicLauncher();
         res.json({
           ok: installed && !err, installed,
-          message: installed ? 'Đã cài Supertonic — bấm ▶ Khởi động' : `Cài thất bại: ${(stderr || err?.message || '').slice(-400)}`,
+          message: installed ? m('Đã cài Supertonic — bấm ▶ Khởi động') : tp`Cài thất bại: ${(stderr || err?.message || '').slice(-400)}`,
           log: String(stdout || '').slice(-2000),
         });
       });
@@ -592,7 +592,7 @@ export function mountRoutes(app, { version }) {
     const title = (config.title || topic || 'Dự án mới').slice(0, 80) || 'Dự án mới';
     const p = DB.createProject({ title, topic, inputType, aspectRatio, config, channelId: channel?.id });
     DB.projectDirFor(p.id);
-    logger.info(`🆕 Đã tạo dự án (kênh ${channel?.name || 'Default'})`, { projectId: p.id });
+    logger.info(tp`🆕 Đã tạo dự án (kênh ${channel?.name || 'Default'})`, { projectId: p.id });
     res.json({ project: p });
   });
   r.get('/projects/:id', (req, res) => {
@@ -818,7 +818,7 @@ export function mountRoutes(app, { version }) {
     if (!p) return res.json({ ok: true, removed: 0 }); // already gone is the outcome asked for
     const removed = purgeProjectFiles(p);
     DB.deleteProject(p.id);
-    logger.info(`🗑 Đã xoá dự án "${p.title}" — ${removed.files} file, ${(removed.bytes / 1048576).toFixed(0)} MB`, { projectId: p.id });
+    logger.info(tp`🗑 Đã xoá dự án "${p.title}" — ${removed.files} file, ${(removed.bytes / 1048576).toFixed(0)} MB`, { projectId: p.id });
     res.json({ ok: true, ...removed });
   });
 
@@ -875,7 +875,7 @@ export function mountRoutes(app, { version }) {
       const name = String(p.title || 'video').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
         .replace(/[^\w.-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'video';
       res.setHeader('Content-Disposition', `attachment; filename="${name}-scenes.txt"`);
-      return res.type('text/plain').send(scenes.map((s) => `### Cảnh ${s.idx + 1} (${s.duration.toFixed(2)}s)\n${s.srt}`).join('\n'));
+      return res.type('text/plain').send(scenes.map((s) => `${tp`### Cảnh ${s.idx + 1} (${s.duration.toFixed(2)}s)`}\n${s.srt}`).join('\n'));
     }
     res.json({ scenes });
   });
@@ -1020,7 +1020,7 @@ export function mountRoutes(app, { version }) {
       credits: provider === 'larvoice' ? chars : null,
       ttsUsd: ttsUsd || null, llmUsd,
       usd: ttsUsd || llmUsd ? +((ttsUsd || 0) + (llmUsd || 0)).toFixed(2) : null,
-      basis: perScene != null ? 'lịch sử kênh' : 'chưa đủ lịch sử để ước tính LLM',
+      basis: perScene != null ? m('lịch sử kênh') : m('chưa đủ lịch sử để ước tính LLM'),
     });
   });
 
@@ -1227,8 +1227,9 @@ export function mountRoutes(app, { version }) {
       const { getPublisher } = await import('../publish/index.js');
       const redirectUri = `${req.protocol}://${req.get('host')}/api/publish/youtube/callback`;
       await getPublisher('youtube').exchangeCode(String(req.query.code || ''), redirectUri);
-      res.send('<meta charset="utf-8"><body style="font-family:sans-serif;background:#0b1020;color:#eaf2ff;display:grid;place-items:center;height:100vh"><div>✅ Đã kết nối YouTube — bạn có thể đóng tab này.</div></body>');
-    } catch (e) { res.status(400).send(`OAuth lỗi: ${e.message}`); }
+      res.send('<meta charset="utf-8"><body style="font-family:sans-serif;background:#0b1020;color:#eaf2ff;display:grid;place-items:center;height:100vh"><div>'
+        + m('✅ Đã kết nối YouTube — bạn có thể đóng tab này.') + '</div></body>');
+    } catch (e) { res.status(400).send(tp`OAuth lỗi: ${e.message}`); }
   });
   // AI post caption (P42 — reference `/publish/generate-caption`). A YouTube description is not
   // a Facebook caption: this writes the SHORT hook-first post copy for the platform, from the
@@ -1470,7 +1471,7 @@ export function mountRoutes(app, { version }) {
       // five the owner may already be happy with — and costs six generations to fix one.
       const only = Array.isArray(req.body?.only) ? req.body.only.filter(Boolean) : null;
       const sizes = only?.length ? COVER_SIZES.filter((s) => only.includes(s.id)) : COVER_SIZES;
-      if (!sizes.length) return res.status(400).json({ error: `không có khổ nào khớp: ${only?.join(', ')}` });
+      if (!sizes.length) return res.status(400).json({ error: tp`không có khổ nào khớp: ${only?.join(', ')}` });
       const { covers } = await generateCoverSet({
         title: p.title, hook: req.body?.hook || md.thumbnail?.title || '',
         prompt: req.body?.prompt || md.thumbnail?.prompt || '',
@@ -1549,20 +1550,23 @@ export function mountRoutes(app, { version }) {
         // of throwing — a missing picker must not make exporting covers impossible.
         dir = await new Promise((resolve) => {
           const done = (err, out) => resolve(err ? '' : String(out).trim());
+          // The prompt is translated text now, so it must be escaped for the script it lands in:
+          // a catalogue with a quote in it would end the AppleScript/PowerShell string early.
+          const ask = m('Chọn thư mục lưu ảnh bìa');
           if (process.platform === 'darwin') {
-            execFile('osascript', ['-e', 'POSIX path of (choose folder with prompt "Chọn thư mục lưu ảnh bìa")'], done);
+            execFile('osascript', ['-e', 'POSIX path of (choose folder with prompt "' + ask.replace(/["\\]/g, '\\$&') + '")'], done);
           } else if (process.platform === 'win32') {
             execFile('powershell', ['-NoProfile', '-STA', '-Command',
               'Add-Type -AssemblyName System.Windows.Forms; $d = New-Object System.Windows.Forms.FolderBrowserDialog;'
-              + ' $d.Description = "Chọn thư mục lưu ảnh bìa"; if ($d.ShowDialog() -eq "OK") { $d.SelectedPath }'], done);
+              + ' $d.Description = "' + ask.replace(/[`$"]/g, '`$&') + '"; if ($d.ShowDialog() -eq "OK") { $d.SelectedPath }'], done);
           } else {
-            execFile('zenity', ['--file-selection', '--directory', '--title=Chọn thư mục lưu ảnh bìa'], done);
+            execFile('zenity', ['--file-selection', '--directory', '--title=' + ask], done);
           }
         });
         if (!dir) return res.json({ ok: false, cancelled: true });
       }
       if (!dir) dir = p.outputDir || DB.projectDirFor(p.id);
-      if (!existsSync(dir) || !statSync(dir).isDirectory()) return res.status(400).json({ error: `thư mục không tồn tại: ${dir}` });
+      if (!existsSync(dir) || !statSync(dir).isDirectory()) return res.status(400).json({ error: tp`thư mục không tồn tại: ${dir}` });
       // A folder per video, named after it: six files called cover_youtube.jpg from three videos
       // in one Downloads folder is not a set anyone can use.
       const slug = String(p.title || 'video').replace(/[^\p{L}\p{N}\- ]/gu, '').replace(/\s+/g, '_').slice(0, 60) || 'video';
@@ -1935,13 +1939,13 @@ export function mountRoutes(app, { version }) {
     // unknown kind would join(undefined) → raw 500 with a stack trace; refuse cleanly
     if (!['brand', 'bgm', 'sfx', 'font'].includes(kind)) {
       for (const f of req.files || []) { try { unlinkSync(f.path); } catch { /* temp cleanup */ } }
-      return res.status(400).json({ error: `loại thư viện không hỗ trợ: ${kind}` });
+      return res.status(400).json({ error: tp`loại thư viện không hỗ trợ: ${kind}` });
     }
     if (kind === 'font') {
       const badFile = (req.files || []).find((f) => !/\.(ttf|otf|woff2?)$/i.test(f.originalname));
       if (badFile) {
         for (const f of req.files || []) { try { unlinkSync(f.path); } catch { /* temp cleanup */ } }
-        return res.status(400).json({ error: `font chỉ nhận .ttf/.otf/.woff/.woff2 — "${badFile.originalname}" không hợp lệ` });
+        return res.status(400).json({ error: tp`font chỉ nhận .ttf/.otf/.woff/.woff2 — "${badFile.originalname}" không hợp lệ` });
       }
     }
     const brand = req.body.brand || 'Default';
@@ -2172,9 +2176,11 @@ export function mountRoutes(app, { version }) {
       const url = String(req.body?.url || '').trim();
       if (!/^https?:\/\//i.test(url)) return res.status(400).json({ error: 'cần URL http(s)' });
       const resp = await fetch(url, { redirect: 'follow', signal: AbortSignal.timeout(60000) });
-      if (!resp.ok) return res.status(400).json({ error: `tải về lỗi HTTP ${resp.status}` });
+      if (!resp.ok) return res.status(400).json({ error: tp`tải về lỗi HTTP ${resp.status}` });
       const type = (resp.headers.get('content-type') || '').toLowerCase();
-      if (!/^(image|video)\//.test(type)) return res.status(400).json({ error: `không phải ảnh/video (${type || 'không rõ'})` });
+      if (!/^(image|video)\//.test(type)) {
+        return res.status(400).json({ error: tp`không phải ảnh/video (${type || m('không rõ')})` });
+      }
       const buf = Buffer.from(await resp.arrayBuffer());
       if (!buf.length) return res.status(400).json({ error: 'file rỗng' });
       const EXT = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp', 'image/gif': '.gif', 'video/mp4': '.mp4', 'video/quicktime': '.mov' };

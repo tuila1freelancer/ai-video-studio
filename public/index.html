@@ -49,8 +49,8 @@
       <button class="nav-item active" data-page="home"><span class="ic">🏠</span><span class="nav-label" data-i18n="ui.app.trang-chu">Trang chủ</span></button>
       <button class="nav-item" data-page="studio"><span class="ic">🎬</span><span class="nav-label" data-i18n="ui.app.tao-video">Tạo Video</span></button>
       <button class="nav-item" data-page="library"><span class="ic">📚</span><span class="nav-label" data-i18n="ui.app.thu-vien">Thư viện</span></button>
-      <button class="nav-item" data-page="brandgen"><span class="ic">🎨</span><span class="nav-label">Brand Asset</span></button>
-      <button class="nav-item" data-page="editvideo"><span class="ic">✂️</span><span class="nav-label">Edit Video</span></button>
+      <button class="nav-item" data-page="brandgen"><span class="ic">🎨</span><span class="nav-label" data-i18n="ui.app.brand-asset">Brand Asset</span></button>
+      <button class="nav-item" data-page="editvideo"><span class="ic">✂️</span><span class="nav-label" data-i18n="ui.app.edit-video">Edit Video</span></button>
       <button class="nav-item" data-page="tutorials"><span class="ic">📖</span><span class="nav-label" data-i18n="ui.app.huong-dan">Hướng dẫn</span></button>
     </div>
     <div class="nav-spacer"></div>
@@ -62,7 +62,9 @@
          state, but a missing Chrome or ffmpeg has to be visible or renders fail with no clue. -->
     <button class="dep-warn hidden" id="depWarn" title="Thiếu công cụ hệ thống — bấm để xem" data-i18n-title="ui.app.thieu-cong-cu-he-thong"></button>
     <button class="license-badge" id="licenseBadge" style="display:none" title="License"></button>
-    <button class="btn sm" id="navSettings">⚙️ AI Setting</button>
+    <!-- No data-i18n on the BUTTON: initNav() runs before applyDom() and fills it with an icon +
+         a .nav-label span, which a textContent write would delete. nav.js tags that span instead. -->
+    <button class="btn sm" id="navSettings" data-i18n-exempt>⚙️ AI Setting</button>
   </nav>
 
   <!-- CONTENT -->
@@ -97,7 +99,7 @@
           <div class="row"><h2 class="home-sec-title" data-i18n="ui.page-home.video-cua-ban">Video của bạn</h2><span class="badge" id="galleryCount"></span></div>
           <div class="gtabs">
             <button class="gtab active" data-cat="short" data-i18n="ui.page-home.short-doc">Short (dọc)</button>
-            <button class="gtab" data-cat="landscape">Landscape</button>
+            <button class="gtab" data-cat="landscape" data-i18n="ui.page-home.landscape">Landscape</button>
           </div>
         </div>
         <div class="ggrid" id="galleryGrid"></div>
@@ -125,7 +127,7 @@
               <div id="srcDoc" class="srcdoc hidden">
                 <div class="srcdoc-head">
                   <span class="srcdoc-title" id="srcTitle"></span>
-                  <button class="btn xs ghost" id="srcToggle" title="Xem / sửa nội dung đã lấy" data-i18n-title="ui.srcDoc.xem-sua-noi-dung-da">Xem</button>
+                  <button class="btn xs ghost" id="srcToggle" title="Xem / sửa nội dung đã lấy" data-i18n="ui.srcDoc.xem" data-i18n-title="ui.srcDoc.xem-sua-noi-dung-da">Xem</button>
                   <button class="btn xs ghost danger" id="srcClear" title="Bỏ nội dung này" data-i18n-title="ui.srcDoc.bo-noi-dung-nay">✕</button>
                 </div>
                 <div class="srcdoc-meta" id="srcMeta"></div>
@@ -166,7 +168,9 @@
                 <div class="badges">
                   <span class="badge" id="pvStatus"></span>
                   <span class="badge ar" id="pvAr"></span>
-                  <span class="ws-dot" id="wsDot">● offline</span>
+                  <!-- No data-i18n: the WS _status handler in studio.js owns this text and
+                       rewrites it via m() the moment the socket reports, at boot. -->
+                  <span class="ws-dot" id="wsDot" data-i18n-exempt>● offline</span>
                   <span class="ws-dot" id="pvDate"></span>
                 </div>
               </div>
@@ -182,8 +186,8 @@
                 <button class="btn warn hidden" id="btnTypeset" title="Dựng lại đúng những cảnh bị mất dấu / đè dòng tiếng Việt, rồi ghép lại" data-i18n="ui.projView.sua-loi-tieng-viet" data-i18n-title="ui.projView.dung-lai-dung-nhung-canh">🔤 Sửa lỗi tiếng Việt</button>
                 <button class="btn danger hidden" id="btnStop" data-i18n="ui.projView.dung">⏹ Dừng</button>
                 <button class="btn warn hidden" id="btnResume" data-i18n="ui.projView.tiep-tuc">▶ Tiếp tục</button>
-                <button class="btn" id="btnSrt">📝 SRT</button>
-                <button class="btn" id="btnMeta">📊 Metadata</button>
+                <button class="btn" id="btnSrt" data-i18n="ui.projView.srt">📝 SRT</button>
+                <button class="btn" id="btnMeta" data-i18n="ui.projView.metadata">📊 Metadata</button>
               </div>
             </div>
 
@@ -199,7 +203,7 @@
                 <div style="color:var(--muted2);font-size:.9em" data-i18n="ui.sceneGateBar.duyet-chinh-tung-canh-scene">Duyệt / chỉnh từng cảnh (Scene Studio, Xem nháp) thoải mái. Ưng ý rồi bấm nút để lồng tiếng + render.</div>
                 <div id="sceneGateCost" style="color:var(--muted2);font-size:.9em;margin-top:2px"></div>
               </div>
-              <button class="btn sm" id="btnContactSheet" title="Frame giữa của mọi cảnh ghép thành 1 ảnh — duyệt cả storyboard trong một cái nhìn" data-i18n-title="ui.sceneGateBar.frame-giua-cua-moi-canh">📸 Contact sheet</button>
+              <button class="btn sm" id="btnContactSheet" title="Frame giữa của mọi cảnh ghép thành 1 ảnh — duyệt cả storyboard trong một cái nhìn" data-i18n="ui.sceneGateBar.contact-sheet" data-i18n-title="ui.sceneGateBar.frame-giua-cua-moi-canh">📸 Contact sheet</button>
               <button class="btn success" id="btnApproveScenes" data-i18n="ui.sceneGateBar.long-tieng-amp-render">🎙 Lồng tiếng &amp; Render</button>
             </div>
 
@@ -230,7 +234,7 @@
                 <button class="btn sm warn" id="btnRenderSel" disabled data-i18n="ui.sceneToolbar.render-da-chon">🎬 Render đã chọn</button>
                 <button class="btn sm success" id="btnRenderAll" data-i18n="ui.sceneToolbar.render-ghep">🎬 Render + Ghép</button>
                 <button class="btn sm" id="btnScenesJson" title="Tải kịch bản dạng scenes JSON chuẩn (stt/voice/visual/assets + thumbnail)" data-i18n-title="ui.sceneToolbar.tai-kich-ban-dang-scenes">⬇ scenes.json</button>
-                <button class="btn sm" id="btnScenesJsonCopy" title="Copy scenes JSON vào clipboard" data-i18n-title="ui.sceneToolbar.copy-scenes-json-vao-clipboard">📋 Copy JSON</button>
+                <button class="btn sm" id="btnScenesJsonCopy" title="Copy scenes JSON vào clipboard" data-i18n="ui.sceneToolbar.copy-json" data-i18n-title="ui.sceneToolbar.copy-scenes-json-vao-clipboard">📋 Copy JSON</button>
               </div>
             </div>
 
@@ -242,8 +246,10 @@
               <div class="fa">
                 <a class="btn success" id="btnDownload" download data-i18n="ui.finalView.tai-video">⬇ Tải video</a>
                 <a class="btn" id="btnDownloadSrt" download data-i18n="ui.finalView.tai-srt">📑 Tải .SRT</a>
-                <select class="input" id="btnSrtLang" style="width:auto;display:inline-block;padding:6px 10px" data-i18n-title="ui.finalView.xuat-phu-de-ngon-ngu-khac" title="Xuất phụ đề sang ngôn ngữ khác — không render lại video"></select>
-                <a class="btn" id="btnFinalContactSheet" target="_blank" title="Frame giữa của mọi cảnh trong 1 ảnh" data-i18n-title="ui.finalView.frame-giua-cua-moi-canh">📸 Contact sheet</a>
+                <!-- title BEFORE data-i18n-title: the extractor matches `\btitle="` and would
+                     otherwise harvest the key as its own catalogue value. -->
+                <select class="input" id="btnSrtLang" style="width:auto;display:inline-block;padding:6px 10px" title="Xuất phụ đề sang ngôn ngữ khác — không render lại video" data-i18n-title="ui.finalView.xuat-phu-de-ngon-ngu-khac"></select>
+                <a class="btn" id="btnFinalContactSheet" target="_blank" title="Frame giữa của mọi cảnh trong 1 ảnh" data-i18n="ui.finalView.contact-sheet" data-i18n-title="ui.finalView.frame-giua-cua-moi-canh">📸 Contact sheet</a>
                 <button class="btn" id="btnOpenFolder" data-i18n="ui.finalView.mo-thu-muc">📂 Mở thư mục</button>
                 <button class="btn" id="btnFinalFs" title="Xem video toàn màn hình" data-i18n="ui.finalView.toan-man-hinh" data-i18n-title="ui.finalView.xem-video-toan-man-hinh">⛶ Toàn màn hình</button>
                 <button class="btn" id="btnPublish" title="Đăng lên YouTube / Facebook Page qua tài khoản đã kết nối — mặc định KHÔNG công khai ngay" data-i18n="ui.finalView.dang-video" data-i18n-title="ui.finalView.dang-len-youtube-facebook-page">📤 Đăng video</button>
@@ -287,7 +293,7 @@
                 <label class="label" data-i18n="ui.hfOpts.phong-cach-video">Phong cách video</label>
                 <button class="hf-style-btn" id="btnHfStyle" type="button">
                   <span class="hfsb-sw" id="hfStyleSw"></span>
-                  <span class="hfsb-name" id="hfStyleName">Chrome Kinetic</span>
+                  <span class="hfsb-name" id="hfStyleName" data-i18n-exempt>Chrome Kinetic</span>
                   <span class="hfsb-hint" data-i18n="ui.btnHfStyle.doi">đổi ▸</span>
                 </button>
                 <div class="hint" data-i18n="ui.hfOpts.ai-viet-do-hoa-hoat">AI viết đồ hoạ + hoạt ảnh riêng cho từng cảnh, keyword hiện đúng lúc voice nhắc tới.</div>
@@ -317,7 +323,7 @@
               </div>
               <div class="field">
                 <div class="grid2">
-                  <div><label class="label">FPS</label>
+                  <div><label class="label" data-i18n="ui.grpFormat.fps">FPS</label>
                     <select class="input hidden" id="cfgFps"><option value="30" selected>30</option><option value="60">60</option></select>
                     <div class="seg block" data-target="cfgFps"><button type="button" data-v="30">30</button><button type="button" data-v="60">60</button></div></div>
                   <div><label class="label" data-i18n="ui.grpFormat.chat-luong">Chất lượng</label>
@@ -378,12 +384,12 @@
               <button class="btn block" id="btnBrandEditor" data-i18n="ui.grpBrand.chinh-brand-kit-cua-kenh">🎨 Chỉnh Brand Kit của kênh…</button>
               <div class="field" style="margin-top:10px">
                 <label class="label" data-i18n="ui.grpBrand.font-thuong-hieu-cho-video">🔤 Font thương hiệu cho video này</label>
-                <select class="input" id="cfgBrandFont"><option value="">— Theo style guide —</option></select>
+                <select class="input" id="cfgBrandFont"><option value="" data-i18n="ui.cfgBrandFont.theo-style-guide">— Theo style guide —</option></select>
                 <div class="hint" data-i18n="ui.grpBrand.ap-cho-chu-do-hoa">Áp cho chữ đồ hoạ trong cảnh (headline/số liệu). Tải font riêng ở Thư viện → Font chữ.</div>
               </div>
               <div class="field" id="legacyWatermark" style="margin-top:10px">
                 <label class="label" data-i18n="ui.legacyWatermark.watermark-chu-khi-chua-co">Watermark chữ (khi chưa có Brand Kit)</label>
-                <input class="input" id="cfgWatermark" placeholder="vd: tuila1freelancer" value="">
+                <input class="input" id="cfgWatermark" placeholder="vd: tuila1freelancer" value="" data-i18n-placeholder="ui.legacyWatermark.vd-tuila1freelancer">
               </div>
             </div>
           </div>
@@ -449,7 +455,7 @@
                   <section class="sub-col">
                     <h4 class="sub-h" data-i18n="ui.subStyle.chu">Chữ</h4>
                     <div class="grid2">
-                      <div><label class="label">Font <button class="btn sm ghost hidden" id="cfgSubFontGet" title="Tải font này về máy" style="padding:0 6px" data-i18n="ui.subStyle.tai" data-i18n-title="ui.subStyle.tai-font-nay-ve-may">⬇︎ Tải</button></label>
+                      <div><label class="label"><span data-i18n="ui.subStyle.font">Font</span> <button class="btn sm ghost hidden" id="cfgSubFontGet" title="Tải font này về máy" style="padding:0 6px" data-i18n="ui.subStyle.tai" data-i18n-title="ui.subStyle.tai-font-nay-ve-may">⬇︎ Tải</button></label>
                         <select class="input" id="cfgSubFont"></select></div>
                       <div><label class="label" data-i18n="ui.subStyle.do-dam">Độ đậm</label>
                         <select class="input" id="cfgSubWeight"></select></div>
@@ -458,7 +464,7 @@
                     <input type="range" class="range" id="cfgSubSize" min="30" max="160" step="2" value="80">
                     <div class="grid2" style="margin-top:8px">
                       <div><label class="label" data-i18n="ui.subStyle.kieu-chu">Kiểu chữ</label>
-                        <select class="input" id="cfgSubCase"><option value="" data-i18n="ui.cfgSubCase.theo-bo-mau">Theo bộ mẫu</option><option value="original" data-i18n="ui.cfgSubCase.goc">Gốc</option><option value="uppercase">HOA</option><option value="lowercase" data-i18n="ui.cfgSubCase.thuong">thường</option><option value="titlecase" data-i18n="ui.cfgSubCase.hoa-dau">Hoa Đầu</option><option value="sentence" data-i18n="ui.cfgSubCase.hoa-dau-cau">Hoa đầu câu</option></select></div>
+                        <select class="input" id="cfgSubCase"><option value="" data-i18n="ui.cfgSubCase.theo-bo-mau">Theo bộ mẫu</option><option value="original" data-i18n="ui.cfgSubCase.goc">Gốc</option><option value="uppercase" data-i18n="ui.cfgSubCase.hoa">HOA</option><option value="lowercase" data-i18n="ui.cfgSubCase.thuong">thường</option><option value="titlecase" data-i18n="ui.cfgSubCase.hoa-dau">Hoa Đầu</option><option value="sentence" data-i18n="ui.cfgSubCase.hoa-dau-cau">Hoa đầu câu</option></select></div>
                       <div><label class="label"><span data-i18n="ui.subStyle.gian-chu">Giãn chữ:</span> <strong id="cfgSubLsL">0</strong></label>
                         <input type="range" class="range" id="cfgSubLetterSpacing" min="-6" max="30" step="1" value="0"></div>
                     </div>
@@ -534,7 +540,7 @@
 
                     <h4 class="sub-h" data-i18n="ui.subStyle.vi-tri">Vị trí</h4>
                     <div class="grid2">
-                      <div><label class="label">Canh ngang</label>
+                      <div><label class="label" data-i18n="ui.subStyle.canh-ngang">Canh ngang</label>
                         <select class="input" id="cfgSubAlignH"><option value="center" data-i18n="ui.cfgSubAlignH.giua">Giữa</option><option value="left" data-i18n="ui.cfgSubAlignH.trai">Trái</option><option value="right" data-i18n="ui.cfgSubAlignH.phai">Phải</option></select></div>
                       <div><label class="label" data-i18n="ui.subStyle.vi-tri-doc">Vị trí dọc</label>
                         <select class="input" id="cfgSubPos"><option value="bot" data-i18n="ui.cfgSubPos.duoi">Dưới</option><option value="mid" data-i18n="ui.cfgSubPos.giua">Giữa</option><option value="top" data-i18n="ui.cfgSubPos.tren">Trên</option></select></div>
@@ -597,8 +603,8 @@
                 <select class="input" id="cfgTransStyle">
                   <option value="auto" data-i18n="ui.cfgTransStyle.tu-dong-theo-nhip-ke">🎬 Tự động theo nhịp kể (khuyên dùng)</option>
                   <option value="varied" data-i18n="ui.cfgTransStyle.da-dang-xoay-vong">🎲 Đa dạng (xoay vòng)</option>
-                  <option value="fade">Fade</option>
-                  <option value="dissolve">Dissolve</option>
+                  <option value="fade" data-i18n="ui.cfgTransStyle.fade">Fade</option>
+                  <option value="dissolve" data-i18n="ui.cfgTransStyle.dissolve">Dissolve</option>
                   <option value="slideleft" data-i18n="ui.cfgTransStyle.truot-trai">Trượt trái</option>
                   <option value="smoothleft" data-i18n="ui.cfgTransStyle.truot-muot">Trượt mượt</option>
                   <option value="circleopen" data-i18n="ui.cfgTransStyle.mo-vong-tron">Mở vòng tròn</option>
@@ -618,8 +624,8 @@
               <label class="switch-row"><span class="switch"><input type="checkbox" id="cfgAutoConcat" checked><span class="sl"></span></span> <span data-i18n="ui.grpAdvanced.tu-dong-ghep-b7">Tự động ghép (B7)</span></label>
               <label class="switch-row" title="Dừng trước khi ghép để bạn duyệt từng cảnh trong Xem nháp" data-i18n-title="ui.grpAdvanced.dung-truoc-khi-ghep-de"><span class="switch"><input type="checkbox" id="cfgReview"><span class="sl"></span></span> <span data-i18n="ui.grpAdvanced.duyet-tung-canh-truoc-khi">🧐 Duyệt từng cảnh trước khi ghép</span></label>
               <label class="switch-row" title="Dựng toàn bộ cảnh trước rồi DỪNG — bạn duyệt/chỉnh từng cảnh thoải mái, chưa tốn phí lồng tiếng; bấm Lồng tiếng &amp; Render khi ưng ý" data-i18n-title="ui.grpAdvanced.dung-toan-bo-canh-truoc"><span class="switch"><input type="checkbox" id="cfgSceneGate"><span class="sl"></span></span> <span data-i18n="ui.grpAdvanced.dung-canh-truoc-duyet-xong">🎬 Dựng cảnh trước — duyệt xong mới lồng tiếng</span></label>
-              <label class="switch-row" style="margin-top:6px"><span class="switch"><input type="checkbox" id="cfgPTts"><span class="sl"></span></span> TTS song song</label>
-              <label class="switch-row"><span class="switch"><input type="checkbox" id="cfgPRender"><span class="sl"></span></span> Render song song</label>
+              <label class="switch-row" style="margin-top:6px"><span class="switch"><input type="checkbox" id="cfgPTts"><span class="sl"></span></span> <span data-i18n="ui.grpAdvanced.tts-song-song">TTS song song</span></label>
+              <label class="switch-row"><span class="switch"><input type="checkbox" id="cfgPRender"><span class="sl"></span></span> <span data-i18n="ui.grpAdvanced.render-song-song">Render song song</span></label>
               <div class="grid2" style="margin-top:6px">
                 <select class="input" id="cfgTtsC"><option>2</option><option selected>4</option><option>6</option><option>8</option></select>
                 <select class="input" id="cfgRenderC"><option selected>2</option><option>3</option><option>4</option></select>
@@ -635,9 +641,9 @@
       <div class="lib">
         <h1 data-i18n="ui.page-library.thu-vien-tai-nguyen">📚 Thư viện tài nguyên</h1>
         <div class="gtabs">
-          <button class="gtab active" data-kind="brand">🎨 Brand Asset</button>
+          <button class="gtab active" data-kind="brand" data-i18n="ui.page-library.brand-asset">🎨 Brand Asset</button>
           <button class="gtab" data-kind="bgm" data-i18n="ui.page-library.nhac-nen">🎵 Nhạc nền</button>
-          <button class="gtab" data-kind="sfx">🔊 SFX</button>
+          <button class="gtab" data-kind="sfx" data-i18n="ui.page-library.sfx">🔊 SFX</button>
           <button class="gtab" data-kind="font" data-i18n="ui.page-library.font-chu">🔤 Font chữ</button>
         </div>
         <div class="row">
@@ -669,11 +675,11 @@
 
         <div class="bg-card"><div class="bg-sec" data-i18n="ui.page-brandgen.3-style-nhan-vat">3. Style nhân vật</div>
           <div class="row wrap" id="bgStyleChips" style="gap:6px">
-            <button type="button" class="btn sm bg-chip active" data-style="2D Anime style">🎨 2D Anime</button>
-            <button type="button" class="btn sm bg-chip" data-style="Manhwa style">📖 Manhwa</button>
-            <button type="button" class="btn sm bg-chip" data-style="3D Pixar style">🧸 3D Pixar</button>
-            <button type="button" class="btn sm bg-chip" data-style="3D Realistic style">🎬 3D Realistic</button>
-            <button type="button" class="btn sm bg-chip" data-style="Minecraft style">⛏ Minecraft</button>
+            <button type="button" class="btn sm bg-chip active" data-i18n-exempt data-style="2D Anime style">🎨 2D Anime</button>
+            <button type="button" class="btn sm bg-chip" data-i18n-exempt data-style="Manhwa style">📖 Manhwa</button>
+            <button type="button" class="btn sm bg-chip" data-i18n-exempt data-style="3D Pixar style">🧸 3D Pixar</button>
+            <button type="button" class="btn sm bg-chip" data-i18n-exempt data-style="3D Realistic style">🎬 3D Realistic</button>
+            <button type="button" class="btn sm bg-chip" data-i18n-exempt data-style="Minecraft style">⛏ Minecraft</button>
             <button type="button" class="btn sm bg-chip" data-style="" data-i18n="ui.bgStyleChips.khac">✏️ Khác</button>
           </div>
           <input class="input hidden" id="bgStyleCustom" placeholder="Nhập style tuỳ ý… (vd: watercolor style)" style="margin-top:8px" data-i18n-placeholder="ui.page-brandgen.nhap-style-tuy-y-vd">
@@ -682,7 +688,7 @@
         <div class="bg-card"><div class="bg-sec" data-i18n="ui.page-brandgen.4-brand-dich">4. Brand đích</div>
           <div class="row">
             <select class="input" id="bgBrand" style="flex:1"></select>
-            <button class="btn sm" id="bgBrandNew">＋ Brand</button>
+            <button class="btn sm" id="bgBrandNew" data-i18n="ui.page-brandgen.brand">＋ Brand</button>
           </div>
           <div class="row hidden" id="bgBrandForm" style="margin-top:8px">
             <input class="input" id="bgBrandName" placeholder="Tên brand mới…" style="flex:1" data-i18n-placeholder="ui.bgBrandForm.ten-brand-moi">
@@ -715,13 +721,13 @@
 
         <div class="bg-card"><div class="bg-sec" data-i18n="ui.page-brandgen.6-provider-model-tao-anh">6. Provider & model tạo ảnh</div>
           <div class="grid2">
-            <div><label class="label">Provider (images/edits)</label>
+            <div><label class="label" data-i18n="ui.page-brandgen.provider-images-edits">Provider (images/edits)</label>
               <div class="row">
                 <select class="input" id="bgProvider" style="flex:1"></select>
                 <button class="btn sm" id="bgProviderNew" title="Thêm provider" data-i18n-title="ui.page-brandgen.them-provider">＋</button>
                 <button class="btn sm danger" id="bgProviderDel" title="Xoá provider đang chọn" data-i18n-title="ui.page-brandgen.xoa-provider-dang-chon">🗑</button>
               </div></div>
-            <div><label class="label">Model</label>
+            <div><label class="label" data-i18n="ui.page-brandgen.model">Model</label>
               <input class="input" id="bgModel" list="bgModelList" placeholder="gpt-image-2">
               <datalist id="bgModelList">
                 <option value="gpt-image-2"></option><option value="gpt-image-1"></option>
@@ -734,7 +740,7 @@
               <select class="input" id="bgSize">
                 <option value="1024x1536" selected data-i18n="ui.bgSize.1024-1536-doc-nhu-app">1024×1536 — dọc (như app tham khảo)</option>
                 <option value="1024x1024" data-i18n="ui.bgSize.1024-1024-vuong">1024×1024 — vuông</option>
-                <option value="1536x1024">1536×1024 — ngang</option>
+                <option value="1536x1024" data-i18n="ui.bgSize.1536-1024-ngang">1536×1024 — ngang</option>
               </select></div>
             <div></div>
           </div>
@@ -743,10 +749,10 @@
               <select class="input" id="bgPfPreset"></select>
               <div class="hint" id="bgPfNote" style="margin-top:5px;line-height:1.7"></div></div>
             <div class="grid2 hidden" id="bgPfCustom">
-              <div><label class="label" data-i18n="ui.bgPfCustom.ten-hien-thi">Tên hiển thị</label><input class="input" id="bgPfLabel" placeholder="vd: Infinity API"></div>
-              <div><label class="label">Base URL</label><input class="input" id="bgPfUrl" placeholder="https://infinityapis.com/v1"></div>
+              <div><label class="label" data-i18n="ui.bgPfCustom.ten-hien-thi">Tên hiển thị</label><input class="input" id="bgPfLabel" placeholder="vd: Infinity API" data-i18n-placeholder="ui.bgPfCustom.vd-infinity-api"></div>
+              <div><label class="label" data-i18n="ui.bgPfCustom.base-url">Base URL</label><input class="input" id="bgPfUrl" placeholder="https://infinityapis.com/v1"></div>
             </div>
-            <div class="field" style="margin-top:8px"><label class="label">API key</label><input class="input" id="bgPfKey" type="password" placeholder="sk-…"></div>
+            <div class="field" style="margin-top:8px"><label class="label" data-i18n="ui.bgProviderForm.api-key">API key</label><input class="input" id="bgPfKey" type="password" placeholder="sk-…"></div>
             <div class="row" style="margin-top:8px">
               <button class="btn sm primary" id="bgPfSave" data-i18n="ui.bgProviderForm.luu-provider">💾 Lưu provider</button>
               <button class="btn sm" id="bgPfCancel" data-i18n="ui.bgProviderForm.huy">Huỷ</button>
@@ -769,7 +775,7 @@
           <div class="bg-sec" data-i18n="ui.bgCopySec.copy-sang-brand-khac">Copy sang brand khác</div>
           <div class="row">
             <select class="input" id="bgCopyTarget" style="flex:1"></select>
-            <button class="btn sm" id="bgCopyGo">📂 Copy</button>
+            <button class="btn sm" id="bgCopyGo" data-i18n="ui.bgCopySec.copy">📂 Copy</button>
           </div>
           <div class="hint" id="bgCopyStatus" style="margin-top:6px"></div>
         </div>
@@ -779,7 +785,7 @@
     <!-- EDIT VIDEO -->
     <section class="page" id="page-editvideo">
       <div class="center-narrow">
-        <h1>✂️ Edit Video</h1>
+        <h1 data-i18n="ui.page-editvideo.edit-video">✂️ Edit Video</h1>
         <p class="sub" style="color:var(--muted);margin:6px 0 18px" data-i18n="ui.page-editvideo.cat-nhanh-doan-video-bang">Cắt nhanh đoạn video bằng ffmpeg.</p>
         <div class="field"><label class="btn sm"><span data-i18n="ui.page-editvideo.chon-video">📁 Chọn video</span><input type="file" id="evFile" accept="video/*" hidden></label> <span id="evName" class="hint" data-i18n="ui.page-editvideo.chua-chon">Chưa chọn</span></div>
         <video id="evPreview" controls class="hidden" style="max-width:340px;border-radius:8px;background:#000"></video>
@@ -792,7 +798,7 @@
         <div class="grid2" style="max-width:420px;margin-top:10px">
           <div><label class="label" data-i18n="ui.page-editvideo.do-dai-moi-canh-giay">Độ dài mỗi cảnh (giây)</label><input class="input" id="evSceneDur" type="number" value="7" min="3" max="15"></div>
           <div><label class="label" data-i18n="ui.page-editvideo.ngon-ngu-loi-thoai">Ngôn ngữ lời thoại</label>
-            <select class="input" id="evLang"><option value="auto" data-i18n="ui.evLang.tu-nhan">Tự nhận</option><option value="vi" data-i18n="ui.evLang.tieng-viet">Tiếng Việt</option><option value="en">English</option></select>
+            <select class="input" id="evLang"><option value="auto" data-i18n="ui.evLang.tu-nhan">Tự nhận</option><option value="vi" data-i18n="ui.evLang.tieng-viet">Tiếng Việt</option><option value="en" data-i18n="ui.evLang.english">English</option></select>
           </div>
         </div>
         <label class="switch-row" style="margin-top:8px"><span class="switch"><input type="checkbox" id="evSubs"><span class="sl"></span></span> <span data-i18n="ui.page-editvideo.ghi-them-phu-de-karaoke">Ghi thêm phụ đề karaoke lên video</span></label>
@@ -833,7 +839,7 @@
             <div class="gd-empty hidden" id="gdEmpty" data-i18n="ui.page-tutorials.khong-co-chuong-nao-khop">Không có chương nào khớp. Thử một từ khoá ngắn hơn.</div>
             <div class="credit-card" style="margin-top:26px">
               <span class="logo" id="creditLogo"></span>
-              <div><strong>AI Video Studio</strong><div class="hint"><span data-i18n="ui.page-tutorials.thiet-ke-amp-xay-dung">Thiết kế &amp; xây dựng bởi</span> <strong>TuiLa1Freelancer</strong> — made with ♥ on macOS</div></div>
+              <div><strong>AI Video Studio</strong><div class="hint"><span data-i18n="ui.page-tutorials.thiet-ke-amp-xay-dung">Thiết kế &amp; xây dựng bởi</span> <strong>TuiLa1Freelancer</strong> <span data-i18n="ui.page-tutorials.made-with-on-macos">— made with ♥ on macOS</span></div></div>
             </div>
           </div>
         </div>
@@ -845,7 +851,7 @@
 <!-- AI SETTINGS MODAL -->
 <div class="modal-bg" id="settingsModal">
   <div class="modal">
-    <h2>🤖 AI Setting <button class="x" data-close>×</button></h2>
+    <h2><span data-i18n="ui.settingsModal.ai-setting">🤖 AI Setting</span> <button class="x" data-close>×</button></h2>
     <div class="sec-label" data-i18n="ui.settingsModal.giao-dien">Giao diện</div>
     <div class="field"><label class="label" data-i18n="ui.settingsModal.ngon-ngu-giao-dien">Ngôn ngữ giao diện</label>
       <select class="input" id="setUiLang"></select>
@@ -857,16 +863,16 @@
     <div class="field"><label class="label" data-i18n="ui.settingsModal.nha-cung-cap">Nhà cung cấp</label>
       <select class="input" id="setLlmPreset"></select>
       <div class="hint" id="llmPresetNote" style="margin-top:5px;line-height:1.7"></div></div>
-    <div class="field hidden" id="llmUrlField"><label class="label">Base URL</label><input class="input" id="setLlmUrl" placeholder="https://api.openai.com/v1"></div>
-    <div class="field" id="llmKeyField"><label class="label">API Key</label><input class="input" id="setLlmKey" type="password" placeholder="sk-..."></div>
-    <div class="field"><label class="label">Model</label>
+    <div class="field hidden" id="llmUrlField"><label class="label" data-i18n="ui.llmUrlField.base-url">Base URL</label><input class="input" id="setLlmUrl" placeholder="https://api.openai.com/v1"></div>
+    <div class="field" id="llmKeyField"><label class="label" data-i18n="ui.llmKeyField.api-key">API Key</label><input class="input" id="setLlmKey" type="password" placeholder="sk-..."></div>
+    <div class="field"><label class="label" data-i18n="ui.settingsModal.model">Model</label>
       <input class="input" id="setLlmModel" list="llmModelList" placeholder="gpt-4o-mini">
       <datalist id="llmModelList"></datalist>
       <div class="row" style="margin-top:6px"><button class="btn sm" id="btnFetchModels" data-i18n="ui.settingsModal.lay-danh-sach-model">↻ Lấy danh sách model</button><span class="hint" id="llmModelsOut"></span></div></div>
     <div class="field"><label class="label" data-i18n="ui.settingsModal.model-dung-do-hoa-hyperframe">Model dựng đồ hoạ (HyperFrame)</label>
       <input class="input" id="setLlmCodegenModel" placeholder="để trống = tự chọn theo nhà cung cấp" data-i18n-placeholder="ui.settingsModal.de-trong-tu-chon-theo">
       <div class="hint" id="llmCodegenWarn" style="margin-top:5px;line-height:1.7"></div></div>
-    <div class="row" style="margin-bottom:12px"><button class="btn sm" id="btnTestLlm">🔌 Test LLM</button><span class="hint" id="llmTestResult"></span></div>
+    <div class="row" style="margin-bottom:12px"><button class="btn sm" id="btnTestLlm" data-i18n="ui.settingsModal.test-llm">🔌 Test LLM</button><span class="hint" id="llmTestResult"></span></div>
     <div class="sec-label" data-i18n="ui.settingsModal.tts-giong-doc">TTS (giọng đọc)</div>
     <div class="field"><label class="label" data-i18n="ui.settingsModal.nha-cung-cap-uu-tien">Nhà cung cấp ưu tiên</label>
       <select class="input" id="setTtsProvider"></select></div>
@@ -881,16 +887,16 @@
       <button class="btn sm block" id="btnOpenVoicePicker" style="margin-top:6px" data-i18n="ui.settingsModal.mo-kho-giong-nghe-thu">🎙 Mở kho giọng (nghe thử & chọn)</button>
     </div>
     <div class="sec-label" data-i18n="ui.settingsModal.phu-de">Phụ đề</div>
-    <div class="field"><label class="label">Engine</label>
-      <select class="input" id="setSubEngine"><option value="align" data-i18n="ui.setSubEngine.align-chu-dung-kich-ban">Align (chữ đúng kịch bản + timing thật từ audio — khuyên dùng)</option><option value="estimate" data-i18n="ui.setSubEngine.estimate-chu-dung-tu-kich">Estimate (chữ đúng từ kịch bản, chia đều thời gian)</option><option value="whisper">Whisper (transcribe audio)</option></select>
+    <div class="field"><label class="label" data-i18n="ui.settingsModal.engine">Engine</label>
+      <select class="input" id="setSubEngine"><option value="align" data-i18n="ui.setSubEngine.align-chu-dung-kich-ban">Align (chữ đúng kịch bản + timing thật từ audio — khuyên dùng)</option><option value="estimate" data-i18n="ui.setSubEngine.estimate-chu-dung-tu-kich">Estimate (chữ đúng từ kịch bản, chia đều thời gian)</option><option value="whisper" data-i18n="ui.setSubEngine.whisper-transcribe-audio">Whisper (transcribe audio)</option></select>
       <label class="switch-row" style="margin-top:6px"><span class="switch"><input type="checkbox" id="setSubLlmFix" checked><span class="sl"></span></span> <span data-i18n="ui.settingsModal.llm-sua-phu-de-whisper">🤖 LLM sửa phụ đề Whisper (tên riêng/số/từ nước ngoài — giữ nguyên 100% timestamp)</span></label></div>
     <div class="sec-label" data-i18n="ui.settingsModal.dang-video">Đăng video</div>
     <div id="pubStatus" class="hint" style="margin-bottom:8px">…</div>
-    <div class="field"><label class="label">YouTube — OAuth Client (Desktop app, console.cloud.google.com)</label>
+    <div class="field"><label class="label" data-i18n="ui.settingsModal.youtube-oauth-client-desktop-app">YouTube — OAuth Client (Desktop app, console.cloud.google.com)</label>
       <input class="input" id="pubYtId" placeholder="Client ID">
       <input class="input" id="pubYtSecret" type="password" placeholder="Client Secret" style="margin-top:6px">
       <button class="btn sm" id="pubYtConnect" style="margin-top:6px" data-i18n="ui.settingsModal.ket-noi-youtube">🔗 Kết nối YouTube</button></div>
-    <div class="field"><label class="label">Facebook Page — Page ID + Page Access Token</label>
+    <div class="field"><label class="label" data-i18n="ui.settingsModal.facebook-page-page-id-page">Facebook Page — Page ID + Page Access Token</label>
       <input class="input" id="pubFbPage" placeholder="Page ID">
       <input class="input" id="pubFbToken" type="password" placeholder="Page Access Token" style="margin-top:6px">
       <div class="row" style="margin-top:6px">
@@ -899,7 +905,7 @@
         <button class="btn sm" id="pubFbRefresh" data-i18n="ui.settingsModal.lam-moi">↻ Làm mới</button>
       </div>
       <div id="pubFbPages" class="hint" style="margin-top:6px;line-height:1.9"></div>
-      <div class="hint" style="margin-top:4px"><span data-i18n="ui.settingsModal.video-doc-9-16-4">Video dọc (9:16 / 4:5) sẽ đăng dạng</span> <strong>Reel</strong><span data-i18n="ui.settingsModal.con-lai-dang-vao-feed">, còn lại đăng vào feed Trang.</span></div></div>
+      <div class="hint" style="margin-top:4px"><span data-i18n="ui.settingsModal.video-doc-9-16-4">Video dọc (9:16 / 4:5) sẽ đăng dạng</span> <strong data-i18n-exempt>Reel</strong><span data-i18n="ui.settingsModal.con-lai-dang-vao-feed">, còn lại đăng vào feed Trang.</span></div></div>
     <button class="btn primary block" id="setSave" data-i18n="ui.settingsModal.luu-cau-hinh">💾 Lưu cấu hình</button>
   </div>
 </div>
@@ -907,7 +913,7 @@
 <!-- SRT EDITOR MODAL -->
 <div class="modal-bg" id="srtModal">
   <div class="modal">
-    <h2>📝 SRT Timeline <button class="x" data-close>×</button></h2>
+    <h2><span data-i18n="ui.srtModal.srt-timeline">📝 SRT Timeline</span> <button class="x" data-close>×</button></h2>
     <div id="srtList"></div>
     <button class="btn primary block" id="srtSave" style="margin-top:14px" data-i18n="ui.srtModal.luu-srt">💾 Lưu SRT</button>
   </div>
@@ -937,10 +943,10 @@
     <div id="channelList" style="margin-bottom:14px"></div>
     <div class="sec-label" data-i18n="ui.channelModal.them-kenh-moi">➕ Thêm kênh mới</div>
     <div class="grid2">
-      <div class="field"><label class="label" data-i18n="ui.channelModal.ten-kenh">Tên kênh *</label><input class="input" id="chName" placeholder="vd: TuiLa1Freelancer"></div>
-      <div class="field"><label class="label" data-i18n="ui.channelModal.thu-muc-bo-trong-movies">Thư mục (bỏ trống = ~/Movies/AI Video Studio/…)</label><input class="input" id="chRoot" placeholder="~/Movies/AI Video Studio/ten-kenh"></div>
+      <div class="field"><label class="label" data-i18n="ui.channelModal.ten-kenh">Tên kênh *</label><input class="input" id="chName" placeholder="vd: TuiLa1Freelancer" data-i18n-placeholder="ui.channelModal.vd-tuila1freelancer"></div>
+      <div class="field"><label class="label" data-i18n="ui.channelModal.thu-muc-bo-trong-movies">Thư mục (bỏ trống = ~/Movies/AI Video Studio/…)</label><input class="input" id="chRoot" placeholder="~/Movies/AI Video Studio/ten-kenh" data-i18n-placeholder="ui.channelModal.movies-ai-video-studio-ten"></div>
     </div>
-    <div class="field"><label class="label" data-i18n="ui.channelModal.watermark-cua-kenh">Watermark của kênh</label><input class="input" id="chWatermark" placeholder="vd: tuila1freelancer"></div>
+    <div class="field"><label class="label" data-i18n="ui.channelModal.watermark-cua-kenh">Watermark của kênh</label><input class="input" id="chWatermark" placeholder="vd: tuila1freelancer" data-i18n-placeholder="ui.channelModal.vd-tuila1freelancer-2"></div>
     <div class="row">
       <label class="switch-row" style="flex:1"><span class="switch"><input type="checkbox" id="chCopyConfig" checked><span class="sl"></span></span>
         <span style="font-size:12px" data-i18n="ui.channelModal.lay-config-panel-hien-tai">📋 Lấy config panel hiện tại làm mặc định kênh (theme, giọng, tỉ lệ…)</span></label>
@@ -963,7 +969,7 @@
   <div class="modal cfgm">
     <h2><span id="cfgModalTitle" data-i18n="ui.cfgModal.cau-hinh">Cấu hình</span> <button class="x" data-close>×</button></h2>
     <div id="cfgModalBody"></div>
-    <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn primary" data-close>Xong</button></div>
+    <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn primary" data-close data-i18n="ui.cfgModal.xong">Xong</button></div>
   </div>
 </div>
 
@@ -1004,7 +1010,7 @@
       <details id="apPrefs" style="margin-top:12px">
         <summary class="hint" style="cursor:pointer" data-i18n="ui.apPrefs.cai-dat-tro-ly-cho">⚙ Cài đặt trợ lý cho kênh này</summary>
         <div class="as-grid" style="margin:8px 0">
-          <label><span data-i18n="ui.apPrefs.ngach-mac-dinh">Ngách mặc định</span> <input class="input" id="apPrefNiche" placeholder="vd: AI cho freelancer"></label>
+          <label><span data-i18n="ui.apPrefs.ngach-mac-dinh">Ngách mặc định</span> <input class="input" id="apPrefNiche" placeholder="vd: AI cho freelancer" data-i18n-placeholder="ui.apPrefs.vd-ai-cho-freelancer"></label>
           <label><span data-i18n="ui.apPrefs.khung-gio-ua-thich">Khung giờ ưa thích</span> <input class="input" id="apPrefTimes" placeholder="08:00, 19:30"></label>
         </div>
         <div class="row" style="gap:8px;align-items:center">
@@ -1049,7 +1055,7 @@
 
 <div class="modal-bg" id="sceneStudioModal">
   <div class="modal" style="max-width:1080px">
-    <h2>🎬 Scene Studio — <span id="ssTitle"></span> <button class="x" data-close>×</button></h2>
+    <h2><span data-i18n="ui.sceneStudioModal.scene-studio">🎬 Scene Studio —</span> <span id="ssTitle"></span> <button class="x" data-close>×</button></h2>
     <div class="ss-body">
       <div class="ss-left">
         <div class="ss-frame" id="ssFrameWrap"></div>
@@ -1062,10 +1068,10 @@
       <div class="ss-right">
         <div class="gtabs" id="ssTabs" style="margin:0 0 10px">
           <button class="gtab active" data-tab="voice" data-i18n="ui.ssTabs.loi-thoai">📝 Lời thoại</button>
-          <button class="gtab" data-tab="visual">✨ Visual</button>
-          <button class="gtab" data-tab="html">&lt;/&gt; HTML</button>
+          <button class="gtab" data-tab="visual" data-i18n="ui.ssTabs.visual">✨ Visual</button>
+          <button class="gtab" data-tab="html" data-i18n-exempt>&lt;/&gt; HTML</button>
           <button class="gtab" data-tab="audio" data-i18n="ui.ssTabs.am-thanh">🔊 Âm thanh</button>
-          <button class="gtab" data-tab="takes">🕘 Takes</button>
+          <button class="gtab" data-tab="takes" data-i18n="ui.ssTabs.takes">🕘 Takes</button>
         </div>
         <div id="ssTabVoice">
           <textarea class="input ss-ta" id="ssVoice" rows="7" placeholder="Lời thoại của cảnh…" data-i18n-placeholder="ui.ssTabVoice.loi-thoai-cua-canh"></textarea>
@@ -1159,14 +1165,14 @@
     </div>
     <div class="row" style="justify-content:space-between;margin-top:14px">
       <button class="btn" id="btnHfSaveChannel" title="Mọi video mới của kênh sẽ dùng phong cách này" data-i18n="ui.hfStyleModal.dat-lam-phong-cach-cua" data-i18n-title="ui.hfStyleModal.moi-video-moi-cua-kenh">💾 Đặt làm phong cách của kênh</button>
-      <button class="btn primary" data-close>Xong</button>
+      <button class="btn primary" data-close data-i18n="ui.hfStyleModal.xong">Xong</button>
     </div>
   </div>
 </div>
 
 <div class="modal-bg" id="brandModal">
   <div class="modal brand-modal">
-    <h2><span>🏷 Brand Kit — <span id="brandChName" data-i18n="ui.brandModal.kenh">kênh</span></span> <button class="x" data-close>×</button></h2>
+    <h2><span><span data-i18n="ui.brandModal.brand-kit">🏷 Brand Kit —</span> <span id="brandChName" data-i18n="ui.brandModal.kenh">kênh</span></span> <button class="x" data-close>×</button></h2>
     <div class="brand-editor">
       <div class="brand-stage-wrap">
         <div class="brand-stage" id="brandStage">
@@ -1183,7 +1189,7 @@
       </div>
       <div class="brand-form">
         <div class="bg-sec" data-i18n="ui.brandModal.kenh-2">Kênh</div>
-        <div class="field"><label class="label" data-i18n="ui.brandModal.ten-kenh-hien-tren-video">Tên kênh (hiện trên video)</label><input class="input" id="brandName" placeholder="vd: TuiLa Dev"></div>
+        <div class="field"><label class="label" data-i18n="ui.brandModal.ten-kenh-hien-tren-video">Tên kênh (hiện trên video)</label><input class="input" id="brandName" placeholder="vd: TuiLa Dev" data-i18n-placeholder="ui.brandModal.vd-tuila-dev"></div>
         <div class="grid2">
           <div><label class="switch-row" style="margin-top:4px"><span class="switch"><input type="checkbox" id="brandBadgeOn" checked><span class="sl"></span></span> <span data-i18n="ui.brandModal.hien-ten-kenh">Hiện tên kênh</span></label></div>
           <div><select class="input" id="brandBadgeStyle"><option value="plain" data-i18n="ui.brandBadgeStyle.chu-thuong">Chữ thường</option><option value="pill" data-i18n="ui.brandBadgeStyle.pill-vien-nen">Pill (viên nén)</option><option value="underline" data-i18n="ui.brandBadgeStyle.gach-chan-neon">Gạch chân neon</option></select></div>
@@ -1236,9 +1242,9 @@
           <div class="field"><label class="label" data-i18n="ui.brandModal.llm-model-kich-ban">LLM model (kịch bản)</label>
             <input class="input" id="brandAiLlmModel" placeholder="— Dùng cấu hình chung —" data-i18n-placeholder="ui.brandModal.dung-cau-hinh-chung"></div>
           <div class="field"><label class="label" data-i18n="ui.brandModal.engine-phu-de">Engine phụ đề</label>
-            <select class="input" id="brandAiSub"><option value="" data-i18n="ui.brandAiSub.dung-cau-hinh-chung">— Dùng cấu hình chung —</option><option value="align" data-i18n="ui.brandAiSub.align-chu-chuan-timing-that">align (chữ chuẩn + timing thật)</option><option value="estimate" data-i18n="ui.brandAiSub.estimate-chu-chuan">estimate (chữ chuẩn)</option><option value="whisper">whisper</option></select></div>
+            <select class="input" id="brandAiSub"><option value="" data-i18n="ui.brandAiSub.dung-cau-hinh-chung">— Dùng cấu hình chung —</option><option value="align" data-i18n="ui.brandAiSub.align-chu-chuan-timing-that">align (chữ chuẩn + timing thật)</option><option value="estimate" data-i18n="ui.brandAiSub.estimate-chu-chuan">estimate (chữ chuẩn)</option><option value="whisper" data-i18n-exempt>whisper</option></select></div>
           <div class="field"><label class="label" data-i18n="ui.brandModal.font-thuong-hieu-cua-kenh">🔤 Font thương hiệu của kênh</label>
-            <select class="input" id="brandFont"><option value="">— Theo style guide —</option></select></div>
+            <select class="input" id="brandFont"><option value="" data-i18n="ui.brandFont.theo-style-guide">— Theo style guide —</option></select></div>
         </details>
         <button class="btn primary block" id="brandSave" data-i18n="ui.brandModal.luu-brand-kit-vao-kenh">💾 Lưu Brand Kit vào kênh</button>
         <div class="hint" id="brandSaveHint" style="margin-top:6px"></div>
@@ -1260,7 +1266,7 @@
       <span id="vpProvChips" class="row wrap" style="gap:6px"></span>
       <span style="flex:1"></span>
       <select class="input" id="vpGender" style="max-width:110px">
-        <option value="" data-i18n="ui.vpGender.gioi-tinh">Giới tính</option><option value="f" data-i18n="ui.vpGender.nu">Nữ</option><option value="m">Nam</option>
+        <option value="" data-i18n="ui.vpGender.gioi-tinh">Giới tính</option><option value="f" data-i18n="ui.vpGender.nu">Nữ</option><option value="m" data-i18n="ui.vpGender.nam">Nam</option>
       </select>
     </div>
     <div class="row" style="margin-bottom:8px">
@@ -1314,7 +1320,7 @@
     <button class="btn primary block" id="btnLicenseLogin" data-i18n="ui.licenseLock.dang-nhap-voi-google">Đăng nhập với Google</button>
     <div class="hint license-account" id="licenseAccount" style="display:none"></div>
     <div class="row" style="gap:8px;margin-top:10px">
-      <button class="btn block sm" id="btnLicenseBuy">Mua license</button>
+      <button class="btn block sm" id="btnLicenseBuy" data-i18n="ui.licenseLock.mua-license">Mua license</button>
       <button class="btn block sm ghost" id="btnLicenseRefresh" data-i18n="ui.licenseLock.kiem-tra-lai">Kiểm tra lại</button>
     </div>
     <details class="license-manual" style="margin-top:14px">

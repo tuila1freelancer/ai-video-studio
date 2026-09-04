@@ -1,6 +1,7 @@
 import { $, $$ } from '../ui/dom.js';
 import { icon, logoSvg } from '../ui/icons.js';
 import { openSettings } from '../features/settings.js';
+import { m, tp } from '../i18n.js';
 
 // Views register what should refresh when their page is shown (keeps nav free of view imports).
 const pageHooks = {};
@@ -23,9 +24,13 @@ export function initNav() {
     if (ic) { ic.innerHTML = icon(st.icn, 15); ic.style.setProperty('--tint', st.tint); }
     // `data-tip` feeds the CSS tooltip that replaces the label on a narrow window; `title` stays
     // as the accessible fallback (and is what a screen reader reads).
+    // Both copies carry the label's own key: initNav() runs before initI18n(), and applyDom()
+    // repaints only the .nav-label text node — the tooltips would keep their Vietnamese.
     const name = b.textContent.trim();
     b.title = name;
     b.dataset.tip = name;
+    const key = b.querySelector('.nav-label')?.dataset.i18n;
+    if (key) { b.dataset.i18nTitle = key; b.dataset.i18nDataTip = key; }
     b.addEventListener('click', () => switchPage(b.dataset.page));
   });
   const logo = document.querySelector('.nav-brand .logo');
@@ -34,8 +39,11 @@ export function initNav() {
   if (wl) wl.innerHTML = logoSvg(84);
   const cl = document.querySelector('#creditLogo');
   if (cl) cl.innerHTML = logoSvg(38);
-  $('#navSettings').innerHTML = `${icon('settings', 15)}<span class="nav-label">AI Setting</span>`;
-  $('#navSettings').title = 'AI Setting';
+  // Same load-order trap: m() here resolves against an empty dictionary, applyDom() fills it.
+  const setKey = 'ui.msg.AI Setting';
+  $('#navSettings').innerHTML = `${icon('settings', 15)}<span class="nav-label" data-i18n="${setKey}">${m('AI Setting')}</span>`;
+  $('#navSettings').title = m('AI Setting');
+  $('#navSettings').dataset.i18nTitle = setKey;
   $('#navSettings').addEventListener('click', openSettings);
   $('#depWarn')?.addEventListener('click', openSettings);
   const mc = $('#btnManageChannels');
@@ -78,6 +86,6 @@ export function renderDeps(d) {
   const warn = $('#depWarn');
   if (!warn) return;
   warn.classList.toggle('hidden', !missing.length);
-  warn.textContent = missing.length ? `⚠ Thiếu ${missing.join(', ')}` : '';
-  warn.title = missing.length ? `Thiếu công cụ: ${missing.join(', ')} — bấm để mở AI Setting` : '';
+  warn.textContent = missing.length ? tp`⚠ Thiếu ${missing.join(', ')}` : '';
+  warn.title = missing.length ? tp`Thiếu công cụ: ${missing.join(', ')} — bấm để mở AI Setting` : '';
 }

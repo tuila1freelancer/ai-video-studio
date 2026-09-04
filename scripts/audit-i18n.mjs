@@ -10,7 +10,7 @@ import { readFileSync } from 'node:fs';
 import { join, dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { LANG_CODES } from '../src/i18n/languages.js';
-import { walk, literals, reachable, tpCovered, looksVietnamese, ATTRS } from './lib/i18n-scan.mjs';
+import { walk, literals, reachable, tpCovered, looksVietnamese, exemptLines, ATTRS } from './lib/i18n-scan.mjs';
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const VERBOSE = process.argv.includes('--verbose');
@@ -20,12 +20,27 @@ const rel = (p) => relative(ROOT, p);
 // back verbatim, a language's own endonym in the picker that chooses it.
 const NEVER_TRANSLATED = [
   /^AI Video Studio$/, /^TuiLa1Freelancer$/, /^by TuiLa1Freelancer$/,
-  /^[\d.,:×x/\s]+$/, /^\d+(?:p|K|fps)$/i, /^(?:16:9|9:16|4:5|1:1)/,
+  /^[\d.,:×x/\s]+$/, /^(?:16:9|9:16|4:5|1:1)/,
+  // A number with the unit printed beside it. The unit is a symbol, not a word to translate.
+  /^[\d.,\s]*(?:%|dB|ms|s|px|fps|p|K|MB|GB|×)$/i,
   /^https?:\/\//, /^sk-/, /^~\//, /^[a-z0-9-]+\/[a-z0-9-]+$/i,
   /^(?:Client ID|Client Secret|Page ID|Page Access Token|Base URL|TOOLS-)/,
   /^[\p{Extended_Pictographic}\p{Emoji_Presentation}\s‍️●○▶◀·—–|]+$/u,
 ];
-const skip = (s) => !s.trim() || NEVER_TRANSLATED.some((re) => re.test(s.trim()));
+// A Vietnamese word outranks every rule above it: `~/Movies/AI Video Studio/ten-kenh` is a path
+// AND a label, and the path rule alone hid it for a whole sweep.
+const skip = (s) => {
+  const t = s.trim();
+  if (!t) return true;
+  if (looksVietnamese(t)) return false;
+  return NEVER_TRANSLATED.some((re) => re.test(t));
+};
+
+// Every Vietnamese string the catalogue already holds. A literal equal to one of them is reachable
+// by definition — it is in the file the translator is given.
+const CATALOGUE_VALUES = new Set(Object.values(
+  JSON.parse(readFileSync(join(ROOT, 'public', 'locales', 'vi.json'), 'utf8')),
+));
 
 const findings = { markup: [], browser: [], server: [], catalogue: [] };
 
@@ -39,7 +54,7 @@ const findings = { markup: [], browser: [], server: [], catalogue: [] };
     const s = hit[2].trim();
     if (skip(s) || s.length < 2) continue;
     const open = body.slice(body.lastIndexOf('<', hit.index), hit.index + 1);
-    if (/data-i18n/.test(open)) continue;
+    if (/data-i18n/.test(open)) continue;   // data-i18n-exempt counts: it is a decision, recorded
     // An <option> in the interface-language picker names a language in its OWN script on purpose.
     if (/<option value="(?:en|vi|fr|de|es|pt|hi|ja|ko|zh|th|id|ru)"/.test(open)) continue;
     findings.markup.push({ what: `text "${s.slice(0, 60)}"` });
@@ -62,8 +77,12 @@ function scanModules(dir, bucket, ignore) {
     const src = readFileSync(file, 'utf8');
     const covered = reachable(src);
     const inTagged = tpCovered(src);
+    const exempt = exemptLines(src);
     for (const l of literals(src)) {
-      if (skip(l.text) || covered.has(l.text) || inTagged(l.index)) continue;
+      if (skip(l.text) || covered.has(l.text) || inTagged(l.index) || exempt.has(l.line)) continue;
+      // Already a value in the catalogue: some t() call put it there, in a shape no pattern here
+      // has to recognise — `t(\`ui.status.${s}\`, null, BADGE[s])` reaches seven of them at once.
+      if (CATALOGUE_VALUES.has(l.text)) continue;
       // A template with a placeholder is only ever reachable by being tagged with tp.
       findings[bucket].push({ file: rel(file), line: l.line, text: l.text.slice(0, 70) });
     }

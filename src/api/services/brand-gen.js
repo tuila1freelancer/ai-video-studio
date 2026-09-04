@@ -15,6 +15,7 @@ import { presetById } from '../../providers/llm-presets.js';
 import { verifyTransparentBg } from '../../media/ffmpeg.js';
 import { logger } from '../../util/log.js';
 
+import { m, tp } from '../../i18n/t.js';
 export const BRAND_EDIT_ATTEMPTS = 10;
 
 // Appended (as a new sentence) when a returned image fails the transparency gate — the
@@ -67,7 +68,7 @@ export function brandEditConfig(settings = DB.aiSettings()) {
   const pick = ig.brandEdit || {};
   const provider = providers.find((p) => p.id === pick.providerId) || providers[0] || null;
   if (!provider || !provider.baseUrl || !provider.apiKey) {
-    throw new Error('Chưa cấu hình provider tạo ảnh (images/edits) — thêm ở mục Provider & Model của trang Brand Asset.');
+    throw new Error(m('Chưa cấu hình provider tạo ảnh (images/edits) — thêm ở mục Provider & Model của trang Brand Asset.'));
   }
   return {
     provider,
@@ -80,7 +81,7 @@ export function brandEditConfig(settings = DB.aiSettings()) {
 const sanitizePart = (s) => String(s || '').replace(/[\\/:*?"<>|\u0000-\u001f]/g, '').replace(/\.\./g, '').replace(/\s+/g, ' ').trim();
 export function assetFilename(characterName, emotion) {
   const nm = sanitizePart(characterName), em = sanitizePart(emotion);
-  if (!nm || !em) throw new Error('Thiếu characterName hoặc emotion');
+  if (!nm || !em) throw new Error(m('Thiếu characterName hoặc emotion'));
   return `character ${nm} ${em}.png`;
 }
 const brandDir = (brand) => {
@@ -93,7 +94,7 @@ const brandDir = (brand) => {
 /** Emotion/action list via the AI-Settings LLM. Returns {characterName, emotions}. */
 export async function generateEmotions({ characterName, count, context } = {}, { llm, _chatJson } = {}) {
   const name = String(characterName || '').trim();
-  if (!name) throw new Error('Thiếu tên nhân vật (characterName)');
+  if (!name) throw new Error(m('Thiếu tên nhân vật (characterName)'));
   const { prompt, count: n } = buildEmotionsPrompt({ characterName: name, count, context });
   const call = _chatJson || chatJson;
   const out = await call([{ role: 'user', content: prompt }], {
@@ -110,10 +111,10 @@ export async function generateEmotions({ characterName, count, context } = {}, {
  */
 export async function generateBrandAsset({ imagePath, characterName, emotion, brand, style } = {},
   { settings, onLog, _editImage, _verify, _sleep } = {}) {
-  if (!imagePath || !existsSync(imagePath)) throw new Error('Thiếu ảnh tham chiếu');
+  if (!imagePath || !existsSync(imagePath)) throw new Error(m('Thiếu ảnh tham chiếu'));
   const name = String(characterName || '').trim(), emo = String(emotion || '').trim();
-  if (!name) throw new Error('Thiếu characterName');
-  if (!emo) throw new Error('Thiếu emotion');
+  if (!name) throw new Error(m('Thiếu characterName'));
+  if (!emo) throw new Error(m('Thiếu emotion'));
   const cfg = brandEditConfig(settings);
   const { brand: brandName, dir } = brandDir(brand);
   const filename = assetFilename(name, emo);
@@ -125,17 +126,17 @@ export async function generateBrandAsset({ imagePath, characterName, emotion, br
 
   let lastErr = null, prompt = basePrompt;
   for (let attempt = 1; attempt <= BRAND_EDIT_ATTEMPTS; attempt++) {
-    onLog?.(`↻ "${emo}" — lần ${attempt}/${BRAND_EDIT_ATTEMPTS} (${cfg.provider.label || cfg.provider.id} · ${cfg.model})`);
+    onLog?.(tp`↻ "${emo}" — lần ${attempt}/${BRAND_EDIT_ATTEMPTS} (${cfg.provider.label || cfg.provider.id} · ${cfg.model})`);
     try {
       const buf = await edit({
         imagePath, prompt, baseUrl: cfg.provider.baseUrl, apiKey: cfg.provider.apiKey,
         model: cfg.model, size: cfg.size,
       });
-      if (!buf || buf.length < 1500) throw new Error('ảnh trả về rỗng/quá nhỏ');
+      if (!buf || buf.length < 1500) throw new Error(m('ảnh trả về rỗng/quá nhỏ'));
       writeFileSync(outPath, buf);
-      const tp = await verify(outPath);
-      if (!tp.ok) { // consumes the attempt; harden the ask and go again
-        lastErr = new Error(`nền chưa trong suốt: ${tp.reason}`);
+      const bg = await verify(outPath);
+      if (!bg.ok) { // consumes the attempt; harden the ask and go again
+        lastErr = new Error(tp`nền chưa trong suốt: ${bg.reason}`);
         prompt = `${basePrompt} ${TRANSPARENT_RETRY_LINE}`;
         continue;
       }
@@ -149,14 +150,14 @@ export async function generateBrandAsset({ imagePath, characterName, emotion, br
       }
     }
   }
-  throw new Error(`Brand asset "${emo}" thất bại sau ${BRAND_EDIT_ATTEMPTS} lần thử với model chính `
-    + `(${cfg.provider.label || cfg.provider.id} · ${cfg.model}) — không dùng fallback. Lỗi cuối: ${lastErr?.message || '?'}`);
+  throw new Error(tp`Brand asset "${emo}" thất bại sau ${BRAND_EDIT_ATTEMPTS} lần thử với model chính `
+    + tp`(${cfg.provider.label || cfg.provider.id} · ${cfg.model}) — không dùng fallback. Lỗi cuối: ${lastErr?.message || '?'}`);
 }
 
 /** Copy generated asset files between brand folders (reference copy-to-brand semantics). */
 export function copyToBrand({ sourceBrand, targetBrand, filenames } = {}) {
-  if (!sourceBrand || !targetBrand) throw new Error('Thiếu sourceBrand hoặc targetBrand');
-  if (!Array.isArray(filenames) || !filenames.length) throw new Error('Thiếu filenames');
+  if (!sourceBrand || !targetBrand) throw new Error(m('Thiếu sourceBrand hoặc targetBrand'));
+  if (!Array.isArray(filenames) || !filenames.length) throw new Error(m('Thiếu filenames'));
   const src = brandDir(sourceBrand), dst = brandDir(targetBrand);
   let copied = 0, skipped = 0;
   for (const f of filenames) {
@@ -173,7 +174,7 @@ export function copyToBrand({ sourceBrand, targetBrand, filenames } = {}) {
 /** Create an (empty) brand folder so it appears in every brand picker. */
 export function createBrand(nameRaw) {
   const name = sanitizePart(nameRaw);
-  if (!name) throw new Error('Tên brand không hợp lệ');
+  if (!name) throw new Error(m('Tên brand không hợp lệ'));
   brandDir(name);
   return { ok: true, name };
 }
@@ -188,11 +189,11 @@ export function addEditProvider({ presetId, label, baseUrl, apiKey } = {}) {
   // wrong URL surfaces only as a failed generation. Resolved HERE, not in the browser, so the
   // catalogue stays one source of truth.
   const preset = presetId && presetId !== 'custom' ? presetById(presetId) : null;
-  if (presetId && presetId !== 'custom' && !preset?.lanes?.image) throw new Error('Nhà cung cấp này không sửa được ảnh');
+  if (presetId && presetId !== 'custom' && !preset?.lanes?.image) throw new Error(m('Nhà cung cấp này không sửa được ảnh'));
   const l = String(preset?.label || label || '').trim();
   const u = String(preset?.baseUrl || baseUrl || '').trim().replace(/\/$/, '');
-  if (!l || !/^https?:\/\//.test(u)) throw new Error('Cần tên hiển thị và Base URL hợp lệ (https://…)');
-  if (!String(apiKey || '').trim()) throw new Error('Thiếu API key');
+  if (!l || !/^https?:\/\//.test(u)) throw new Error(m('Cần tên hiển thị và Base URL hợp lệ (https://…)'));
+  if (!String(apiKey || '').trim()) throw new Error(m('Thiếu API key'));
   const ai = DB.aiSettings();
   const ig = { ...(ai.imageGen || {}) };
   const providers = Array.isArray(ig.editProviders) ? [...ig.editProviders] : [];

@@ -9,21 +9,23 @@ import { toast } from '../ui/toast.js';
 import { api } from '../api.js';
 import { state } from '../state.js';
 import { confirmDialog, openDialog, promptDialog } from '../ui/dialog.js';
+import { m, tp } from '../i18n.js';
 
 // Mirrors COMPOSITIONS in src/pipeline/thumbnail-codegen.js — the owner picks a layout brief
 // instead of re-rolling the same idea and hoping for a different one.
-const LAYOUTS = [
-  'Chữ lớn dồn góc dưới', 'Câu móc khổng lồ giữa khung', 'Dải kicker trên đầu',
-  'Trước / sau, chia đôi khung', 'Con số khổng lồ tràn mép', 'Dấu cấm đè lên thứ sai',
-  'Mũi tên chỉ vào điểm nhấn', 'Khung chat hỏi đáp', 'So sánh hai cột',
-  'Vật thể phát sáng giữa khung', 'Dải chéo qua khung', 'Ba chữ xếp chồng',
+// Called, not const: the catalogue lands after module evaluation, and only a literal m('…') is extractable.
+const layouts = () => [
+  m('Chữ lớn dồn góc dưới'), m('Câu móc khổng lồ giữa khung'), m('Dải kicker trên đầu'),
+  m('Trước / sau, chia đôi khung'), m('Con số khổng lồ tràn mép'), m('Dấu cấm đè lên thứ sai'),
+  m('Mũi tên chỉ vào điểm nhấn'), m('Khung chat hỏi đáp'), m('So sánh hai cột'),
+  m('Vật thể phát sáng giữa khung'), m('Dải chéo qua khung'), m('Ba chữ xếp chồng'),
 ];
-const RATIOS = [
+const ratios = () => [
   { id: 'youtube', label: 'YouTube 16:9' }, { id: 'facebook', label: 'Facebook' },
   { id: 'x', label: 'X / Twitter' }, { id: 'shorts', label: 'Shorts / TikTok' },
-  { id: 'ig_feed', label: 'Instagram' }, { id: 'square', label: 'Vuông 1:1' },
+  { id: 'ig_feed', label: 'Instagram' }, { id: 'square', label: m('Vuông 1:1') },
 ];
-const SOURCE = { ai: 'AI dựng', 'ai-edit': 'AI sửa', hand: 'Sửa tay', template: 'Mẫu sẵn' };
+const sourceLabel = (s) => ({ ai: m('AI dựng'), 'ai-edit': m('AI sửa'), hand: m('Sửa tay'), template: m('Mẫu sẵn') })[s] || s || '';
 
 let busy = false;
 const lock = async (fn) => {
@@ -51,23 +53,23 @@ export async function renderThumbPanel() {
   box.innerHTML = `
     <div class="thumb-panel">
       <div class="tp-head">
-        <b>🖼️ Ảnh bìa</b>
-        <span class="hint">${data.versions.length} phiên bản</span>
+        <b>${m('🖼️ Ảnh bìa')}</b>
+        <span class="hint">${tp`${data.versions.length} phiên bản`}</span>
       </div>
-      ${curUrl ? `<img class="tp-current" src="${esc(curUrl)}" alt="ảnh bìa đang dùng">` : '<div class="hint">Chưa có ảnh bìa — bấm “Tạo lại” để AI dựng.</div>'}
+      ${curUrl ? `<img class="tp-current" src="${esc(curUrl)}" alt="${esc(m('ảnh bìa đang dùng'))}">` : `<div class="hint">${m('Chưa có ảnh bìa — bấm “Tạo lại” để AI dựng.')}</div>`}
       <div class="tp-acts">
-        <button class="btn xs" data-t="regen" title="AI dựng một thiết kế mới, chọn được bố cục và định hướng mỹ thuật">✨ Tạo lại</button>
-        <button class="btn xs" data-t="edit" ${cur?.html ? '' : 'disabled'} title="Giữ nguyên thiết kế, chỉ đổi thứ mình nói">🪄 Sửa bằng AI</button>
-        <button class="btn xs" data-t="html" ${cur?.html ? '' : 'disabled'} title="Mở mã HTML ra sửa tay rồi dựng lại">⌨️ Sửa HTML</button>
+        <button class="btn xs" data-t="regen" title="${esc(m('AI dựng một thiết kế mới, chọn được bố cục và định hướng mỹ thuật'))}">${m('✨ Tạo lại')}</button>
+        <button class="btn xs" data-t="edit" ${cur?.html ? '' : 'disabled'} title="${esc(m('Giữ nguyên thiết kế, chỉ đổi thứ mình nói'))}">${m('🪄 Sửa bằng AI')}</button>
+        <button class="btn xs" data-t="html" ${cur?.html ? '' : 'disabled'} title="${esc(m('Mở mã HTML ra sửa tay rồi dựng lại'))}">${m('⌨️ Sửa HTML')}</button>
       </div>
       ${data.versions.length ? `<div class="tp-strip">${data.versions.map(stripItem).join('')}</div>` : ''}
       <div class="tp-covers">
         <div class="tp-head" style="margin:12px 0 8px">
-          <b>Ảnh bìa theo tỉ lệ</b>
+          <b>${m('Ảnh bìa theo tỉ lệ')}</b>
           <span class="hint">${covers.length}/6</span>
-          <button class="btn xs ghost" data-cov="*" title="Dựng lại cả sáu khổ">Dựng lại tất cả</button>
+          <button class="btn xs ghost" data-cov="*" title="${esc(m('Dựng lại cả sáu khổ'))}">${m('Dựng lại tất cả')}</button>
         </div>
-        <div class="tp-strip">${(covers.length ? covers : RATIOS).map(coverItem).join('')}</div>
+        <div class="tp-strip">${(covers.length ? covers : ratios()).map(coverItem).join('')}</div>
       </div>
     </div>`;
 
@@ -81,17 +83,17 @@ export async function renderThumbPanel() {
 
 function stripItem(v) {
   const when = v.created_at ? new Date(v.created_at).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
-  const tag = SOURCE[v.source] || v.source || '';
+  const tag = sourceLabel(v.source);
   return `<figure class="tp-ver${v.current ? ' is-current' : ''}">
-    ${v.url ? `<img src="${esc(v.url)}" loading="lazy" alt="">` : `<div class="tp-gone">ảnh không còn</div>`}
+    ${v.url ? `<img src="${esc(v.url)}" loading="lazy" alt="">` : `<div class="tp-gone">${m('ảnh không còn')}</div>`}
     <figcaption>
       <span class="tp-tag">${esc(tag)}</span>
       <span class="hint">${esc(when)}</span>
       ${v.instruction ? `<span class="tp-note" title="${esc(v.instruction)}">“${esc(v.instruction.slice(0, 40))}”</span>` : ''}
       <span class="tp-vacts">
-        ${v.current ? '<b class="tp-cur">đang dùng</b>'
-    : `${v.url ? `<button class="btn xs ghost" data-use="${esc(v.id)}">Dùng bản này</button>` : ''}
-           <button class="btn xs ghost" data-del="${esc(v.id)}" title="Bỏ khỏi danh sách — ảnh vẫn còn trên đĩa">✕</button>`}
+        ${v.current ? `<b class="tp-cur">${m('đang dùng')}</b>`
+    : `${v.url ? `<button class="btn xs ghost" data-use="${esc(v.id)}">${m('Dùng bản này')}</button>` : ''}
+           <button class="btn xs ghost" data-del="${esc(v.id)}" title="${esc(m('Bỏ khỏi danh sách — ảnh vẫn còn trên đĩa'))}">✕</button>`}
       </span>
     </figcaption>
   </figure>`;
@@ -99,12 +101,12 @@ function stripItem(v) {
 
 function coverItem(c) {
   const url = c.path ? `/api/file?path=${encodeURIComponent(c.path)}` : null;
-  const label = c.label || RATIOS.find((r) => r.id === c.id)?.label || c.id;
+  const label = c.label || ratios().find((r) => r.id === c.id)?.label || c.id;
   return `<figure class="tp-ver">
-    ${url ? `<img src="${esc(url)}" loading="lazy" alt="">` : '<div class="tp-gone">chưa có</div>'}
+    ${url ? `<img src="${esc(url)}" loading="lazy" alt="">` : `<div class="tp-gone">${m('chưa có')}</div>`}
     <figcaption>
-      <span class="tp-tag">${esc(label)}</span>
-      <span class="tp-vacts"><button class="btn xs ghost" data-cov="${esc(c.id)}">Dựng lại khổ này</button></span>
+      <span class="tp-tag">${esc(m(label))}</span>
+      <span class="tp-vacts"><button class="btn xs ghost" data-cov="${esc(c.id)}">${m('Dựng lại khổ này')}</button></span>
     </figcaption>
   </figure>`;
 }
@@ -114,34 +116,34 @@ async function regenCovers(which) {
   const p = state.current;
   const all = which === '*';
   const prompt = await promptDialog({
-    title: all ? 'Dựng lại cả sáu khổ ảnh bìa' : `Dựng lại khổ ${which}`,
+    title: all ? m('Dựng lại cả sáu khổ ảnh bìa') : tp`Dựng lại khổ ${which}`,
     label: 'Định hướng mỹ thuật (để trống thì AI tự quyết)',
     placeholder: 'ví dụ: một khuôn mặt ngạc nhiên bên phải, chữ vàng cực lớn, nền tối',
     okText: 'Dựng',
   });
   if (prompt === null) return; // cancelled; an empty string is a deliberate "you decide"
-  toast(all ? 'Đang dựng sáu khổ…' : 'Đang dựng…');
+  toast(all ? m('Đang dựng sáu khổ…') : m('Đang dựng…'));
   try {
     await api.post(`/projects/${p.id}/covers/regen`, { fresh: true, prompt, ...(all ? {} : { only: [which] }) });
     toast('Đã dựng xong', 'ok');
     await renderThumbPanel();
-  } catch (e) { toast(e.message || 'Dựng không được', 'err'); }
+  } catch (e) { toast(e.message || m('Dựng không được'), 'err'); }
 }
 
 /** Re-design: pick a layout brief and, optionally, say what it should look like. */
 async function regen() {
   const p = state.current;
   const picked = await openDialog(`
-    <div class="dlg-title">Tạo lại ảnh bìa</div>
-    <div class="field"><label class="label">Bố cục</label>
-      <select class="input" data-a="layout">${LAYOUTS.map((l, i) => `<option value="${i}">${esc(l)}</option>`).join('')}</select></div>
-    <div class="field"><label class="label">Câu móc trên ảnh (để trống thì AI tự rút từ tiêu đề)</label>
-      <input class="input" data-a="hook" placeholder="3–6 chữ, ví dụ: AI CHỈ ĐANG ĐOÁN CHỮ"></div>
-    <div class="field" style="margin-bottom:16px"><label class="label">Định hướng mỹ thuật (không bắt buộc)</label>
-      <input class="input" data-a="prompt" placeholder="ví dụ: nền tối, một khuôn mặt ngạc nhiên bên phải, chữ vàng"></div>
+    <div class="dlg-title">${m('Tạo lại ảnh bìa')}</div>
+    <div class="field"><label class="label">${m('Bố cục')}</label>
+      <select class="input" data-a="layout">${layouts().map((l, i) => `<option value="${i}">${esc(l)}</option>`).join('')}</select></div>
+    <div class="field"><label class="label">${m('Câu móc trên ảnh (để trống thì AI tự rút từ tiêu đề)')}</label>
+      <input class="input" data-a="hook" placeholder="${esc(m('3–6 chữ, ví dụ: AI CHỈ ĐANG ĐOÁN CHỮ'))}"></div>
+    <div class="field" style="margin-bottom:16px"><label class="label">${m('Định hướng mỹ thuật (không bắt buộc)')}</label>
+      <input class="input" data-a="prompt" placeholder="${esc(m('ví dụ: nền tối, một khuôn mặt ngạc nhiên bên phải, chữ vàng'))}"></div>
     <div class="dlg-actions">
-      <button class="btn" data-a="cancel">Huỷ</button>
-      <button class="btn primary" data-a="ok">Dựng</button>
+      <button class="btn" data-a="cancel">${m('Huỷ')}</button>
+      <button class="btn primary" data-a="ok">${m('Dựng')}</button>
     </div>`, {
     onReady(dlg, close) {
       dlg.querySelector('[data-a=cancel]').addEventListener('click', () => close(null));
@@ -158,7 +160,7 @@ async function regen() {
     await api.post(`/projects/${p.id}/thumbnail/regen`, picked);
     toast('Đã dựng bản mới', 'ok');
     await refreshAfterChange();
-  } catch (e) { toast(e.message || 'Dựng không được', 'err'); }
+  } catch (e) { toast(e.message || m('Dựng không được'), 'err'); }
 }
 
 /** Edit by instruction — keeps everything the owner already liked. */
@@ -176,7 +178,7 @@ async function editByAi() {
     await api.post(`/projects/${p.id}/thumbnail/edit-html`, { prompt });
     toast('Đã sửa', 'ok');
     await refreshAfterChange();
-  } catch (e) { toast(e.message || 'AI chưa sửa được', 'err'); }
+  } catch (e) { toast(e.message || m('AI chưa sửa được'), 'err'); }
 }
 
 /** The escape hatch: when AI keeps missing the point, edit the markup directly. */
@@ -186,12 +188,12 @@ async function editHtml(cur) {
   if (!html) { try { html = (await api.get(`/projects/${p.id}/thumbnail`)).html; } catch { /* none */ } }
   if (!html) return toast('Chưa có thiết kế để sửa — tạo bằng AI trước', 'err');
   const edited = await openDialog(`
-    <div class="dlg-title">Sửa HTML ảnh bìa</div>
-    <div class="hint" style="margin-bottom:8px">Chỉ phần bên trong khung: một khối &lt;style&gt; rồi tới các thẻ. Không có &lt;html&gt;, không &lt;script&gt;.</div>
+    <div class="dlg-title">${m('Sửa HTML ảnh bìa')}</div>
+    <div class="hint" style="margin-bottom:8px">${m('Chỉ phần bên trong khung: một khối &lt;style&gt; rồi tới các thẻ. Không có &lt;html&gt;, không &lt;script&gt;.')}</div>
     <textarea class="input" data-a="html" spellcheck="false" style="width:100%;height:46vh;font-family:ui-monospace,monospace;font-size:12px;line-height:1.5">${esc(html)}</textarea>
     <div class="dlg-actions" style="margin-top:16px">
-      <button class="btn" data-a="cancel">Huỷ</button>
-      <button class="btn primary" data-a="ok">Dựng lại</button>
+      <button class="btn" data-a="cancel">${m('Huỷ')}</button>
+      <button class="btn primary" data-a="ok">${m('Dựng lại')}</button>
     </div>`, {
     onReady(dlg, close) {
       const ta = dlg.querySelector('[data-a=html]');
@@ -206,7 +208,7 @@ async function editHtml(cur) {
     await api.post(`/projects/${p.id}/thumbnail/regen`, { html: edited });
     toast('Đã dựng bản sửa tay', 'ok');
     await refreshAfterChange();
-  } catch (e) { toast(e.message || 'HTML không dựng được', 'err'); }
+  } catch (e) { toast(e.message || m('HTML không dựng được'), 'err'); }
 }
 
 async function useVersion(id) {
@@ -214,20 +216,20 @@ async function useVersion(id) {
     await api.post(`/projects/${state.current.id}/thumbnails/${id}/use`, {});
     toast('Đã đổi ảnh bìa', 'ok');
     await refreshAfterChange();
-  } catch (e) { toast(e.message || 'Không đổi được', 'err'); }
+  } catch (e) { toast(e.message || m('Không đổi được'), 'err'); }
 }
 
 async function delVersion(id) {
   const ok = await confirmDialog({
     title: 'Bỏ phiên bản này?',
     body: 'Chỉ bỏ khỏi danh sách. Ảnh vẫn còn trong thư mục xuất.',
-    okText: 'Bỏ', danger: true,
+    okText: m('Bỏ'), danger: true,
   });
   if (!ok) return;
   try {
     await api.del(`/projects/${state.current.id}/thumbnails/${id}`);
     await renderThumbPanel();
-  } catch (e) { toast(e.message || 'Không bỏ được', 'err'); }
+  } catch (e) { toast(e.message || m('Không bỏ được'), 'err'); }
 }
 
 /** The project row carries thumb_path, so the gallery tile is stale until we re-read it. */

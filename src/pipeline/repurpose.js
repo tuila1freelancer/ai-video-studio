@@ -10,6 +10,7 @@ import { logger } from '../util/log.js';
 import { renderValidate } from '../hyperframe/validate.js';
 import { resolveGuide } from '../styleguide/index.js';
 import { animSize } from '../animation/index.js';
+import { m, tp } from '../i18n/t.js';
 
 const RATIO_TAG = { '9:16': 'Dọc', '16:9': 'Ngang', '1:1': 'Vuông', '4:5': '4:5' };
 
@@ -21,9 +22,9 @@ const RATIO_TAG = { '9:16': 'Dọc', '16:9': 'Ngang', '1:1': 'Vuông', '4:5': '4
 export async function repurposeProject(sourceId, { aspectRatio } = {}) {
   const src = DB.getProject(sourceId);
   if (!src) throw new Error('project not found');
-  if (!aspectRatio || aspectRatio === src.aspect_ratio) throw new Error('cần một tỉ lệ khung KHÁC bản gốc');
+  if (!aspectRatio || aspectRatio === src.aspect_ratio) throw new Error(m('cần một tỉ lệ khung KHÁC bản gốc'));
   const srcScenes = DB.getScenes(sourceId);
-  if (!srcScenes.length) throw new Error('dự án nguồn chưa có cảnh');
+  if (!srcScenes.length) throw new Error(m('dự án nguồn chưa có cảnh'));
 
   const config = { ...(src.config || {}), aspectRatio };
   const project = DB.createProject({
@@ -69,9 +70,9 @@ export async function repurposeProject(sourceId, { aspectRatio } = {}) {
           DB.updateScene(sc.id, { template: null, props: null, status: 'script' });
           dropped++;
         }
-      } catch (e) { logger.warn(`Đổi tỉ lệ: cảnh ${sc.idx + 1} validate lỗi: ${e.message}`, { projectId: project.id, sceneIdx: sc.idx }); }
+      } catch (e) { logger.warn(tp`Đổi tỉ lệ: cảnh ${sc.idx + 1} validate lỗi: ${e.message}`, { projectId: project.id, sceneIdx: sc.idx }); }
     }
   }
-  logger.info(`📱 Đổi tỉ lệ ${sourceId} → ${project.id} (${aspectRatio}): ${cloned.length} cảnh, ${revalidated} spec giữ nguyên, ${dropped} cảnh dàn lại`, { projectId: project.id });
+  logger.info(tp`📱 Đổi tỉ lệ ${sourceId} → ${project.id} (${aspectRatio}): ${cloned.length} cảnh, ${revalidated} spec giữ nguyên, ${dropped} cảnh dàn lại`, { projectId: project.id });
   return { project: DB.getProject(project.id), revalidated, dropped };
 }

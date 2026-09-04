@@ -14,6 +14,7 @@ import { textLanguageLeak, narrationWordSet } from '../../hyperframe/validate.js
 import { resolveLang, langName } from '../../util/lang.js';
 import { lang as langRow } from '../../i18n/languages.js';
 
+import { m, tp } from '../../i18n/t.js';
 /** Number and currency conventions that betray a different locale than the narration. */
 const VI_CURRENCY = /\bđ\b|\bvnđ\b|\btriệu\b|\btỷ\b/i;
 // Thousands grouped by a dot, by a comma, or by a space — the three conventions the supported
@@ -77,12 +78,12 @@ export function qcScan(projectId) {
     //    made this module exist.
     if (scene.video_path) {
       if (!existsSync(scene.video_path)) {
-        add(scene, 'clip-missing', 'clip đã biến mất khỏi đĩa');
+        add(scene, 'clip-missing', m('clip đã biến mất khỏi đĩa'));
       } else if (!renderCurrent(scene, { config, project }, config).ok) {
-        add(scene, 'clip-stale', 'clip trên đĩa KHÔNG khớp thiết kế hiện tại — cần render lại');
+        add(scene, 'clip-stale', m('clip trên đĩa KHÔNG khớp thiết kế hiện tại — cần render lại'));
       }
     } else if (scene.audio_path) {
-      add(scene, 'clip-missing', 'chưa có clip cho cảnh này');
+      add(scene, 'clip-missing', m('chưa có clip cho cảnh này'));
     }
 
     // 2. On-screen text in a language the narration is not in.
@@ -91,7 +92,7 @@ export function qcScan(projectId) {
     const narrWords = narrationWordSet(scene.voice_text);
     for (const t of narrWords ? screenText(scene) : []) {
       if (textLanguageLeak(t, narrWords, lang)) {
-        add(scene, 'wrong-language', `chữ trên màn có vẻ không phải ${langName(lang)}: "${t.slice(0, 40)}"`);
+        add(scene, 'wrong-language', tp`chữ trên màn có vẻ không phải ${langName(lang)}: "${t.slice(0, 40)}"`);
         break; // one report per scene is enough to send the owner to look
       }
     }
@@ -104,20 +105,20 @@ export function qcScan(projectId) {
       const want = groupSeparator(lang);
       // NBSP, narrow NBSP and a plain space are the same convention to a reader.
       const same = grouped[1] === want || (/[\s\u00a0\u202f]/.test(grouped[1]) && /[\s\u00a0\u202f]/.test(want));
-      if (!same) add(scene, 'number-locale', `số đang nhóm hàng nghìn kiểu "${grouped[1] === ' ' ? 'khoảng trắng' : grouped[1]}", ${langName(lang)} dùng "${want === ' ' ? 'khoảng trắng' : want}"`);
+      if (!same) add(scene, 'number-locale', tp`số đang nhóm hàng nghìn kiểu "${grouped[1] === ' ' ? m('khoảng trắng') : grouped[1]}", ${langName(lang)} dùng "${want === ' ' ? m('khoảng trắng') : want}"`);
     }
     if (lang !== 'vi' && VI_CURRENCY.test(all)) {
-      add(scene, 'number-locale', 'tiền tệ đang theo quy ước tiếng Việt');
+      add(scene, 'number-locale', m('tiền tệ đang theo quy ước tiếng Việt'));
     }
 
     // 4. A label the spec sanitiser blanked out — an empty box where a word should be.
     if (blankedLabel(scene.props?.html)) {
-      add(scene, 'empty-label', 'có nhãn bị xoá trắng trong thiết kế');
+      add(scene, 'empty-label', m('có nhãn bị xoá trắng trong thiết kế'));
     }
 
     // 5. Voice in a different language from the video's.
     if (scene.voice_text && textsOf(scene).length === 0 && !scene.props) {
-      add(scene, 'no-design', 'cảnh chưa có thiết kế hình');
+      add(scene, 'no-design', m('cảnh chưa có thiết kế hình'));
     }
   }
   return { lang, scenes: scenes.length, findings };

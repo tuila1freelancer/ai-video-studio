@@ -15,6 +15,7 @@ import { $ } from '../ui/dom.js';
 import { api } from '../api.js';
 import { toast } from '../ui/toast.js';
 import { state } from '../state.js';
+import { m, tp } from '../i18n.js';
 import { confirmDialog, menuDialog } from '../ui/dialog.js';
 import { openSceneStudio } from './scene-studio.js';
 
@@ -29,11 +30,14 @@ const fmtT = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart
 const when = (ms) => new Date(ms).toLocaleString('vi-VN');
 
 // Cuts worth having that cost nothing but a join, because every one of them is a concat setting.
-const VARIANTS = [
-  { name: 'Không logo', hint: 'để đối tác tự gắn nhận diện', config: { logo: null, brandKit: { finalOverlay: { enabled: false } } } },
-  { name: 'Không nhạc nền', hint: 'tránh vướng bản quyền khi đăng lại', config: { bgmPath: null, autoBgm: false, soundDesign: false } },
-  { name: 'Không watermark', hint: 'bản sạch để dựng tiếp', config: { watermark: null, brandKit: { watermark: { enabled: false } } } },
-  { name: 'Ghép nhanh', hint: 'encode nhanh hơn ~1.8×, chất lượng gần như không đổi', config: { concatEncoder: 'fast' } },
+// `name` is the variant's IDENTITY, not a label: the server dedupes metadata.variants by it and
+// stores it on the render row, so it stays Vietnamese whatever the interface language is.
+// `label`/`hint` are built on call, not at import: the catalogue is fetched after this module runs.
+const variants = () => [
+  { name: 'Không logo', label: m('Không logo'), hint: m('để đối tác tự gắn nhận diện'), config: { logo: null, brandKit: { finalOverlay: { enabled: false } } } },
+  { name: 'Không nhạc nền', label: m('Không nhạc nền'), hint: m('tránh vướng bản quyền khi đăng lại'), config: { bgmPath: null, autoBgm: false, soundDesign: false } },
+  { name: 'Không watermark', label: m('Không watermark'), hint: m('bản sạch để dựng tiếp'), config: { watermark: null, brandKit: { watermark: { enabled: false } } } },
+  { name: 'Ghép nhanh', label: m('Ghép nhanh'), hint: m('encode nhanh hơn ~1.8×, chất lượng gần như không đổi'), config: { concatEncoder: 'fast' } },
 ];
 
 export async function openVersions() {
@@ -50,8 +54,8 @@ export async function openVersions() {
   const items = versions.map((v, i) => ({
     id: v.id,
     icon: v.variant ? '📦' : (i === 0 ? '●' : '🎞'),
-    label: `${v.variant || 'Bản chính'} · ${when(v.created_at)} · ${fmtT(v.duration || 0)}`
-      + `${v.changes?.length ? ` · đổi: ${v.changes.slice(0, 3).join(', ')}` : ''}`,
+    label: `${v.variant || m('Bản chính')} · ${when(v.created_at)} · ${fmtT(v.duration || 0)}`
+      + `${v.changes?.length ? tp` · đổi: ${v.changes.slice(0, 3).join(', ')}` : ''}`,
   }));
   const pick = await menuDialog({ title: 'Phiên bản đã xuất', items });
   if (!pick) return;
@@ -59,8 +63,8 @@ export async function openVersions() {
   if (!v) return;
   const ok = await confirmDialog({
     title: 'Quay về phiên bản này?',
-    body: `Video chính sẽ trỏ lại file của bản ${when(v.created_at)} và cấu hình được khôi phục theo bản đó. `
-      + 'Bản mới hơn KHÔNG bị xoá — nó vẫn nằm trong danh sách này.',
+    body: tp`Video chính sẽ trỏ lại file của bản ${when(v.created_at)} và cấu hình được khôi phục theo bản đó.`
+      + ` ${m('Bản mới hơn KHÔNG bị xoá — nó vẫn nằm trong danh sách này.')}`,
     okText: 'Quay về bản này',
   });
   if (!ok) return;
@@ -74,54 +78,56 @@ export async function openVersions() {
 export async function openVariant() {
   const id = state.current?.id;
   if (!id) return;
+  const list = variants();
   const pick = await menuDialog({
     title: 'Xuất một bản khác từ cùng bộ clip',
-    items: VARIANTS.map((v) => ({ id: v.name, icon: '📦', label: `${v.name} — ${v.hint}` })),
+    items: list.map((v) => ({ id: v.name, icon: '📦', label: `${v.label} — ${v.hint}` })),
   });
   if (!pick) return;
-  const v = VARIANTS.find((x) => x.name === pick);
+  const v = list.find((x) => x.name === pick);
   try {
     await api.post(`/projects/${id}/export-variant`, { name: v.name, config: v.config });
-    toast(`📦 Đang xuất bản "${v.name}" — video chính giữ nguyên`, 'success');
+    toast(tp`📦 Đang xuất bản "${v.label}" — video chính giữ nguyên`, 'success');
   } catch (e) { toast(`✖ ${e.message}`, 'error'); }
 }
 
-const KIND_LABEL = {
-  'clip-stale': '🔴 Clip không khớp thiết kế',
-  'clip-missing': '🔴 Thiếu clip',
-  'wrong-language': '🟠 Chữ sai ngôn ngữ',
-  'number-locale': '🟡 Quy ước số/tiền tệ',
-  'empty-label': '🟡 Nhãn bị xoá trắng',
-  'no-design': '🟠 Cảnh chưa có thiết kế',
-};
+const kindLabels = () => ({
+  'clip-stale': m('🔴 Clip không khớp thiết kế'),
+  'clip-missing': m('🔴 Thiếu clip'),
+  'wrong-language': m('🟠 Chữ sai ngôn ngữ'),
+  'number-locale': m('🟡 Quy ước số/tiền tệ'),
+  'empty-label': m('🟡 Nhãn bị xoá trắng'),
+  'no-design': m('🟠 Cảnh chưa có thiết kế'),
+});
 
 export async function openQcScan() {
   const id = state.current?.id;
   if (!id) return;
   const btn = $('#btnQcScan');
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ Đang quét…'; }
+  if (btn) { btn.disabled = true; btn.textContent = m('⏳ Đang quét…'); }
   try {
     const r = await api.get(`/projects/${id}/qc-scan`);
     if (!r.findings.length) {
-      toast(`✓ Quét ${r.scenes} cảnh — không thấy vấn đề nào`, 'success');
+      toast(tp`✓ Quét ${r.scenes} cảnh — không thấy vấn đề nào`, 'success');
       return;
     }
     // Grouped by kind, worst first, and every row names its scene so the report is actionable
     // rather than merely alarming.
-    const order = Object.keys(KIND_LABEL);
+    const kinds = kindLabels();
+    const order = Object.keys(kinds);
     const rows = r.findings.slice().sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind));
     const pick = await menuDialog({
-      title: `Kiểm tra video — ${r.findings.length} điểm cần xem`,
+      title: tp`Kiểm tra video — ${r.findings.length} điểm cần xem`,
       items: rows.slice(0, 40).map((f) => ({
         id: f.sceneId, danger: f.kind.startsWith('clip-'),
-        label: `${KIND_LABEL[f.kind] || f.kind} · cảnh ${f.sceneIdx}: ${f.detail}`,
+        label: tp`${kinds[f.kind] || f.kind} · cảnh ${f.sceneIdx}: ${f.detail}`,
       })),
     });
     if (pick) openSceneFromId(pick);
   } catch (e) {
     toast(`✖ ${e.message}`, 'error');
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = '🔬 Kiểm tra'; }
+    if (btn) { btn.disabled = false; btn.textContent = m('🔬 Kiểm tra'); }
   }
 }
 
@@ -143,8 +149,8 @@ export function initJumpToScene() {
     if (!hint) return;
     const s = at(video.currentTime);
     hint.innerHTML = s
-      ? `▶ Đang ở <strong>cảnh ${s.idx + 1}</strong> (${fmtT(s.start)}–${fmtT(s.end)}) — <a href="#" id="jumpGo">mở cảnh này để sửa</a>`
-      : (timeline().length ? '' : 'Bản dựng này chưa lưu bản đồ thời gian — lần ghép tới sẽ có.');
+      ? `${m('▶ Đang ở')} <strong>${tp`cảnh ${s.idx + 1}`}</strong> (${fmtT(s.start)}–${fmtT(s.end)}) — <a href="#" id="jumpGo">${m('mở cảnh này để sửa')}</a>`
+      : (timeline().length ? '' : m('Bản dựng này chưa lưu bản đồ thời gian — lần ghép tới sẽ có.'));
   });
   if (hint) {
     hint.addEventListener('click', (e) => {

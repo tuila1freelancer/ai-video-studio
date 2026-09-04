@@ -1,6 +1,6 @@
 import { $, el, esc } from './dom.js';
 import { icon } from './icons.js';
-import { t as translate } from '../i18n.js';
+import { t as translate, m } from '../i18n.js';
 
 const KIND_ICON = { success: 'check', error: 'alert', '': 'clock' };
 const MAX_STACK = 5;
@@ -15,7 +15,7 @@ export function toast(msg, kindOrOpts = '') {
   const kind = opts.kind || '';
   msg = translate(`ui.msg.${msg}`, null, msg);
   const t = el('div', 'toast ' + kind);
-  t.innerHTML = `${icon(KIND_ICON[kind] ?? 'clock', 15)}<span>${msg}</span>${opts.action ? `<button class="t-act">${esc(opts.action.label)}</button>` : ''}`;
+  t.innerHTML = `${icon(KIND_ICON[kind] ?? 'clock', 15)}<span>${msg}</span>${opts.action ? `<button class="t-act">${esc(m(opts.action.label))}</button>` : ''}`;
   if (opts.action) t.querySelector('.t-act').addEventListener('click', () => { opts.action.fn(); t.remove(); });
   const box = $('#toasts');
   box.appendChild(t);

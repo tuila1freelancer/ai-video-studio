@@ -23,6 +23,7 @@ import { themeFromGuide, resolveGuide } from '../../styleguide/index.js';
 import { ratioToSize, newId } from '../../util/util.js';
 import { resolveLang } from '../../util/lang.js';
 
+import { m, tp } from '../../i18n/t.js';
 const ffQuote = (p) => `'${String(p).replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
 const fmt = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
@@ -84,7 +85,7 @@ export async function framePreview(projectId, { t = 1.5, overrides = {} } = {}) 
   // baked in, so what gets drawn on it is the panel's live config and nothing else.
   const { row: scene, start } = sceneAt(project, scenes, t);
   const finished = project.video_path && existsSync(project.video_path) ? project.video_path : null;
-  if (!scene && !finished) throw new Error('chưa có cảnh nào đã render để xem thử');
+  if (!scene && !finished) throw new Error(m('chưa có cảnh nào đã render để xem thử'));
   // No clip for this moment — the clips were cleaned up, or this is a legacy project. Fall back to
   // the finished video and draw NOTHING on it: it is already stamped, and a second pass would lie.
   const bare = !!scene;
@@ -130,9 +131,9 @@ export async function framePreview(projectId, { t = 1.5, overrides = {} } = {}) 
       const near = live || cues.find((c) => c.end > t) || cues[cues.length - 1];
       if (!live && near) {
         shown = Math.min(near.start + 0.35, near.end - 0.01);
-        note = note || `⏱ ${fmt(t)} không có phụ đề — đang xem tại ${fmt(shown)}`;
+        note = note || tp`⏱ ${fmt(t)} không có phụ đề — đang xem tại ${fmt(shown)}`;
       }
-      if (!near) note = note || 'cảnh này không có phụ đề';
+      if (!near) note = note || m('cảnh này không có phụ đề');
       if (near) {
         const path = join(dir, `frame_${newId('')}.ass`);
         // the same measurement the burn does, or the preview would draw a box the video will not
@@ -159,7 +160,7 @@ export async function framePreview(projectId, { t = 1.5, overrides = {} } = {}) 
       }
     }
   } else if (!bare) {
-    note = 'khung này lấy từ video đã xuất — phụ đề và logo đã in sẵn, không xem trước thay đổi được';
+    note = m('khung này lấy từ video đã xuất — phụ đề và logo đã in sẵn, không xem trước thay đổi được');
   }
 
   // ---- logo, through the arithmetic the concat uses ----

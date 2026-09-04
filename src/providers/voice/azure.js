@@ -10,6 +10,7 @@ import { probeDuration } from '../../media/ffmpeg.js';
 import { recordUsage } from '../../util/usage.js';
 import { escapeXml, ssmlProsody } from './ssml.js';
 
+import { tp } from '../../i18n/t.js';
 const host = (cfg) => `${String(cfg?.region || 'eastus').trim()}.tts.speech.microsoft.com`;
 
 // One sensible default per language, so 'auto' never has to guess from a list of four hundred.
@@ -90,7 +91,7 @@ export default {
       if (!res.ok) return { ok: false, message: `HTTP ${res.status}` };
       const list = await res.json();
       const langs = new Set(list.map((v) => v.Locale));
-      return { ok: true, message: `OK — ${list.length} giọng, ${langs.size} ngôn ngữ` };
+      return { ok: true, message: tp`OK — ${list.length} giọng, ${langs.size} ngôn ngữ` };
     } catch (e) { return { ok: false, message: e.message }; }
   },
 };

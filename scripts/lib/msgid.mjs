@@ -14,22 +14,72 @@
  * is exactly what happened the first time these two helpers were documented.
  */
 export function stripComments(src) {
+  // A `/` opens a regex only where a VALUE may start; anywhere else it is division.
+  const opensValue = (before) => {
+    const t = before.replace(/\s+$/, '');
+    if (!t) return true;
+    if (/[=(,:[!&|?{};+\-*%~^]$/.test(t)) return true;
+    return /\b(?:return|typeof|instanceof|in|of|new|delete|void|case|do|else|yield|await)$/.test(t);
+  };
+
+  // Code and template text are two different languages sharing one file, and `${…}` switches
+  // between them any number of levels deep. A scanner that treats a template as a plain string
+  // ends the outer one at the INNER template's opening backtick — after which `</div>` is read as
+  // code, `/div>…/` as a regex, and every offset downstream is wrong.
+  const frames = [{ tpl: false, hole: false, depth: 0 }];
   let out = '';
-  for (let i = 0; i < src.length;) {
+  let i = 0;
+  while (i < src.length) {
+    const f = frames[frames.length - 1];
+
+    if (f.tpl) {
+      const c = src[i];
+      if (c === '\\') { out += src.slice(i, i + 2); i += 2; continue; }
+      if (c === '`') { out += c; i++; frames.pop(); continue; }
+      if (c === '$' && src[i + 1] === '{') { out += '${'; i += 2; frames.push({ tpl: false, hole: true, depth: 0 }); continue; }
+      out += c; i++;
+      continue;
+    }
+
     const c = src[i], d = src[i + 1];
     if (c === '/' && d === '/') { while (i < src.length && src[i] !== '\n') { out += ' '; i++; } continue; }
     if (c === '/' && d === '*') {
       while (i < src.length && !(src[i] === '*' && src[i + 1] === '/')) { out += src[i] === '\n' ? '\n' : ' '; i++; }
       out += '  '; i += 2; continue;
     }
-    if (c === '"' || c === "'" || c === '`') {
-      const q = c; out += c; i++;
+    if (c === '/' && opensValue(out)) {
+      // BLANK the regex, keeping its width: /("[^"]*"|'[^']*')/ carries unbalanced quotes, and a
+      // scanner that reads them as string delimiters is one quote out of step for the rest of the
+      // file. A regex body is never translatable text.
+      out += ' '; i++;
+      let inClass = false;
+      while (i < src.length) {
+        const r = src[i];
+        if (r === '\\') { out += '  '; i += 2; continue; }
+        if (r === '\n') break;                    // unterminated: it was division after all
+        out += ' '; i++;
+        if (r === '[') inClass = true;
+        else if (r === ']') inClass = false;
+        else if (r === '/' && !inClass) break;
+      }
+      while (i < src.length && /[gimsuyvd]/.test(src[i])) { out += ' '; i++; }
+      continue;
+    }
+    if (c === '`') { out += c; i++; frames.push({ tpl: true, hole: false, depth: 0 }); continue; }
+    if (c === '"' || c === "'") {
+      out += c; i++;
       while (i < src.length) {
         if (src[i] === '\\') { out += src.slice(i, i + 2); i += 2; continue; }
-        if (src[i] === q) { out += q; i++; break; }
+        if (src[i] === c) { out += c; i++; break; }
+        if (src[i] === '\n') break;               // unterminated: do not swallow the whole file
         out += src[i]; i++;
       }
       continue;
+    }
+    if (c === '{') f.depth++;
+    else if (c === '}') {
+      if (f.hole && f.depth === 0) { out += '}'; i++; frames.pop(); continue; }
+      f.depth--;
     }
     out += c; i++;
   }

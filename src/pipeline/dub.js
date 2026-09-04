@@ -20,6 +20,7 @@ import { isSupported, lang as langRow } from '../i18n/languages.js';
 import { countWords } from '../i18n/segment.js';
 import { failed } from '../core/errors.js';
 
+import { m, tp } from '../i18n/t.js';
 const BATCH = 12;
 
 /**
@@ -31,7 +32,7 @@ const BATCH = 12;
  * computed from both rates and given per scene.
  */
 export async function translateNarration(scenes, { from, to, llm, onLog = () => {} } = {}) {
-  if (!llmEnabled(llm)) throw failed('config.no-llm', 'cần bật LLM để dịch lời thoại');
+  if (!llmEnabled(llm)) throw failed('config.no-llm', m('cần bật LLM để dịch lời thoại'));
   const ratio = (LANG_WPS[to] || 3) / (LANG_WPS[from] || 3);
   const out = new Array(scenes.length);
 
@@ -64,10 +65,10 @@ around it, so:
     });
     for (let j = 0; j < slice.length; j++) {
       const v = reply?.scenes?.[String(i + j)];
-      if (typeof v !== 'string' || !v.trim()) throw new Error(`lồng tiếng: thiếu lời thoại cảnh ${i + j + 1}`);
+      if (typeof v !== 'string' || !v.trim()) throw new Error(tp`lồng tiếng: thiếu lời thoại cảnh ${i + j + 1}`);
       out[i + j] = v.trim();
     }
-    onLog(`dịch lời thoại: ${Math.min(i + BATCH, scenes.length)}/${scenes.length} cảnh`);
+    onLog(tp`dịch lời thoại: ${Math.min(i + BATCH, scenes.length)}/${scenes.length} cảnh`);
   }
   return out;
 }
@@ -84,12 +85,12 @@ around it, so:
 export async function dubProject(sourceId, { language, llm, onLog = () => {} } = {}) {
   const src = DB.getProject(sourceId);
   if (!src) throw failed('config.bad-input', 'project not found');
-  if (!isSupported(language)) throw failed('config.bad-input', 'ngôn ngữ không được hỗ trợ');
+  if (!isSupported(language)) throw failed('config.bad-input', m('ngôn ngữ không được hỗ trợ'));
   const srcScenes = DB.getScenes(sourceId).sort((a, b) => a.idx - b.idx);
-  if (!srcScenes.length) throw failed('config.bad-input', 'dự án nguồn chưa có cảnh');
+  if (!srcScenes.length) throw failed('config.bad-input', m('dự án nguồn chưa có cảnh'));
 
   const from = resolveLang(src.config || {}, srcScenes);
-  if (from === language) throw failed('config.bad-input', 'cần một ngôn ngữ KHÁC bản gốc');
+  if (from === language) throw failed('config.bad-input', m('cần một ngôn ngữ KHÁC bản gốc'));
 
   const voices = await translateNarration(srcScenes, { from, to: language, llm, onLog });
 
@@ -115,6 +116,6 @@ export async function dubProject(sourceId, { language, llm, onLog = () => {} } =
     props: null,
   })));
 
-  onLog(`đã tạo bản ${langName(language)}: ${srcScenes.length} cảnh, giữ nguyên chỉ dẫn mỹ thuật`);
+  onLog(tp`đã tạo bản ${langName(language)}: ${srcScenes.length} cảnh, giữ nguyên chỉ dẫn mỹ thuật`);
   return { project, scenes: srcScenes.length, language };
 }

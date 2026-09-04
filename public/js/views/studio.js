@@ -15,10 +15,11 @@ import { initPendingChanges, schedulePendingCheck, resetPendingCheck } from '../
 import { openSrt } from '../features/srt.js';
 import { confirmDialog, menuDialog, publishDialog, promptDialog } from '../ui/dialog.js';
 import { renderThumbPanel } from './thumbnail.js';
-import { t, setLabel } from '../i18n.js';
+import { t, m, tp, setLabel } from '../i18n.js';
 
 let ws = null;
 // Caption tracks the owner can export. Named in the language itself, like the interface picker.
+// i18n-exempt: endonyms — a language names itself, so the picker stays usable in any interface.
 const SRT_LANGS = [
   ['vi', '🇻🇳 Tiếng Việt'], ['en', '🇺🇸 English'], ['ja', '🇯🇵 日本語'], ['ko', '🇰🇷 한국어'],
   ['zh', '🇨🇳 中文'], ['es', '🇪🇸 Español'], ['fr', '🇫🇷 Français'], ['de', '🇩🇪 Deutsch'],
@@ -53,20 +54,20 @@ export function initStudio() {
     else if (v.webkitEnterFullscreen) v.webkitEnterFullscreen(); // Safari <video> fallback
   });
   const lt = $('#logToggle');
-  if (lt?.firstElementChild) lt.firstElementChild.innerHTML = `${icon('book', 13)} Nhật ký xử lý`;
+  if (lt?.firstElementChild) setLabel(lt.firstElementChild, icon('book', 13), 'Nhật ký xử lý');
   $('#topic').addEventListener('input', detectType);
   $('#btnStart').addEventListener('click', () => withLock($('#btnStart'), createAndStart));
   $('#btnDelAll').addEventListener('click', async () => {
     // Same rule as the single delete: the files go too, so say so before anything is pressed.
     const ok = await confirmDialog({
       title: 'Xoá tất cả dự án?',
-      body: `Toàn bộ ${state.projects.length} dự án của kênh này sẽ bị xoá — kèm TOÀN BỘ file trên ổ đĩa`
-        + ' (kịch bản, giọng đọc, clip từng cảnh, video hoàn chỉnh, ảnh bìa).\n\nKhông khôi phục được.',
+      body: tp`Toàn bộ ${state.projects.length} dự án của kênh này sẽ bị xoá — kèm TOÀN BỘ file trên ổ đĩa (kịch bản, giọng đọc, clip từng cảnh, video hoàn chỉnh, ảnh bìa).`
+        + '\n\n' + m('Không khôi phục được.'),
       okText: 'Xoá tất cả vĩnh viễn', cancelText: 'Giữ lại', danger: true,
     });
     if (ok) {
       const r = await api.del('/projects');
-      toast(`🗑 Đã xoá ${r.files || 0} file (${mb(r.bytes || 0)})`, 'success');
+      toast(tp`🗑 Đã xoá ${r.files || 0} file (${mb(r.bytes || 0)})`, 'success');
       startNewProject(); loadProjects();
     }
   });
@@ -82,7 +83,7 @@ export function initStudio() {
       if (r?.error) { toast(r.error, 'error'); return; }
       $('#sceneGateBar').classList.add('hidden');
       toast('🎙 Đã duyệt cảnh — bắt đầu lồng tiếng + render', 'success');
-    } catch (e) { toast('Không duyệt được: ' + (e?.message || e), 'error'); }
+    } catch (e) { toast(tp`Không duyệt được: ${e?.message || e}`, 'error'); }
   }));
   $('#btnRender').addEventListener('click', () => withLock($('#btnRender'), () => renderScenes2('all')));
   $('#btnTypeset').addEventListener('click', () => withLock($('#btnTypeset'), repairTypeset));
@@ -101,8 +102,8 @@ export function initStudio() {
       const r = await api.get(`/projects/${state.current.id}/scenes-json`);
       if (r?.error) return toast(r.error, 'error');
       await navigator.clipboard.writeText(JSON.stringify(r, null, 2));
-      toast(`Đã copy scenes JSON (${r.scenes?.length || 0} cảnh) ✓`, 'success');
-    } catch (e) { toast('Không copy được: ' + (e?.message || e), 'error'); }
+      toast(tp`Đã copy scenes JSON (${r.scenes?.length || 0} cảnh) ✓`, 'success');
+    } catch (e) { toast(tp`Không copy được: ${e?.message || e}`, 'error'); }
   });
   $('#checkAll').addEventListener('change', (e) => { $$('#sceneGrid .scene').forEach((c) => { c.classList.toggle('sel', e.target.checked); c.querySelector('.chk').checked = e.target.checked; }); updateSelCount(); });
   $('#btnSrt').addEventListener('click', openSrt);
@@ -126,9 +127,11 @@ export function initStudio() {
   initPendingChanges();
   // the fetched article: show it, edit it, drop it
   $('#srcToggle')?.addEventListener('click', () => {
-    const t = $('#srcText');
-    t.classList.toggle('hidden');
-    $('#srcToggle').textContent = t.classList.contains('hidden') ? 'Xem' : 'Ẩn';
+    const box = $('#srcText');
+    box.classList.toggle('hidden');
+    // 'Xem' carries no diacritic, so no m() msgid for it can ever reach the catalogue — the
+    // button's own data-i18n key can.
+    $('#srcToggle').textContent = box.classList.contains('hidden') ? t('ui.srcDoc.xem', null, 'Xem') : m('Ẩn');
   });
   $('#srcClear')?.addEventListener('click', () => setSourceDoc(null));
   // An edit is the owner's decision about what the video is written from, so it has to be what
@@ -149,14 +152,14 @@ export async function loadProjects() {
 }
 export function renderProjectList() {
   const box = $('#projList');
-  if (!state.projects.length) { box.innerHTML = '<div class="empty">Chưa có dự án</div>'; return; }
+  if (!state.projects.length) { box.innerHTML = `<div class="empty">${m('Chưa có dự án')}</div>`; return; }
   box.innerHTML = '';
   state.projects.forEach((p) => {
     const it = el('div', 'pitem' + (state.current && state.current.id === p.id ? ' active' : ''));
     it.innerHTML = `${p.thumb_path ? `<img class="thumb" src="${fileUrl(p.thumb_path)}" loading="lazy" decoding="async">` : '<div class="thumb"></div>'}
       <div class="meta"><div class="t">${esc(p.title)}</div><div class="s">${badgeText(p.status)} · ${p.aspect_ratio}</div></div>
-      <button class="pitem-ren" title="Đổi tên">✏️</button>
-      <button class="pitem-del" title="Xoá dự án">🗑</button>`;
+      <button class="pitem-ren" title="${esc(m('Đổi tên'))}">✏️</button>
+      <button class="pitem-del" title="${esc(m('Xoá dự án'))}">🗑</button>`;
     it.querySelector('.pitem-ren').addEventListener('click', (e) => { e.stopPropagation(); renameProject(p); });
     it.querySelector('.pitem-del').addEventListener('click', (e) => { e.stopPropagation(); deleteProject(p); });
     it.addEventListener('click', () => openProject(p.id));
@@ -182,14 +185,14 @@ async function deleteProject(p) {
   let fp = null;
   try { fp = await api.get(`/projects/${p.id}/footprint`); } catch { /* deleted underneath us */ }
   const lines = fp ? [
-    `Trạng thái: ${badgeText(fp.status)} · ${fp.scenes} cảnh`,
-    `${fp.clips} clip cảnh${fp.hasVideo ? ' · video hoàn chỉnh' : ''}${fp.covers ? ` · ${fp.covers} ảnh bìa` : ''}`,
+    tp`Trạng thái: ${badgeText(fp.status)} · ${fp.scenes} cảnh`,
+    tp`${fp.clips} clip cảnh` + (fp.hasVideo ? m(' · video hoàn chỉnh') : '') + (fp.covers ? tp` · ${fp.covers} ảnh bìa` : ''),
     '',
-    `SẼ XOÁ VĨNH VIỄN ${fp.files} file (${mb(fp.bytes)}) khỏi ổ đĩa.`,
-    'Không khôi phục được. Kịch bản, giọng đọc, clip và video hoàn chỉnh đều mất.',
-  ] : ['Không đọc được dung lượng — vẫn sẽ xoá dự án và toàn bộ file của nó.'];
+    tp`SẼ XOÁ VĨNH VIỄN ${fp.files} file (${mb(fp.bytes)}) khỏi ổ đĩa.`,
+    m('Không khôi phục được. Kịch bản, giọng đọc, clip và video hoàn chỉnh đều mất.'),
+  ] : [m('Không đọc được dung lượng — vẫn sẽ xoá dự án và toàn bộ file của nó.')];
   const ok = await confirmDialog({
-    title: `Xoá "${(p.title || 'dự án').slice(0, 60)}"?`,
+    title: tp`Xoá "${(p.title || m('dự án')).slice(0, 60)}"?`,
     body: lines.join('\n'),
     okText: 'Xoá vĩnh viễn',
     cancelText: 'Giữ lại',
@@ -198,12 +201,12 @@ async function deleteProject(p) {
   if (!ok) return;
   try {
     const r = await api.del(`/projects/${p.id}`);
-    toast(`🗑 Đã xoá — ${r.files || 0} file (${mb(r.bytes || 0)})`, 'success');
+    toast(tp`🗑 Đã xoá — ${r.files || 0} file (${mb(r.bytes || 0)})`, 'success');
     // The open project just ceased to exist; leaving its panel on screen would offer buttons
     // that now act on nothing.
     if (state.current?.id === p.id) startNewProject();
     await loadProjects();
-  } catch (e) { toast(`✖ Không xoá được: ${e.message}`, 'error'); }
+  } catch (e) { toast(tp`✖ Không xoá được: ${e.message}`, 'error'); }
 }
 
 /** Rename from the list too — the topbar only ever shows the project that is open. */
@@ -219,8 +222,8 @@ async function renameProject(p) {
     p.title = title; p.metadata = md;
     if (state.current?.id === p.id) state.current.title = title;
     renderProjectList();
-    toast(`✏️ Đã đổi tên: ${title}`, 'success');
-  } catch (e) { toast(`✖ Không đổi được tên: ${e.message}`, 'error'); }
+    toast(tp`✏️ Đã đổi tên: ${title}`, 'success');
+  } catch (e) { toast(tp`✖ Không đổi được tên: ${e.message}`, 'error'); }
 }
 
 // Clone the current project into another aspect ratio: voice + captions are reused
@@ -228,16 +231,16 @@ async function renameProject(p) {
 async function repurposeCurrent() {
   if (!state.current) { toast('Mở một dự án trước đã.', 'error'); return; }
   const cur = state.current.aspect_ratio;
-  const names = { '9:16': '📱 Dọc 9:16 (Shorts/TikTok)', '16:9': '🖥 Ngang 16:9 (YouTube)', '1:1': '⬛ Vuông 1:1', '4:5': '📐 4:5 (Feed)' };
+  const names = { '9:16': m('📱 Dọc 9:16 (Shorts/TikTok)'), '16:9': m('🖥 Ngang 16:9 (YouTube)'), '1:1': m('⬛ Vuông 1:1'), '4:5': m('📐 4:5 (Feed)') };
   const items = ['9:16', '16:9', '1:1', '4:5'].filter((r) => r !== cur).map((r) => ({ id: r, label: names[r] }));
   const pick = await menuDialog({ title: 'Đổi sang tỉ lệ khung nào?', items });
   if (!pick) return;
   try {
     const r = await api.post(`/projects/${state.current.id}/repurpose`, { aspectRatio: pick });
-    toast(`Đã tạo bản ${pick} — giữ giọng đọc, đang dàn lại bố cục 🎬`, 'success');
+    toast(tp`Đã tạo bản ${pick} — giữ giọng đọc, đang dàn lại bố cục 🎬`, 'success');
     await loadProjects();
     await openProject(r.project.id);
-  } catch (e) { toast('Lỗi đổi tỉ lệ: ' + e.message, 'error'); }
+  } catch (e) { toast(tp`Lỗi đổi tỉ lệ: ${e.message}`, 'error'); }
 }
 
 // Clone the current project into another LANGUAGE: the art direction travels verbatim, the
@@ -271,28 +274,28 @@ async function exportCurrent() {
     let r = await api.post(`/projects/${state.current.id}/export`, { preset: pick });
     if (r.needsRepurpose) {
       const ok = await confirmDialog({
-        title: `Video đang ${state.current.aspect_ratio} — nền tảng này cần ${r.targetAr}`,
+        title: tp`Video đang ${state.current.aspect_ratio} — nền tảng này cần ${r.targetAr}`,
         body: 'Chạy Đổi tỉ lệ (dàn lại bố cục + render, không crop) rồi export từ bản mới nhé?',
         okText: '📱 Đổi tỉ lệ ngay',
       });
       if (ok) {
         const rp = await api.post(`/projects/${state.current.id}/repurpose`, { aspectRatio: r.targetAr });
-        toast(`Đã tạo bản ${r.targetAr} — export lại sau khi render xong 🎬`, 'success');
+        toast(tp`Đã tạo bản ${r.targetAr} — export lại sau khi render xong 🎬`, 'success');
         await loadProjects(); await openProject(rp.project.id);
       }
       return;
     }
     if (r.needsTrim) {
       const ok = await confirmDialog({
-        title: `Video dài ${r.duration}s — nền tảng giới hạn ${r.maxDur}s`,
-        body: `Cắt còn ${r.maxDur}s với fade-out 0.6s cuối? (bản gốc giữ nguyên)`,
-        okText: `✂️ Cắt còn ${r.maxDur}s`,
+        title: tp`Video dài ${r.duration}s — nền tảng giới hạn ${r.maxDur}s`,
+        body: tp`Cắt còn ${r.maxDur}s với fade-out 0.6s cuối? (bản gốc giữ nguyên)`,
+        okText: tp`✂️ Cắt còn ${r.maxDur}s`,
       });
       if (!ok) return;
       r = await api.post(`/projects/${state.current.id}/export`, { preset: pick, allowTrim: true });
     }
-    toast(`📤 Đã xuất ${r.preset}${r.trimmed ? ' (đã cắt fade)' : ''} — ${r.path.split('/').pop()}`, 'success');
-  } catch (e) { toast('Lỗi export: ' + e.message, 'error'); }
+    toast(tp`📤 Đã xuất ${r.preset}${r.trimmed ? m(' (đã cắt fade)') : ''} — ${r.path.split('/').pop()}`, 'success');
+  } catch (e) { toast(tp`Lỗi export: ${e.message}`, 'error'); }
 }
 
 // Manual publish — always an explicit choice; 'Riêng tư' (staging) is the safe default.
@@ -325,9 +328,9 @@ async function publishCurrent() {
   toast('📤 Đang tải lên YouTube…', 'success');
   try {
     const r = await api.post(`/projects/${state.current.id}/publish`, { platform: 'youtube', privacy: pick });
-    toast(`✅ Đã đăng (${pick}): ${r.url}`, 'success');
+    toast(tp`✅ Đã đăng (${pick}): ${r.url}`, 'success');
     renderPublishHistory();
-  } catch (e) { toast('Lỗi đăng: ' + e.message, 'error'); }
+  } catch (e) { toast(tp`Lỗi đăng: ${e.message}`, 'error'); }
 }
 
 // Facebook Page (P40). A 9:16/4:5 video goes up as a Reel, anything else as a feed video —
@@ -348,7 +351,7 @@ async function publishToFacebook() {
     try {
       const c = await api.post('/publish/generate-caption', { projectId: state.current.id, platform: 'facebook' });
       if (c?.caption) caption = c.caption;
-    } catch (e) { toast('Không viết được caption: ' + e.message, 'error'); }
+    } catch (e) { toast(tp`Không viết được caption: ${e.message}`, 'error'); }
   }
   const form = await publishDialog({
     title: '📘 Đăng lên Facebook Page', platform: 'facebook',
@@ -363,7 +366,7 @@ async function publishToFacebook() {
     });
     if (!ok) return;
   }
-  toast(form.when ? '🕒 Đang lên lịch…' : '📤 Đang tải lên Facebook…', 'success');
+  toast(form.when ? m('🕒 Đang lên lịch…') : m('📤 Đang tải lên Facebook…'), 'success');
   try {
     const r = await api.post(`/projects/${state.current.id}/publish`, {
       platform: 'facebook',
@@ -372,9 +375,9 @@ async function publishToFacebook() {
       caption: form.caption, title: form.title,
     });
     if (r.error) throw new Error(r.error);
-    toast(r.scheduled ? `🕒 Đã lên lịch: ${r.url}` : `✅ Đã đăng: ${r.url}`, 'success');
+    toast(r.scheduled ? tp`🕒 Đã lên lịch: ${r.url}` : tp`✅ Đã đăng: ${r.url}`, 'success');
     renderPublishHistory();
-  } catch (e) { toast('Lỗi đăng: ' + e.message, 'error'); }
+  } catch (e) { toast(tp`Lỗi đăng: ${e.message}`, 'error'); }
 }
 
 export function startNewProject() {
@@ -413,7 +416,7 @@ export async function createAndStart() {
     await api.post(`/projects/${project.id}/start`, { config });
     toast('Đã bắt đầu pipeline 🚀', 'success');
   } catch (e) {
-    toast(`Không tạo được video: ${e.message}`, 'error');
+    toast(tp`Không tạo được video: ${e.message}`, 'error');
   } finally {
     creating = false;
   }
@@ -454,7 +457,7 @@ async function syncTypesetButton(p) {
   try {
     const r = await api.get(`/projects/${p.id}/typeset-scan`);
     if (state.current?.id !== p.id || !r?.atRisk) return; // the owner may have moved on
-    btn.innerHTML = `${icon('subtitles', 14)} Sửa lỗi tiếng Việt (${r.atRisk} cảnh)`;
+    btn.innerHTML = `${icon('subtitles', 14)} ${tp`Sửa lỗi tiếng Việt (${r.atRisk} cảnh)`}`;
     btn.classList.remove('hidden');
   } catch { /* a scan that cannot run must not break the panel */ }
 }
@@ -465,15 +468,15 @@ async function repairTypeset() {
   if (!r?.atRisk) { toast('Không có cảnh nào cần sửa.', 'success'); return; }
   const ok = await confirmDialog({
     title: 'Sửa lỗi chữ tiếng Việt',
-    body: `${r.atRisk}/${r.scenes} cảnh được dựng trước khi có bản vá — dấu bị cắt hoặc hai dòng đè nhau.\n\n`
-      + 'Sẽ DỰNG LẠI đúng những cảnh đó rồi GHÉP LẠI video (ghi đè file hiện tại).\n'
-      + 'Không gọi AI, không đổi thiết kế — chỉ chữa phần chữ.',
+    body: tp`${r.atRisk}/${r.scenes} cảnh được dựng trước khi có bản vá — dấu bị cắt hoặc hai dòng đè nhau.` + '\n\n'
+      + m('Sẽ DỰNG LẠI đúng những cảnh đó rồi GHÉP LẠI video (ghi đè file hiện tại).') + '\n'
+      + m('Không gọi AI, không đổi thiết kế — chỉ chữa phần chữ.'),
     okText: 'Dựng lại',
   });
   if (!ok) return;
   const res = await api.post(`/projects/${p.id}/repair-typeset`, {});
   if (res?.error) { toast(res.error, 'error'); return; }
-  toast(`🔤 Đang dựng lại ${res.atRisk} cảnh rồi ghép`, 'success');
+  toast(tp`🔤 Đang dựng lại ${res.atRisk} cảnh rồi ghép`, 'success');
   $('#btnTypeset').classList.add('hidden');
 }
 
@@ -489,8 +492,8 @@ export function renderProjectView() {
   // resume is the fastest correct path for a mixed edit and it was simply unreachable here.
   $('#btnResume').classList.toggle('hidden', !['paused', 'error', 'review', 'done'].includes(p.status));
   $('#btnResume').innerHTML = p.status === 'done'
-    ? `${icon('refresh', 14)} Áp dụng thay đổi`
-    : `${icon('play', 14)} Tiếp tục`;
+    ? `${icon('refresh', 14)} ${m('Áp dụng thay đổi')}`
+    : `${icon('play', 14)} ${m('Tiếp tục')}`;
   renderSceneGate(p);
   syncTypesetButton(p);
   // reset pipeline visuals from scene statuses
@@ -530,9 +533,9 @@ async function renderSceneGate(p) {
   }
   try {
     const est = await api.get(`/projects/${p.id}/voice-estimate`);
-    const cost = est.credits != null ? `≈ ${est.credits.toLocaleString('vi-VN')} credits LarVoice`
-      : est.usd ? `≈ $${est.usd.toFixed(3)} (${est.provider})` : `${est.provider} (miễn phí)`;
-    $('#sceneGateCost').textContent = `Lồng tiếng ${est.scenes} cảnh · ${est.chars.toLocaleString('vi-VN')} ký tự · ${cost}`;
+    const cost = est.credits != null ? tp`≈ ${est.credits.toLocaleString('vi-VN')} credits LarVoice`
+      : est.usd ? `≈ $${est.usd.toFixed(3)} (${est.provider})` : tp`${est.provider} (miễn phí)`;
+    $('#sceneGateCost').textContent = tp`Lồng tiếng ${est.scenes} cảnh · ${est.chars.toLocaleString('vi-VN')} ký tự · ${cost}`;
   } catch { $('#sceneGateCost').textContent = ''; }
 }
 
@@ -572,12 +575,12 @@ export async function renderPublishHistory() {
   if (!state.current?.id) { box.innerHTML = ''; return; }
   let rows = [];
   try { rows = (await api.get(`/projects/${state.current.id}/publishes`)).publishes || []; } catch { return; }
-  if (!rows.length) { box.innerHTML = '<span style="opacity:.6">Chưa đăng ở đâu.</span>'; return; }
+  if (!rows.length) { box.innerHTML = `<span style="opacity:.6">${m('Chưa đăng ở đâu.')}</span>`; return; }
   const ICON = { youtube: '▶️', facebook: '📘' };
   box.innerHTML = rows.slice(0, 6).map((r) => {
     const when = r.created_at ? new Date(r.created_at).toLocaleString('vi-VN') : '';
     const mark = r.status === 'done' ? '✅' : (r.status === 'error' ? '❌' : '⏳');
-    const link = r.url ? ` <a href="${esc(r.url)}" target="_blank" rel="noopener">mở</a>` : '';
+    const link = r.url ? ` <a href="${esc(r.url)}" target="_blank" rel="noopener">${m('mở')}</a>` : '';
     return `<div>${mark} ${ICON[r.platform] || '📤'} ${esc(r.platform)}${r.privacy ? ` · ${esc(r.privacy)}` : ''} · ${esc(when)}${link}${r.error ? ` <span style="color:var(--bad,#f87171)">${esc(r.error)}</span>` : ''}</div>`;
   }).join('');
 }
@@ -592,9 +595,9 @@ export async function renderPublishHistory() {
  */
 export function renderMeta() {
   const box = $('#metaCard');
-  const m = state.current && state.current.metadata;
-  if (!m) { box.innerHTML = ''; return; }
-  const pf = m.platforms || {};
+  const md = state.current && state.current.metadata;
+  if (!md) { box.innerHTML = ''; return; }
+  const pf = md.platforms || {};
   const specs = state.platformSpecs || [];
   if (!specs.length) { loadPlatformSpecs(); }
   const cards = specs.filter((spec) => pf[spec.id]).map((spec) => {
@@ -607,7 +610,7 @@ export function renderMeta() {
       return `<div class="mf">
         <div class="mf-h"><span>${esc(f.label)}</span>
           <span class="mf-n ${cls}">${len}/${f.limit}</span>
-          <button class="mf-c" data-copy="${esc(val)}" title="Sao chép">⧉</button></div>
+          <button class="mf-c" data-copy="${esc(val)}" title="${esc(m('Sao chép'))}">⧉</button></div>
         <div class="mf-v${f.list ? ' chips' : ''}">${f.list
           ? (row[f.key] || []).map((x) => `<span class="tag-chip">${esc(x)}</span>`).join('')
           : esc(val)}</div>
@@ -618,24 +621,24 @@ export function renderMeta() {
   // Covers are captured at DOUBLE the platform's pixels, so the chip reports the file's REAL size
   // and what it is 2× of — a number that disagrees with the file is worse than no number.
   const kb = (n) => (n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${Math.round(n / 1024)} KB`);
-  const coverList = m.covers || [];
+  const coverList = md.covers || [];
   const covers = coverList.map((c, i) => {
     const px = c.px || { w: c.w, h: c.h };
-    const note = c.scale > 1 ? `${px.w}×${px.h} · 2× của ${c.w}×${c.h}` : `${px.w}×${px.h}`;
-    return `<button class="cover-chip" type="button" data-cover="${i}" title="Bấm để xem lớn">
+    const note = c.scale > 1 ? tp`${px.w}×${px.h} · 2× của ${c.w}×${c.h}` : `${px.w}×${px.h}`;
+    return `<button class="cover-chip" type="button" data-cover="${i}" title="${esc(m('Bấm để xem lớn'))}">
       <img src="${fileUrl(c.path)}" loading="lazy" decoding="async">
       <span>${esc(c.label)}<small>${note}${c.bytes ? ` · ${kb(c.bytes)}` : ''}</small></span></button>`;
   }).join('');
   box.innerHTML = (covers
-    ? `<div class="sec-label">🖼 Ảnh bìa theo nền tảng</div><div class="cover-row">${covers}</div>
+    ? `<div class="sec-label">${m('🖼 Ảnh bìa theo nền tảng')}</div><div class="cover-row">${covers}</div>
        <div class="row wrap" style="gap:6px;margin:8px 0 4px">
-         <button class="btn sm" id="btnCoversSave">💾 Lưu vào thư mục dự án</button>
-         <button class="btn sm" id="btnCoversPick">📁 Chọn thư mục…</button>
+         <button class="btn sm" id="btnCoversSave">${m('💾 Lưu vào thư mục dự án')}</button>
+         <button class="btn sm" id="btnCoversPick">${m('📁 Chọn thư mục…')}</button>
        </div>`
     : '')
-    + (cards || `<div class="meta-card"><div class="mt">${esc(m.title || '')}</div>
-        <div style="color:var(--muted);white-space:pre-wrap">${esc(m.description || '')}</div>
-        <div class="tags">${(m.hashtags || []).map((h) => `<span class="tag-chip">${esc(h)}</span>`).join('')}</div></div>`);
+    + (cards || `<div class="meta-card"><div class="mt">${esc(md.title || '')}</div>
+        <div style="color:var(--muted);white-space:pre-wrap">${esc(md.description || '')}</div>
+        <div class="tags">${(md.hashtags || []).map((h) => `<span class="tag-chip">${esc(h)}</span>`).join('')}</div></div>`);
   box.querySelectorAll('.mf-c').forEach((b) => b.addEventListener('click', async () => {
     try { await navigator.clipboard.writeText(b.dataset.copy); toast('⧉ Đã sao chép', 'success'); }
     catch { toast('Không sao chép được', 'error'); }
@@ -653,7 +656,7 @@ export function renderMeta() {
     try {
       const r = await api.post(`/projects/${state.current.id}/covers/export`, body);
       if (r?.cancelled) return;
-      toast(`💾 Đã lưu ${r.files.length} ảnh bìa → ${r.dir.split('/').pop()}`, 'success');
+      toast(tp`💾 Đã lưu ${r.files.length} ảnh bìa → ${r.dir.split('/').pop()}`, 'success');
     } catch (e) { toast(`✖ ${e.message}`, 'error'); }
     finally { btn.disabled = false; }
   };
@@ -697,7 +700,7 @@ async function copyAssetsFrom() {
   if (!pick) return;
   const r = await api.post(`/projects/${state.current.id}/copy-assets-from/${pick}`, {});
   if (r?.error) return toast(r.error, 'error');
-  toast(`Đã thêm ${r.added} asset (tổng ${r.total})`, 'success');
+  toast(tp`Đã thêm ${r.added} asset (tổng ${r.total})`, 'success');
 }
 
 async function genMeta() {
@@ -707,63 +710,63 @@ async function genMeta() {
 }
 
 // ---------------- WS ----------------
-function onWsMessage(m) {
-  if (m.type === '_status') { state.wsOpen = m.open; $('#wsDot').textContent = m.open ? '● realtime' : '● offline'; $('#wsDot').classList.toggle('on', m.open); return; }
+function onWsMessage(ev) {
+  if (ev.type === '_status') { state.wsOpen = ev.open; $('#wsDot').textContent = ev.open ? m('● realtime') : m('● offline'); $('#wsDot').classList.toggle('on', ev.open); return; }
   // cross-project broadcasts (before the current-project filter)
-  if (m.type === 'job') { refreshTasks(); return; }
-  if (!state.current || (m.projectId && m.projectId !== state.current.id)) return;
-  if (m.type === 'replay') {
+  if (ev.type === 'job') { refreshTasks(); return; }
+  if (!state.current || (ev.projectId && ev.projectId !== state.current.id)) return;
+  if (ev.type === 'replay') {
     // buffered feed replayed on (re)subscribe: a page reload mid-run catches up instantly.
     // 'op' spam is skipped except the last one (only the current activity line matters).
-    const events = m.events || [];
+    const events = ev.events || [];
     const lastOp = events.map((e, i) => (e.type === 'op' ? i : -1)).reduce((a, b) => Math.max(a, b), -1);
     events.forEach((e, i) => { if (e.type !== 'op' || i === lastOp) onWsMessage(e); });
     return;
   }
-  switch (m.type) {
+  switch (ev.type) {
     case 'step':
       flushSceneUpdates(); // coalesced patches must land before step transitions
-      setStep(m.step, m.state, m.detail);
-      if (m.state === 'running') { showOp(PIPE.find((x) => x.k === m.step)?.n || ''); prog.step = m.step; recomputeProgress(); }
-      else if (m.state === 'done') {
-        const i = PHASE_ORDER.indexOf(m.step);
+      setStep(ev.step, ev.state, ev.detail);
+      if (ev.state === 'running') { showOp(PIPE.find((x) => x.k === ev.step)?.n || ''); prog.step = ev.step; recomputeProgress(); }
+      else if (ev.state === 'done') {
+        const i = PHASE_ORDER.indexOf(ev.step);
         if (i >= 0) setProgress(PHASE_ORDER.slice(0, i + 1).reduce((s, k) => s + PHASE_W[k], 0));
-        if (m.step === 'b2') { prog.total = parseInt(m.detail) || prog.total; refreshScenes(); }
+        if (ev.step === 'b2') { prog.total = parseInt(ev.detail) || prog.total; refreshScenes(); }
       }
       break;
-    case 'op': showOp(m.text); break;
-    case 'journal': onJournalEvent(m); break;
-    case 'status': flushSceneUpdates(); updateStatusBadge(m.status); break;
-    case 'scene': onSceneUpdate(m); break;
-    case 'retry': onRetryEvent(m); break;
-    case 'done': flushSceneUpdates(); onDone(m); break;
+    case 'op': showOp(ev.text); break;
+    case 'journal': onJournalEvent(ev); break;
+    case 'status': flushSceneUpdates(); updateStatusBadge(ev.status); break;
+    case 'scene': onSceneUpdate(ev); break;
+    case 'retry': onRetryEvent(ev); break;
+    case 'done': flushSceneUpdates(); onDone(ev); break;
     case 'error':
       flushSceneUpdates();
-      toast('Lỗi: ' + m.msg, 'error'); hideOp(); updateStatusBadge('error');
-      if (prog.step) setStep(prog.step, 'error', (m.msg || '').slice(0, 60));
+      toast(tp`Lỗi: ${ev.msg}`, 'error'); hideOp(); updateStatusBadge('error');
+      if (prog.step) setStep(prog.step, 'error', (ev.msg || '').slice(0, 60));
       break;
     // content calendar lifecycle (assistant-scheduled videos)
     case 'calendar':
-      toast(`🗓 Đến hạn — bắt đầu sản xuất: ${(m.topic || '').slice(0, 60)}`, 'success');
+      toast(tp`🗓 Đến hạn — bắt đầu sản xuất: ${(ev.topic || '').slice(0, 60)}`, 'success');
       loadProjects();
       break;
     case 'calendar-done':
-      toast(m.status === 'done'
-        ? `✅ Video hẹn lịch đã xong: ${(m.topic || '').slice(0, 60)}`
-        : `⚠ Video hẹn lịch kết thúc (${m.status}): ${(m.topic || '').slice(0, 60)}`, m.status === 'done' ? 'success' : 'error');
+      toast(ev.status === 'done'
+        ? tp`✅ Video hẹn lịch đã xong: ${(ev.topic || '').slice(0, 60)}`
+        : tp`⚠ Video hẹn lịch kết thúc (${ev.status}): ${(ev.topic || '').slice(0, 60)}`, ev.status === 'done' ? 'success' : 'error');
       loadProjects();
       break;
   }
 }
 // Self-heal visibility: 'đang tự thử lại' — the user sees the app fixing itself, not a stall.
-function onRetryEvent(m) {
-  const label = m.scope === 'pipeline'
-    ? `🩹 Gặp lỗi "${(m.msg || '').slice(0, 70)}" — tự động chạy tiếp sau ${Math.round((m.delayMs || 8000) / 1000)}s…`
-    : `🩹 ${m.idx != null ? `Cảnh ${m.idx + 1}: ` : ''}đang tự thử lại${m.attempt ? ` (lần ${m.attempt + 1})` : ''}…`;
+function onRetryEvent(ev) {
+  const label = ev.scope === 'pipeline'
+    ? tp`🩹 Gặp lỗi "${(ev.msg || '').slice(0, 70)}" — tự động chạy tiếp sau ${Math.round((ev.delayMs || 8000) / 1000)}s…`
+    : `🩹 ${ev.idx != null ? tp`Cảnh ${ev.idx + 1}: ` : ''}${m('đang tự thử lại')}${ev.attempt ? tp` (lần ${ev.attempt + 1})` : ''}…`;
   showOp(label, true);
-  if (m.step) setStep(m.step, 'running', '🩹 tự thử lại…');
-  if (m.idx != null) {
-    const sc = state.scenes.find((s) => s.idx === m.idx);
+  if (ev.step) setStep(ev.step, 'running', m('🩹 tự thử lại…'));
+  if (ev.idx != null) {
+    const sc = state.scenes.find((s) => s.idx === ev.idx);
     if (sc) { sc.status = 'retrying'; const cEl = document.querySelector(`#sceneGrid .scene[data-id="${sc.id}"] .n span:last-child`); if (cEl) cEl.textContent = statusIcon('retrying'); }
   }
 }
@@ -777,11 +780,11 @@ function updateStatusBadge(status) {
   // 'review' included: a live WS hold must reveal the continue button without a reload
   $('#btnResume').classList.toggle('hidden', !['paused', 'error', 'review', 'done'].includes(status));
   $('#btnResume').innerHTML = status === 'done'
-    ? `${icon('refresh', 14)} Áp dụng thay đổi`
-    : `${icon('play', 14)} Tiếp tục`;
+    ? `${icon('refresh', 14)} ${m('Áp dụng thay đổi')}`
+    : `${icon('play', 14)} ${m('Tiếp tục')}`;
   renderSceneGate(state.current);
 }
-async function onDone(m) {
+async function onDone(ev) {
   hideOp(); setProgress(100); toast('Video hoàn thành ✓', 'success');
   const r = await api.get('/projects/' + state.current.id);
   state.current = r.project; state.scenes = r.scenes;
@@ -797,18 +800,18 @@ async function onDone(m) {
 function detectType() {
   const v = $('#topic').value.trim();
   const words = v.split(/\s+/).filter(Boolean).length;
-  let t = 'văn bản', hint = '';
+  let t = m('văn bản'), hint = '';
   if (!v) { $('#inputTypeHint').textContent = ''; return; }
   if (/^https?:\/\/\S+$/i.test(v.split(/\s+/)[0]) && v.split(/\s+/).length <= 3) {
-    t = 'link 🔗'; hint = ' → lấy nội dung rồi AI viết kịch bản từ đó';
+    t = m('link 🔗'); hint = m(' → lấy nội dung rồi AI viết kịch bản từ đó');
   } else if (v.startsWith('{') || v.startsWith('[')) {
-    t = 'scenes JSON 🧩'; hint = ' → nhập trực tiếp từng cảnh (voice + visual), không tốn AI viết kịch bản';
+    t = m('scenes JSON 🧩'); hint = m(' → nhập trực tiếp từng cảnh (voice + visual), không tốn AI viết kịch bản');
   } else if (words >= 80) {
-    t = `kịch bản chi tiết 📜 (${words} từ)`; hint = ' → AI biên tập nhẹ + cắt cảnh, giữ ~90% lời của bạn; thời lượng theo nội dung';
+    t = tp`kịch bản chi tiết 📜 (${words} từ)`; hint = m(' → AI biên tập nhẹ + cắt cảnh, giữ ~90% lời của bạn; thời lượng theo nội dung');
   } else {
-    t = 'chủ đề 💡'; hint = ' → AI viết toàn bộ kịch bản + visual từng cảnh theo thời lượng đã chọn';
+    t = m('chủ đề 💡'); hint = m(' → AI viết toàn bộ kịch bản + visual từng cảnh theo thời lượng đã chọn');
   }
-  $('#inputTypeHint').textContent = 'Nhận diện: ' + t + hint;
+  $('#inputTypeHint').textContent = tp`Nhận diện: ${t}${hint}`;
 }
 // ---------------- fetched source article ----------------
 // The article NEVER goes back into #topic.
@@ -828,21 +831,21 @@ export function setSourceDoc(doc) {
   box.classList.toggle('hidden', !state.sourceDoc);
   if (!state.sourceDoc) { $('#srcText').value = ''; return; }
   const d = state.sourceDoc;
-  $('#srcTitle').textContent = d.title || d.url || 'Nội dung đã lấy';
+  $('#srcTitle').textContent = d.title || d.url || m('Nội dung đã lấy');
   $('#srcTitle').title = d.url || '';
   $('#srcText').value = d.text;
   const words = d.text.trim().split(/\s+/).filter(Boolean).length;
-  const bits = [`${words.toLocaleString('vi')} từ`, `${d.chars ?? d.text.length} ký tự`];
+  const bits = [tp`${words.toLocaleString('vi')} từ`, tp`${d.chars ?? d.text.length} ký tự`];
   // Show the filtering as a RATIO, not a total: "62/373 đoạn" is the only way to see that the page
   // furniture actually got thrown away.
-  if (d.blocks) bits.push(d.found && d.found !== d.blocks ? `${d.blocks}/${d.found} đoạn` : `${d.blocks} đoạn`);
+  if (d.blocks) bits.push(d.found && d.found !== d.blocks ? tp`${d.blocks}/${d.found} đoạn` : tp`${d.blocks} đoạn`);
   if (d.siteName) bits.push(esc(d.siteName));
-  const how = d.ai ? '🤖 AI đã lọc bỏ phần thừa' : '⚙️ lọc theo cấu trúc trang';
+  const how = d.ai ? m('🤖 AI đã lọc bỏ phần thừa') : m('⚙️ lọc theo cấu trúc trang');
   // Say it out loud when the page was longer than the engine can read — the old extractor cut at
   // 8000 characters mid-sentence and nothing anywhere said a word about it.
-  $('#srcMeta').innerHTML = `${bits.join(' · ')} · ${how} → AI sẽ viết kịch bản MỚI từ tư liệu này`
+  $('#srcMeta').innerHTML = tp`${bits.join(' · ')} · ${how} → AI sẽ viết kịch bản MỚI từ tư liệu này`
     + (d.note ? `<br><b class="warn">⚠ ${esc(d.note)}</b>` : '')
-    + (d.truncated ? `<br><b class="warn">⚠ Bài quá dài — đã lấy tối đa engine đọc được${d.dropped ? `, bỏ ${d.dropped} đoạn cuối` : ''}.</b>` : '');
+    + (d.truncated ? `<br><b class="warn">${m('⚠ Bài quá dài — đã lấy tối đa engine đọc được')}${d.dropped ? tp`, bỏ ${d.dropped} đoạn cuối` : ''}.</b>` : '');
 }
 
 async function fetchLink() {
@@ -854,14 +857,14 @@ async function fetchLink() {
   try {
     const r = await api.post('/fetch-link', { url });
     if (r.error) throw new Error(r.error);
-    if (!r.text?.trim()) throw new Error('trang này không có nội dung bài viết đọc được');
+    if (!r.text?.trim()) throw new Error(m('trang này không có nội dung bài viết đọc được'));
     setSourceDoc(r);
     if (r.images?.length) {
       showImages(r.images.map((u) => ({ url: u })),
-        r.foundImages && r.foundImages !== r.images.length ? `ảnh trong bài (bỏ ${r.foundImages - r.images.length} ảnh ngoài bài)` : 'ảnh trong bài');
+        r.foundImages && r.foundImages !== r.images.length ? tp`ảnh trong bài (bỏ ${r.foundImages - r.images.length} ảnh ngoài bài)` : m('ảnh trong bài'));
     } else $('#imgResults').innerHTML = '';
-    toast(`Đã lấy ${r.chars} ký tự ✓${r.ai ? ' (AI đã lọc)' : ''}`, 'success');
-  } catch (e) { toast('Không lấy được nội dung: ' + e.message, 'error'); }
+    toast(tp`Đã lấy ${r.chars} ký tự ✓${r.ai ? m(' (AI đã lọc)') : ''}`, 'success');
+  } catch (e) { toast(tp`Không lấy được nội dung: ${e.message}`, 'error'); }
   finally { btn.disabled = false; }
 }
 
@@ -876,13 +879,13 @@ async function imageSearch() {
     const r = await api.post('/image-search', { query: q, count: 12 });
     if (r.error) throw new Error(r.error);
     const items = r.items?.length ? r.items : (r.images || []).map((u) => ({ url: u }));
-    if (!items.length) throw new Error('không tìm thấy ảnh nào');
+    if (!items.length) throw new Error(m('không tìm thấy ảnh nào'));
     showImages(items, r.note ? `${r.source} — ${r.note}` : `${r.source}${r.keywords?.[0] ? ` · “${r.keywords[0]}”` : ''}`);
     // Gradient placeholders are a legitimate answer, but handing them over without saying why
     // reads as "there are no pictures of this" instead of "the catalogue is throttling us".
-    if (r.note) toast(`⚠ ${r.note} — đang dùng ảnh nền tạm`, 'error');
-    else toast(`Tìm thấy ${items.length} ảnh (${r.source})`, 'success');
-  } catch (e) { toast('Tìm ảnh lỗi: ' + e.message, 'error'); }
+    if (r.note) toast(tp`⚠ ${r.note} — đang dùng ảnh nền tạm`, 'error');
+    else toast(tp`Tìm thấy ${items.length} ảnh (${r.source})`, 'success');
+  } catch (e) { toast(tp`Tìm ảnh lỗi: ${e.message}`, 'error'); }
   finally { btn.disabled = false; }
 }
 
@@ -897,7 +900,7 @@ function showImages(items, sourceLabel = '') {
   const box = $('#imgResults');
   box.innerHTML = '';
   if (!items.length) return;
-  if (sourceLabel) box.appendChild(el('div', 'imgres-src', esc(`${items.length} ảnh · ${sourceLabel}`)));
+  if (sourceLabel) box.appendChild(el('div', 'imgres-src', esc(tp`${items.length} ảnh · ${sourceLabel}`)));
   const grid = el('div', 'imgres-grid');
   items.forEach((it) => {
     const url = it.url;
@@ -911,7 +914,7 @@ function showImages(items, sourceLabel = '') {
     img.addEventListener('error', () => cell.classList.add('dead'));
     img.addEventListener('click', () => openImageViewer(items, items.indexOf(it)));
     const add = el('button', 'imgres-add', '+');
-    add.title = 'Thêm vào assets của video';
+    add.title = m('Thêm vào assets của video');
     add.addEventListener('click', (e) => { e.stopPropagation(); addImageAsset(url, cell); });
     cell.append(img, add);
     grid.appendChild(cell);
@@ -933,7 +936,7 @@ async function addImageAsset(url, cell) {
     $('#assetList')?.appendChild(el('span', 'badge', esc(String(r.name).slice(0, 14))));
     cell?.classList.add('added');
     toast('Đã tải ảnh về máy ✓', 'success');
-  } catch (e) { toast('Không tải được ảnh: ' + e.message, 'error'); }
+  } catch (e) { toast(tp`Không tải được ảnh: ${e.message}`, 'error'); }
   finally { cell?.classList.remove('busy'); }
 }
 
@@ -975,5 +978,5 @@ async function uploadAssets(e) {
   [...e.target.files].forEach((f) => fd.append('files', f));
   const r = await api.upload('/upload', fd);
   (r.files || []).forEach((f) => { state.assets.push(f.path); const tag = el('span', 'badge', esc(f.name.slice(0, 14))); $('#assetList').appendChild(tag); });
-  toast(`Đã thêm ${(r.files || []).length} file`, 'success');
+  toast(tp`Đã thêm ${(r.files || []).length} file`, 'success');
 }

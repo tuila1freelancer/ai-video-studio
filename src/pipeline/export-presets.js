@@ -7,6 +7,7 @@ import { join, dirname, basename, extname } from 'node:path';
 import * as DB from '../db/index.js';
 import { ffmpeg, probeDuration } from '../media/ffmpeg.js';
 
+import { m, tp } from '../i18n/t.js';
 export const EXPORT_PRESETS = {
   youtube: { label: 'YouTube (16:9)', ar: '16:9', maxDur: null, suffix: 'youtube' },
   shorts: { label: 'YouTube Shorts (9:16 ≤60s)', ar: '9:16', maxDur: 60, suffix: 'shorts' },
@@ -21,11 +22,11 @@ export const EXPORT_PRESETS = {
  */
 export async function exportForPlatform(projectId, presetId, { allowTrim = false } = {}) {
   const preset = EXPORT_PRESETS[presetId];
-  if (!preset) { const e = new Error(`preset không hỗ trợ: ${presetId}`); e.status = 400; throw e; }
+  if (!preset) { const e = new Error(tp`preset không hỗ trợ: ${presetId}`); e.status = 400; throw e; }
   const project = DB.getProject(projectId);
   if (!project) { const e = new Error('project not found'); e.status = 404; throw e; }
   if (!project.video_path || !existsSync(project.video_path)) {
-    const e = new Error('video final chưa tồn tại — render/ghép xong đã rồi export'); e.status = 400; throw e;
+    const e = new Error(m('video final chưa tồn tại — render/ghép xong đã rồi export')); e.status = 400; throw e;
   }
   if (project.aspect_ratio !== preset.ar) return { needsRepurpose: true, targetAr: preset.ar };
 

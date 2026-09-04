@@ -7,14 +7,16 @@ import { toast } from '../ui/toast.js';
 import { closeModal } from '../ui/modals.js';
 import { openProject } from '../views/studio.js';
 import { runSuggestionAction } from './assistant-sheet.js';
+import { m, tp } from '../i18n.js';
 
-const STATUS_BADGE = {
-  suggested: ['paused', 'Đang chờ'],
-  accepted: ['done', 'Đã tạo video'],
-  scheduled: ['paused', 'Đã hẹn lịch'],
-  dismissed: ['error', 'Đã bỏ qua'],
-  expired: ['error', 'Hết hạn'],
-};
+// [css class, label] — built per call, never at module load: the catalogue arrives after import.
+const statusBadge = (status) => ({
+  suggested: ['paused', m('Đang chờ')],
+  accepted: ['done', m('Đã tạo video')],
+  scheduled: ['paused', m('Đã hẹn lịch')],
+  dismissed: ['error', m('Đã bỏ qua')],
+  expired: ['error', m('Hết hạn')],
+}[status]);
 
 let wired = false;
 let rows = [];
@@ -41,20 +43,20 @@ export async function renderHistory() {
   try {
     ({ suggestions: rows } = await api.get(`/topics/history?${params}`));
   } catch (e) { box.innerHTML = `<div class="hint">✗ ${esc(e.message)}</div>`; return; }
-  if (!rows.length) { box.innerHTML = '<div class="hint">Chưa có mục nào khớp bộ lọc.</div>'; return; }
+  if (!rows.length) { box.innerHTML = `<div class="hint">${m('Chưa có mục nào khớp bộ lọc.')}</div>`; return; }
   box.innerHTML = rows.map((r) => {
-    const [cls, label] = STATUS_BADGE[r.status] || ['paused', r.status];
+    const [cls, label] = statusBadge(r.status) || ['paused', r.status];
     const when = new Date(r.created_at).toLocaleDateString('vi-VN');
     const score = r.score ? `<span class="as-score" title="${esc(r.score.why || '')}">🔥${r.score.viral ?? '–'} 🌲${r.score.evergreen ?? '–'} ⚙${r.score.difficulty ?? '–'}</span>` : '';
     const acts = [];
     if (r.status === 'suggested') acts.push(btn(r.id, 'now', '▶'), btn(r.id, 'plan', '🗓'), btn(r.id, 'dismiss', '✕'));
-    if (r.status === 'dismissed' || r.status === 'expired') acts.push(btn(r.id, 'restore', '↩ Khôi phục'));
-    if (r.project_id) acts.push(btn(r.id, 'open', '🎬 Mở video'));
+    if (r.status === 'dismissed' || r.status === 'expired') acts.push(btn(r.id, 'restore', m('↩ Khôi phục')));
+    if (r.project_id) acts.push(btn(r.id, 'open', m('🎬 Mở video')));
     acts.push(btn(r.id, 'similar', '🔁'));
     return `<div class="ap-hist" data-id="${esc(r.id)}">
       <div class="ap-hist-main">
         <div class="t">${esc(r.topic)} ${score}</div>
-        <div class="hint">${esc(when)}${r.angle ? ` · ${esc(r.angle)}` : ''}${r.niche ? ` · ngách: ${esc(r.niche)}` : ''}</div>
+        <div class="hint">${esc(when)}${r.angle ? ` · ${esc(r.angle)}` : ''}${r.niche ? tp` · ngách: ${esc(r.niche)}` : ''}</div>
       </div>
       <span class="badge ${cls}">${label}</span>
       <span class="ap-hist-acts">${acts.join('')}</span>
@@ -63,8 +65,8 @@ export async function renderHistory() {
 }
 
 function btn(id, act, label) {
-  const titles = { now: 'Tạo video ngay', plan: 'Hẹn lịch', dismiss: 'Bỏ qua', similar: 'Gợi ý tương tự' };
-  return `<button class="btn sm" data-act="${act}" title="${titles[act] || ''}">${label}</button>`;
+  const titles = { now: m('Tạo video ngay'), plan: m('Hẹn lịch'), dismiss: m('Bỏ qua'), similar: m('Gợi ý tương tự') };
+  return `<button class="btn sm" data-act="${act}" title="${esc(titles[act] || '')}">${label}</button>`;
 }
 
 async function onRowAction(e) {

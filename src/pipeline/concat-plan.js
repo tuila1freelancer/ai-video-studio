@@ -19,6 +19,7 @@
 // born, and this module exists to take shortcuts.
 import { createHash } from 'node:crypto';
 import { existsSync, statSync } from 'node:fs';
+import { m } from '../i18n/t.js';
 
 const digest = (o) => createHash('sha1').update(JSON.stringify(o)).digest('hex').slice(0, 16);
 
@@ -136,21 +137,23 @@ export function needsVideoFilter({ logo, watermark, assText, transitions, master
 export function planConcat({ fp, prev, prevPath, videoFilter, allowSkip = true }) {
   const havePrev = !!(prevPath && existsSync(prevPath));
   if (allowSkip && havePrev && prev?.all && prev.all === fp.all) {
-    return { tier: 'skip', why: 'không có gì thay đổi so với bản đã xuất' };
+    return { tier: 'skip', why: m('không có gì thay đổi so với bản đã xuất') };
   }
   if (havePrev && prev?.video && prev.video === fp.video) {
-    return { tier: 'audio', why: 'chỉ phần âm thanh thay đổi — giữ nguyên hình' };
+    return { tier: 'audio', why: m('chỉ phần âm thanh thay đổi — giữ nguyên hình') };
   }
   if (!videoFilter) {
-    return { tier: 'copy', why: 'không cần filter hình nào — ghép thẳng, không encode lại' };
+    return { tier: 'copy', why: m('không cần filter hình nào — ghép thẳng, không encode lại') };
   }
-  return { tier: 'encode', why: 'cần dựng lại hình' };
+  return { tier: 'encode', why: m('cần dựng lại hình') };
 }
 
-/** One line for the owner's log, per tier. */
-export const TIER_LOG = {
-  skip: '⏭️ Không có gì thay đổi — giữ nguyên video đã xuất',
-  audio: '🔊 Chỉ ghép lại âm thanh — hình giữ nguyên, không encode lại',
-  copy: '⚡ Ghép nhanh — không encode lại hình',
-  encode: '🎞 Dựng lại toàn bộ hình',
-};
+/** One line for the owner's log, per tier. Built per call — the interface language can change. */
+export function tierLog(tier) {
+  return {
+    skip: m('⏭️ Không có gì thay đổi — giữ nguyên video đã xuất'),
+    audio: m('🔊 Chỉ ghép lại âm thanh — hình giữ nguyên, không encode lại'),
+    copy: m('⚡ Ghép nhanh — không encode lại hình'),
+    encode: m('🎞 Dựng lại toàn bộ hình'),
+  }[tier];
+}

@@ -38,6 +38,7 @@ import { orientationOf } from '../publish/platforms.js';
 import { langName, langAdjective, DEFAULT_LANG } from '../util/lang.js';
 import { lang as langRow } from '../i18n/languages.js';
 
+import { m, tp } from '../i18n/t.js';
 // Layout budgets, ported from the reference app. The old prompt asked for percentages ("headline
 // >=55% of the width") and the model reinterpreted them differently every run — two good designs
 // and two collisions out of four. The reference hands the model ABSOLUTE PIXEL ceilings per ratio
@@ -262,9 +263,9 @@ Reply with ONLY the complete edited <style> block and markup.` },
     ], { temperature: 0.35, maxTokens: 4000, llm });
     const next = sanitizeThumbFragment(reply);
     // a reply that collapsed the design is a failed edit, not an edit worth shipping
-    if (next.length < Math.max(80, current.length * 0.4)) { onLog('thumbnail edit: reply quá ngắn — giữ bản cũ'); return null; }
+    if (next.length < Math.max(80, current.length * 0.4)) { onLog(m('thumbnail edit: reply quá ngắn — giữ bản cũ')); return null; }
     return next;
-  } catch (e) { onLog(`thumbnail edit: bỏ qua (${e.message.slice(0, 120)})`); return null; }
+  } catch (e) { onLog(tp`thumbnail edit: bỏ qua (${e.message.slice(0, 120)})`); return null; }
 }
 
 /**
@@ -306,12 +307,12 @@ export async function generateCoverSet({
     // re-shoot is scaling DOWN — text that fits the largest fits the rest
     const lead = group.slice().sort((a, b) => b.w * b.h - a.w * a.h)[0];
     if (!frags[orient]) {
-      onLog(`🖼 Thiết kế ảnh bìa ${orient} (${lead.w}×${lead.h})…`);
+      onLog(tp`🖼 Thiết kế ảnh bìa ${orient} (${lead.w}×${lead.h})…`);
       const made = await generateThumbnailImage({
         title, hook, prompt, guide, size: { w: lead.w, h: lead.h },
         outPath: join(outDir, `${baseName}_${orient}.jpg`), language, media, llm, onLog,
       });
-      if (!made?.fragment) { onLog(`⚠ Không thiết kế được ảnh bìa ${orient} — bỏ qua nhóm này`); continue; }
+      if (!made?.fragment) { onLog(tp`⚠ Không thiết kế được ảnh bìa ${orient} — bỏ qua nhóm này`); continue; }
       frags[orient] = made.fragment;
     }
     for (const s of group) {
@@ -326,7 +327,7 @@ export async function generateCoverSet({
           scale: COVER_SCALE, px: { w: s.w * COVER_SCALE, h: s.h * COVER_SCALE },
           bytes: statSize(outPath),
         });
-      } catch (e) { onLog(`⚠ Ảnh bìa ${s.label}: ${e.message}`); }
+      } catch (e) { onLog(tp`⚠ Ảnh bìa ${s.label}: ${e.message}`); }
     }
   }
   return { covers, fragments: frags };
@@ -360,12 +361,12 @@ Return ONLY the <style> block and the markup.`;
       { role: 'user', content: user },
     ], { temperature: 0.9, maxTokens: 4000, llm });
     const fragment = sanitizeThumbFragment(reply);
-    if (fragment.length < 80) { onLog('thumbnail AI: reply quá ngắn — dùng bản dựng sẵn'); return null; }
+    if (fragment.length < 80) { onLog(m('thumbnail AI: reply quá ngắn — dùng bản dựng sẵn')); return null; }
     const path = await screenshotHtml(shell(applyThumbAssets(fragment, media), { w, h, guide, language }), { w, h, outPath, scale: COVER_SCALE });
-    onLog(`thumbnail AI: đã dựng bản ${variant + 1}`);
+    onLog(tp`thumbnail AI: đã dựng bản ${variant + 1}`);
     return { path, fragment };
   } catch (e) {
-    onLog(`thumbnail AI: bỏ qua (${e.message.slice(0, 120)})`);
+    onLog(tp`thumbnail AI: bỏ qua (${e.message.slice(0, 120)})`);
     return null;
   }
 }

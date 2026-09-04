@@ -18,6 +18,7 @@
 //   back on restores the look the owner had.
 import * as DB from '../../db/index.js';
 
+import { m } from '../../i18n/t.js';
 /**
  * What counts as a subtitle setting, and what counts as a real value for it.
  *
@@ -108,7 +109,7 @@ export function pickSubtitleConfig(config = {}) {
  */
 export function saveSubtitleDefaults(channelId, incoming = {}) {
   const ch = DB.getChannel(channelId);
-  if (!ch) throw new Error('không tìm thấy kênh');
+  if (!ch) throw new Error(m('không tìm thấy kênh'));
   const patch = pickSubtitleConfig(incoming);
   const saved = Object.keys(patch);
   if (!saved.length) return { channel: ch, preset: null, saved };

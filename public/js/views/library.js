@@ -6,7 +6,7 @@ import { api, fileUrl } from '../api.js';
 import { state } from '../state.js';
 import { registerPageHook } from './nav.js';
 import { loadBgmOptions, loadFontFamilies, loadBrandFolders } from './config.js';
-import { t } from '../i18n.js';
+import { t, m, tp } from '../i18n.js';
 
 export function initLibrary() {
   registerPageHook('library', loadLibrary);
@@ -61,17 +61,17 @@ function renderBrandBar(brands = []) {
     // folder changed on disk since this view loaded, the server 409s and nothing is deleted.
     const n = lastCount;
     const ok = await confirmDialog({
-      title: `Xoá thư mục "${name}"?`,
-      body: `${n} file trong thư mục này sẽ bị xoá vĩnh viễn khỏi đĩa. Không hoàn tác được.`,
+      title: tp`Xoá thư mục "${name}"?`,
+      body: tp`${n} file trong thư mục này sẽ bị xoá vĩnh viễn khỏi đĩa. Không hoàn tác được.`,
       okText: 'Xoá vĩnh viễn', danger: true,
     });
     if (!ok) return;
     try {
       const r = await api.del(`/brands/${encodeURIComponent(name)}?confirm=${n}`);
       state.libBrand = 'Default'; loadLibrary(); loadBrandFolders();
-      toast(`Đã xoá ${r.deleted} file ✓`, 'success');
+      toast(tp`Đã xoá ${r.deleted} file ✓`, 'success');
     } catch (e) {
-      toast(e.status === 409 ? 'Thư mục vừa thay đổi — mở lại rồi thử lần nữa.' : e.message, 'error');
+      toast(e.status === 409 ? m('Thư mục vừa thay đổi — mở lại rồi thử lần nữa.') : e.message, 'error');
       loadLibrary();
     }
   };
@@ -90,7 +90,7 @@ export async function loadLibrary() {
   const { items, brands } = await api.get('/library/' + state.libKind + q);
   renderBrandBar(brands || ['Default']);
   lastCount = items.length;
-  $('#libStat').textContent = `${items.length} file`;
+  $('#libStat').textContent = tp`${items.length} file`;
   const grid = $('#libGrid');
   if (!items.length) { grid.innerHTML = `<div class="empty">${esc(t('ui.library.chua-co-file', null, 'Chưa có file'))}</div>`; return; }
   grid.innerHTML = '';
@@ -103,8 +103,8 @@ export async function loadLibrary() {
       <div class="ln">${esc(it.name)}</div>
       ${isAudio ? `<audio controls preload="none" src="${fileUrl(it.path)}" style="width:100%;margin-top:6px;height:28px"></audio>` : ''}
       <div class="row" style="margin-top:6px;gap:4px">
-        <button class="btn sm" data-act="rename" style="flex:1"${it.onDisk ? ' disabled title="File nằm ngoài thư viện — đổi tên trong Finder"' : ''}>${icon('edit', 12)} Đổi tên</button>
-        <button class="btn sm danger" data-act="del" style="flex:1"${it.onDisk ? ' disabled title="File nằm ngoài thư viện — xoá trong Finder"' : ''}>${icon('trash', 12)} Xoá</button>
+        <button class="btn sm" data-act="rename" style="flex:1"${it.onDisk ? ` disabled title="${esc(m('File nằm ngoài thư viện — đổi tên trong Finder'))}"` : ''}>${icon('edit', 12)} ${m('Đổi tên')}</button>
+        <button class="btn sm danger" data-act="del" style="flex:1"${it.onDisk ? ` disabled title="${esc(m('File nằm ngoài thư viện — xoá trong Finder'))}"` : ''}>${icon('trash', 12)} ${m('Xoá')}</button>
       </div>`;
     d.querySelector('[data-act="del"]').addEventListener('click', async () => {
       await api.del('/library/' + it.id); loadLibrary(); loadBgmOptions(); loadFontFamilies(); loadBrandFolders();

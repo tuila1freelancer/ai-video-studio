@@ -23,6 +23,7 @@ import { runMetadata } from './stages/metadata.js';
 import { runPublish } from './stages/publish.js';
 import { isEditVideo, runEditVideo } from './edit-video.js';
 
+import { m, tp } from '../i18n/t.js';
 // Stable import surface for pipeline/queue.js — the public pipeline entry points.
 export { requestStop, clearStop };
 export { renderOnly } from './render-only.js';
@@ -35,7 +36,7 @@ export async function runPipeline(projectId, { resume = false, _auto = 0 } = {})
 
   DB.updateProject(projectId, { status: 'running', error: null });
   hub.toProject(projectId, { type: 'status', status: 'running' });
-  jlog(projectId, { kind: 'status', msg: resume ? '▶ Tiếp tục pipeline' : '🚀 Bắt đầu pipeline' });
+  jlog(projectId, { kind: 'status', msg: resume ? m('▶ Tiếp tục pipeline') : m('🚀 Bắt đầu pipeline') });
 
   try {
     // EDIT VIDEO (P40): the owner's own file IS the content, so there is no script and no TTS —
@@ -49,7 +50,7 @@ export async function runPipeline(projectId, { resume = false, _auto = 0 } = {})
       const done = DB.getProject(projectId);
       hub.toProject(projectId, { type: 'done', video: done.video_path ? `/api/file?path=${encodeURIComponent(done.video_path)}` : null,
         thumb: done.thumb_path ? `/api/file?path=${encodeURIComponent(done.thumb_path)}` : null });
-      logger.info(`🎉 Sửa video hoàn thành (${Math.round(res.duration)}s)`, { projectId, kind: 'done', jlevel: 'success' });
+      logger.info(tp`🎉 Sửa video hoàn thành (${Math.round(res.duration)}s)`, { projectId, kind: 'done', jlevel: 'success' });
       return;
     }
 
@@ -74,8 +75,8 @@ export async function runPipeline(projectId, { resume = false, _auto = 0 } = {})
       // no TTS credit left to protect, so holding it would only stall a one-click flow.
       DB.updateProject(projectId, { status: 'scenes' });
       hub.toProject(projectId, { type: 'status', status: 'scenes' });
-      op(projectId, `🎬 Cảnh đã dựng xong ${DB.getScenes(projectId).length} cảnh — duyệt/chỉnh sửa rồi bấm "Lồng tiếng & Render" để tiếp tục`);
-      logger.info('⏸ Giữ ở cổng duyệt cảnh — chờ bạn duyệt storyboard rồi mới lồng tiếng', { projectId, kind: 'status' });
+      op(projectId, tp`🎬 Cảnh đã dựng xong ${DB.getScenes(projectId).length} cảnh — duyệt/chỉnh sửa rồi bấm "Lồng tiếng & Render" để tiếp tục`);
+      logger.info(m('⏸ Giữ ở cổng duyệt cảnh — chờ bạn duyệt storyboard rồi mới lồng tiếng'), { projectId, kind: 'status' });
       return;
     }
 
@@ -92,8 +93,8 @@ export async function runPipeline(projectId, { resume = false, _auto = 0 } = {})
       if (pending.length) {
         DB.updateProject(projectId, { status: 'review' });
         hub.toProject(projectId, { type: 'status', status: 'review' });
-        op(projectId, `🧐 Chờ duyệt ${pending.length}/${ids.length} cảnh — mở "▶ Xem nháp" để duyệt, rồi bấm Tiếp tục`);
-        logger.info(`🧐 Giữ ở cổng duyệt: còn ${pending.length} cảnh chờ bạn duyệt`, { projectId, kind: 'status' });
+        op(projectId, tp`🧐 Chờ duyệt ${pending.length}/${ids.length} cảnh — mở "▶ Xem nháp" để duyệt, rồi bấm Tiếp tục`);
+        logger.info(tp`🧐 Giữ ở cổng duyệt: còn ${pending.length} cảnh chờ bạn duyệt`, { projectId, kind: 'status' });
         return;
       }
     }
@@ -114,8 +115,8 @@ export async function runPipeline(projectId, { resume = false, _auto = 0 } = {})
     // Show-Bible write-back (best-effort, like metadata — never blocks status:done):
     // the finished video's topic joins the channel's anti-repeat ledger.
     try { if (fin.channel_id) DB.appendChannelTopic(fin.channel_id, fin.title || fin.topic); }
-    catch (e) { logger.warn(`Ghi sổ Show-Bible lỗi: ${e.message}`, { projectId }); }
-    logger.info('🎉 Video hoàn thành', { projectId, kind: 'done', jlevel: 'success' });
+    catch (e) { logger.warn(tp`Ghi sổ Show-Bible lỗi: ${e.message}`, { projectId }); }
+    logger.info(m('🎉 Video hoàn thành'), { projectId, kind: 'done', jlevel: 'success' });
   } catch (e) {
     if (e.stopped) {
       DB.updateProject(projectId, { status: 'paused' });
@@ -123,7 +124,7 @@ export async function runPipeline(projectId, { resume = false, _auto = 0 } = {})
       // would make the next boot cancel a job the owner had since started again.
       DB.clearStopRequest(projectId);
       hub.toProject(projectId, { type: 'status', status: 'paused' });
-      logger.warn('⏹ Đã dừng theo yêu cầu của bạn', { projectId, kind: 'status' });
+      logger.warn(m('⏹ Đã dừng theo yêu cầu của bạn'), { projectId, kind: 'status' });
     } else {
       // Error taxonomy: deterministic config/resource failures surface IMMEDIATELY with an
       // actionable message — an auto-resume cannot fix a bad API key or a missing binary.
@@ -132,9 +133,9 @@ export async function runPipeline(projectId, { resume = false, _auto = 0 } = {})
       // failing part. A misclassification can only ever ADD a resume, never remove one.
       const kind = classifyError(e);
       if (kind.retryable && _auto < 1) {
-        logger.warn(`🩹 Lỗi [${kind.cls}]: ${e.message} — tự động chạy tiếp sau 8 giây`, { projectId, kind: 'retry' });
+        logger.warn(tp`🩹 Lỗi [${kind.cls}]: ${e.message} — tự động chạy tiếp sau 8 giây`, { projectId, kind: 'retry' });
         hub.toProject(projectId, { type: 'retry', scope: 'pipeline', attempt: 1, msg: e.message, cls: kind.cls, delayMs: 8000 });
-        op(projectId, `🩹 Gặp lỗi "${e.message.slice(0, 100)}" — tự động chạy tiếp sau 8 giây…`);
+        op(projectId, tp`🩹 Gặp lỗi "${e.message.slice(0, 100)}" — tự động chạy tiếp sau 8 giây…`);
         await sleep(8000);
         if (!isStopped(projectId)) return runPipeline(projectId, { resume: true, _auto: _auto + 1 });
         DB.updateProject(projectId, { status: 'paused' });
@@ -143,7 +144,7 @@ export async function runPipeline(projectId, { resume = false, _auto = 0 } = {})
         DB.updateProject(projectId, { status: 'error', error: e.message });
         hub.toProject(projectId, { type: 'error', msg: e.message, cls: kind.cls, hint: kind.hint });
         if (!kind.retryable) op(projectId, `⛔ ${kind.hint}`);
-        logger.error(`⛔ Pipeline lỗi [${kind.cls}]: ${e.message}`, { projectId, kind: 'error', data: { cls: kind.cls, hint: kind.hint } });
+        logger.error(tp`⛔ Pipeline lỗi [${kind.cls}]: ${e.message}`, { projectId, kind: 'error', data: { cls: kind.cls, hint: kind.hint } });
       }
     }
   } finally {

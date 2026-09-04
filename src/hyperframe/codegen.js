@@ -14,6 +14,7 @@ import { lintSpec } from './lint.js';
 import { renderValidate } from './validate.js';
 import { detectLang, langAdjective } from '../util/lang.js';
 
+import { tp } from '../i18n/t.js';
 // How many attempts a WRONG-LANGUAGE finding may burn before the scene ships anyway. Bounded on
 // purpose: the no-fallback contract gives a scene 10 attempts total, and a video that fails to
 // render because one label came back in the wrong language is a worse outcome than the label.
@@ -187,7 +188,7 @@ export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, on
       raw = await doctrine.ask({ temperature });
     } catch (e) {
       lastErrors = [`LLM error: ${String(e.message).slice(0, 80)}`];
-      onLog(`cảnh ${idx + 1}: LLM lỗi (lần ${attempt}/${maxAttempts}) — thử lại`);
+      onLog(tp`cảnh ${idx + 1}: LLM lỗi (lần ${attempt}/${maxAttempts}) — thử lại`);
       continue;
     }
     const clean = parseSpec(raw);
@@ -203,7 +204,7 @@ export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, on
     if (!clean) {
       // Unparseable reply must NOT kill the scene — cost it one attempt and re-instruct the format.
       lastErrors = ['reply did not match the required format'];
-      onLog(`cảnh ${idx + 1}: reply sai định dạng (lần ${attempt}/${maxAttempts}) — thử lại`);
+      onLog(tp`cảnh ${idx + 1}: reply sai định dạng (lần ${attempt}/${maxAttempts}) — thử lại`);
       doctrine.reaskFormat();
       continue;
     }
@@ -235,19 +236,19 @@ export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, on
         renderDefects = rv.defects || [];
         renderWarnings = rv.warnings || [];
         renderLangDefects = rv.langDefects || [];
-      } catch (e) { onLog(`cảnh ${idx + 1}: renderValidate lỗi (${String(e.message).slice(0, 60)}) — bỏ qua`); }
+      } catch (e) { onLog(tp`cảnh ${idx + 1}: renderValidate lỗi (${String(e.message).slice(0, 60)}) — bỏ qua`); }
     }
     if (renderLangDefects.length) {
       if (attempt <= LANG_REASK_MAX) renderDefects = [...renderDefects, ...renderLangDefects];
       else {
         renderWarnings = [...renderWarnings, ...renderLangDefects];
-        onLog(`cảnh ${idx + 1}: vẫn sai ngôn ngữ sau ${LANG_REASK_MAX} lần thử — CHẤP NHẬN và đi tiếp (chữ trên màn không phải ${langAdjective(lang)})`);
+        onLog(tp`cảnh ${idx + 1}: vẫn sai ngôn ngữ sau ${LANG_REASK_MAX} lần thử — CHẤP NHẬN và đi tiếp (chữ trên màn không phải ${langAdjective(lang)})`);
       }
     }
     const allIssues = [...errors, ...renderDefects];
     if (!allIssues.length) {
       const advisories = [...warnings, ...renderWarnings];
-      if (advisories.length) onLog(`cảnh ${idx + 1}: cảnh báo (không chặn) — ${advisories.join('; ').slice(0, 240)}`);
+      if (advisories.length) onLog(tp`cảnh ${idx + 1}: cảnh báo (không chặn) — ${advisories.join('; ').slice(0, 240)}`);
       // plannedDur: the duration this spec's absolute animation times were authored for.
       // Scenes-first order generates specs against an ESTIMATED timeline; at render the
       // harness time-warps the template timeline by plannedDur/realDur (S.tplScale) so the
@@ -255,7 +256,7 @@ export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, on
       return { props: { ...clean, guide, beats, plannedDur: duration, canvasW: w, canvasH: h, ...(overlay ? { overlay: true } : {}) }, beats, direction, warnings: advisories };
     }
     lastErrors = allIssues;
-    onLog(`cảnh ${idx + 1}: spec chưa đạt (lần ${attempt}/${maxAttempts}) — ${allIssues.join(' | ').slice(0, 240)}`);
+    onLog(tp`cảnh ${idx + 1}: spec chưa đạt (lần ${attempt}/${maxAttempts}) — ${allIssues.join(' | ').slice(0, 240)}`);
     // The conversation stays bounded across up to 10 attempts — system + brief + only the latest
     // attempt/fix pair. Older failures add tokens, not signal.
     doctrine.reaskIssues(clean, allIssues);
@@ -263,5 +264,5 @@ export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, on
   // P39: geometry is advisory, so the only way to exhaust every attempt is a scene that stays
   // STRUCTURALLY broken (unparseable / syntax error / threw at runtime / renders blank) each time.
   // That is a genuine failure — fail LOUDLY per the no-fallback contract (P25), no template swap.
-  throw new Error(`codegen thất bại sau ${maxAttempts} lần: ${lastErrors?.join(' | ').slice(0, 200)}`);
+  throw new Error(tp`codegen thất bại sau ${maxAttempts} lần: ${lastErrors?.join(' | ').slice(0, 200)}`);
 }

@@ -17,6 +17,7 @@ import { checkStop } from '../stop.js';
 import { op } from '../progress.js';
 import { resolveLang } from '../../util/lang.js';
 
+import { m, tp } from '../../i18n/t.js';
 const TOLERANCE = 0.12; // ±12% of the ordered duration
 const PAD_S = { vi: 0.65, other: 0.4 }; // mirror stages/tts.js padMsFor
 
@@ -112,7 +113,7 @@ export async function runBudgetFit(ctx) {
 
   let a = ask();
   if (Math.abs(a.drift) <= TOLERANCE) {
-    op(projectId, `⏱️ Thời lượng lời thoại ~${a.total.toFixed(0)}s khớp mục tiêu ${videoDuration}s ✓`);
+    op(projectId, tp`⏱️ Thời lượng lời thoại ~${a.total.toFixed(0)}s khớp mục tiêu ${videoDuration}s ✓`);
     return;
   }
   checkStop(projectId);
@@ -128,7 +129,7 @@ export async function runBudgetFit(ctx) {
       .sort((x, y) => Math.abs(y.delta) - Math.abs(x.delta))
       .slice(0, 14);
     if (offenders.length) {
-      op(projectId, `⏱️ Lời thoại ${a.total.toFixed(0)}s ${over ? 'vượt' : 'hụt'} mục tiêu ${videoDuration}s — ${over ? 'siết' : 'bồi'} ${offenders.length} cảnh…`);
+      op(projectId, tp`⏱️ Lời thoại ${a.total.toFixed(0)}s ${over ? m('vượt') : m('hụt')} mục tiêu ${videoDuration}s — ${over ? m('siết') : m('bồi')} ${offenders.length} cảnh…`);
       const rows = DB.getScenes(projectId);
       const byIdx = new Map(rows.map((r) => [r.idx, r]));
       const listing = offenders.map((o) => {
@@ -159,7 +160,7 @@ ${listing}` },
           if (after < before) DB.updateScene(target.id, { voice_text: v });
         }
         a = ask();
-      } catch (e) { logger.warn(`Khớp thời lượng: bước LLM lỗi (${e.message}) — dùng cách cắt tự động`, { projectId, stage: 'b2' }); }
+      } catch (e) { logger.warn(tp`Khớp thời lượng: bước LLM lỗi (${e.message}) — dùng cách cắt tự động`, { projectId, stage: 'b2' }); }
     }
   }
 
@@ -170,8 +171,8 @@ ${listing}` },
     a = ask();
   }
   const okMark = Math.abs(a.drift) <= TOLERANCE ? '✓'
-    : a.drift > 0 ? `(vượt ${(a.drift * 100).toFixed(0)}% — đã tới giới hạn cắt an toàn)`
-      : `(hụt ${(-a.drift * 100).toFixed(0)}% — giữ nguyên, không bồi chữ độn)`;
-  op(projectId, `⏱️ Khớp thời lượng: lời thoại ~${a.total.toFixed(0)}s / mục tiêu ${videoDuration}s ${okMark}`);
+    : a.drift > 0 ? tp`(vượt ${(a.drift * 100).toFixed(0)}% — đã tới giới hạn cắt an toàn)`
+      : tp`(hụt ${(-a.drift * 100).toFixed(0)}% — giữ nguyên, không bồi chữ độn)`;
+  op(projectId, tp`⏱️ Khớp thời lượng: lời thoại ~${a.total.toFixed(0)}s / mục tiêu ${videoDuration}s ${okMark}`);
   checkStop(projectId);
 }

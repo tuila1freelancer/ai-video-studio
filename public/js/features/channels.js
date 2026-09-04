@@ -7,6 +7,7 @@ import { startNewProject, loadProjects } from '../views/studio.js';
 import { applyConfig, gatherConfig, loadBgmOptions, loadChannelPresets } from '../views/config.js';
 import { refreshBrandSummary } from './brandkit.js';
 import { confirmDialog } from '../ui/dialog.js';
+import { m, tp } from '../i18n.js';
 
 export function initChannels() {
   $('#channelSelect').addEventListener('change', () => switchChannel($('#channelSelect').value));
@@ -32,7 +33,7 @@ export async function switchChannel(id) {
   await loadChannelPresets();
   applyConfig(channelDefaults());
   refreshBrandSummary();
-  toast(`Đã chuyển sang kênh ${ch ? ch.name : ''} ✓`, 'success');
+  toast(tp`Đã chuyển sang kênh ${ch ? ch.name : ''} ✓`, 'success');
 }
 export function renderChannelList() {
   $('#channelList').innerHTML = state.channels.map((c) => `
@@ -41,8 +42,8 @@ export function renderChannelList() {
         <strong>${c.id === state.activeChannel ? '✅ ' : ''}${esc(c.name)}</strong>
         <div class="hint" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.root_dir)}</div>
       </span>
-      <button class="btn sm" data-open="${c.id}" title="Mở thư mục trong Finder">${icon('folder', 13)}</button>
-      <button class="btn sm" data-usecfg="${c.id}" title="Cập nhật config kênh = panel hiện tại">${icon('save', 13)}</button>
+      <button class="btn sm" data-open="${c.id}" title="${esc(m('Mở thư mục trong Finder'))}">${icon('folder', 13)}</button>
+      <button class="btn sm" data-usecfg="${c.id}" title="${esc(m('Cập nhật config kênh = panel hiện tại'))}">${icon('save', 13)}</button>
       ${c.slug !== 'default' ? `<button class="btn sm danger" data-del="${c.id}">${icon('trash', 13)}</button>` : ''}
     </div>`).join('');
   $$('#channelList [data-open]').forEach((b) => b.addEventListener('click', () => api.post(`/channels/${b.dataset.open}/open`, {})));
@@ -68,5 +69,5 @@ async function createChannelUI() {
   $('#chName').value = ''; $('#chRoot').value = ''; $('#chWatermark').value = '';
   await loadChannels(); renderChannelList();
   await switchChannel(r.channel.id);
-  toast(`Kênh "${r.channel.name}" đã tạo — thư mục: ${r.channel.root_dir}`, 'success');
+  toast(tp`Kênh "${r.channel.name}" đã tạo — thư mục: ${r.channel.root_dir}`, 'success');
 }

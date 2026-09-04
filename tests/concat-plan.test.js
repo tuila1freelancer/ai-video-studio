@@ -11,7 +11,7 @@ import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { resolveConcatLogo, logoRect } from '../src/media/logo-overlay.js';
-import { concatFingerprint, needsVideoFilter, planConcat, clipStamp, TIER_LOG } from '../src/pipeline/concat-plan.js';
+import { concatFingerprint, needsVideoFilter, planConcat, clipStamp, tierLog } from '../src/pipeline/concat-plan.js';
 
 const SIZE = { w: 1920, h: 1080 };
 const BK = (finalOverlay) => ({ brandKit: { logo: { assetPath: '/logo.png' }, finalOverlay } });
@@ -185,6 +185,6 @@ test('anything else pays for the full encode', () => {
 
 test('every tier has a line the owner will actually see', () => {
   for (const t of ['skip', 'audio', 'copy', 'encode']) {
-    assert.ok(TIER_LOG[t] && TIER_LOG[t].length > 8, `${t} announces itself`);
+    assert.ok(tierLog(t)?.length > 8, `${t} announces itself`);
   }
 });

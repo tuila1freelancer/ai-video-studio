@@ -6,8 +6,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { WEB_SAFE, CONVERTIBLE } from '../src/api/services/image-convert.js';
+import { unwrapI18n } from './_source.mjs';
 
-const src = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
+const src = (p) => unwrapI18n(readFileSync(new URL(p, import.meta.url), 'utf8'));
 
 test('logo: the native shell can actually open a file panel', () => {
   // ROOT CAUSE of "nothing happens when I click". WKWebView does NOT open a file picker on its

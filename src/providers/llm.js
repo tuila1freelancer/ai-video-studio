@@ -11,6 +11,7 @@ import { countWords, sentences as segmentSentences } from '../i18n/segment.js';
 import { phrase, chapterLabel } from '../i18n/script-phrases.js';
 import { lang as langRow } from '../i18n/languages.js';
 
+import { m } from '../i18n/t.js';
 /** The language's own forward connectors, quoted for a prompt. */
 const connectorList = (code) => langRow(code).connectors.map((c) => `"${c}"`).join(', ');
 /** The narration register note for this language, or nothing when it has none. */
@@ -57,7 +58,7 @@ export async function chat(messages, { json = false, temperature = 0.8, maxToken
   for (const model of models) {
     for (const apiKey of keys) {
       for (let attempt = 0; attempt < 4; attempt++) {
-        if (left() <= 0) throw lastErr || new Error('LLM hết thời gian cho phép');
+        if (left() <= 0) throw lastErr || new Error(m('LLM hết thời gian cho phép'));
         try {
           // Never let one request outlive the budget it was given. Re-resolve per model: the
           // token field and the temperature rule belong to the MODEL, so walking to a fallback

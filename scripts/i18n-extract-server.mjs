@@ -70,9 +70,10 @@ function run() {
         found.set(`srv.${text}`, text);
       }
     }
-    // m('…') and tp`…` declare a string to be interface text, wherever it sits.
-    for (const text of msgCalls(src)) if (VN.test(text)) found.set(`srv.${text}`, text);
-    for (const text of tpTemplates(src)) if (VN.test(text)) found.set(`srv.${text}`, text);
+    // m('…') and tp`…` DECLARE a string to be interface text, wherever it sits and whatever it is
+    // spelled with — the diacritic test above is for guessing, and here there is nothing to guess.
+    for (const text of msgCalls(src)) found.set(`srv.${text}`, text);
+    for (const text of tpTemplates(src)) found.set(`srv.${text}`, text);
     // A template literal that carries Vietnamese AND a placeholder cannot be keyed by its result.
     for (const m of src.matchAll(/`[^`]*\$\{[^`]*`/g)) if (VN.test(m[0]) && !/\btp`/.test(m[0])) interpolated++;
   }

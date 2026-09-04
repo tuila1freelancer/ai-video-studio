@@ -8,6 +8,7 @@ import { $, el } from '../ui/dom.js';
 import { state } from '../state.js';
 import { api, fileUrl } from '../api.js';
 import { toast } from '../ui/toast.js';
+import { m, tp } from '../i18n.js';
 
 let scenes = [], starts = [], total = 0;
 let t = 0, playing = false, raf = 0, lastTs = 0, activeIdx = -1;
@@ -112,18 +113,18 @@ async function reviewActive(status) {
     await api.post(`/scenes/${sc.id}/review`, { status });
     reviews.set(sc.id, status);
     renderReviewState();
-    toast(status === 'approved' ? `✓ Đã duyệt cảnh ${activeIdx + 1}` : `✕ Đã loại cảnh ${activeIdx + 1} — hãy tạo lại rồi duyệt lại`, status === 'approved' ? 'success' : 'error');
-  } catch (e) { toast('Lỗi lưu duyệt: ' + e.message, 'error'); }
+    toast(status === 'approved' ? tp`✓ Đã duyệt cảnh ${activeIdx + 1}` : tp`✕ Đã loại cảnh ${activeIdx + 1} — hãy tạo lại rồi duyệt lại`, status === 'approved' ? 'success' : 'error');
+  } catch (e) { toast(tp`Lỗi lưu duyệt: ${e.message}`, 'error'); }
 }
 
 function renderReviewState() {
   const sc = scenes[activeIdx];
   const st = sc ? reviews.get(sc.id) : null;
   const elx = $('#rcReviewState');
-  if (elx) elx.textContent = st === 'approved' ? '✓ đã duyệt' : st === 'rejected' ? '✕ đã loại' : '· chưa duyệt';
+  if (elx) elx.textContent = st === 'approved' ? m('✓ đã duyệt') : st === 'rejected' ? m('✕ đã loại') : m('· chưa duyệt');
   const done = scenes.filter((s) => reviews.get(s.id) === 'approved').length;
   const lbl = $('#rcSceneLabel');
-  if (lbl) lbl.textContent = `Cảnh ${activeIdx + 1}/${scenes.length} · đã duyệt ${done}/${scenes.length}`;
+  if (lbl) lbl.textContent = tp`Cảnh ${activeIdx + 1}/${scenes.length} · đã duyệt ${done}/${scenes.length}`;
 }
 
 function openPlayer() {

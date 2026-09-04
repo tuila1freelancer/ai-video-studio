@@ -7,6 +7,7 @@ import { api, withLock } from '../api.js';
 import { toast } from '../ui/toast.js';
 import { state } from '../state.js';
 import { esc } from '../ui/dom.js';
+import { m, tp } from '../i18n.js';
 
 let cur = null;          // scene currently open in the studio
 let htmlLoaded = false;  // template-source fetched for this open
@@ -36,7 +37,7 @@ export function initSceneStudio() {
   $('#ssReconcat')?.addEventListener('click', () => withLock($('#ssReconcat'), async () => {
     if (!state.current) return;
     await api.post(`/projects/${state.current.id}/render`, { mode: 'concat' });
-    note('🎞 Đang ghép lại video final với SFX mới — theo dõi ở trang dự án.');
+    note(m('🎞 Đang ghép lại video final với SFX mới — theo dõi ở trang dự án.'));
     toast('Đang ghép lại video…');
   }));
   $('#ssRender')?.addEventListener('click', () => withLock($('#ssRender'), renderThisScene));
@@ -63,7 +64,7 @@ export function initSceneStudio() {
 export function openSceneStudio(s) {
   cur = s;
   htmlLoaded = false;
-  $('#ssTitle').textContent = `Cảnh ${s.idx + 1}`;
+  $('#ssTitle').textContent = tp`Cảnh ${s.idx + 1}`;
   $('#ssVoice').value = s.voice_text || '';
   $('#ssVisual').value = s.visual_prompt || '';
   $('#ssHtml').value = '';
@@ -80,7 +81,7 @@ export function openSceneStudio(s) {
 const HL_RE = /(&lt;!--[\s\S]*?--&gt;)|(&lt;\/?[\w-]+)|(\/?&gt;)|("[^"\n]*"|'[^'\n]*')|([\w-]+)(?==)/g;
 function hlHtml(src) {
   const e = String(src).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  return e.replace(HL_RE, (m, cm, tag, gt, str, attr) =>
+  return e.replace(HL_RE, (_hit, cm, tag, gt, str, attr) =>
     cm ? `<i class=c>${cm}</i>` : tag ? `<i class=t>${tag}</i>` : gt ? `<i class=t>${gt}</i>`
       : str ? `<i class=s>${str}</i>` : `<i class=a>${attr}</i>`);
 }
@@ -110,7 +111,7 @@ async function loadAudio() {
   try {
     const { items } = await api.get('/library/sfx');
     const au = cur.props?.audio || {};
-    sel.innerHTML = '<option value="">— Không có SFX riêng —</option>'
+    sel.innerHTML = `<option value="">${m('— Không có SFX riêng —')}</option>`
       + items.map((i) => `<option value="${esc(i.path)}"${i.path === au.sfx ? ' selected' : ''}>${esc(i.name)}</option>`).join('');
     $('#ssSfxGain').value = au.sfxGain ?? 0;
     $('#ssSfxGainL').textContent = `${au.sfxGain ?? 0} dB`;
@@ -126,10 +127,10 @@ async function saveAudio() {
   if (sfx) props.audio = { sfx, sfxGain: +$('#ssSfxGain').value || 0, sfxAt: Math.max(0, +$('#ssSfxAt').value || 0) };
   else delete props.audio;
   try {
-    note('⏳ Đang lưu âm thanh cảnh…');
+    note(m('⏳ Đang lưu âm thanh cảnh…'));
     await api.put(`/scenes/${cur.id}`, { props });
     await syncScene();
-    note(sfx ? '✓ Đã lưu SFX — bấm "Ghép lại video" để nghe trong bản final.' : '✓ Đã bỏ SFX riêng của cảnh.');
+    note(sfx ? m('✓ Đã lưu SFX — bấm "Ghép lại video" để nghe trong bản final.') : m('✓ Đã bỏ SFX riêng của cảnh.'));
     toast('🔊 Đã lưu âm thanh cảnh.', 'success');
   } catch (e) { note('✗ ' + e.message, true); }
 }
@@ -156,15 +157,15 @@ function reloadPreview() {
 async function saveVoice() {
   if (!cur) return;
   const text = $('#ssVoice').value.trim();
-  if (text.length < 2) { note('Lời thoại quá ngắn.', true); return; }
+  if (text.length < 2) { note(m('Lời thoại quá ngắn.'), true); return; }
   try {
-    note('⏳ Đang lưu lời thoại + tạo lại giọng…');
+    note(m('⏳ Đang lưu lời thoại + tạo lại giọng…'));
     await api.put(`/scenes/${cur.id}`, { voice_text: text });
     await api.post(`/scenes/${cur.id}/regen-voice`, {});
     cur.voice_text = text;
     await syncScene();
     reloadPreview();
-    note('✓ Giọng mới đã sẵn sàng — nghe lại bằng ↻.');
+    note(m('✓ Giọng mới đã sẵn sàng — nghe lại bằng ↻.'));
     toast('🎙 Đã tạo lại giọng cho cảnh.', 'success');
   } catch (e) { note('✗ ' + e.message, true); }
 }
@@ -173,13 +174,13 @@ async function saveVoice() {
 async function saveVisual() {
   if (!cur) return;
   try {
-    note('⏳ AI đang dựng lại visual…');
+    note(m('⏳ AI đang dựng lại visual…'));
     await api.put(`/scenes/${cur.id}`, { visual_prompt: $('#ssVisual').value.trim() });
     await api.post(`/scenes/${cur.id}/regen-html`, {});
     await syncScene();
     htmlLoaded = false; // template changed → editor must refetch
     reloadPreview();
-    note('✓ Visual mới đã lên preview.');
+    note(m('✓ Visual mới đã lên preview.'));
     toast('✨ Đã dựng lại visual.', 'success');
   } catch (e) { note('✗ ' + e.message, true); }
 }
@@ -188,12 +189,12 @@ async function saveVisual() {
 async function loadHtml() {
   if (!cur) return;
   const st = $('#ssHtmlState');
-  st.textContent = '⏳ đang tải source…';
+  st.textContent = m('⏳ đang tải source…');
   try {
     const src = await api.get(`/scenes/${cur.id}/template-source`);
     $('#ssHtml').value = src.html || '';
     refreshHl();
-    st.textContent = src.hasCustom ? '(đang dùng bản sửa tay)' : `(template: ${src.template})`;
+    st.textContent = src.hasCustom ? m('(đang dùng bản sửa tay)') : tp`(template: ${src.template})`;
     htmlLoaded = true;
   } catch (e) { st.textContent = '✗ ' + e.message; }
 }
@@ -201,14 +202,14 @@ async function loadHtml() {
 async function applyHtml() {
   if (!cur) return;
   const html = $('#ssHtml').value;
-  if (!html.trim()) { note('Chưa có nội dung HTML.', true); return; }
+  if (!html.trim()) { note(m('Chưa có nội dung HTML.'), true); return; }
   try {
-    note('⏳ Đang áp dụng bản sửa + dựng preview…');
+    note(m('⏳ Đang áp dụng bản sửa + dựng preview…'));
     await api.post(`/scenes/${cur.id}/custom-html`, { html, css: $('#ssCss').value });
     await syncScene();
-    $('#ssHtmlState').textContent = '(đang dùng bản sửa tay)';
+    $('#ssHtmlState').textContent = m('(đang dùng bản sửa tay)');
     reloadPreview();
-    note('✓ Đã áp dụng — cảnh sẽ render lại với markup này.');
+    note(m('✓ Đã áp dụng — cảnh sẽ render lại với markup này.'));
     toast('💾 Đã áp bản sửa tay.', 'success');
   } catch (e) { note('✗ ' + e.message, true); }
 }
@@ -219,8 +220,8 @@ async function editHtmlWithAi() {
   if (!cur) return;
   const prompt = $('#ssEditPrompt')?.value.trim();
   const out = $('#ssEditOut');
-  if (!prompt) { if (out) out.textContent = 'Mô tả thay đổi trước đã.'; return; }
-  if (out) out.textContent = '⏳ AI đang sửa…';
+  if (!prompt) { if (out) out.textContent = m('Mô tả thay đổi trước đã.'); return; }
+  if (out) out.textContent = m('⏳ AI đang sửa…');
   try {
     const r = await api.post(`/scenes/${cur.id}/edit-html`, { prompt });
     if (r?.error) throw new Error(r.error);
@@ -228,7 +229,7 @@ async function editHtmlWithAi() {
     htmlLoaded = false;
     await loadHtml();
     reloadPreview();
-    if (out) out.textContent = '✓ Đã sửa — xem preview bên trái';
+    if (out) out.textContent = m('✓ Đã sửa — xem preview bên trái');
     toast('✏️ AI đã sửa cảnh.', 'success');
   } catch (e) {
     if (out) out.textContent = '✗ ' + e.message;
@@ -239,13 +240,13 @@ async function editHtmlWithAi() {
 async function resetHtml() {
   if (!cur) return;
   try {
-    note('⏳ Đang trả về template gốc…');
+    note(m('⏳ Đang trả về template gốc…'));
     await api.post(`/scenes/${cur.id}/custom-html`, { reset: true });
     await syncScene();
     htmlLoaded = false;
     await loadHtml();
     reloadPreview();
-    note('✓ Đã bỏ bản sửa tay.');
+    note(m('✓ Đã bỏ bản sửa tay.'));
   } catch (e) { note('✗ ' + e.message, true); }
 }
 
@@ -253,15 +254,15 @@ async function resetHtml() {
 async function loadTakes() {
   if (!cur) return;
   const box = $('#ssTakes');
-  box.innerHTML = '<div class="hint">⏳ Đang tải lịch sử take…</div>';
+  box.innerHTML = `<div class="hint">${m('⏳ Đang tải lịch sử take…')}</div>`;
   try {
     const { takes } = await api.get(`/scenes/${cur.id}/takes`);
-    if (!takes.length) { box.innerHTML = '<div class="hint">Chưa có take nào — mỗi lần tạo lại giọng/visual sẽ lưu một take.</div>'; return; }
+    if (!takes.length) { box.innerHTML = `<div class="hint">${m('Chưa có take nào — mỗi lần tạo lại giọng/visual sẽ lưu một take.')}</div>`; return; }
     box.innerHTML = takes.map((t) => `
       <div class="ss-take" data-id="${esc(t.id)}">
         <span>${t.kind === 'voice' ? '🎙' : '🎨'} ${new Date(t.created_at).toLocaleString('vi-VN')}</span>
-        <span class="badge ${t.is_active ? 'done' : 'paused'}">${t.is_active ? 'Đang dùng' : 'Bản cũ'}</span>
-        ${t.is_active ? '' : '<button class="btn sm" data-take="activate">↩ Dùng bản này</button>'}
+        <span class="badge ${t.is_active ? 'done' : 'paused'}">${t.is_active ? m('Đang dùng') : m('Bản cũ')}</span>
+        ${t.is_active ? '' : `<button class="btn sm" data-take="activate">${m('↩ Dùng bản này')}</button>`}
       </div>`).join('');
   } catch (e) { box.innerHTML = `<div class="hint">✗ ${esc(e.message)}</div>`; }
 }
@@ -284,7 +285,7 @@ async function onTakeAction(e) {
 async function renderThisScene() {
   if (!cur || !state.current) return;
   await api.post(`/projects/${state.current.id}/render`, { mode: 'scenes', sceneIds: [cur.id] });
-  note('🎞 Đang render riêng cảnh này — theo dõi ở lưới cảnh.');
+  note(m('🎞 Đang render riêng cảnh này — theo dõi ở lưới cảnh.'));
   toast('Đang render cảnh…');
 }
 

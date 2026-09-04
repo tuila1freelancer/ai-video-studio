@@ -46,24 +46,82 @@ export function reachable(rawSrc) {
     /\b(?:title|label|okText|cancelText|body|placeholder)\s*:\s*"([^"\\\n]{3,200})"/g,
     /\b(?:error|message|hint)\s*:\s*'([^'\\\n]{4,200})'/g,
     /\b(?:error|message|hint)\s*:\s*"([^"\\\n]{4,200})"/g,
+    // setLabel(el, icon, fallback) takes its text from the element's OWN data-i18n key; the third
+    // argument is only what shows if the element carries none.
+    /\bsetLabel\((?:[^()]|\([^()]*\))*?'([^'\\\n]{2,200})'\s*\)/g,
+    /\bsetLabel\((?:[^()]|\([^()]*\))*?"([^"\\\n]{2,200})"\s*\)/g,
   ]) for (const hit of src.matchAll(re)) set.add(hit[1]);
   for (const text of msgCalls(rawSrc)) set.add(text);
   for (const text of tpTemplates(rawSrc)) set.add(text);
   return set;
 }
 
-/** Every string literal in `src` that a person could read, with the line it sits on. */
+/**
+ * Every string a person could read, with the line it sits on.
+ *
+ * A template literal is scanned as its STATIC parts only, and the code inside each `${…}` is
+ * scanned in turn — because `<div>${m('Chưa có mục nào')}</div>` is a translated string, and
+ * reading the template as one flat run reports it as an untranslated one.
+ */
 export function literals(rawSrc) {
   const src = stripComments(rawSrc);
   const out = [];
-  const lit = /(['"`])((?:\\.|(?!\1)[\s\S])*?)\1/g;
-  let hit;
-  while ((hit = lit.exec(src))) {
-    const [, quote, body] = hit;
-    if (!looksVietnamese(body)) continue;
-    out.push({ text: body, quote, line: src.slice(0, hit.index).split('\n').length, index: hit.index });
-  }
-  return out;
+  const lineAt = (i) => src.slice(0, i).split('\n').length;
+
+  const scan = (from, to) => {
+    let i = from;
+    while (i < to) {
+      const c = src[i];
+      if (c !== '"' && c !== "'" && c !== '`') { i++; continue; }
+      const open = i;
+      const quote = c;
+      i++;
+      if (quote !== '`') {
+        let body = '';
+        while (i < to) {
+          if (src[i] === '\\') { body += src[i + 1] ?? ''; i += 2; continue; }
+          if (src[i] === quote) { i++; break; }
+          body += src[i]; i++;
+        }
+        if (looksVietnamese(body)) out.push({ text: body, quote, line: lineAt(open), index: open });
+        continue;
+      }
+      // A template: collect the static run, and recurse through every ${…} expression.
+      let statics = '';
+      const holes = [];
+      while (i < to) {
+        if (src[i] === '\\') { statics += src[i + 1] ?? ''; i += 2; continue; }
+        if (src[i] === '`') { i++; break; }
+        if (src[i] === '$' && src[i + 1] === '{') {
+          const exprFrom = i + 2;
+          let depth = 1;
+          i += 2;
+          while (i < to && depth) {
+            const d = src[i];
+            if (d === '\\') { i += 2; continue; }
+            if (d === '{') depth++;
+            else if (d === '}') depth--;
+            else if (d === '`' || d === "'" || d === '"') {
+              const q = d;
+              i++;
+              while (i < to && src[i] !== q) i += src[i] === '\\' ? 2 : 1;
+            }
+            i++;
+          }
+          holes.push([exprFrom, i - 1]);
+          statics += '\u0000';
+          continue;
+        }
+        statics += src[i]; i++;
+      }
+      if (looksVietnamese(statics.replace(/\u0000/g, ''))) {
+        out.push({ text: statics.replace(/\u0000/g, '…'), quote: '`', line: lineAt(open), index: open });
+      }
+      for (const [a, b] of holes) scan(a, b);
+    }
+  };
+  scan(0, src.length);
+  return out.sort((a, b) => a.index - b.index);
 }
 
 /**
@@ -87,4 +145,21 @@ export function tpCovered(rawSrc) {
     start.lastIndex = i;
   }
   return (index) => spans.some(([a, b]) => index >= a && index < b);
+}
+
+/**
+ * Lines a `// i18n-exempt` comment covers: from the marker down to the next blank line.
+ *
+ * The decision to leave a string alone belongs next to the string, not in a list inside the audit
+ * that nobody reads when they move the code. The blank line is the scope because that is already
+ * how a declaration is separated from its neighbours in this repo.
+ */
+export function exemptLines(rawSrc) {
+  const out = new Set();
+  const lines = rawSrc.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    if (!/i18n-exempt/.test(lines[i])) continue;
+    for (let j = i; j < lines.length && lines[j].trim(); j++) out.add(j + 1);
+  }
+  return out;
 }

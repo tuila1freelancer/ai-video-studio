@@ -2,6 +2,7 @@
 // retried with backoff, surfaced to the UI, and never silently swallowed.
 import { logger } from './log.js';
 
+import { tp } from '../i18n/t.js';
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /**
@@ -21,7 +22,7 @@ export async function withRetry(fn, { tries = 3, delays = [2000, 5000, 12000], l
       if (fatal && fatal(e)) throw e;
       if (i < tries - 1) {
         // ALS auto-attribution (P32): inside a run this warn reaches the project's journal
-        logger.warn(`${label}: lần thử ${i + 1}/${tries} lỗi (${e.message}) — đang thử lại`);
+        logger.warn(tp`${label}: lần thử ${i + 1}/${tries} lỗi (${e.message}) — đang thử lại`);
         try { if (onRetry) onRetry(i + 1, e); } catch { /* UI hook must not break the retry */ }
         await sleep(delays[Math.min(i, delays.length - 1)]);
       }

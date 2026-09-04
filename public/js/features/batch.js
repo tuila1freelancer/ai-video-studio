@@ -4,6 +4,7 @@ import { toast } from '../ui/toast.js';
 import { api } from '../api.js';
 import { gatherConfig } from '../views/config.js';
 import { loadProjects } from '../views/studio.js';
+import { tp } from '../i18n.js';
 
 export function initBatch() {
   $('#heroBatch').addEventListener('click', () => $('#batchModal').classList.add('open'));
@@ -16,6 +17,6 @@ async function runBatch() {
   const r = await api.post('/batch', { topics, config: gatherConfig() });
   if (r.error) return toast(r.error, 'error');
   closeModal('#batchModal');
-  toast(`🚀 Đã xếp hàng ${r.count} video — app tự chạy lần lượt.`, 'success');
+  toast(tp`🚀 Đã xếp hàng ${r.count} video — app tự chạy lần lượt.`, 'success');
   loadProjects();
 }

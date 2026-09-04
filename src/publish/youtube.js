@@ -6,6 +6,7 @@ import { createReadStream, statSync } from 'node:fs';
 import { getSetting, setSetting } from '../db/index.js';
 import { logger } from '../util/log.js';
 
+import { m } from '../i18n/t.js';
 const OAUTH = 'https://accounts.google.com/o/oauth2/v2/auth';
 const TOKEN = 'https://oauth2.googleapis.com/token';
 const SCOPE = 'https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/youtube';
@@ -23,7 +24,7 @@ export function connected() { return !!cfg().refreshToken; }
 export function authUrl({ clientId, clientSecret, redirectUri }) {
   if (clientId && clientSecret) saveCfg({ clientId, clientSecret });
   const c = cfg();
-  if (!c.clientId) throw new Error('Chưa có OAuth Client ID (tạo tại console.cloud.google.com, loại "Desktop app")');
+  if (!c.clientId) throw new Error(m('Chưa có OAuth Client ID (tạo tại console.cloud.google.com, loại "Desktop app")'));
   const q = new URLSearchParams({
     client_id: c.clientId, redirect_uri: redirectUri, response_type: 'code',
     scope: SCOPE, access_type: 'offline', prompt: 'consent',
@@ -45,7 +46,7 @@ export async function exchangeCode(code, redirectUri) {
 
 async function accessToken() {
   const c = cfg();
-  if (!c.refreshToken) throw new Error('YouTube chưa kết nối — chạy bước cấp quyền OAuth trước');
+  if (!c.refreshToken) throw new Error(m('YouTube chưa kết nối — chạy bước cấp quyền OAuth trước'));
   if (c.accessToken && c.expiry && Date.now() < c.expiry - 60000) return c.accessToken;
   const res = await fetch(TOKEN, {
     method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -85,7 +86,7 @@ export async function upload({ videoPath, title, description = '', tags = [], pr
   });
   if (!init.ok) throw new Error(`YouTube init ${init.status}: ${(await init.text()).slice(0, 300)}`);
   const location = init.headers.get('location');
-  if (!location) throw new Error('YouTube: thiếu resumable upload URL');
+  if (!location) throw new Error(m('YouTube: thiếu resumable upload URL'));
   const put = await fetch(location, {
     method: 'PUT',
     headers: { 'Content-Length': String(size), 'Content-Type': 'video/mp4' },

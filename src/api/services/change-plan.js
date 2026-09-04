@@ -14,20 +14,22 @@ import { resolveConcatLogo } from '../../media/logo-overlay.js';
 import { CONCAT_CONFIG_KEYS } from '../../pipeline/concat-plan.js';
 import { ratioToSize } from '../../util/util.js';
 
+import { m, tp } from '../../i18n/t.js';
 // The list lives beside the fingerprint that consumes their effects (pipeline/concat-plan.js), so
 // there is ONE place to add a key when a new final-stage setting appears. The copy that used to
 // live here had already drifted: it was missing `enableSubtitles` and `platformCovers`.
 const SUB_KEY = /^sub(?!titleLane$)/;
-/** Vietnamese names for the keys the owner actually sees, so the plan does not read like a diff. */
-const KEY_LABEL = {
-  transitions: 'hiệu ứng chuyển cảnh', transitionStyle: 'kiểu chuyển cảnh',
-  masterFade: 'mờ đầu/cuối video', concatEncoder: 'tốc độ encode',
-  bgmPath: 'nhạc nền', autoBgm: 'nhạc nền tự động', useDefaultBgm: 'nhạc nền mặc định',
-  autoSfx: 'hiệu ứng âm thanh', soundDesign: 'thiết kế âm thanh AI', bgmVol: 'âm lượng nhạc nền',
-  enableSubtitles: 'bật/tắt phụ đề', watermarkText: 'chữ watermark',
-  thumbnailAi: 'thumbnail AI', platformCovers: 'ảnh bìa các nền tảng',
-  brandKitOverride: 'nhận diện riêng cho video này',
-};
+/** The name the owner actually sees for a config key, so the plan does not read like a diff.
+ *  Resolved per call, never at import — the interface language can change while the app runs. */
+const keyLabel = (k) => ({
+  transitions: m('hiệu ứng chuyển cảnh'), transitionStyle: m('kiểu chuyển cảnh'),
+  masterFade: m('mờ đầu/cuối video'), concatEncoder: m('tốc độ encode'),
+  bgmPath: m('nhạc nền'), autoBgm: m('nhạc nền tự động'), useDefaultBgm: m('nhạc nền mặc định'),
+  autoSfx: m('hiệu ứng âm thanh'), soundDesign: m('thiết kế âm thanh AI'), bgmVol: m('âm lượng nhạc nền'),
+  enableSubtitles: m('bật/tắt phụ đề'), watermarkText: m('chữ watermark'),
+  thumbnailAi: m('thumbnail AI'), platformCovers: m('ảnh bìa các nền tảng'),
+  brandKitOverride: m('nhận diện riêng cho video này'),
+})[k] || k;
 
 /** Defaults used until a project has measured its own. Deliberately round, and labelled. */
 const FALLBACK = { render: 22, tts: 6, concat: 90 };
@@ -104,8 +106,8 @@ export function planChanges(projectId, nextConfig = {}) {
   if (ttsStale.length) {
     items.push({
       kind: 'tts',
-      label: `Lồng tiếng lại ${ttsStale.length} cảnh`,
-      detail: 'lời thoại hoặc giọng đọc đã đổi — bước này TỐN TIỀN API',
+      label: tp`Lồng tiếng lại ${ttsStale.length} cảnh`,
+      detail: m('lời thoại hoặc giọng đọc đã đổi — bước này TỐN TIỀN API'),
       scenes: ttsStale.length,
       seconds: Math.round(ttsStale.length * perTts),
       costly: true,
@@ -114,26 +116,26 @@ export function planChanges(projectId, nextConfig = {}) {
   if (renderStale.length) {
     items.push({
       kind: 'render',
-      label: `Render lại ${renderStale.length} cảnh`,
+      label: tp`Render lại ${renderStale.length} cảnh`,
       detail: laneMoved && finalLane
-        ? 'chuyển phụ đề sang bước cuối — phải dựng lại clip KHÔNG có phụ đề (chỉ một lần duy nhất)'
-        : 'thiết lập ảnh hưởng tới nội dung từng cảnh',
+        ? m('chuyển phụ đề sang bước cuối — phải dựng lại clip KHÔNG có phụ đề (chỉ một lần duy nhất)')
+        : m('thiết lập ảnh hưởng tới nội dung từng cảnh'),
       scenes: renderStale.length,
       seconds: Math.round(renderStale.length * perRender),
     });
   }
   const joinReasons = [
-    logoMoved && (logoAfter ? 'đóng dấu logo' : 'bỏ logo'),
-    wmMoved && (wmAfter?.enabled ? 'đổi watermark' : 'bỏ watermark'),
+    logoMoved && (logoAfter ? m('đóng dấu logo') : m('bỏ logo')),
+    wmMoved && (wmAfter?.enabled ? m('đổi watermark') : m('bỏ watermark')),
     // …in the owner's words. `đổi concatEncoder` is a diff line, not a reason.
-    ...concatChanged.filter((k) => k !== 'logo' && k !== 'brandKit').map((k) => `đổi ${KEY_LABEL[k] || k}`),
-    subMoved.length && `đổi phụ đề (${subMoved.length} thiết lập, in ở bước cuối)`,
-    (ttsStale.length || renderStale.length) && 'ghép lại sau khi dựng cảnh',
+    ...concatChanged.filter((k) => k !== 'logo' && k !== 'brandKit').map((k) => tp`đổi ${keyLabel(k)}`),
+    subMoved.length && tp`đổi phụ đề (${subMoved.length} thiết lập, in ở bước cuối)`,
+    (ttsStale.length || renderStale.length) && m('ghép lại sau khi dựng cảnh'),
   ].filter(Boolean);
   if (joinReasons.length) {
     items.push({
       kind: 'concat',
-      label: 'Ghép lại video',
+      label: m('Ghép lại video'),
       detail: joinReasons.join(' · '),
       seconds: concatSec,
     });

@@ -7,6 +7,7 @@
 // (json imports included — the factory's own files carry 8 goodbye blocks per 200 scenes).
 import { splitSentences } from '../providers/llm.js';
 
+import { m, tp } from '../i18n/t.js';
 const fold = (s) => String(s || '').toLowerCase()
   .normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd');
 
@@ -68,20 +69,20 @@ export function auditCtas(texts) {
   const closeStart = n - (n >= 8 ? 2 : 1);
   const midFarewell = farewellIdx.filter((i) => i < closeStart);
   if (midFarewell.length) {
-    defects.push({ code: 'FAREWELL_MID', idx: midFarewell, detail: `chào tạm biệt/cảm ơn kết thúc ở giữa video (cảnh ${midFarewell.map((i) => i + 1).join(', ')}) — video vẫn còn tiếp diễn` });
+    defects.push({ code: 'FAREWELL_MID', idx: midFarewell, detail: tp`chào tạm biệt/cảm ơn kết thúc ở giữa video (cảnh ${midFarewell.map((i) => i + 1).join(', ')}) — video vẫn còn tiếp diễn` });
   }
   const closingZone = (i) => i >= closeStart;
   const mid = ctaIdx.filter((i) => !closingZone(i) && !midFarewell.includes(i));
   if (mid.length > 1) {
     const keep = mid.reduce((best, i) => (Math.abs(i - 0.3 * n) < Math.abs(best - 0.3 * n) ? i : best), mid[0]);
     const extra = mid.filter((i) => i !== keep);
-    defects.push({ code: 'CTA_EXCESS', idx: extra, detail: `quá nhiều CTA giữa video (${mid.length} cảnh) — chỉ giữ 1 CTA mềm quanh 30% (cảnh ${keep + 1}) + CTA chốt cuối` });
+    defects.push({ code: 'CTA_EXCESS', idx: extra, detail: tp`quá nhiều CTA giữa video (${mid.length} cảnh) — chỉ giữ 1 CTA mềm quanh 30% (cảnh ${keep + 1}) + CTA chốt cuối` });
   }
   for (let k = 1; k < mid.length; k++) {
     if (mid[k] - mid[k - 1] < 5) {
       const already = defects.find((d) => d.code === 'CTA_CLUSTER');
       if (already) { if (!already.idx.includes(mid[k])) already.idx.push(mid[k]); }
-      else defects.push({ code: 'CTA_CLUSTER', idx: [mid[k]], detail: 'các cảnh CTA dồn cụm sát nhau giữa video' });
+      else defects.push({ code: 'CTA_CLUSTER', idx: [mid[k]], detail: m('các cảnh CTA dồn cụm sát nhau giữa video') });
     }
   }
   return { ctaIdx, farewellIdx, defects };

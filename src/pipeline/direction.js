@@ -11,6 +11,7 @@ import { chatJson, llmEnabled } from '../providers/llm.js';
 import { extractBeats } from '../hyperframe/beats.js';
 import { langName, majorityLang } from '../util/lang.js';
 
+import { tp } from '../i18n/t.js';
 // A structured direction always carries a [MAIN FOCUS] section — used as the "already
 // directed" marker so resume runs and user-edited briefs are never overwritten.
 const DIRECTED = /\[MAIN FOCUS\]/i;
@@ -142,9 +143,9 @@ export async function generateDirections(scenes, { title = '', total = 0, guide 
         const clean = cleanDirection(d);
         if (clean) { out.set(idx, clean); got++; }
       }
-      onLog(`Chỉ đạo hình ảnh: đợt ${Math.floor(i / BATCH) + 1} — ${got}/${batch.length} cảnh có brief`);
+      onLog(tp`Chỉ đạo hình ảnh: đợt ${Math.floor(i / BATCH) + 1} — ${got}/${batch.length} cảnh có brief`);
     } catch (e) {
-      onLog(`Chỉ đạo hình ảnh: đợt ${Math.floor(i / BATCH) + 1} lỗi (${String(e.message).slice(0, 80)}) — giữ mô tả cũ`);
+      onLog(tp`Chỉ đạo hình ảnh: đợt ${Math.floor(i / BATCH) + 1} lỗi (${String(e.message).slice(0, 80)}) — giữ mô tả cũ`);
     }
   }
   return out;

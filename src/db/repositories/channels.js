@@ -8,6 +8,7 @@ import { DATA_DIR, projectDirIn, ensureChannelDirs } from '../../config/paths.js
 import { newId, safeJson } from '../../util/util.js';
 import { maskSecrets } from '../../util/secrets.js';
 
+import { m } from '../../i18n/t.js';
 function slugify(name) {
   return String(name || 'kenh').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/gi, 'd')
     .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'kenh';
@@ -55,7 +56,7 @@ export function updateChannel(id, fields) {
 
 export function deleteChannel(id) {
   const def = defaultChannel();
-  if (id === def.id) throw new Error('Không thể xoá kênh Default');
+  if (id === def.id) throw new Error(m('Không thể xoá kênh Default'));
   // unlink only — never delete files on disk
   db.prepare('UPDATE projects SET channel_id=? WHERE channel_id=?').run(def.id, id);
   db.prepare('DELETE FROM channels WHERE id=?').run(id);

@@ -8,6 +8,7 @@ import { toast } from '../ui/toast.js';
 import { api } from '../api.js';
 import { state } from '../state.js';
 import { renderScenes } from '../views/scenes.js';
+import { m, tp } from '../i18n.js';
 
 export function initSrt() {
   $('#srtSave').addEventListener('click', saveSrt);
@@ -20,12 +21,12 @@ export function openSrt() {
     const d = el('div', 'field srt-scene');
     const cueCount = Array.isArray(s.srt_json) ? s.srt_json.length : 0;
     d.innerHTML = `
-      <label class="label">Cảnh ${s.idx + 1} · ${(s.duration || 0).toFixed(1)}s</label>
+      <label class="label">${tp`Cảnh ${s.idx + 1}`} · ${(s.duration || 0).toFixed(1)}s</label>
       <textarea class="input" rows="2" data-sid="${s.id}">${esc(s.voice_text || '')}</textarea>
       <div class="row srt-tools" data-sid="${s.id}" style="gap:6px;margin-top:4px;flex-wrap:wrap">
-        ${cueCount ? `<button class="btn sm" data-act="cues">⏱ Phụ đề (${cueCount} dòng)</button>
-        <button class="btn sm" data-act="resync" title="Chia lại phụ đề theo kịch bản trên audio hiện có — không thu âm lại">↻ Đồng bộ lại</button>` : ''}
-        <button class="btn sm" data-act="takes" title="Các bản thu giọng trước đây của cảnh này">🕘 Bản thu</button>
+        ${cueCount ? `<button class="btn sm" data-act="cues">${tp`⏱ Phụ đề (${cueCount} dòng)`}</button>
+        <button class="btn sm" data-act="resync" title="${esc(m('Chia lại phụ đề theo kịch bản trên audio hiện có — không thu âm lại'))}">${m('↻ Đồng bộ lại')}</button>` : ''}
+        <button class="btn sm" data-act="takes" title="${esc(m('Các bản thu giọng trước đây của cảnh này'))}">${m('🕘 Bản thu')}</button>
       </div>
       <div class="srt-cues hidden" data-sid="${s.id}"></div>
       <div class="srt-takes hidden" data-sid="${s.id}"></div>`;
@@ -50,10 +51,10 @@ function toggleCues(sid) {
   const cues = Array.isArray(s?.srt_json) ? s.srt_json : [];
   wrap.innerHTML = cues.map((c, i) => `
     <div class="srt-cue" data-i="${i}">
-      <input class="input sm num" type="number" step="0.05" min="0" value="${(+c.start).toFixed(2)}" data-f="start" title="bắt đầu (s)">
-      <input class="input sm num" type="number" step="0.05" min="0" value="${(+c.end).toFixed(2)}" data-f="end" title="kết thúc (s)">
+      <input class="input sm num" type="number" step="0.05" min="0" value="${(+c.start).toFixed(2)}" data-f="start" title="${esc(m('bắt đầu (s)'))}">
+      <input class="input sm num" type="number" step="0.05" min="0" value="${(+c.end).toFixed(2)}" data-f="end" title="${esc(m('kết thúc (s)'))}">
       <input class="input sm txt" value="${esc(c.text)}" data-f="text">
-    </div>`).join('') || '<div class="hint">Chưa có phụ đề — chạy TTS trước.</div>';
+    </div>`).join('') || `<div class="hint">${m('Chưa có phụ đề — chạy TTS trước.')}</div>`;
   wrap.classList.remove('hidden');
 }
 
@@ -98,23 +99,23 @@ async function resync(sid, btn) {
     if (i >= 0) state.scenes[i] = scene;
     document.querySelector(`.srt-cues[data-sid="${sid}"]`)?.classList.add('hidden');
     toast('Đã đồng bộ lại phụ đề theo kịch bản ↻', 'success');
-  } catch (e) { toast('Lỗi đồng bộ: ' + e.message, 'error'); }
-  btn.disabled = false; btn.textContent = '↻ Đồng bộ lại';
+  } catch (e) { toast(tp`Lỗi đồng bộ: ${e.message}`, 'error'); }
+  btn.disabled = false; btn.textContent = m('↻ Đồng bộ lại');
 }
 
 async function toggleTakes(sid) {
   const wrap = document.querySelector(`.srt-takes[data-sid="${sid}"]`);
   if (!wrap.classList.contains('hidden')) { wrap.classList.add('hidden'); return; }
-  wrap.innerHTML = '<div class="hint">⏳ Đang tải…</div>';
+  wrap.innerHTML = `<div class="hint">${m('⏳ Đang tải…')}</div>`;
   wrap.classList.remove('hidden');
   try {
     const { takes } = await api.get(`/scenes/${sid}/takes?kind=voice`);
-    if (!takes.length) { wrap.innerHTML = '<div class="hint">Chưa có bản thu nào khác (tạo bằng “Voice đã chọn”).</div>'; return; }
+    if (!takes.length) { wrap.innerHTML = `<div class="hint">${m('Chưa có bản thu nào khác (tạo bằng “Voice đã chọn”).')}</div>`; return; }
     wrap.innerHTML = takes.map((t) => `
       <div class="row" style="gap:8px;align-items:center;margin-top:4px">
-        <span class="hint" style="flex:1">${t.is_active ? '● đang dùng · ' : ''}${new Date(t.created_at).toLocaleTimeString('vi-VN')} · ${(t.payload.duration || 0).toFixed(1)}s</span>
+        <span class="hint" style="flex:1">${t.is_active ? m('● đang dùng') + ' · ' : ''}${new Date(t.created_at).toLocaleTimeString('vi-VN')} · ${(t.payload.duration || 0).toFixed(1)}s</span>
         ${t.payload.audio_path ? `<audio controls preload="none" src="/api/file?path=${encodeURIComponent(t.payload.audio_path)}" style="height:26px"></audio>` : ''}
-        ${t.is_active ? '' : `<button class="btn sm" data-take="${t.id}">Dùng bản này</button>`}
+        ${t.is_active ? '' : `<button class="btn sm" data-take="${t.id}">${m('Dùng bản này')}</button>`}
       </div>`).join('');
     wrap.querySelectorAll('[data-take]').forEach((b) => b.addEventListener('click', async () => {
       try {
@@ -123,7 +124,7 @@ async function toggleTakes(sid) {
         if (i >= 0) state.scenes[i] = scene;
         toast('Đã chuyển sang bản thu này — render lại để áp dụng.', 'success');
         wrap.classList.add('hidden');
-      } catch (e) { toast('Lỗi: ' + e.message, 'error'); }
+      } catch (e) { toast(tp`Lỗi: ${e.message}`, 'error'); }
     }));
   } catch (e) { wrap.innerHTML = `<div class="hint">✗ ${esc(e.message)}</div>`; }
 }

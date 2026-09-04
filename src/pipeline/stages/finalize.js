@@ -30,6 +30,7 @@ import { resolveLang } from '../../util/lang.js';
 import { planOffsets } from '../../subtitles/timeline.js';
 import { orientationOf } from '../../publish/platforms.js';
 
+import { m, tp } from '../../i18n/t.js';
 /**
  * @param {string} projectId
  * @param {{dir:string, size:{w:number,h:number}, config:object}} opts
@@ -41,7 +42,7 @@ export async function finalize(projectId, { dir, size, config, variantName = nul
   // because the runner had no checkpoint after finalize either, the run went on to finish as
   // 'done'. The stop was not late — it was discarded.
   checkStop(projectId);
-  step(projectId, 'b7', 'running', 'Ghép & mix');
+  step(projectId, 'b7', 'running', m('Ghép & mix'));
   DB.updateProject(projectId, { current_step: 'b7' });
   const project = DB.getProject(projectId);
   project.outputDir = resolveOutputDir(projectId, config, dir);
@@ -76,21 +77,21 @@ export async function finalize(projectId, { dir, size, config, variantName = nul
   const rebuild = [...missing, ...stale].sort((a, b) => a.idx - b.idx);
   if (rebuild.length) {
     if (missing.length) {
-      op(projectId, `🩹 ${missing.length} cảnh thiếu clip — render bù trước khi ghép…`);
-      logger.warn(`Ghép video: ${missing.length} cảnh thiếu clip — đang render bù`, { projectId, stage: 'b7' });
+      op(projectId, tp`🩹 ${missing.length} cảnh thiếu clip — render bù trước khi ghép…`);
+      logger.warn(tp`Ghép video: ${missing.length} cảnh thiếu clip — đang render bù`, { projectId, stage: 'b7' });
     }
     if (stale.length) {
-      op(projectId, `♻️ ${stale.length} cảnh có clip không khớp cấu hình hiện tại — dựng lại KHÔNG phụ đề trước khi in phụ đề lên bản ghép`);
-      logger.warn(`Ghép video: ${stale.length} clip lệch cấu hình — dựng lại trước khi in phụ đề`, { projectId, stage: 'b7' });
+      op(projectId, tp`♻️ ${stale.length} cảnh có clip không khớp cấu hình hiện tại — dựng lại KHÔNG phụ đề trước khi in phụ đề lên bản ghép`);
+      logger.warn(tp`Ghép video: ${stale.length} clip lệch cấu hình — dựng lại trước khi in phụ đề`, { projectId, stage: 'b7' });
     }
     const pp = progressPlan(all, config);
     let n = 0;
     for (const sc of rebuild) {
       checkStop(projectId); // a repair pass can be dozens of renders — one per scene is the checkpoint
-      op(projectId, `🎬 Dựng lại cảnh ${sc.idx + 1} (${++n}/${rebuild.length})`);
+      op(projectId, tp`🎬 Dựng lại cảnh ${sc.idx + 1} (${++n}/${rebuild.length})`);
       const r = await renderAnimationScene(sc, project, clipCfg, {
         dir: renderDir, progressStart: pp.offsets[sc.idx] || 0, progressTotal: pp.total, total: all.length,
-        onLog: (s) => op(projectId, `cảnh ${sc.idx + 1}: ${s}`),
+        onLog: (s) => op(projectId, tp`cảnh ${sc.idx + 1}: ${s}`),
       });
       // Stamp the clip. Without this the repair leaves the OLD fingerprint next to a NEW file,
       // so the very next join would find the same scene stale and rebuild it all over again.
@@ -142,7 +143,7 @@ export async function finalize(projectId, { dir, size, config, variantName = nul
     const live = DB.channelOf(projectId)?.config?.brandKit;
     if (live) {
       if (JSON.stringify(live) !== JSON.stringify(config.brandKit)) {
-        op(projectId, '🎨 Nhận diện thương hiệu lấy trực tiếp từ kênh (mới hơn bản lưu trong dự án)');
+        op(projectId, m('🎨 Nhận diện thương hiệu lấy trực tiếp từ kênh (mới hơn bản lưu trong dự án)'));
       }
       config.brandKit = live;
     }
@@ -163,10 +164,10 @@ export async function finalize(projectId, { dir, size, config, variantName = nul
     if (wm.source === 'logo' && bkLogo) config.watermark = { ...wm, path: bkLogo };
     else if (canText) config.watermark = { ...wm, text, fontFile: font };
     else if (bkLogo) config.watermark = { ...wm, path: bkLogo };
-    else logger.warn('watermark bật nhưng không có logo lẫn tên kênh khả dụng — bỏ qua', { projectId });
+    else logger.warn(m('watermark bật nhưng không có logo lẫn tên kênh khả dụng — bỏ qua'), { projectId });
   }
 
-  op(projectId, '✂️ Ghép & mix…');
+  op(projectId, m('✂️ Ghép & mix…'));
   const expectDur = scenes.reduce((a, s) => a + (s.duration || 0), 0);
 
   // LLM sound design (reference-app parity, toggle config.soundDesign): ONE call picks a
@@ -183,7 +184,7 @@ export async function finalize(projectId, { dir, size, config, variantName = nul
         total: expectDur, title: project.title || project.topic || '', lang: resolveLang(config, scenes),
         llm: ai.llm, onLog: (m) => op(projectId, `🎼 ${m}`),
       });
-    } catch (e) { logger.warn(`sound design: ${e.message} — dùng audio mặc định`, { projectId }); sdPlan = null; }
+    } catch (e) { logger.warn(tp`sound design: ${e.message} — dùng audio mặc định`, { projectId }); sdPlan = null; }
   }
 
   // BGM: LLM plan → user-selected file → auto ambient bed (cached per project)
@@ -200,9 +201,9 @@ export async function finalize(projectId, { dir, size, config, variantName = nul
     const pick = lib.length ? lib[pickLibraryBgm(projectId, lib.length)] : null;
     if (pick) {
       bgmPath = pick.path;
-      op(projectId, `🎵 Nhạc nền: ${pick.name}`);
+      op(projectId, tp`🎵 Nhạc nền: ${pick.name}`);
     } else {
-      op(projectId, '🎵 Thư viện chưa có nhạc nền — dựng nền môi trường');
+      op(projectId, m('🎵 Thư viện chưa có nhạc nền — dựng nền môi trường'));
       bgmPath = join(renderDir, 'bgm_bed.m4a');
       if (!existsSync(bgmPath)) { try { await makeAmbientBed(bgmPath, 45); } catch { bgmPath = null; } }
     }
@@ -229,11 +230,11 @@ export async function finalize(projectId, { dir, size, config, variantName = nul
     for (const e of sdPlan?.events || []) events.push(e);
     if (events.length) {
       try {
-        op(projectId, `🔊 Đặt ${events.length} SFX…`);
+        op(projectId, tp`🔊 Đặt ${events.length} SFX…`);
         const whoosh = join(renderDir, 'sfx_whoosh.m4a');
         if (events.some((e) => !e.src) && !existsSync(whoosh)) await makeWhoosh(whoosh);
         sfxPath = await makeSfxBed(join(renderDir, 'sfx_bed.m4a'), { events, whooshPath: whoosh, total: expectDur });
-      } catch (e) { logger.warn(`sfx bed: ${e.message} — bỏ SFX`, { projectId }); sfxPath = null; }
+      } catch (e) { logger.warn(tp`sfx bed: ${e.message} — bỏ SFX`, { projectId }); sfxPath = null; }
     }
   }
 
@@ -245,7 +246,7 @@ export async function finalize(projectId, { dir, size, config, variantName = nul
     const theme = themeFromGuide(resolveGuide(config));
     const style = burnStyleFrom(config, theme, size);
     const { fontsDir, file, source } = prepareBurnFontDir(style.font, style.weight, renderDir);
-    op(projectId, `🔤 Phụ đề in ở bước cuối — font "${style.font}" (${source})`);
+    op(projectId, tp`🔤 Phụ đề in ở bước cuối — font "${style.font}" (${source})`);
     subtitles = { scenes, config, style, fontsDir, fontFile: file, shaping: shapingFor(resolveLang(config, scenes)) };
   }
 
@@ -273,7 +274,7 @@ export async function finalize(projectId, { dir, size, config, variantName = nul
     // Output must exist and cover the scene material (10% tolerance + transition losses).
     const got = await probeDuration(r.path);
     if (!got || got < Math.max(1, expectDur * 0.88 - 4)) {
-      throw new Error(`video ghép ngắn bất thường (${Math.round(got || 0)}s / kỳ vọng ~${Math.round(expectDur)}s)`);
+      throw new Error(tp`video ghép ngắn bất thường (${Math.round(got || 0)}s / kỳ vọng ~${Math.round(expectDur)}s)`);
     }
     return r;
     // `fatal` matters more than it looks: without it, aborting the encoder reads as a failed
@@ -294,17 +295,17 @@ export async function finalize(projectId, { dir, size, config, variantName = nul
   checkStop(projectId);
   let mastered = { lufs: null, truePeak: null, corrected: false };
   try {
-    op(projectId, '🎚️ Master âm thanh chuẩn phát sóng (-16 LUFS)…');
+    op(projectId, m('🎚️ Master âm thanh chuẩn phát sóng (-16 LUFS)…'));
     mastered = await masterAudio(res.path, {
       signal: abortSignalFor(projectId),
       onLog: (s) => logger.debug(s, { projectId }),
     });
-    if (mastered.corrected) op(projectId, `🎚️ Đã master: ${mastered.lufs?.toFixed(1)} LUFS · true-peak ${mastered.truePeak?.toFixed(1)} dB`);
+    if (mastered.corrected) op(projectId, tp`🎚️ Đã master: ${mastered.lufs?.toFixed(1)} LUFS · true-peak ${mastered.truePeak?.toFixed(1)} dB`);
   } catch (e) {
     // A failed master is cosmetic and never worth failing a video over — but a STOP is not a
     // failure, and swallowing it here would carry straight on into QC and the thumbnail.
     if (e.stopped) throw e;
-    logger.warn(`master: ${e.message} — giữ bản mix gốc`, { projectId });
+    logger.warn(tp`master: ${e.message} — giữ bản mix gốc`, { projectId });
   }
 
   // ---- B8: final integrity gate — a cheap stream/duration check on the joined video.
@@ -312,7 +313,7 @@ export async function finalize(projectId, { dir, size, config, variantName = nul
   // re-render, and visual quality-tier surfacing) is REMOVED — the owner dropped the "cảnh lỗi"
   // QC as redundant, and the reference app ships none of it. A broken JOIN still surfaces here.
   if (config.qcGate !== false) {
-    op(projectId, '🔬 Kiểm tra video thành phẩm (stream + thời lượng)…');
+    op(projectId, m('🔬 Kiểm tra video thành phẩm (stream + thời lượng)…'));
     // Expected FINAL duration comes from the join itself. It used to be recomputed here as
     // `expectDur - transitionLoss(...)`, guarded by a clip-count cap copied from the renderer —
     // a second arithmetic that had to be kept in step with the first, and could not account for
@@ -324,10 +325,10 @@ export async function finalize(projectId, { dir, size, config, variantName = nul
       at: new Date().toISOString(),
     }, null, 2));
     if (!qc.ok) {
-      logger.warn(`QC: ${qc.issues.length} vấn đề (${qc.issues.map((i) => i.type).join(', ')})`, { projectId });
-      op(projectId, `⚠️ Video có ${qc.issues.length} cảnh báo tính toàn vẹn (xem qc_report.json) — vẫn được xuất`);
+      logger.warn(tp`QC: ${qc.issues.length} vấn đề (${qc.issues.map((i) => i.type).join(', ')})`, { projectId });
+      op(projectId, tp`⚠️ Video có ${qc.issues.length} cảnh báo tính toàn vẹn (xem qc_report.json) — vẫn được xuất`);
     } else {
-      op(projectId, '✅ Video hợp lệ: đủ stream, thời lượng khớp');
+      op(projectId, m('✅ Video hợp lệ: đủ stream, thời lượng khớp'));
     }
   }
 
@@ -343,7 +344,7 @@ export async function finalize(projectId, { dir, size, config, variantName = nul
   // audio repair and the replacement was worse. Packaging follows the picture, not the soundtrack.
   const keepCover = (res.tier === 'audio' || res.tier === 'skip')
     && !!project.thumb_path && existsSync(project.thumb_path);
-  if (keepCover) { thumb = project.thumb_path; op(projectId, '🖼 Giữ nguyên ảnh bìa — lần ghép này chỉ đổi phần tiếng'); }
+  if (keepCover) { thumb = project.thumb_path; op(projectId, m('🖼 Giữ nguyên ảnh bìa — lần ghép này chỉ đổi phần tiếng')); }
   try {
     const guide = visualMode === 'hyperframe' ? resolveGuide(config) : null;
     const nVar = keepCover ? 0 : Math.max(1, Math.min(3, parseInt(config.thumbVariants, 10) || 3));
@@ -398,7 +399,7 @@ export async function finalize(projectId, { dir, size, config, variantName = nul
       const md = DB.getProject(projectId).metadata || {};
       DB.updateProject(projectId, { metadata: { ...md, thumbnail: { ...(md.thumbnail || {}), html: thumbHtml } } });
     }
-    if (made.length > 1) op(projectId, `🖼️ Đã tạo ${made.length} biến thể thumbnail (A/B) trong thư mục xuất`);
+    if (made.length > 1) op(projectId, tp`🖼️ Đã tạo ${made.length} biến thể thumbnail (A/B) trong thư mục xuất`);
 
     // ---- cover art at every platform's real pixels ----
     // A video is posted in more places than it is shot for: a 9:16 video still needs a 1280×720
@@ -421,7 +422,7 @@ export async function finalize(projectId, { dir, size, config, variantName = nul
       if (covers.length) {
         const md2 = DB.getProject(projectId).metadata || {};
         DB.updateProject(projectId, { metadata: { ...md2, covers } });
-        op(projectId, `🖼️ Ảnh bìa cho ${covers.length} khổ: ${covers.map((c) => c.label).join(' · ')}`);
+        op(projectId, tp`🖼️ Ảnh bìa cho ${covers.length} khổ: ${covers.map((c) => c.label).join(' · ')}`);
       }
     }
   } catch (e) {
@@ -446,7 +447,7 @@ export async function finalize(projectId, { dir, size, config, variantName = nul
   // A VARIANT is a second deliverable from the same clips — it must not take over as "the"
   // video, or asking for a no-logo cut would quietly replace the one being published.
   if (!variantName) DB.updateProject(projectId, { video_path: res.path, thumb_path: thumb, current_step: 'b7' });
-  else op(projectId, `📦 Biến thể "${variantName}" đã xuất — video chính giữ nguyên`);
+  else op(projectId, tp`📦 Biến thể "${variantName}" đã xuất — video chính giữ nguyên`);
   // Index this export. The file was always kept — nothing indexed it, which is the difference
   // between "I could go back if I had to" and "I dare not try anything".
   try {
@@ -454,7 +455,7 @@ export async function finalize(projectId, { dir, size, config, variantName = nul
       projectId, path: res.path, thumb, duration: res.duration, tier: res.tier || 'encode',
       config, variant: variantName,
     });
-  } catch (e) { logger.warn(`không ghi được lịch sử phiên bản: ${e.message}`, { projectId }); }
+  } catch (e) { logger.warn(tp`không ghi được lịch sử phiên bản: ${e.message}`, { projectId }); }
   step(projectId, 'b7', 'done', `${Math.round(res.duration)}s`);
   return res;
 }

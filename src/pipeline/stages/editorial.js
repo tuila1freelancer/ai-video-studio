@@ -17,6 +17,7 @@ import { checkStop } from '../stop.js';
 import { op } from '../progress.js';
 import { resolveLang, langName } from '../../util/lang.js';
 
+import { m, tp } from '../../i18n/t.js';
 const CHUNK = 20;      // scenes per rewrite call (the old hard cap, now drained in rounds)
 const MAX_CHUNKS = 3;  // bounded like every heal loop in this pipeline
 
@@ -65,7 +66,7 @@ JSON: {"flags":[{"idx":N,"type":"seam|repeat|arc","reason":"one short sentence"}
       .filter((f) => scenes.some((s) => s.idx === Number(f.idx)) && typeMap[f.type])
       .map((f) => ({ idx: Number(f.idx), type: typeMap[f.type], detail: String(f.reason || '').slice(0, 160) }));
   } catch (e) {
-    logger.warn(`Đọc-lại mạch truyện lỗi: ${e.message} — giữ các phát hiện tự động`, { projectId, stage: 'b2' });
+    logger.warn(tp`Đọc-lại mạch truyện lỗi: ${e.message} — giữ các phát hiện tự động`, { projectId, stage: 'b2' });
     return [];
   }
 }
@@ -82,12 +83,12 @@ function ctaStripFloor(projectId, config) {
       if (!removed.length) continue;
       if (gutted) {
         // editorial cannot drop a scene (count is invariant here) — keep + loud journal line
-        logger.warn(`Cảnh ${i + 1}: chỉ toàn CTA/tạm biệt giữa video, không tự cắt được — hãy sửa tay`, { projectId, stage: 'b2', sceneIdx: i });
+        logger.warn(tp`Cảnh ${i + 1}: chỉ toàn CTA/tạm biệt giữa video, không tự cắt được — hãy sửa tay`, { projectId, stage: 'b2', sceneIdx: i });
         continue;
       }
       DB.updateScene(sc.id, { voice_text: voice });
       stripped++;
-      logger.warn(`Cảnh ${i + 1}: cắt câu CTA/tạm biệt thừa ("${removed.join(' | ').slice(0, 80)}")`, { projectId, stage: 'b2', sceneIdx: i });
+      logger.warn(tp`Cảnh ${i + 1}: cắt câu CTA/tạm biệt thừa ("${removed.join(' | ').slice(0, 80)}")`, { projectId, stage: 'b2', sceneIdx: i });
     }
   }
   return stripped;
@@ -113,10 +114,10 @@ export async function runEditorial(ctx) {
   const coh = (llmEnabled(ai?.llm) && scenes.length > 30)
     ? await coherenceReadThrough(scenes, { title: project.title, llm: ai.llm, projectId }) : [];
   const allIssues = [...issues, ...coh];
-  if (!allIssues.length) { op(projectId, '🪶 Biên tập: kịch bản đạt — mạch lạc, không lỗi ngôn ngữ/cụt câu/lặp/CTA thừa'); return; }
-  for (const i of allIssues.slice(0, 12)) logger.warn(`Biên tập: cảnh ${i.idx + 1} [${i.type}] ${i.detail}`, { projectId, stage: 'b2', sceneIdx: i.idx });
+  if (!allIssues.length) { op(projectId, m('🪶 Biên tập: kịch bản đạt — mạch lạc, không lỗi ngôn ngữ/cụt câu/lặp/CTA thừa')); return; }
+  for (const i of allIssues.slice(0, 12)) logger.warn(tp`Biên tập: cảnh ${i.idx + 1} [${i.type}] ${i.detail}`, { projectId, stage: 'b2', sceneIdx: i.idx });
   const flaggedIdx = [...new Set(allIssues.map((x) => x.idx))];
-  op(projectId, `🪶 Biên tập: ${flaggedIdx.length} cảnh cần sửa (${[...new Set(allIssues.map((x) => x.type))].join(', ')})`);
+  op(projectId, tp`🪶 Biên tập: ${flaggedIdx.length} cảnh cần sửa (${[...new Set(allIssues.map((x) => x.type))].join(', ')})`);
 
   if (!llmEnabled(ai?.llm)) return; // scorer findings are logged; offline mode keeps the script
   checkStop(projectId);
@@ -170,14 +171,14 @@ JSON: {"scenes":[{"idx":${flagged[0].idx},"voice":"..."}]} — exactly ${flagged
         DB.updateScene(sc.id, { voice_text: voice });
         fixed++;
       }
-      if (ordered.length > CHUNK) op(projectId, `🪶 Biên tập: đã sửa đợt ${Math.floor(c / CHUNK) + 1}/${Math.ceil(ordered.length / CHUNK)}…`);
+      if (ordered.length > CHUNK) op(projectId, tp`🪶 Biên tập: đã sửa đợt ${Math.floor(c / CHUNK) + 1}/${Math.ceil(ordered.length / CHUNK)}…`);
     }
     // deterministic floor after every rewrite: leftover farewell/surplus-CTA sentences are cut
     const strippedN = ctaStripFloor(projectId, config);
     const after = scoreScript(DB.getScenes(projectId), config);
-    op(projectId, `🪶 Biên tập: đã viết lại ${fixed}/${ordered.length} cảnh${strippedN ? ` + cắt ${strippedN} câu CTA/tạm biệt thừa` : ''} — còn ${after.flaggedIdx.length} cảnh có ghi chú`);
-    logger.info(`🪶 Biên tập: sửa ${fixed}/${ordered.length} cảnh, cắt ${strippedN} câu thừa, còn ${after.flaggedIdx.length} cảnh bị đánh dấu`, { projectId, stage: 'b2' });
+    op(projectId, tp`🪶 Biên tập: đã viết lại ${fixed}/${ordered.length} cảnh${strippedN ? tp` + cắt ${strippedN} câu CTA/tạm biệt thừa` : ''} — còn ${after.flaggedIdx.length} cảnh có ghi chú`);
+    logger.info(tp`🪶 Biên tập: sửa ${fixed}/${ordered.length} cảnh, cắt ${strippedN} câu thừa, còn ${after.flaggedIdx.length} cảnh bị đánh dấu`, { projectId, stage: 'b2' });
   } catch (e) {
-    logger.warn(`Biên tập lỗi: ${e.message} — giữ kịch bản gốc`, { projectId, stage: 'b2' });
+    logger.warn(tp`Biên tập lỗi: ${e.message} — giữ kịch bản gốc`, { projectId, stage: 'b2' });
   }
 }

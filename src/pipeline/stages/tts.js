@@ -19,10 +19,11 @@ import { step, op, retryHook } from '../progress.js';
 import { mapPool } from '../helpers.js';
 import { ttsFingerprint, fpCurrent, fpStamp } from '../fingerprint.js';
 
+import { m, tp } from '../../i18n/t.js';
 /** @param {import('../context.js').PipelineContext} ctx */
 export async function runTts(ctx) {
   const { projectId, config, channel, ai, dir, resume } = ctx;
-  step(projectId, 'b34', 'running', 'Lồng tiếng + phụ đề');
+  step(projectId, 'b34', 'running', m('Lồng tiếng + phụ đề'));
   DB.updateProject(projectId, { current_step: 'b34' });
   const scenes = DB.getScenes(projectId);
   // SILENT MODE (P40): a music-only cut — captions and motion still land on the script's timing,
@@ -32,7 +33,7 @@ export async function runTts(ctx) {
   if (config.enableVoice === false) {
     const { makeSilence } = await import('../../media/ffmpeg.js');
     const { estimateWordTiming } = await import('../../providers/subtitle.js');
-    op(projectId, '🔇 Chế độ không lời: bỏ qua lồng tiếng, giữ nhịp theo kịch bản');
+    op(projectId, m('🔇 Chế độ không lời: bỏ qua lồng tiếng, giữ nhịp theo kịch bản'));
     for (const sc of scenes) {
       checkStop(projectId);
       const duration = Math.max(1.5, sc.duration || config.sceneDuration || 6);
@@ -44,7 +45,7 @@ export async function runTts(ctx) {
       DB.updateScene(sc.id, { audio_path: audioOut, duration, srt_path: srtPath, srt_json: cues, status: 'tts' });
       hub.toProject(projectId, { type: 'scene', sceneId: sc.id, idx: sc.idx, status: 'tts', duration });
     }
-    step(projectId, 'b34', 'done', 'không lời');
+    step(projectId, 'b34', 'done', m('không lời'));
     return;
   }
   // MISSING-VOICE WARNING. langVoices is how the owner pins a voice per language; when the
@@ -58,7 +59,7 @@ export async function runTts(ctx) {
   {
     const lv = ai.tts?.langVoices?.[videoLang];
     if (!lv?.provider) {
-      op(projectId, `⚠️ Chưa ghim giọng cho ${langName(videoLang)} — sẽ dùng provider mặc định (${ai.tts?.provider || 'edge'}). Vào Cài đặt → Giọng mặc định theo ngôn ngữ để chọn.`);
+      op(projectId, tp`⚠️ Chưa ghim giọng cho ${langName(videoLang)} — sẽ dùng provider mặc định (${ai.tts?.provider || 'edge'}). Vào Cài đặt → Giọng mặc định theo ngôn ngữ để chọn.`);
       logger.warn(`no langVoices entry for ${videoLang} — falling back to ${ai.tts?.provider || 'edge'}`, { projectId, stage: 'b34' });
     }
   }
@@ -72,10 +73,10 @@ export async function runTts(ctx) {
     // detection intact; the align engine spans '85%' over the spoken expansion's time).
     const speakText = normalizeForTts(sc.voice_text || ' ', { lang: videoLang, lexicon: ttsOverride?.lexicon || ai.tts?.lexicon });
     const r = await synthesizeVoice(speakText, audioOut, { ttsOverride, style: moodOf(sc, scenes.length), lang: videoLang });
-    if (!r.duration || r.duration <= 0) throw new Error('âm thanh rỗng');
+    if (!r.duration || r.duration <= 0) throw new Error(m('âm thanh rỗng'));
     if (r.fallback && trackFallback) {
       voiceFallbacks.push(sc.id);
-      op(projectId, `⚠️ Cảnh ${sc.idx + 1}: dùng giọng dự phòng (${r.provider}) — sẽ thử lại giọng chính sau`);
+      op(projectId, tp`⚠️ Cảnh ${sc.idx + 1}: dùng giọng dự phòng (${r.provider}) — sẽ thử lại giọng chính sau`);
     }
     // per-scene loudnorm + trailing breath pad → every scene at the same loudness, across all providers
     const padMs = padMsFor(videoLang);
@@ -96,10 +97,10 @@ export async function runTts(ctx) {
     if (resume && sc.audio_path && existsSync(sc.audio_path) && sc.srt_json) {
       // content-hash resume: an existing artifact is only kept while its INPUTS are unchanged
       if (fpCurrent(sc, 'tts', ttsFingerprint(sc, ctx))) return;
-      op(projectId, `♻️ Cảnh ${sc.idx + 1}: lời thoại/giọng đã thay đổi — thu âm lại`);
+      op(projectId, tp`♻️ Cảnh ${sc.idx + 1}: lời thoại/giọng đã thay đổi — thu âm lại`);
       DB.updateScene(sc.id, { video_path: null }); // the clip carries the old voice → re-render
     }
-    op(projectId, `🎙️ Cảnh ${sc.idx + 1}/${scenes.length}`);
+    op(projectId, tp`🎙️ Cảnh ${sc.idx + 1}/${scenes.length}`);
     await withRetry(async () => {
       checkStop(projectId);
       await ttsOne(sc);
@@ -108,15 +109,15 @@ export async function runTts(ctx) {
   // Voice-lock heal: scenes that fell back to another voice get ONE more shot at the primary
   // (the provider often recovers within minutes). Still on fallback → keep what we have.
   if (voiceFallbacks.length) {
-    op(projectId, `🩹 Thử lại giọng chính cho ${voiceFallbacks.length} cảnh dùng giọng dự phòng…`);
+    op(projectId, tp`🩹 Thử lại giọng chính cho ${voiceFallbacks.length} cảnh dùng giọng dự phòng…`);
     for (const sid of voiceFallbacks.splice(0)) {
       checkStop(projectId);
       const sc = DB.getScene(sid);
       try {
         const r = await ttsOne(sc, { trackFallback: false });
-        if (r.fallback) logger.warn(`scene ${sc.idx}: vẫn phải dùng giọng dự phòng (${r.provider})`, { projectId });
-        else op(projectId, `✅ Cảnh ${sc.idx + 1}: đã khôi phục giọng chính`);
-      } catch (e) { logger.warn(`voice-heal scene ${sc.idx}: ${e.message} — giữ audio hiện có`, { projectId }); }
+        if (r.fallback) logger.warn(tp`scene ${sc.idx}: vẫn phải dùng giọng dự phòng (${r.provider})`, { projectId });
+        else op(projectId, tp`✅ Cảnh ${sc.idx + 1}: đã khôi phục giọng chính`);
+      } catch (e) { logger.warn(tp`voice-heal scene ${sc.idx}: ${e.message} — giữ audio hiện có`, { projectId }); }
     }
   }
   step(projectId, 'b34', 'done');

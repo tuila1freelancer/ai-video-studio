@@ -3,6 +3,7 @@ import { toast } from '../ui/toast.js';
 import { api } from '../api.js';
 import { state } from '../state.js';
 import { loadVoices, loadSettings } from './settings.js';
+import { m, tp } from '../i18n.js';
 
 const vpFilter = { q: '', lang: '', gender: '', provider: '' };
 let vpAudio = null, vpPlayingId = null;
@@ -50,16 +51,16 @@ function vpLangs() {
   return pri.filter((l) => counts[l]).concat(Object.keys(counts).filter((l) => !pri.includes(l)).slice(0, 4));
 }
 function renderVpChips() {
-  $('#vpLangChips').innerHTML = `<button class="gtab ${!vpFilter.lang ? 'active' : ''}" data-l="">Tất cả</button>`
+  $('#vpLangChips').innerHTML = `<button class="gtab ${!vpFilter.lang ? 'active' : ''}" data-l="">${esc(m('Tất cả'))}</button>`
     + vpLangs().map((l) => `<button class="gtab ${vpFilter.lang === l ? 'active' : ''}" data-l="${l}">${LANG_FLAGS[l] || ''} ${l}</button>`).join('');
   // Only chip a provider the catalog can actually show. A chip that filters to an empty list is
   // worse than no chip: it reads as "this provider has no voices" when the truth is "no key yet".
   const present = new Set((state.voiceCatalog || []).map((v) => v.provider));
-  $('#vpProvChips').innerHTML = `<button class="gtab ${!vpFilter.provider ? 'active' : ''}" data-p="">Mọi provider</button>`
+  $('#vpProvChips').innerHTML = `<button class="gtab ${!vpFilter.provider ? 'active' : ''}" data-p="">${esc(m('Mọi provider'))}</button>`
     + state.providers.filter((p) => present.has(p.id))
       .map((p) => `<button class="gtab ${vpFilter.provider === p.id ? 'active' : ''}" data-p="${p.id}">${esc(p.name.split(' ')[0])}</button>`).join('')
     + state.providers.filter((p) => !present.has(p.id))
-      .map((p) => `<button class="gtab" disabled title="Chưa có API key cho ${esc(p.name)} — nhập ở AI Setting" style="opacity:.45">${esc(p.name.split(' ')[0])} 🔑</button>`).join('');
+      .map((p) => `<button class="gtab" disabled title="${esc(tp`Chưa có API key cho ${p.name} — nhập ở AI Setting`)}" style="opacity:.45">${esc(p.name.split(' ')[0])} 🔑</button>`).join('');
 }
 function renderVpList() {
   const favs = new Set(state.settings?.tts?.favVoices || []);
@@ -77,15 +78,15 @@ function renderVpList() {
   $('#vpList').innerHTML = shown.map((v) => {
     const key = v.provider + '/' + v.id;
     return `<div class="vp-row">
-      <button class="btn sm vp-play" data-p="${v.provider}" data-v="${esc(v.id)}" title="Nghe thử">${vpPlayingId === key ? '⏸' : '▶'}</button>
+      <button class="btn sm vp-play" data-p="${v.provider}" data-v="${esc(v.id)}" title="${esc(m('Nghe thử'))}">${vpPlayingId === key ? '⏸' : '▶'}</button>
       <span class="vp-meta">
         <strong>${LANG_FLAGS[v.lang] || ''} ${esc(v.name)}</strong>
         <span class="hint">${v.gender === 'f' ? '♀' : v.gender === 'm' ? '♂' : ''} · ${esc(v.provider)}${(v.tags || []).length ? ' · ' + esc(v.tags.join(', ')) : ''}</span>
       </span>
-      <button class="btn sm ghost vp-fav" data-k="${esc(key)}" title="Ghim">${favs.has(key) ? '⭐' : '☆'}</button>
-      <button class="btn sm primary vp-pick" data-p="${v.provider}" data-v="${esc(v.id)}" data-l="${v.lang}">Chọn</button>
+      <button class="btn sm ghost vp-fav" data-k="${esc(key)}" title="${esc(m('Ghim'))}">${favs.has(key) ? '⭐' : '☆'}</button>
+      <button class="btn sm primary vp-pick" data-p="${v.provider}" data-v="${esc(v.id)}" data-l="${v.lang}">${esc(m('Chọn'))}</button>
     </div>`;
-  }).join('') + (list.length > 150 ? `<div class="hint" style="padding:10px">…còn ${list.length - 150} giọng — thu hẹp bộ lọc để xem.</div>` : '');
+  }).join('') + (list.length > 150 ? `<div class="hint" style="padding:10px">${esc(tp`…còn ${list.length - 150} giọng — thu hẹp bộ lọc để xem.`)}</div>` : '');
 }
 // play-state change touches only the two affected buttons — no list re-render mid-audio
 function syncPlayGlyphs() {
@@ -124,5 +125,6 @@ async function vpChoose(provider, voiceId, lang) {
   else { tts.langVoices = { ...(tts.langVoices || {}), [lang]: { provider, voice: voiceId } }; }
   await api.put('/settings', tts ? { tts } : {});
   await loadSettings();
-  toast(`Đã đặt ${voiceId} làm giọng ${lang === 'multi' ? 'chính' : 'mặc định cho ' + lang} ✓`, 'success');
+  const scope = lang === 'multi' ? m('chính') : tp`mặc định cho ${lang}`;
+  toast(tp`Đã đặt ${voiceId} làm giọng ${scope} ✓`, 'success');
 }

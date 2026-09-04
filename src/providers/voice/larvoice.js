@@ -10,6 +10,7 @@ import { withRetry, sleep } from '../../util/retry.js';
 import { recordUsage } from '../../util/usage.js';
 import { failed } from '../../core/errors.js';
 
+import { m, tp } from '../../i18n/t.js';
 const BASE = 'https://larvoice.com/api/v1';
 const ORIGIN = 'https://larvoice.com';
 const LANGS = new Set(['vi', 'en', 'zh', 'ja', 'ko']);
@@ -65,7 +66,7 @@ async function resolveVoice(voiceId, cfg, text) {
   const voices = await fetchCatalog(cfg);
   const pick = voices.find((v) => v.voice_type === 'public' && v.language === lang)
     || voices.find((v) => v.language === lang) || voices[0];
-  if (!pick) throw failed('config.empty-catalog', 'LarVoice: catalog trống — kiểm tra API key');
+  if (!pick) throw failed('config.empty-catalog', m('LarVoice: catalog trống — kiểm tra API key'));
   return { voice_type: pick.voice_type, voice_id: pick.voice_id };
 }
 
@@ -82,7 +83,7 @@ async function downloadTo(url, outPath, cfg, timeoutMs = 120000) {
 }
 
 async function runTtsJob(text, voiceId, cfg, outPath, maxChars) {
-  if (!cfg?.apiKey) throw failed('config.no-key', 'LarVoice: chưa cấu hình API Key');
+  if (!cfg?.apiKey) throw failed('config.no-key', m('LarVoice: chưa cấu hình API Key'));
   const voice = await resolveVoice(voiceId, cfg, text);
   const body = {
     ...voice,
@@ -105,7 +106,7 @@ async function runTtsJob(text, voiceId, cfg, outPath, maxChars) {
   let cost = Number(job.cost) || 0; // per-job credit cost reported by the API — feed the meter
   // not done yet → poll GET /jobs/:id every 2s, capped at 5 minutes
   for (let i = 0; i < 150 && status !== 'completed'; i++) {
-    if (status === 'failed') throw new Error(`LarVoice job failed: ${job.error || 'không rõ nguyên nhân'}`);
+    if (status === 'failed') throw new Error(tp`LarVoice job failed: ${job.error || m('không rõ nguyên nhân')}`);
     await sleep(2000);
     try {
       const st = await fetch(`${BASE}/jobs/${job.job_id}`, { headers: headersOf(cfg), signal: AbortSignal.timeout(15000) });
@@ -114,18 +115,18 @@ async function runTtsJob(text, voiceId, cfg, outPath, maxChars) {
       status = String(d.status || '').toLowerCase();
       output_url = d.output_url || output_url;
       cost = Number(d.cost) || cost;
-      if (status === 'failed') throw new Error(`LarVoice job failed: ${d.error || 'không rõ nguyên nhân'}`);
+      if (status === 'failed') throw new Error(tp`LarVoice job failed: ${d.error || m('không rõ nguyên nhân')}`);
     } catch (e) { if (String(e.message).includes('job failed')) throw e; }
   }
-  if (status !== 'completed') throw new Error('LarVoice: quá 5 phút chưa xong job');
-  if (!output_url) throw new Error('LarVoice: job completed nhưng thiếu output_url');
+  if (status !== 'completed') throw new Error(m('LarVoice: quá 5 phút chưa xong job'));
+  if (!output_url) throw new Error(m('LarVoice: job completed nhưng thiếu output_url'));
   await downloadTo(output_url, outPath, cfg);
   recordUsage('tts', { provider: 'larvoice', chars: String(text).slice(0, maxChars).length, credits: cost });
   return { path: outPath, duration: await probeDuration(outPath), cost };
 }
 
 export default {
-  id: 'larvoice', name: 'LarVoice (giọng vi/en/zh/ja/ko)', free: false, needsNetwork: true,
+  id: 'larvoice', get name() { return m('LarVoice (giọng vi/en/zh/ja/ko)'); }, free: false, needsNetwork: true,
   configSchema: [
     { key: 'apiKey', label: 'API Key (Bearer)', type: 'password', required: true, placeholder: 'lv_… — tạo tại larvoice.com/app/api' },
     { key: 'speed', label: 'Tốc độ (0.5–2.0)', type: 'text', required: false, placeholder: '1.0' },
@@ -143,6 +144,7 @@ export default {
         lang: LANGS.has(v.language) ? v.language : 'vi',
         locale: localeOf(v.language),
         gender: v.gender === 'female' ? 'f' : v.gender === 'male' ? 'm' : (v.gender || 'u'),
+        // i18n-exempt: cached into voices_cache — translating here would freeze the owner's language into the row.
         tags: v.voice_type === 'personal' ? ['của tôi'] : ['public'],
         previewUrl: v.preview_url || null, // ready-made sample — previewing costs no credit
         provider: 'larvoice',
@@ -157,7 +159,7 @@ export default {
   // No dedicated preview endpoint on the official system:
   // text=null → download the voice's ready-made preview_url (0 credit); with text → short TTS job.
   async previewSynthesize(text, voiceId, cfg, outPath) {
-    if (!cfg?.apiKey) throw failed('config.no-key', 'LarVoice: chưa cấu hình API Key');
+    if (!cfg?.apiKey) throw failed('config.no-key', m('LarVoice: chưa cấu hình API Key'));
     if (!text) {
       const voices = await fetchCatalog(cfg);
       const parsed = parseVoice(voiceId);
@@ -177,7 +179,7 @@ export default {
       if (r.status === 401) return { ok: false, message: 'Key bị từ chối (401). Dùng key Bearer tạo tại larvoice.com/app/api — key Telegram bot thuộc hệ cũ api.larvoice.com, không dùng được ở đây.' };
       if (!r.ok) return { ok: false, message: `LarVoice /voices ${r.status}: ${(await r.text()).slice(0, 200)}` };
       const total = await fetchCatalog(cfg).then((v) => v.length).catch(() => '?');
-      return { ok: true, message: `Kết nối OK — key hợp lệ, catalog ${total} giọng (vi/en/zh/ja/ko). Quota trừ theo credit từng job.` };
+      return { ok: true, message: tp`Kết nối OK — key hợp lệ, catalog ${total} giọng (vi/en/zh/ja/ko). Quota trừ theo credit từng job.` };
     } catch (e) { return { ok: false, message: String(e.message || e).slice(0, 200) }; }
   },
 };

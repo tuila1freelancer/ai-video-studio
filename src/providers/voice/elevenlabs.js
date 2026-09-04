@@ -4,6 +4,7 @@ import { probeDuration } from '../../media/ffmpeg.js';
 import { recordUsage } from '../../util/usage.js';
 import { failed } from '../../core/errors.js';
 
+import { m, tp } from '../../i18n/t.js';
 // { characters:[], character_start_times_seconds:[], character_end_times_seconds:[] }
 // → word timings: whitespace splits words, each word spans its first→last character.
 function charAlignmentToWords(text, alignment) {
@@ -46,7 +47,7 @@ export default {
   },
 
   async synthesize(text, voiceId, cfg, outPath) {
-    if (!voiceId) throw failed('config.no-voice', 'Chưa chọn voice ElevenLabs');
+    if (!voiceId) throw failed('config.no-voice', m('Chưa chọn voice ElevenLabs'));
     // prosody hint from the pipeline (cfg._style): expressive voice_settings per mood
     const vs = cfg?._style === 'energetic' ? { stability: 0.35, similarity_boost: 0.85, style: 0.55 }
       : cfg?._style === 'calm' ? { stability: 0.7, similarity_boost: 0.85, style: 0.15 } : null;
@@ -75,10 +76,10 @@ export default {
       const res = await fetch('https://api.elevenlabs.io/v1/user', {
         headers: { 'xi-api-key': cfg.apiKey }, signal: AbortSignal.timeout(10000),
       });
-      if (!res.ok) return { ok: false, message: `HTTP ${res.status} — key không hợp lệ?` };
+      if (!res.ok) return { ok: false, message: tp`HTTP ${res.status} — key không hợp lệ?` };
       const u = await res.json();
       const used = u.subscription?.character_count ?? '?', limit = u.subscription?.character_limit ?? '?';
-      return { ok: true, message: `OK — đã dùng ${used}/${limit} ký tự` };
+      return { ok: true, message: tp`OK — đã dùng ${used}/${limit} ký tự` };
     } catch (e) { return { ok: false, message: e.message }; }
   },
 };

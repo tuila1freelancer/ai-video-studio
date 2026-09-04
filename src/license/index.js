@@ -12,6 +12,7 @@ import { LicenseClient, OfflineError } from './sdk.js';
 import { isRunnable, licenseState, reasonText } from './state.js';
 import { maskKey, patchStore, readStore, writeStore } from './store.js';
 
+import { m, tp } from '../i18n/t.js';
 /** Emits `change` with the new status whenever the verdict moves. */
 export const licenseEvents = new EventEmitter();
 
@@ -111,8 +112,8 @@ export function forgetLicense() {
  */
 export async function activate(key) {
   const licenseKey = String(key || '').trim().toUpperCase();
-  if (!licenseKey) throw badRequest('Chưa nhập license key.');
-  if (!configured()) throw badRequest('Bản cài đặt này chưa được cấu hình cửa hàng.');
+  if (!licenseKey) throw badRequest(m('Chưa nhập license key.'));
+  if (!configured()) throw badRequest(m('Bản cài đặt này chưa được cấu hình cửa hàng.'));
 
   const before = status();
   const device = deviceId();
@@ -217,24 +218,24 @@ function badRequest(message) {
 
 function translate(e, licenseKey) {
   if (e instanceof OfflineError) {
-    return withStatus(503, 'Không kết nối được tới cửa hàng. Kiểm tra mạng rồi thử lại.');
+    return withStatus(503, m('Không kết nối được tới cửa hàng. Kiểm tra mạng rồi thử lại.'));
   }
   if (e?.status === 404) {
-    return withStatus(404, `Không tìm thấy license key ${maskKey(licenseKey)}. Kiểm tra lại key trong email.`);
+    return withStatus(404, tp`Không tìm thấy license key ${maskKey(licenseKey)}. Kiểm tra lại key trong email.`);
   }
   if (e?.status === 403 && /device limit/i.test(e.message || '')) {
     return withStatus(
       403,
-      `Hết slot thiết bị cho license này. Gỡ bớt một máy tại ${webUrl()}/dashboard/devices rồi kích hoạt lại.`,
+      tp`Hết slot thiết bị cho license này. Gỡ bớt một máy tại ${webUrl()}/dashboard/devices rồi kích hoạt lại.`,
     );
   }
   if (e?.status === 403) {
-    return withStatus(403, `License không dùng được: ${e.message}`);
+    return withStatus(403, tp`License không dùng được: ${e.message}`);
   }
   if (e?.status === 429) {
-    return withStatus(429, 'Bạn thử quá nhiều lần. Đợi một phút rồi kích hoạt lại.');
+    return withStatus(429, m('Bạn thử quá nhiều lần. Đợi một phút rồi kích hoạt lại.'));
   }
-  return withStatus(502, `Cửa hàng trả lỗi: ${e.message}`);
+  return withStatus(502, tp`Cửa hàng trả lỗi: ${e.message}`);
 }
 
 function withStatus(statusCode, message) {

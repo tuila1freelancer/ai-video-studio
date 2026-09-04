@@ -12,8 +12,9 @@ import { readFileSync } from 'node:fs';
 import { buildMasterPrompt, SCRIPT_MODE_MIN_WORDS } from '../src/content/master-script.js';
 import { detectInputType, wordCount } from '../src/util/util.js';
 import { searchTerms } from '../src/providers/imagesearch.js';
+import { unwrapI18n } from './_source.mjs';
 
-const src = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
+const src = (p) => unwrapI18n(readFileSync(new URL(p, import.meta.url), 'utf8'));
 const PLAN = {
   sceneCount: 8, videoDuration: 60, sceneDuration: 8, wordsPerScene: 24, minWords: 18, maxWords: 30,
   structureGuide: 'hook → steps → payoff + CTA',

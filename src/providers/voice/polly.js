@@ -12,6 +12,7 @@ import { probeDuration } from '../../media/ffmpeg.js';
 import { recordUsage } from '../../util/usage.js';
 import { signRequest } from './aws-sig.js';
 
+import { m, tp } from '../../i18n/t.js';
 const host = (cfg) => `polly.${String(cfg?.region || 'us-east-1').trim()}.amazonaws.com`;
 
 const AUTO = {
@@ -94,7 +95,7 @@ export default {
   },
 
   async synthesize(text, voiceId, cfg, outPath, opts = {}) {
-    if (!cfg?.accessKeyId || !cfg?.secretAccessKey) throw new Error('Chưa nhập AWS Access Key');
+    if (!cfg?.accessKeyId || !cfg?.secretAccessKey) throw new Error(m('Chưa nhập AWS Access Key'));
     const VoiceId = voiceId && voiceId !== 'auto' ? voiceId : (AUTO[opts.lang] || AUTO.en);
     const Engine = cfg?.engine || 'neural';
     const base = { Text: String(text), TextType: 'text', VoiceId, Engine };
@@ -120,11 +121,11 @@ export default {
       const voices = await this.listVoices(cfg);
       if (!voices.length) return { ok: false, message: 'Không lấy được danh sách giọng' };
       const langs = new Set(voices.map((v) => v.locale));
-      return { ok: true, message: `OK — ${voices.length} giọng, ${langs.size} ngôn ngữ` };
+      return { ok: true, message: tp`OK — ${voices.length} giọng, ${langs.size} ngôn ngữ` };
     } catch (e) {
-      const m = /403|401|InvalidSignature|SignatureDoesNotMatch/.test(e.message)
-        ? 'Key hoặc region không đúng' : e.message;
-      return { ok: false, message: m };
+      const msg = /403|401|InvalidSignature|SignatureDoesNotMatch/.test(e.message)
+        ? m('Key hoặc region không đúng') : e.message;
+      return { ok: false, message: msg };
     }
   },
 };
