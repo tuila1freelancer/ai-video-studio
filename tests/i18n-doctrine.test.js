@@ -8,6 +8,7 @@
 import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { buildMasterPrompt, LANG_VOICE_NOTES, isMetaLeakVoice, planScenes } from '../src/content/master-script.js';
 import { offlineScript } from '../src/providers/llm.js';
 import { chapterLabel, phrase } from '../src/i18n/script-phrases.js';
@@ -73,6 +74,22 @@ test('doctrine: production metadata is never spoken, in any language', () => {
 });
 
 // ---- research and distribution follow the market, not the house language ----
+
+test('doctrine: the YouTube chapter heading is in the video\'s language, not the interface\'s', () => {
+  // The description ships WITH the video, so it follows the video's language — an interface set
+  // to Japanese while producing a French video must still write "Chapitres", not "チャプター".
+  // It read "Chương" for every language until this was fixed.
+  const src = readFileSync(new URL('../src/pipeline/stages/metadata.js', import.meta.url), 'utf8');
+  assert.doesNotMatch(src, /📑 Chương/, 'the heading is no longer hardcoded Vietnamese');
+  assert.match(src, /phrase\(resolveLang\(config, scs\), 'chapters'\)/, 'it resolves the VIDEO language');
+  for (const code of LANG_CODES) {
+    const got = phrase(code, 'chapters');
+    assert.ok(got && got.trim(), `${code} has a chapter heading`);
+  }
+  assert.equal(phrase('fr', 'chapters'), 'Chapitres');
+  assert.equal(phrase('ja', 'chapters'), 'チャプター');
+  assert.notEqual(phrase('de', 'chapters'), phrase('vi', 'chapters'));
+});
 
 test('market: trend research asks the channel language\'s own edition of the news', async () => {
   const { newsLocale, FEED_PACKS } = await import('../src/providers/trends.js');
