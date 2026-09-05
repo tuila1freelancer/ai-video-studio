@@ -38,6 +38,11 @@ function daysUntil(target, now) {
 export function licenseState({ file, device, publicKeyPem, now = new Date() }) {
   const stored = file || {};
 
+  // Set by the app itself when it finds it has been tampered with. It outlives the token and beats
+  // every other branch — a copy that has been got at does not run, key or no. Cleared only by a
+  // full re-activation or sign-out (both rewrite the whole file), never by the online heartbeat.
+  if (stored.tamper) return { state: 'locked', reason: 'tamper', key: stored.key || null };
+
   if (!stored.key) return { state: 'missing', reason: 'no-key' };
 
   // The store told us this licence is gone. That verdict outlives the token it was delivered
@@ -116,5 +121,6 @@ export function reasonText(reason) {
     'invalid-token': m('License token không hợp lệ. Hãy kích hoạt lại.'),
     malformed: m('License token không hợp lệ. Hãy kích hoạt lại.'),
     'no-public-key': m('Bản cài đặt này thiếu khoá xác thực license. Hãy tải lại bản mới từ cửa hàng.'),
+    tamper: m('Bản cài đặt này đã bị can thiệp nên không thể chạy. Hãy cài lại bản gốc từ cửa hàng.'),
   }[reason] || m('Không xác thực được license.');
 }

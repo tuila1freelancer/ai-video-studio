@@ -43,18 +43,23 @@ export function status({ fresh = false } = {}) {
   if (bypassed()) {
     return { state: 'valid', reason: 'bypass', claims: null, key: null, daysLeft: null };
   }
-  if (!configured()) {
-    // No store baked in and none in the environment: this build was never wired to a shop. Let it
-    // run rather than brick a developer checkout — a released build always has both.
-    return { state: 'valid', reason: 'unconfigured', claims: null, key: null, daysLeft: null };
-  }
   const now = Date.now();
   if (!fresh && cache && now - cache.at < STATUS_CACHE_MS) return cache.status;
-  const next = licenseState({
-    file: readStore(),
-    device: deviceId(),
-    publicKeyPem: publicKeyPem(),
-  });
+
+  const stored = readStore();
+  let next;
+  if (stored.tamper) {
+    // Fatal regardless of store config. The file-distribution build ships unconfigured, so without
+    // this a "self-revoke on tamper" would do nothing on the exact build the owner hands out.
+    // Cleared only by re-activation or sign-out (both rewrite the whole file).
+    next = { state: 'locked', reason: 'tamper', claims: null, key: stored.key || null, daysLeft: null };
+  } else if (!configured()) {
+    // No store baked in and none in the environment: this build was never wired to a shop. Let it
+    // run rather than brick a developer checkout — a released build always has both.
+    next = { state: 'valid', reason: 'unconfigured', claims: null, key: null, daysLeft: null };
+  } else {
+    next = licenseState({ file: stored, device: deviceId(), publicKeyPem: publicKeyPem() });
+  }
   cache = { at: now, status: next };
   return next;
 }
@@ -104,6 +109,25 @@ export function forgetLicense() {
 }
 
 /**
+ * Lock this copy for good after it finds it has been tampered with.
+ *
+ * Writes a flag the verdict machine treats as fatal (see state.js), so the app refuses to run even
+ * in an unconfigured build, and the flag survives the online heartbeat — `refreshNow` never clears
+ * it. The only ways back are a full re-activation or a sign-out, both of which rewrite the whole
+ * file. No file is deleted: a false positive costs a re-activation, never a customer's work.
+ */
+export function markTampered(reason = 'integrity') {
+  const before = status();
+  patchStore({
+    tamper: true,
+    tamperReason: String(reason),
+    tamperedAt: new Date().toISOString(),
+    token: null,
+  });
+  return announce(before);
+}
+
+/**
  * Register this machine against a licence key.
  *
  * The store's refusals are translated here rather than in the UI, because only this layer knows
@@ -124,8 +148,14 @@ export async function activate(key) {
     throw translate(e, licenseKey);
   }
 
+  // A successful activation is the recovery door for a tamper lock: drop those fields so the
+  // rewritten file no longer carries them (the rest — deviceFallbackId, etc. — is preserved).
+  const rest = { ...readStore() };
+  delete rest.tamper;
+  delete rest.tamperReason;
+  delete rest.tamperedAt;
   writeStore({
-    ...readStore(),
+    ...rest,
     key: licenseKey,
     token: result.token,
     status: 'active',

@@ -98,6 +98,31 @@ test('the version has one source', () => {
   assert.match(src('../shell/build-app.sh'), /package\.json/);
 });
 
+test('a tampered copy locks even a build with no store wired in', async (t) => {
+  // The file-distribution build ships UNCONFIGURED, so the ordinary gate lets it run. A tamper lock
+  // has to bite anyway — otherwise "self-revoke on tamper" would do nothing on the exact build the
+  // owner hands out. And the way back is a re-provision, never a deleted file.
+  const { markTampered, status, invalidate, forgetLicense } = await import('../src/license/index.js');
+  delete process.env.TOOLS_PLATFORM_URL;
+  delete process.env.TOOLS_STORE_CLIENT_KEY;
+  delete process.env.TOOLS_LICENSE_BYPASS;
+  invalidate();
+  t.after(() => { forgetLicense(); invalidate(); });
+
+  assert.equal(status({ fresh: true }).state, 'valid', 'unconfigured build runs before tamper');
+  markTampered('integrity');
+  const s = status({ fresh: true });
+  assert.equal(s.state, 'locked');
+  assert.equal(s.reason, 'tamper');
+  const blocked = call('/projects');
+  assert.equal(blocked.code, 403);
+  assert.equal(blocked.body.state, 'locked');
+
+  forgetLicense(); // sign-out clears the flag — the recovery door
+  invalidate();
+  assert.equal(status({ fresh: true }).state, 'valid', 're-provisioning clears the lock');
+});
+
 test('nothing user-facing ever prints a whole licence key', () => {
   assert.equal(maskKey('TOOLS-A1B2-C3D4-E5F6-G7H8'), 'TOOLS-••••-••••-••••-G7H8');
   assert.equal(maskKey(null), null);
