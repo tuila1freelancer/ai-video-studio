@@ -76,7 +76,11 @@ console.log('· cài dependencies production…');
 const stage = mkdtempSync(join(tmpdir(), 'avs-win-'));
 copyFileSync(join(ROOT, 'package.json'), join(stage, 'package.json'));
 copyFileSync(join(ROOT, 'package-lock.json'), join(stage, 'package-lock.json'));
-run(MAC_NODE, [MAC_NPM, 'ci', '--omit=dev', '--silent'], { cwd: stage });
+// Lead PATH with the vendored node so better-sqlite3's `#!/usr/bin/env node` install script resolves
+// to Node 22 (not an nvm Node 24), keeping the base install at the right ABI. The win32 prebuild
+// below overwrites the binary anyway, but this keeps the staging tree consistent.
+run(MAC_NODE, [MAC_NPM, 'ci', '--omit=dev', '--silent'],
+  { cwd: stage, env: { ...process.env, PATH: `${join(ROOT, 'vendor', 'node', 'bin')}:${process.env.PATH}` } });
 cpSync(join(stage, 'node_modules'), join(PAYLOAD, 'node_modules'), { recursive: true });
 rmSync(stage, { recursive: true, force: true });
 

@@ -143,7 +143,10 @@ if [ "$MODE" = "dist" ]; then
   cp package.json package-lock.json "$STAGE/"
   # The vendored runtime's own npm, so the install runs against the ABI the bundle will ship —
   # `better-sqlite3` is a native module and a mismatch here is a crash on the customer's machine.
-  ( cd "$STAGE" && "$ROOT/vendor/node/bin/node" "$ROOT/vendor/node/lib/node_modules/npm/bin/npm-cli.js" ci --omit=dev --silent )
+  # PATH must lead with the vendored node too: better-sqlite3's install script has a `#!/usr/bin/env
+  # node` shebang, so without this it resolves to whatever node is on PATH (an nvm Node 24 here) and
+  # fetches that ABI's prebuild — an ABI-137 binary the bundle's Node 22 then refuses to dlopen.
+  ( cd "$STAGE" && PATH="$ROOT/vendor/node/bin:$PATH" "$ROOT/vendor/node/bin/node" "$ROOT/vendor/node/lib/node_modules/npm/bin/npm-cli.js" ci --omit=dev --silent )
   cp -R "$STAGE/node_modules" "$APPDIR/node_modules"
   rm -rf "$STAGE"
 
