@@ -47,7 +47,8 @@ if (!existsSync(WIN_NODE)) {
 if (!existsSync(WIN_NODE)) die('không lấy được vendor/node-win/node.exe');
 
 // ── 3–5. Bundle → bytecode → encrypt (with a fresh per-build key) ─────────────────────────────────
-rmSync(PAYLOAD, { recursive: true, force: true });
+// maxRetries: the external SSD occasionally throws ENOTEMPTY on a recursive remove mid-flight.
+rmSync(PAYLOAD, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
 mkdirSync(PAYLOAD, { recursive: true });
 console.log('· bundle src → server.cjs…');
 run(MAC_NODE, [join(ROOT, 'scripts', 'build-bundle.mjs'), '--out', PAYLOAD, '--map-out', join(ROOT, 'dist', 'private')]);
@@ -99,11 +100,15 @@ mkdirSync(join(PAYLOAD, 'vendor'), { recursive: true });
 for (const v of ['gsap', 'libs', 'fonts']) {
   if (existsSync(join(ROOT, 'vendor', v))) cpSync(join(ROOT, 'vendor', v), join(PAYLOAD, 'vendor', v), { recursive: true });
 }
-if (existsSync(join(ROOT, 'vendor', 'ffmpeg-win'))) {
+if (!existsSync(join(ROOT, 'vendor', 'ffmpeg-win', 'ffmpeg.exe'))) {
+  console.log('· tải ffmpeg Windows…');
+  try { run(MAC_NODE, [join(ROOT, 'scripts', 'fetch-ffmpeg-win.mjs')]); } catch { /* fall through to warn */ }
+}
+if (existsSync(join(ROOT, 'vendor', 'ffmpeg-win', 'ffmpeg.exe'))) {
   cpSync(join(ROOT, 'vendor', 'ffmpeg-win'), join(PAYLOAD, 'vendor', 'ffmpeg'), { recursive: true });
-  console.log('  ✓ đã đóng ffmpeg Windows');
+  console.log('  ✓ đã đóng ffmpeg Windows (libass)');
 } else {
-  console.warn('  ⚠ KHÔNG có vendor/ffmpeg-win — bản Windows sẽ cần ffmpeg hệ thống (C:\\ffmpeg\\bin hoặc PATH) để render; phụ đề libass cần ffmpeg vendored.');
+  console.warn('  ⚠ KHÔNG có vendor/ffmpeg-win — bản Windows sẽ cần ffmpeg hệ thống (C:\\ffmpeg\\bin hoặc PATH); phụ đề libass cần ffmpeg vendored. Chạy: npm run ffmpeg:fetch:win');
 }
 
 // ── 11. Scrub the payload (mirror scrub_payload in build-app.sh) ──────────────────────────────────
@@ -117,6 +122,9 @@ run(join(ROOT, 'node_modules', '.bin', 'electron-builder'),
   { env: { ...process.env, CSC_IDENTITY_AUTO_DISCOVERY: 'false' } }); // unsigned on purpose
 
 // ── 13. Audit (HARD GATE) ────────────────────────────────────────────────────────────────────────
+// macOS keeps dropping .DS_Store onto the external volume even after the afterPack sweep; clear
+// win-unpacked once more right before the scan (the installer was already packed clean in afterPack).
+try { execFileSync('find', [join(ROOT, 'dist', 'electron', 'win-unpacked'), '-name', '.DS_Store', '-delete'], { stdio: 'ignore' }); } catch { /* best effort */ }
 console.log('· audit bản Windows…');
 run(MAC_NODE, [join(ROOT, 'scripts', 'audit-windows.mjs'), '--dist', join(ROOT, 'dist', 'electron', 'win-unpacked')]);
 

@@ -11,6 +11,7 @@
 // shell/build/avs-launcher.exe BEFORE electron-builder runs; the extraResources `from` paths point
 // at those.
 const { cpSync, existsSync } = require('node:fs');
+const { execFileSync } = require('node:child_process');
 const { join } = require('node:path');
 
 module.exports = {
@@ -25,6 +26,9 @@ module.exports = {
     const dest = join(context.appOutDir, 'resources', 'app-payload', 'node_modules');
     if (!existsSync(src)) throw new Error(`afterPack: thiếu ${src} — build-windows.mjs phải dựng payload trước`);
     cpSync(src, dest, { recursive: true });
+    // macOS sprinkles .DS_Store through any directory it touches during the build; strip them from
+    // the whole packed tree here, after every copy and before NSIS packs it, so none ship.
+    try { execFileSync('find', [context.appOutDir, '-name', '.DS_Store', '-delete']); } catch { /* best effort */ }
   },
   directories: {
     output: 'dist/electron',
