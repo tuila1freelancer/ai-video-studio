@@ -2154,5 +2154,6 @@
   "ui.wmSource.ten-kenh": "채널 이름",
   "ui.wmSpeed.cham-75s-vong": "느림 — 75초/회전",
   "ui.wmSpeed.rat-cham-120s-vong": "매우 느림 — 120초/회전",
-  "ui.wmSpeed.vua-45s-vong": "보통 — 45초/회전"
+  "ui.wmSpeed.vua-45s-vong": "보통 — 45초/회전",
+  "srv.Bản cài đặt này đã bị can thiệp nên không thể chạy. Hãy cài lại bản gốc từ cửa hàng.": "이 사본은 변조되어 실행할 수 없습니다. 스토어에서 원본을 다시 설치하세요."
 }

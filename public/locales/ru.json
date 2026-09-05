@@ -2154,5 +2154,6 @@
   "ui.wmSource.ten-kenh": "Название канала",
   "ui.wmSpeed.cham-75s-vong": "Медленно — 75 с/круг",
   "ui.wmSpeed.rat-cham-120s-vong": "Очень медленно — 120 с/круг",
-  "ui.wmSpeed.vua-45s-vong": "Средне — 45 с/круг"
+  "ui.wmSpeed.vua-45s-vong": "Средне — 45 с/круг",
+  "srv.Bản cài đặt này đã bị can thiệp nên không thể chạy. Hãy cài lại bản gốc từ cửa hàng.": "Эта копия была изменена и не может быть запущена. Переустановите оригинал из магазина."
 }

@@ -2154,5 +2154,6 @@
   "ui.wmSource.ten-kenh": "Nome do canal",
   "ui.wmSpeed.cham-75s-vong": "Lento — 75s/ciclo",
   "ui.wmSpeed.rat-cham-120s-vong": "Muito lento — 120s/ciclo",
-  "ui.wmSpeed.vua-45s-vong": "Médio — 45s/ciclo"
+  "ui.wmSpeed.vua-45s-vong": "Médio — 45s/ciclo",
+  "srv.Bản cài đặt này đã bị can thiệp nên không thể chạy. Hãy cài lại bản gốc từ cửa hàng.": "Esta cópia foi adulterada e não pode ser executada. Reinstale o original a partir da loja."
 }

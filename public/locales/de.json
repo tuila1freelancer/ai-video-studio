@@ -2154,5 +2154,6 @@
   "ui.wmSource.ten-kenh": "Kanalname",
   "ui.wmSpeed.cham-75s-vong": "Langsam — 75s/Durchlauf",
   "ui.wmSpeed.rat-cham-120s-vong": "Sehr langsam — 120s/Durchlauf",
-  "ui.wmSpeed.vua-45s-vong": "Mittel — 45s/Durchlauf"
+  "ui.wmSpeed.vua-45s-vong": "Mittel — 45s/Durchlauf",
+  "srv.Bản cài đặt này đã bị can thiệp nên không thể chạy. Hãy cài lại bản gốc từ cửa hàng.": "Diese Kopie wurde manipuliert und kann nicht ausgeführt werden. Bitte installieren Sie das Original erneut aus dem Store."
 }

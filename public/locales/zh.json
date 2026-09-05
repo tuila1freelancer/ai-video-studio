@@ -2154,5 +2154,6 @@
   "ui.wmSource.ten-kenh": "频道名称",
   "ui.wmSpeed.cham-75s-vong": "慢 — 75s/圈",
   "ui.wmSpeed.rat-cham-120s-vong": "极慢 — 120s/圈",
-  "ui.wmSpeed.vua-45s-vong": "中 — 45s/圈"
+  "ui.wmSpeed.vua-45s-vong": "中 — 45s/圈",
+  "srv.Bản cài đặt này đã bị can thiệp nên không thể chạy. Hãy cài lại bản gốc từ cửa hàng.": "此副本已被篡改，无法运行。请从商店重新安装原版。"
 }

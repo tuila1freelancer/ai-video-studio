@@ -2154,5 +2154,6 @@
   "ui.wmSource.ten-kenh": "Nom de la chaîne",
   "ui.wmSpeed.cham-75s-vong": "Lent — 75s/tour",
   "ui.wmSpeed.rat-cham-120s-vong": "Très lent — 120s/tour",
-  "ui.wmSpeed.vua-45s-vong": "Moyen — 45s/tour"
+  "ui.wmSpeed.vua-45s-vong": "Moyen — 45s/tour",
+  "srv.Bản cài đặt này đã bị can thiệp nên không thể chạy. Hãy cài lại bản gốc từ cửa hàng.": "Cette copie a été altérée et ne peut pas démarrer. Veuillez réinstaller la version originale depuis la boutique."
 }

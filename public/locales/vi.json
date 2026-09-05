@@ -2154,5 +2154,6 @@
   "ui.wmSource.ten-kenh": "Tên kênh",
   "ui.wmSpeed.cham-75s-vong": "Chậm — 75s/vòng",
   "ui.wmSpeed.rat-cham-120s-vong": "Rất chậm — 120s/vòng",
-  "ui.wmSpeed.vua-45s-vong": "Vừa — 45s/vòng"
+  "ui.wmSpeed.vua-45s-vong": "Vừa — 45s/vòng",
+  "srv.Bản cài đặt này đã bị can thiệp nên không thể chạy. Hãy cài lại bản gốc từ cửa hàng.": "Bản cài đặt này đã bị can thiệp nên không thể chạy. Hãy cài lại bản gốc từ cửa hàng."
 }
