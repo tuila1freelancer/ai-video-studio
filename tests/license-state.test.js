@@ -84,6 +84,16 @@ test('a revoked licence stays revoked even while its token is still valid', () =
   assert.equal(s.reason, 'revoked');
 });
 
+test('a tampered copy locks itself before anything else, even against a valid token', () => {
+  // The self-lock the app sets when it finds it has been got at. It must beat a signature that is
+  // still technically good — otherwise a modified copy would keep running for the token's lifetime.
+  const s = ask({ key: base.licenseKey, tamper: true, token: sign({ ...base, expiresAt: null, graceUntil: null }) });
+  assert.equal(s.state, 'locked');
+  assert.equal(s.reason, 'tamper');
+  assert.ok(!isRunnable(s));
+  assert.match(reasonText('tamper'), /can thiệp/);
+});
+
 test('a licence file copied to another machine does not activate it', () => {
   const s = licenseState({
     file: { key: base.licenseKey, token: sign({ ...base, expiresAt: null, graceUntil: null }) },

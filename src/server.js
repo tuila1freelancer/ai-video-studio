@@ -31,6 +31,14 @@ async function boot() {
   // own, so a copy that boots locked must not quietly carry on rendering what it was left with.
   const license = await import('./license/index.js');
   license.setAppVersion(VERSION);
+  // A repackaged dist (protection stripped) locks itself before the scheduler can pick up work.
+  // No file is deleted — the copy simply refuses to run until a clean re-activation.
+  const { distIntegrityProblem } = await import('./license/integrity.js');
+  const tamper = distIntegrityProblem();
+  if (tamper) {
+    license.markTampered(tamper);
+    logger.error(`integrity: ${tamper} — bản cài đã bị can thiệp, khoá lại`);
+  }
   license.startLicenseLoop();
 
   try {
