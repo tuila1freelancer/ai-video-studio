@@ -2154,5 +2154,6 @@
   "ui.wmSource.ten-kenh": "चैनल का नाम",
   "ui.wmSpeed.cham-75s-vong": "धीमी — 75s/लूप",
   "ui.wmSpeed.rat-cham-120s-vong": "बहुत धीमी — 120s/लूप",
-  "ui.wmSpeed.vua-45s-vong": "मीडियम — 45s/लूप"
+  "ui.wmSpeed.vua-45s-vong": "मीडियम — 45s/लूप",
+  "srv.Bản cài đặt này đã bị can thiệp nên không thể chạy. Hãy cài lại bản gốc từ cửa hàng.": "इस प्रति के साथ छेड़छाड़ की गई है और यह नहीं चल सकती। कृपया स्टोर से मूल संस्करण फिर से इंस्टॉल करें।"
 }

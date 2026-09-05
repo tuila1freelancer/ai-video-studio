@@ -2154,5 +2154,6 @@
   "ui.wmSource.ten-kenh": "Nama kanal",
   "ui.wmSpeed.cham-75s-vong": "Lambat — 75 dtk/putaran",
   "ui.wmSpeed.rat-cham-120s-vong": "Sangat lambat — 120 dtk/putaran",
-  "ui.wmSpeed.vua-45s-vong": "Sedang — 45 dtk/putaran"
+  "ui.wmSpeed.vua-45s-vong": "Sedang — 45 dtk/putaran",
+  "srv.Bản cài đặt này đã bị can thiệp nên không thể chạy. Hãy cài lại bản gốc từ cửa hàng.": "Salinan ini telah dirusak sehingga tidak dapat dijalankan. Silakan pasang ulang versi asli dari toko."
 }

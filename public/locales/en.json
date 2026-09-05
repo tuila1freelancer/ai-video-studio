@@ -2154,5 +2154,6 @@
   "ui.wmSource.ten-kenh": "Channel name",
   "ui.wmSpeed.cham-75s-vong": "Slow — 75s/loop",
   "ui.wmSpeed.rat-cham-120s-vong": "Very slow — 120s/loop",
-  "ui.wmSpeed.vua-45s-vong": "Medium — 45s/loop"
+  "ui.wmSpeed.vua-45s-vong": "Medium — 45s/loop",
+  "srv.Bản cài đặt này đã bị can thiệp nên không thể chạy. Hãy cài lại bản gốc từ cửa hàng.": "This copy has been tampered with and cannot run. Please reinstall the original from the store."
 }

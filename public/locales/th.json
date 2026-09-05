@@ -2154,5 +2154,6 @@
   "ui.wmSource.ten-kenh": "ชื่อช่อง",
   "ui.wmSpeed.cham-75s-vong": "ช้า — 75s/รอบ",
   "ui.wmSpeed.rat-cham-120s-vong": "ช้ามาก — 120s/รอบ",
-  "ui.wmSpeed.vua-45s-vong": "ปานกลาง — 45s/รอบ"
+  "ui.wmSpeed.vua-45s-vong": "ปานกลาง — 45s/รอบ",
+  "srv.Bản cài đặt này đã bị can thiệp nên không thể chạy. Hãy cài lại bản gốc từ cửa hàng.": "สำเนานี้ถูกดัดแปลงจึงไม่สามารถทำงานได้ กรุณาติดตั้งต้นฉบับใหม่จากสโตร์"
 }
