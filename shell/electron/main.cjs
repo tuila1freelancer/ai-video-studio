@@ -12,7 +12,7 @@
 // macOS build already has (a crash in a render cannot take the window down with it), and it means
 // the server code is byte-identical on all three platforms.
 const { app, BrowserWindow, shell, dialog } = require('electron');
-const { fork } = require('node:child_process');
+const { fork, spawn } = require('node:child_process');
 const { join } = require('node:path');
 const { existsSync, mkdirSync } = require('node:fs');
 
@@ -39,14 +39,29 @@ function dataDir() {
 /** Start the server and resolve with the URL it prints. Rejects if it dies or never speaks. */
 function startServer() {
   return new Promise((resolve, reject) => {
-    if (!existsSync(SERVER)) return reject(new Error(`Không tìm thấy server: ${SERVER}`));
-    child = fork(SERVER, [], {
-      cwd: ROOT,
-      // ELECTRON_RUN_AS_NODE turns this same binary into a plain Node runtime, so the packaged
-      // app carries no second copy of Node and the user installs nothing.
-      env: { ...process.env, ELECTRON_RUN_AS_NODE: '1', AVS_DATA_DIR: dataDir() },
-      stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
-    });
+    if (app.isPackaged && process.platform === 'win32') {
+      // Windows release: the server ships as encrypted V8 bytecode, not readable source. A compiled
+      // launcher (which alone carries the AES key) runs the vendored node.exe + loader.cjs and hands
+      // the key down its stdin. This process must never see the key, so it is nowhere in here — the
+      // launcher forwards the child's stdout, so "AVS_READY <url>" still arrives below unchanged.
+      const launcher = join(process.resourcesPath, 'avs-launcher.exe');
+      if (!existsSync(launcher)) return reject(new Error(`Không tìm thấy launcher: ${launcher}`));
+      child = spawn(launcher, [], {
+        cwd: join(process.resourcesPath, 'app-payload'),
+        env: { ...process.env, AVS_DATA_DIR: dataDir() }, // launcher adds AVS_DIST=1; no key here
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+    } else {
+      // Dev on any OS, and the packaged macOS electron build (which still bundles src): run the
+      // server straight from source. ELECTRON_RUN_AS_NODE turns this same binary into a plain Node
+      // runtime, so the packaged app carries no second copy of Node and the user installs nothing.
+      if (!existsSync(SERVER)) return reject(new Error(`Không tìm thấy server: ${SERVER}`));
+      child = fork(SERVER, [], {
+        cwd: ROOT,
+        env: { ...process.env, ELECTRON_RUN_AS_NODE: '1', AVS_DATA_DIR: dataDir() },
+        stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
+      });
+    }
 
     let settled = false;
     const fail = (e) => { if (!settled) { settled = true; reject(e); } };
@@ -80,7 +95,9 @@ function createWindow(url) {
     backgroundColor: '#0b1220', // paint the app's own dark ground, not a white flash
     title: 'AI Video Studio',
     autoHideMenuBar: true,
-    webPreferences: { nodeIntegration: false, contextIsolation: true },
+    // devTools off once packaged: no inspector to dump the decrypted bytecode from memory (parity
+    // with the Swift shell disabling developerExtrasEnabled in dist). On in dev.
+    webPreferences: { nodeIntegration: false, contextIsolation: true, devTools: !app.isPackaged },
   });
   win.loadURL(url);
   // Anything aimed at another site opens in the real browser — this window is the app, not a tab.
