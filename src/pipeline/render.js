@@ -261,7 +261,11 @@ export async function concatScenes(sceneVideos, project, {
     // pre-duck BGM level: 0.24 with no plan; a sound-design plan picks inside 0.14–0.28.
     // Raised from 0.11/0.22 on 2026-08-26 — measured, the old level sat at −45 dBFS in the
     // gaps, which is present on a meter and absent to the ear.
-    fc.push(`[${nextIdx}:a]volume=${(Number.isFinite(+bgmVol) && +bgmVol > 0 ? +bgmVol : 0.24).toFixed(2)}[bg0]`,
+    // Library tracks fade to −70 dB at the tail, so every -stream_loop seam is a hole; when a
+    // narration pause lands on one the mix drops to silence (measured: 0.8 s at −62 dB).
+    // Drop anything 12 dB under the bed's level before looping, and the seam closes.
+    fc.push(`[${nextIdx}:a]silenceremove=stop_periods=-1:stop_duration=0.15:stop_threshold=-32dB,`
+      + `volume=${(Number.isFinite(+bgmVol) && +bgmVol > 0 ? +bgmVol : 0.24).toFixed(2)}[bg0]`,
       `[bg0][vkey]sidechaincompress=threshold=0.02:ratio=10:attack=60:release=550[bgd]`,
       `[vmain][bgd]amix=inputs=2:duration=first:normalize=0:dropout_transition=2[amx]`);
     abase = '[amx]'; nextIdx++;
