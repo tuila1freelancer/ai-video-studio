@@ -303,3 +303,8 @@ from the studio's own database — every number is real production data.
 - Scenes with rendered clips (active projects): 0 · Jobs: 0 done / 0 error / 0 cancelled
 - AI usage: 0 calls · 0 tokens in / 0 out · 0 TTS chars · est. $0.00
 - Published: — · Calendar-driven runs: —
+## 2026-09-10
+- Videos: 6 created · 5 completed — “Thêm 3 Dòng Này Khi Hỏi AI Để Câu Trả Lời Khác Hẳn” · “Vì Sao AI Tự Tin Dù Nói Sai Và Cách Trị” · “Dùng AI Trên Điện Thoại: Đừng Gõ Phím Nữa” · “Bản Miễn Phí Dùng Đến Đâu: Khi Nào Đáng Trả Tiền AI?” · “Chọn Đúng Trợ Lý AI: Đừng Chọn Con Thông Minh Nhất”
+- Scenes with rendered clips (active projects): 68 · Jobs: 10 done / 0 error / 1 cancelled
+- AI usage: 451 calls · 4783k tokens in / 828k out · 26.9k TTS chars · est. $18.26
+- Published: — · Calendar-driven runs: —
