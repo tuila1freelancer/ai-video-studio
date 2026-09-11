@@ -308,3 +308,8 @@ from the studio's own database — every number is real production data.
 - Scenes with rendered clips (active projects): 68 · Jobs: 10 done / 0 error / 1 cancelled
 - AI usage: 451 calls · 4783k tokens in / 828k out · 26.9k TTS chars · est. $18.26
 - Published: — · Calendar-driven runs: —
+## 2026-09-11
+- Videos: 3 created · 14 completed — “Bắt AI Hỏi Lại Trước Khi Làm: Mẹo Nhỏ Tránh Sai Cả Bài” · “Chọn Đúng Trợ Lý AI: Đừng Chọn Con Thông Minh Nhất” · “Đừng Dùng AI Để Tra Cứu: Đổi 1 Chữ Là Ra Kết Quả Chuẩn” · “Bắt AI Hỏi Lại Trước Khi Làm: Tránh Hỏng Cả Bài” · “Dùng AI Trên Điện Thoại: Đừng Gõ Phím Nữa”
+- Scenes with rendered clips (active projects): 263 · Jobs: 26 done / 0 error / 2 cancelled
+- AI usage: 561 calls · 7735k tokens in / 1309k out · 17.5k TTS chars · est. $29.20
+- Published: — · Calendar-driven runs: —
