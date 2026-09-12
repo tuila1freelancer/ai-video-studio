@@ -313,3 +313,8 @@ from the studio's own database — every number is real production data.
 - Scenes with rendered clips (active projects): 263 · Jobs: 26 done / 0 error / 2 cancelled
 - AI usage: 561 calls · 7735k tokens in / 1309k out · 17.5k TTS chars · est. $29.20
 - Published: — · Calendar-driven runs: —
+## 2026-09-12
+- Videos: 0 created · 1 completed — “Khi Nào Bật Suy Luận Sâu Và Nghiên Cứu AI?”
+- Scenes with rendered clips (active projects): 86 · Jobs: 4 done / 0 error / 0 cancelled
+- AI usage: 186 calls · 1944k tokens in / 330k out · 11.6k TTS chars · est. $7.53
+- Published: — · Calendar-driven runs: —
