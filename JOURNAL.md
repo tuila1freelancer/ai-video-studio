@@ -323,3 +323,8 @@ from the studio's own database — every number is real production data.
 - Scenes with rendered clips (active projects): 0 · Jobs: 0 done / 0 error / 0 cancelled
 - AI usage: 0 calls · 0 tokens in / 0 out · 0 TTS chars · est. $0.00
 - Published: — · Calendar-driven runs: —
+## 2026-09-14
+- Videos: 2 created · 2 completed — “Câu Lệnh Là Bản Giao Việc: Tiết Kiệm Hàng Giờ Mỗi Tuần” · “Bí Quyết Viết Câu Lệnh AI Tiết Kiệm Hàng Giờ”
+- Scenes with rendered clips (active projects): 84 · Jobs: 5 done / 1 error / 1 cancelled
+- AI usage: 353 calls · 4608k tokens in / 753k out · 12.8k TTS chars · est. $17.44
+- Published: — · Calendar-driven runs: —
