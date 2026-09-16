@@ -333,3 +333,8 @@ from the studio's own database — every number is real production data.
 - Scenes with rendered clips (active projects): 0 · Jobs: 0 done / 0 error / 0 cancelled
 - AI usage: 0 calls · 0 tokens in / 0 out · 0 TTS chars · est. $0.00
 - Published: — · Calendar-driven runs: —
+## 2026-09-16
+- Videos: 2 created · 2 completed — “Công Thức 6 Phần Viết Prompt AI Chuẩn Xác” · “Công Thức 6 Phần Viết Prompt AI Chuẩn Xác”
+- Scenes with rendered clips (active projects): 87 · Jobs: 4 done / 0 error / 1 cancelled
+- AI usage: 233 calls · 2603k tokens in / 450k out · 13.1k TTS chars · est. $9.72
+- Published: — · Calendar-driven runs: —
