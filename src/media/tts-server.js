@@ -8,6 +8,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { logger } from '../util/log.js';
 
 import { tp } from '../i18n/t.js';
+import { sleep } from '../util/util.js';
 const DEFAULT_URL = 'http://127.0.0.1:7788';
 const procs = new Map();
 
@@ -21,7 +22,6 @@ function portOf(url) {
   return m ? Number.parseInt(m[1], 10) : 7788;
 }
 
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /** Cheap liveness: anything that answers on the port counts (405 on GET is a healthy POST-only route). */
 export async function isAlive(base, timeoutMs = 3000) {

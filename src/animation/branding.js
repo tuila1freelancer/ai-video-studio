@@ -8,6 +8,7 @@
 // buildSceneHtml passes brand:null and page output stays byte-identical to the legacy path.
 import { existsSync, readFileSync } from 'node:fs';
 import { extname } from 'node:path';
+import { clampNum } from '../util/util.js';
 
 export function imgDataUri(path) {
   if (!path || !existsSync(path)) return null;
@@ -21,10 +22,6 @@ export function imgDataUri(path) {
 function esc(s) {
   return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
-const clamp = (v, lo, hi, dflt) => {
-  const n = Number(v);
-  return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : dflt;
-};
 
 // Sticker corner anchors (page corners, outside the centered content column).
 const CORNER_POS = {
@@ -44,7 +41,7 @@ export function resolveBrandKit(config) {
   const channelName = String(bk.channelName || '').trim();
   const nameBadge = (bk.nameBadge?.enabled !== false && channelName) ? {
     text: String(bk.nameBadge?.text || channelName).trim(),
-    position: { xPct: clamp(bk.nameBadge?.position?.xPct, 0, 1, 0.5), yPct: clamp(bk.nameBadge?.position?.yPct, 0, 1, 0.045) },
+    position: { xPct: clampNum(bk.nameBadge?.position?.xPct, 0, 1, 0.5), yPct: clampNum(bk.nameBadge?.position?.yPct, 0, 1, 0.045) },
     style: ['pill', 'underline'].includes(bk.nameBadge?.style) ? bk.nameBadge.style : 'plain',
   } : null;
   const stickers = Array.isArray(bk.stickers)

@@ -92,7 +92,6 @@ export const PLATFORMS = [
   },
 ];
 
-export const PLATFORM_IDS = PLATFORMS.map((p) => p.id);
 
 /** One platform's spec, or null. */
 export function platform(id) {

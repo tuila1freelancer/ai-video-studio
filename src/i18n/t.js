@@ -37,9 +37,6 @@ export function setUiLang(code) {
 /** The interface language in force. */
 export function uiLang() { return current; }
 
-/** Drop the parsed catalogues — used by tests and after a catalogue is rewritten. */
-export function reloadCatalogues() { cache.clear(); }
-
 /**
  * Translate a key, filling `{name}` placeholders.
  *

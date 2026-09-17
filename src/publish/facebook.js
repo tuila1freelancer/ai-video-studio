@@ -11,7 +11,7 @@
 //     to rupload.facebook.com → upload_phase=finish (PUBLISHED or SCHEDULED).
 //   • everything else → a normal feed video: multipart POST /{page}/videos.
 // Both accept a scheduled_publish_time, which is how the reference schedules a post.
-import { readFileSync, statSync } from 'node:fs';
+import { createReadStream, openAsBlob, statSync } from 'node:fs';
 import { getSetting, setSetting } from '../db/index.js';
 import { logger } from '../util/log.js';
 
@@ -152,17 +152,19 @@ async function uploadReel({ pageId, token, videoPath, description, scheduledAt, 
   const { video_id: videoId } = await start.json();
   if (!videoId) throw new Error(m('Facebook không trả về video_id ở phase start'));
 
-  onLog(tp`⬆ Đang tải reel lên (${(statSync(videoPath).size / 1e6).toFixed(1)} MB)…`);
-  const bytes = readFileSync(videoPath);
+  // Streamed from disk: a 4K export is gigabytes, and readFileSync() held all of it in memory.
+  const size = statSync(videoPath).size;
+  onLog(tp`⬆ Đang tải reel lên (${(size / 1e6).toFixed(1)} MB)…`);
   const put = await fetch(`${RUPLOAD}/${encodeURIComponent(videoId)}`, {
     method: 'POST',
     headers: {
       Authorization: `OAuth ${token}`,
       offset: '0',
-      file_size: String(bytes.length),
+      file_size: String(size),
       'Content-Type': 'application/octet-stream',
     },
-    body: bytes,
+    body: createReadStream(videoPath),
+    duplex: 'half',
     signal: AbortSignal.timeout(600000),
   });
   if (!put.ok) throw new Error(tp`Tải video thất bại: ${await graphError(put)}`);
@@ -195,7 +197,7 @@ async function uploadFeedVideo({ pageId, token, videoPath, title, description, s
   } else {
     form.append('published', 'true');
   }
-  form.append('source', new Blob([readFileSync(videoPath)], { type: 'video/mp4' }), 'video.mp4');
+  form.append('source', await openAsBlob(videoPath, { type: 'video/mp4' }), 'video.mp4'); // read as it uploads
   const res = await fetch(`${GRAPH}/${encodeURIComponent(pageId)}/videos`, {
     method: 'POST', body: form, signal: AbortSignal.timeout(600000),
   });

@@ -110,7 +110,7 @@ export function downloadedFamilies() {
 }
 
 /** Static faces fetched alongside the CSS, in the same `<Family>-<weight>.ttf` shape as vendored. */
-export function downloadedFaces() {
+function downloadedFaces() {
   try {
     return readdirSync(webFontDir())
       .filter((f) => f.toLowerCase().endsWith('.ttf'))
