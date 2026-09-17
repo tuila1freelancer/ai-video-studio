@@ -1,0 +1,63 @@
+/* AI Video Studio — design tokens, resets, spacing utilities. One of the per-area sheets index.html links in cascade order; the release build joins them. */
+/* ---- 1. TOKENS ---- */
+:root{
+  /* layers */
+  --bg-0:#07070b; --bg-1:#0b0b13; --bg-2:#10101a;
+  --surface-1:rgba(255,255,255,.035); --surface-2:rgba(255,255,255,.06); --surface-3:rgba(255,255,255,.09);
+  --glass:rgba(15,15,24,.72); --glass-heavy:rgba(12,12,20,.86);
+  --hairline:rgba(255,255,255,.07); --hairline-2:rgba(255,255,255,.12);
+  /* text */
+  --text-1:#f4f4fa; --text-2:#a6abbd; --text-3:#62687a;
+  /* identity: indigo → violet */
+  --accent:#6d5cff; --accent-hi:#8b7cff; --violet:#a855f7;
+  --grad-brand:linear-gradient(135deg,#6d5cff 0%,#a855f7 100%);
+  --accent-glow:0 0 0 1px rgba(109,92,255,.35),0 4px 24px rgba(109,92,255,.28);
+  /* semantics */
+  --ok:#34d399; --err:#f87171; --warn-c:#fbbf24; --info:#60a5fa;
+  /* elevation (top-edge light baked in) */
+  --shadow-1:0 1px 2px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.05);
+  --shadow-2:0 4px 16px rgba(0,0,0,.45),0 1px 2px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.06);
+  --shadow-3:0 16px 48px rgba(0,0,0,.55),0 2px 8px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.07);
+  /* motion */
+  --spring:cubic-bezier(.2,.8,.2,1);
+  --t-fast:160ms var(--spring); --t-med:200ms var(--spring); --t-slow:240ms var(--spring);
+  /* type */
+  --font-ui:'Lexend',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Be Vietnam Pro',Helvetica,Arial,sans-serif;
+  --font-mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+  /* geometry */
+  --r-sm:8px; --r-md:12px; --r-lg:16px; --r-full:999px;
+  --pad-titlebar:0px; /* overridden under html.is-shell (native WKWebView) */
+
+  /* legacy aliases — inline styles across HTML/JS reference these names */
+  --bg:var(--bg-0); --bg2:var(--bg-1); --panel:var(--bg-2); --panel2:#161624;
+  --border:var(--hairline); --text:var(--text-1); --muted:var(--text-2); --muted2:var(--text-3);
+  --accent2:var(--accent-hi); --amber:#f7b500; --green:var(--ok); --red:var(--err); --warn:var(--warn-c);
+  --radius:var(--r-md); --radius-sm:10px;
+}
+html.is-shell{ --pad-titlebar:40px; }
+
+/* ---- 2. BASE ---- */
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--bg-0);color:var(--text-1);font-family:var(--font-ui);font-size:13.5px;line-height:1.55;overflow:hidden;-webkit-font-smoothing:antialiased}
+button{font-family:inherit;cursor:pointer}
+input,textarea,select{font-family:inherit;color:var(--text-1)}
+a{color:var(--accent-hi);text-decoration:none}
+::selection{background:rgba(109,92,255,.38);color:#fff}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:8px;border:2px solid transparent;background-clip:content-box}
+::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.2);background-clip:content-box}
+::-webkit-scrollbar-track{background:transparent}
+.hidden{display:none!important}
+/* Spacing utilities — the inline styles the markup used to carry; !important keeps that precedence. */
+.mt-4{margin-top:4px!important}.mt-5{margin-top:5px!important}.mt-6{margin-top:6px!important}.mt-8{margin-top:8px!important}
+.mt-10{margin-top:10px!important}.mt-12{margin-top:12px!important}.mt-14{margin-top:14px!important}
+.mb-6{margin-bottom:6px!important}.mb-8{margin-bottom:8px!important}.mb-10{margin-bottom:10px!important}.mb-12{margin-bottom:12px!important}
+.flex-1{flex:1!important}.pointer{cursor:pointer!important}.ta-center{text-align:center!important}.ta-right{text-align:right!important}
+.num{font-variant-numeric:tabular-nums}
+svg.ico{display:inline-block;vertical-align:-3px;flex-shrink:0}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+}

@@ -1,0 +1,48 @@
+/* AI Video Studio — brand kit summary, logo editor, brand asset page. One of the per-area sheets index.html links in cascade order; the release build joins them. */
+/* ---- 11. BRAND SUMMARY & EDITOR ---- */
+.brand-summary{display:flex;gap:10px;align-items:center;background:rgba(0,0,0,.28);border:1px solid var(--hairline);border-radius:10px;padding:10px;margin-bottom:10px}
+.bs-thumb{width:44px;height:44px;border-radius:10px;background:var(--surface-2);display:grid;place-items:center;font-size:20px;overflow:hidden}
+.bs-thumb img{width:100%;height:100%;object-fit:contain}
+.bs-name{font-size:13px;font-weight:700}
+.brand-modal{max-width:1120px !important;width:min(96vw,1120px)}
+.brand-editor{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:22px;align-items:start}
+@media (max-width:860px){.brand-editor{grid-template-columns:1fr}}
+.brand-stage-wrap{position:sticky;top:0}
+.brand-stage{position:relative;width:100%;aspect-ratio:9/16;max-height:66vh;margin:0 auto;background:#0A0E1E center/cover no-repeat;border:1px solid var(--hairline-2);border-radius:10px;overflow:hidden;touch-action:none;box-shadow:var(--shadow-2)}
+.brand-stage.landscape{aspect-ratio:16/9;max-height:42vh}
+.brand-form{max-height:72vh;overflow:auto;padding-right:4px}
+.brand-form .bg-sec{margin-top:14px}
+.brand-form .bg-sec:first-child{margin-top:0}
+.corner-grid{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 4px}
+.corner-grid button{flex:1;min-width:64px;padding:7px 4px;font-size:12px;border:1px solid var(--hairline-2);border-radius:8px;background:rgba(255,255,255,.03);color:var(--text-2);transition:color var(--t-fast),border-color var(--t-fast),background var(--t-fast)}
+.corner-grid button:hover{color:var(--text-1);border-color:var(--accent-hi)}
+.corner-grid button.active{background:rgba(109,92,255,.16);border-color:var(--accent-hi);color:#dbeafe}
+.bst-wm{position:absolute;z-index:6;pointer-events:none}
+.bst-wm img{display:block;width:100%;height:auto}
+.bst-wm span{font:700 12px var(--font-mono);letter-spacing:.08em;color:#fff;text-shadow:0 0 4px rgba(0,0,0,.9),0 1px 2px rgba(0,0,0,.9);white-space:nowrap}
+.bst-dim{opacity:.28;filter:grayscale(.6)}
+.bst-ghost{position:absolute;transform:translate(-50%,-50%);cursor:grab;user-select:none;z-index:5}
+.bst-ghost:active{cursor:grabbing}
+.bst-ghost.drag{outline:2px dashed var(--accent);outline-offset:3px}
+.bst-logo img{display:block;width:100%;height:auto;pointer-events:none}
+.bst-badge{font:700 11px var(--font-mono);letter-spacing:.14em;color:#EAF2FF;text-shadow:0 1px 6px rgba(0,0,0,.7);white-space:nowrap}
+.bst-capband{position:absolute;left:6%;right:6%;bottom:4%;height:12%;border:1px dashed rgba(255,255,255,.22);border-radius:8px;display:grid;place-items:center;color:rgba(255,255,255,.35);font-size:10px;pointer-events:none}
+.bst-capband:after{content:'vùng phụ đề'}
+/* final-overlay editing extras (P26): checkerboard for transparent logos, snap guides, resize handle */
+.brand-stage.checker{background-image:linear-gradient(45deg,rgba(255,255,255,.05) 25%,transparent 25%,transparent 75%,rgba(255,255,255,.05) 75%),linear-gradient(45deg,rgba(255,255,255,.05) 25%,transparent 25%,transparent 75%,rgba(255,255,255,.05) 75%);background-size:22px 22px,22px 22px;background-position:0 0,11px 11px}
+.bst-guide{position:absolute;background:rgba(139,124,255,.9);z-index:4;pointer-events:none;display:none}
+.bst-guide.v{top:0;bottom:0;width:1px}
+.bst-guide.h{left:0;right:0;height:1px}
+.bst-rsz{position:absolute;right:-7px;bottom:-7px;width:14px;height:14px;border-radius:50%;background:var(--accent-hi);border:2px solid #0A0E1E;cursor:nwse-resize;display:none;z-index:6}
+.bst-logo:hover .bst-rsz,.bst-logo.drag .bst-rsz,.bst-logo:focus .bst-rsz{display:block}
+.bst-ghost:focus{outline:1px dashed var(--accent-hi);outline-offset:2px}
+/* Brand Asset generator page */
+.bg-card{background:var(--panel);border:1px solid var(--hairline-2);border-radius:12px;padding:14px 16px;margin-bottom:12px}
+.bg-sec{font:700 11px var(--font-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+.bg-chip.active,.bg-mode.active{background:rgba(109,92,255,.16);border-color:var(--accent-hi);color:#dbeafe}
+.bg-prevlist{max-height:220px;overflow:auto;border:1px solid var(--hairline-2);border-radius:8px;padding:6px 10px;font-size:12px;margin-top:6px}
+.bg-prevlist>div{padding:3px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+.bg-prevlist>div:last-child{border-bottom:none}
+.bg-progress{height:8px;border-radius:5px;background:rgba(255,255,255,.08);overflow:hidden}
+.bg-progress>div{height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--violet));transition:width .3s}
+.bg-log{max-height:190px;overflow:auto;border:1px solid var(--hairline-2);border-radius:8px;padding:8px 10px;font:11px/1.6 var(--font-mono);margin-top:10px;white-space:pre-wrap}

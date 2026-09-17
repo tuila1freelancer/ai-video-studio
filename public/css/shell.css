@@ -1,0 +1,84 @@
+/* AI Video Studio — topbar, navigation, page frame. One of the per-area sheets index.html links in cascade order; the release build joins them. */
+/* ---- 4. SHELL ---- */
+/* The shell is a COLUMN: one topbar, then the content row. The 216px rail it replaces was the
+   single biggest consumer of horizontal space on the Studio page, which still spends 300px on
+   the input column and 292px on the config column — losing the rail hands all 216px to the work. */
+.app{display:flex;flex-direction:column;height:100vh;overflow:hidden}
+/* The top `--pad-titlebar` of this padding must stay free of controls: the native shell covers it
+   with a drag strip (shell/main.swift, TitlebarDragView) because WKWebView ignores
+   `-webkit-app-region`, so that band is the only way to move the window. */
+.nav{display:flex;align-items:center;gap:14px;flex-shrink:0;background:var(--bg-1);
+  border-bottom:1px solid var(--hairline);padding:8px 14px;padding-top:calc(8px + var(--pad-titlebar))}
+.nav-brand{display:flex;align-items:center;gap:9px;font-weight:700;letter-spacing:.01em;white-space:nowrap;flex-shrink:0}
+.nav-brand .logo{width:26px;height:26px;display:grid;place-items:center;flex-shrink:0;filter:drop-shadow(0 2px 10px rgba(109,92,255,.4))}
+.nav-brand small{display:block;font-size:9px;color:var(--text-3);font-weight:600;letter-spacing:.08em}
+.nav-items{display:flex;align-items:center;gap:3px;min-width:0}
+.nav .nav-channel{flex-shrink:0}
+.nav #channelSelect{font-size:12px;max-width:190px;padding:5px 8px}
+.nav #navSettings{flex-shrink:0;white-space:nowrap}
+/* ---- responsive topbar ----
+   One row has to survive from a wide desktop down to a narrow window, so it sheds in a fixed
+   order — least useful first — instead of wrapping or scrolling:
+     1220px  the brand wordmark (the logo still says which app this is)
+     1060px  the page LABELS: nav becomes icons, and the tooltip below carries the name
+      880px  the "AI Setting" label, then the channel picker narrows
+   Nothing is ever cut off mid-word and nothing overflows; at every width the row still holds
+   every control it started with. */
+@media (max-width:1220px){.nav-brand .nav-label{display:none}}
+@media (max-width:1060px){
+  .nav-item .nav-label{display:none}
+  .nav-item{padding:7px 9px;gap:0}
+  .nav-items{gap:1px}
+}
+@media (max-width:880px){
+  .nav #navSettings .nav-label{display:none}
+  .nav #navSettings{padding:6px 9px}
+  .nav #channelSelect{max-width:120px}
+  .nav{gap:8px;padding-left:10px;padding-right:10px}
+}
+
+/* Tooltip for the icon-only row. The native `title` needs a second of hover and renders as an OS
+   chip half a screen away; this appears under the item it belongs to, immediately. It is only
+   built at the widths where the label is actually gone — with the label visible it would be a
+   duplicate of the text right next to it. */
+@media (max-width:1060px){
+  .nav-item{position:relative}
+  .nav-item::after{content:attr(data-tip);position:absolute;top:calc(100% + 7px);left:50%;
+    transform:translateX(-50%) translateY(-3px);padding:4px 9px;border-radius:7px;
+    background:var(--glass-heavy);backdrop-filter:blur(12px);border:1px solid var(--hairline-2);
+    color:var(--text-1);font-size:11.5px;font-weight:600;white-space:nowrap;pointer-events:none;
+    opacity:0;transition:opacity var(--t-fast),transform var(--t-fast);z-index:60;box-shadow:var(--shadow-2)}
+  .nav-item:hover::after{opacity:1;transform:translateX(-50%) translateY(0)}
+  /* the active item already carries an underline — its ::before — so the tip clears it */
+  .nav-item.active::after{top:calc(100% + 9px)}
+}
+
+/* A missing tool is the only thing that earns space in the row; everything green stays silent. */
+.dep-warn{border:1px solid rgba(247,181,0,.45);background:rgba(247,181,0,.12);color:#f7b500;
+  border-radius:9px;padding:5px 10px;font-size:11.5px;font-weight:700;white-space:nowrap;cursor:pointer}
+.dep-warn:hover{background:rgba(247,181,0,.2)}
+.dep-row{display:flex;flex-wrap:wrap;gap:10px;margin:2px 0 6px}
+.dep-row .dep{font-size:12px}
+
+/* colorful icon chips */
+.nav-item .ic{width:26px;height:26px;border-radius:8px;background:color-mix(in srgb,var(--tint,#8b7cff) 15%,transparent);color:var(--tint,#8b7cff);transition:background var(--t-fast)}
+.nav-item:hover .ic{background:color-mix(in srgb,var(--tint,#8b7cff) 26%,transparent)}
+.nav-item.active .ic{background:color-mix(in srgb,var(--tint,#8b7cff) 32%,transparent);color:#fff}
+
+.credit-card{display:flex;gap:12px;align-items:center;margin-top:26px;padding:14px 16px;border:1px solid var(--hairline);border-radius:14px;background:var(--surface-1);box-shadow:var(--shadow-1)}
+.credit-card .logo{width:38px;height:38px;display:grid;place-items:center;flex-shrink:0;filter:drop-shadow(0 3px 12px rgba(109,92,255,.4))}
+.nav-item{position:relative;display:flex;align-items:center;gap:8px;padding:7px 11px;border:none;background:transparent;color:var(--text-2);border-radius:10px;text-align:left;font-size:12.5px;font-weight:600;transition:background var(--t-fast),color var(--t-fast);white-space:nowrap;overflow:hidden;flex-shrink:0}
+.nav-item .ic{font-size:15px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+.nav-item:hover{background:var(--surface-1);color:var(--text-1)}
+.nav-item.active{background:linear-gradient(135deg,rgba(109,92,255,.22),rgba(168,85,247,.14));color:#fff;box-shadow:inset 0 0 0 1px rgba(109,92,255,.35),inset 0 1px 0 rgba(255,255,255,.08)}
+.nav-item.active::before{content:'';position:absolute;left:20%;right:20%;bottom:-9px;height:2px;border-radius:2px;background:var(--grad-brand)}
+.nav-spacer{flex:1}
+
+.dep.ok{color:var(--ok)} .dep.no{color:var(--err)}
+
+.content{flex:1;overflow:hidden;position:relative;background:radial-gradient(1200px 500px at 70% -10%,rgba(109,92,255,.055),transparent 60%),var(--bg-0)}
+/* Native shell: the topbar carries the whole title-bar inset now. Every content pane used to
+   add it separately, which is why the app looked like it had two headers stacked. */
+.page{position:absolute;inset:0;overflow:auto;display:none}
+.page.active{display:block;animation:pageIn .2s var(--spring)}
+@keyframes pageIn{from{opacity:0;transform:translateY(4px)}}
