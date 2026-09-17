@@ -144,10 +144,15 @@ export function ensureDirs() {
 
 // Project working dir inside an arbitrary channel root (Default channel root = DATA_DIR,
 // which yields the original data/projects/<id> layout — full backward compatibility).
+// The skeleton is created once per process; a project deleted from disk gets it back (one stat).
+const projectDirsEnsured = new Set();
 export function projectDirIn(rootDir, id) {
   const p = join(rootDir || DATA_DIR, 'projects', String(id));
-  for (const sub of ['', 'audio', 'srt', 'html', 'render', 'assets', 'output']) {
-    mkdirSync(join(p, sub), { recursive: true });
+  if (!projectDirsEnsured.has(p) || !existsSync(p)) {
+    for (const sub of ['', 'audio', 'srt', 'html', 'render', 'assets', 'output']) {
+      mkdirSync(join(p, sub), { recursive: true });
+    }
+    projectDirsEnsured.add(p);
   }
   return p;
 }

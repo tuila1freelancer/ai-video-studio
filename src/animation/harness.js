@@ -15,7 +15,7 @@ import { VENDOR_DIR } from '../config/paths.js';
 import { gsapBundle } from './gsap.js';
 import { detectLibs, libsBundle } from './libs.js';
 import { userFontsCss, uploadedFamilies } from './userfonts.js';
-import { downloadedCss, downloadedFamilies } from '../fonts/files.js';
+import { downloadedCss, downloadedFamilies, downloadedStamp } from '../fonts/files.js';
 
 let fontsCssCache = null;
 let faceBlocksCache = null;
@@ -33,10 +33,9 @@ function parseFaces(css) {
 // fetch one from the Library while the app is running, and the very next preview has to see it.
 let webCache = { stamp: '', blocks: [] };
 function webFaces() {
-  const fams = downloadedFamilies();
-  const stamp = fams.join('|');
+  const stamp = downloadedStamp();
   if (stamp !== webCache.stamp) {
-    webCache = { stamp, blocks: fams.flatMap((f) => parseFaces(downloadedCss(f))) };
+    webCache = { stamp, blocks: downloadedFamilies().flatMap((f) => parseFaces(downloadedCss(f))) };
   }
   return webCache.blocks;
 }

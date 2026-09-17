@@ -24,7 +24,12 @@ export function writeChannelJson(ch) {
   catch { /* folder may be missing/readonly — non-fatal */ }
 }
 
+// Bumped on every write so read-side caches (the /api/file root list) know when to rebuild.
+let version = 0;
+export function channelsVersion() { return version; }
+
 export function createChannel({ name, rootDir, config = {} }) {
+  version += 1;
   const slug0 = slugify(name);
   let slug = slug0, n = 1;
   while (stmt('SELECT 1 FROM channels WHERE slug=?').get(slug)) slug = `${slug0}-${++n}`;
@@ -41,6 +46,7 @@ export function createChannel({ name, rootDir, config = {} }) {
 }
 
 export function updateChannel(id, fields) {
+  version += 1;
   const ch = getChannel(id);
   if (!ch) return null;
   const name = fields.name ?? ch.name;
@@ -55,6 +61,7 @@ export function updateChannel(id, fields) {
 }
 
 export function deleteChannel(id) {
+  version += 1;
   const def = defaultChannel();
   if (id === def.id) throw new Error(m('Không thể xoá kênh Default'));
   // unlink only — never delete files on disk; one transaction so a crash cannot orphan projects

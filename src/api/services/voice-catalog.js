@@ -41,16 +41,18 @@ export async function getVoiceCatalog({ provider, lang, q, refresh } = {}) {
   let voices = [];
   const tts = DB.aiSettings().tts;
   const wanted = provider ? [provider] : catalogProviders(tts, listProviders, providerConfig);
-  for (const p of wanted) {
+  const lists = await Promise.allSettled(wanted.map(async (p) => {
     const prov = getProvider(p);
-    try {
-      if (DB.voicesCacheAge(p) > CACHE_TTL_MS || refresh) {
-        const cfg = providerConfig(DB.aiSettings().tts, p);
-        DB.cacheVoices(p, await prov.listVoices(cfg));
-      }
-      voices.push(...DB.cachedVoices(p));
-    } catch (e) { logger.warn(`listVoices ${p}: ${e.message}`); }
-  }
+    if (DB.voicesCacheAge(p) > CACHE_TTL_MS || refresh) {
+      const cfg = providerConfig(DB.aiSettings().tts, p);
+      DB.cacheVoices(p, await prov.listVoices(cfg));
+    }
+    return DB.cachedVoices(p);
+  }));
+  lists.forEach((r, i) => {
+    if (r.status === 'fulfilled') voices.push(...r.value);
+    else logger.warn(`listVoices ${wanted[i]}: ${r.reason?.message || r.reason}`);
+  });
   if (lang) voices = voices.filter((v) => v.lang === lang || v.lang === 'multi');
   if (q) { const needle = String(q).toLowerCase(); voices = voices.filter((v) => v.name.toLowerCase().includes(needle) || v.id.toLowerCase().includes(needle)); }
   // legacy shape for the old settings dropdown
