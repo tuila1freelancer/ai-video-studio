@@ -74,6 +74,10 @@ export function batchFinished(batchId) {
   return !stmt(`SELECT 1 FROM jobs WHERE batch_id=? AND status IN ('queued','running') LIMIT 1`).get(batchId);
 }
 
+/** Live jobs of one batch, without loading every job's payload. */
+export function countBatchJobs(batchId) {
+  return stmt('SELECT COUNT(*) n FROM jobs WHERE batch_id=?').get(batchId).n;
+}
 export function listJobs({ projectId = null, limit = 50 } = {}) {
   const rows = projectId
     ? stmt('SELECT * FROM jobs WHERE project_id=? ORDER BY created_at DESC LIMIT ?').all(projectId, limit)

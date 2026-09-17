@@ -123,10 +123,27 @@ export function mountRoutes(app, { version }) {
   // covered by default instead of by memory.
   r.use(licenseGate);
 
+  // Secrets (per-channel AI keys) are masked on every egress and a '••' round-trip
+  // on ingest keeps the saved value — same contract as /settings.
+  const maskChannel = (ch) => ch && { ...ch, config: maskSecrets(ch.config || {}) };
+
   r.get('/health', (req, res) => {
     res.json({ ok: true, version, deps: depStatus(), paths: {
       ffmpeg: PATHS.ffmpeg, whisper: !!PATHS.whisperCli, chrome: !!PATHS.chrome, say: !!PATHS.say,
     } });
+  });
+  // Everything the interface needs before its first paint, in one round trip. The boot sequence
+  // used to make six of these one after another (license → settings → health → channels →
+  // projects → presets), each a full loopback hop before the next could start.
+  r.get('/boot', (req, res) => {
+    const active = DB.activeChannelId();
+    res.json({
+      version, uiLang: uiLang(), deps: depStatus(),
+      settings: maskSecrets(DB.aiSettings()),
+      channels: DB.listChannels().map(maskChannel), activeChannel: active,
+      projects: DB.listProjectSummaries(active),
+      presets: DB.listPresets(active),
+    });
   });
 
   // ---- license ----
@@ -463,9 +480,6 @@ export function mountRoutes(app, { version }) {
   });
 
   // ---- channels ----
-  // Secrets (per-channel AI keys) are masked on every egress and a '••' round-trip
-  // on ingest keeps the saved value — same contract as /settings.
-  const maskChannel = (ch) => ch && { ...ch, config: maskSecrets(ch.config || {}) };
   r.get('/channels', (req, res) => {
     res.json({ channels: DB.listChannels().map(maskChannel), active: DB.activeChannelId() });
   });
@@ -575,9 +589,10 @@ export function mountRoutes(app, { version }) {
   r.delete('/presets/:id', (req, res) => { DB.deletePreset(req.params.id); res.json({ ok: true }); });
 
   // ---- projects ----
+  // Summaries only (no config/metadata): the list never reads them and they were 97% of the bytes.
   r.get('/projects', (req, res) => {
     const channel = req.query.channel || DB.activeChannelId();
-    let list = DB.listProjects(channel);
+    let list = DB.listProjectSummaries(channel);
     const cat = req.query.category;
     if (cat === 'short') list = list.filter((p) => ['9:16', '4:5', '1:1'].includes(p.aspect_ratio));
     else if (cat === 'landscape') list = list.filter((p) => p.aspect_ratio === '16:9');
@@ -596,10 +611,15 @@ export function mountRoutes(app, { version }) {
     logger.info(tp`🆕 Đã tạo dự án (kênh ${channel?.name || 'Default'})`, { projectId: p.id });
     res.json({ project: p });
   });
+  // ?scenes=lite drops the generated page from every row (the interface's list view); ?scenes=0
+  // returns the project alone. The full shape stays the default — the CLI scripts read props.html.
   r.get('/projects/:id', (req, res) => {
     const p = DB.getProject(req.params.id);
     if (!p) return res.status(404).json({ error: 'not found' });
-    res.json({ project: p, scenes: DB.getScenes(p.id) });
+    const mode = String(req.query.scenes || 'full');
+    if (mode === '0') return res.json({ project: p });
+    const scenes = DB.getScenes(p.id);
+    res.json({ project: p, scenes: mode === 'lite' ? scenes.map(DB.liteScene) : scenes });
   });
   r.put('/projects/:id', (req, res) => {
     const p = DB.getProject(req.params.id);
@@ -1053,9 +1073,9 @@ export function mountRoutes(app, { version }) {
   });
   // Global tasks feed: every running/queued/recent job across projects + system-lane rows.
   r.get('/tasks', (req, res) => {
-    const jobs = DB.listJobs({ limit: Math.min(100, parseInt(req.query.limit, 10) || 40) }).map((j) => ({
-      ...j, projectTitle: j.project_id ? (DB.getProject(j.project_id)?.title || null) : null,
-    }));
+    const rows = DB.listJobs({ limit: Math.min(100, parseInt(req.query.limit, 10) || 40) });
+    const titles = DB.projectTitles(rows.map((j) => j.project_id));
+    const jobs = rows.map((j) => ({ ...j, projectTitle: j.project_id ? (titles.get(j.project_id) || null) : null }));
     const sys = DB.listJournal({ sys: true, limit: 30 });
     res.json({ jobs, sys });
   });
@@ -1184,8 +1204,8 @@ export function mountRoutes(app, { version }) {
     } catch (e) { res.status(400).json({ error: e.message }); }
   });
   r.get('/dashboard', (req, res) => {
-    const projects = DB.listProjects();
-    const byStatus = projects.reduce((a, p) => { a[p.status] = (a[p.status] || 0) + 1; return a; }, {});
+    const projects = DB.listProjectSummaries();
+    const byStatus = DB.projectCountsByStatus();
     // 7-day production pulse (local-midnight buckets, oldest first)
     const now = new Date();
     const day0 = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6).getTime();
@@ -1201,13 +1221,13 @@ export function mountRoutes(app, { version }) {
     for (const s of DB.listSuggestions({ limit: 500 })) {
       if (s.created_at >= since30 && funnel[s.status] !== undefined) funnel[s.status]++;
     }
-    const upcoming = DB.listSlots({ includeDone: false }).slice(0, 5);
+    const slots = DB.listSlots({ includeDone: false });
     res.json({
       projects: { total: projects.length, byStatus },
       jobs: DB.listJobs({ limit: 20 }),
       usage: DB.usageSummary({ limit: 10 }),
-      calendar: DB.listSlots({ includeDone: false }).slice(0, 10),
-      week, funnel, upcoming,
+      calendar: slots.slice(0, 10),
+      week, funnel, upcoming: slots.slice(0, 5),
     });
   });
 
@@ -1792,6 +1812,11 @@ export function mountRoutes(app, { version }) {
   });
 
   // ---- scenes ----
+  r.get('/scenes/:id', (req, res) => {
+    const s = DB.getScene(req.params.id);
+    if (!s) return res.status(404).json({ error: 'not found' });
+    res.json({ scene: s });
+  });
   r.put('/scenes/:id', (req, res) => {
     // Edit-aware invalidation: a USER edit through this route marks downstream artifacts
     // stale, so the next resume/render redoes exactly the touched scene (content-hash
