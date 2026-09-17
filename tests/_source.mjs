@@ -53,6 +53,10 @@ export const RELOCATED = {
     'src/animation/harness/runtime-typeset.js', 'src/animation/harness/runtime-seek.js', 'src/animation/harness/runtime.js',
     'src/animation/harness/page.js',
   ],
+  'src/providers/fetchlink.js': [
+    'src/providers/fetchlink.js', 'src/providers/fetchlink/extract.js', 'src/providers/fetchlink/images.js',
+    'src/providers/fetchlink/refine.js', 'src/providers/fetchlink/fetch.js',
+  ],
 };
 
 /** `m('x')` → `'x'`, `tp\`x\`` → `` `x` ``. Nothing else is touched. */
