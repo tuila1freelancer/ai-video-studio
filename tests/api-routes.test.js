@@ -86,3 +86,15 @@ test('the API answers a bad body with JSON, not an HTML stack trace', async () =
   assert.match(r.headers.get('content-type'), /application\/json/);
   assert.ok((await r.json()).error);
 });
+
+test('the route table is exactly the one pinned before routes.js was split', async () => {
+  const { readFileSync } = await import('node:fs');
+  const pinned = JSON.parse(readFileSync(new URL('./fixtures/route-table.json', import.meta.url), 'utf8'));
+  const api = app._router.stack.find((l) => l.name === 'router' && l.regexp.test('/api/'));
+  const rows = [];
+  for (const layer of api.handle.stack) {
+    if (!layer.route) continue;
+    for (const m of Object.keys(layer.route.methods)) rows.push(`${m.toUpperCase()} ${layer.route.path}`);
+  }
+  assert.deepEqual(rows.sort(), pinned, 'a route vanished or changed its path in the split');
+});
