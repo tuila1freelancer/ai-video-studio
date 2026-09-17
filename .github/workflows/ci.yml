@@ -4,7 +4,24 @@ on:
     branches: [main]
   pull_request:
 
+# A newer push to the same branch supersedes the run in flight.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -19,5 +36,19 @@ jobs:
       - name: Install ffmpeg
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - run: npm ci
-      - run: npm run lint
-      - run: npm test
+      # A hung test fails on its own instead of taking the job's whole budget with it; the
+      # coverage summary is informational and lands in the step log.
+      - run: node --test --test-timeout=120000 --experimental-test-coverage "tests/*.test.js"
+
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # Reported, not enforced: a transitive advisory must not block a fix from landing.
+      - run: npm audit --omit=dev || true
