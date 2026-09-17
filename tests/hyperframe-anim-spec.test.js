@@ -5,13 +5,12 @@
 import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { sourceOf } from './_source.mjs';
 import { animationSpecBlock, timelineSkeletonBlock } from '../src/hyperframe/prompt.js';
 import { motionSignature } from '../src/hyperframe/signatures.js';
 import { cinematicDirection, extractBeats } from '../src/hyperframe/beats.js';
 import { lintSpec } from '../src/hyperframe/lint.js';
 
-const src = (f) => readFileSync(new URL(f, import.meta.url), 'utf8');
 
 // realistic cue stream so extractBeats returns several labeled beats (every 6th word a number)
 const cues = [{ start: 0, end: 8, text: 'x', words: Array.from({ length: 24 }, (_, i) => ({
@@ -59,7 +58,7 @@ test('P37 the emitted spec calls are LINT-CLEAN (the prompt never suggests a ban
 });
 
 test('P39 render gate: structural floor is HARD (defects), geometry is advisory (warnings)', () => {
-  const v = src('../src/hyperframe/validate.js');
+  const v = sourceOf('src/hyperframe/validate.js');
   assert.ok(!/softDefects/.test(v), 'the softDefects lane is removed');
   assert.match(v, /return \{ ok: defects\.length === 0, defects, warnings, langDefects, tlDur/, 'the gate returns defects (hard floor) + warnings (advisory) + langDefects (caller decides)');
   // each push statement is a single source line, so the line carrying the finding IS its push.
@@ -84,7 +83,7 @@ test('P39 render gate: structural floor is HARD (defects), geometry is advisory 
   // decides how many attempts it may burn. Advisory cost this its exemption — on a 95-scene
   // English video it fired 22 times and all 22 scenes shipped with Vietnamese text on screen.
   assert.match(lineWith('wrong language'), /langDefects\.push\(/, 'language findings are their own bucket');
-  const c = src('../src/hyperframe/codegen.js');
+  const c = sourceOf('src/hyperframe/codegen.js');
   assert.match(c, /const LANG_REASK_MAX = 3;/, 'bounded — a scene is worth more than a perfect one');
   assert.match(c, /attempt <= LANG_REASK_MAX\) renderDefects = \[\.\.\.renderDefects, \.\.\.renderLangDefects\]/);
   assert.match(c, /vẫn sai ngôn ngữ sau \$\{LANG_REASK_MAX\} lần thử/, 'the downgrade is never silent');

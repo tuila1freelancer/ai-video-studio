@@ -7,16 +7,14 @@
 import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import * as DB from '../src/db/index.js';
 import { PATHS } from '../src/config/paths.js';
 import { ffmpeg } from '../src/media/ffmpeg.js';
 import {
   abortSignalFor, checkStop, clearStop, hydrateStops, isStopped, notStopped, requestStop, stopError,
 } from '../src/pipeline/stop.js';
-import { unwrapI18n } from './_source.mjs';
+import { sourceOf } from './_source.mjs';
 
-const src = (p) => unwrapI18n(readFileSync(new URL(p, import.meta.url), 'utf8'));
 
 /** A project with one job in it, claimed so the row reads 'running' like a live render. */
 function runningProject(title) {
@@ -68,7 +66,7 @@ test('starting again is the answer to an earlier stop', () => {
   assert.ok(!DB.stopRequestedProjects().includes(p.id));
 
   // …and the two entry points that start work are the ones that clear it.
-  const queue = src('../src/pipeline/queue.js');
+  const queue = sourceOf('src/pipeline/queue.js');
   assert.match(queue, /export function startProject[\s\S]{0,120}clearStopRequest\(projectId\)/);
   assert.match(queue, /export function renderProject[\s\S]{0,80}clearStopRequest\(projectId\)/);
   assert.match(queue, /markStopRequested\(projectId\);\s*\n\s*requestStop\(projectId\);/,
@@ -83,8 +81,8 @@ test('boot re-arms the signal for a stop that was never honoured', () => {
   assert.throws(() => checkStop(id), (e) => e.stopped === true);
   clearStop(id);
 
-  assert.match(src('../src/server.js'), /hydrateStops\(pending\)/);
-  assert.match(src('../src/server.js'), /stopRequestedProjects\(\)/);
+  assert.match(sourceOf('src/server.js'), /hydrateStops\(pending\)/);
+  assert.match(sourceOf('src/server.js'), /stopRequestedProjects\(\)/);
 });
 
 test('the stop signal reaches the child process, not just the next checkpoint', () => {
@@ -130,7 +128,7 @@ test('a running encode dies when the stop arrives', { skip: !PATHS.ffmpeg && 'ff
 });
 
 test('the join can be interrupted at every point it spends time', () => {
-  const fin = src('../src/pipeline/stages/finalize.js');
+  const fin = sourceOf('src/pipeline/stages/finalize.js');
   // B7 had ZERO checkpoints. It contains, in order: clip repairs (one render each), the join,
   // the audio master, a QC decode and up to three AI thumbnails — the longest stretch in the
   // app, and the one the owner is most likely to be watching when they give up on it.
@@ -148,13 +146,13 @@ test('the join can be interrupted at every point it spends time', () => {
   assert.match(fin, /if \(e\.stopped\) throw e; \/\/ packaging may fail silently/);
   assert.match(fin, /if \(e\.stopped\) throw e;\n {4}logger\.warn\(`master:/);
 
-  const render = src('../src/pipeline/render.js');
+  const render = sourceOf('src/pipeline/render.js');
   assert.match(render, /signal = undefined,/);
   assert.match(render, /await \(useAssBinary \? ffmpegAss : ffmpeg\)\(args, \{\s*\n\s*signal,/);
 });
 
 test('a stop noticed late still ends the run as stopped, not as done', () => {
-  const runner = src('../src/pipeline/runner.js');
+  const runner = sourceOf('src/pipeline/runner.js');
   // Between the join and `status: 'done'` there was nothing to notice a stop, so a run that had
   // been stopped could still finish and announce a finished video.
   const afterFinalize = runner.indexOf("await finalize(projectId, { dir, size, config })");
@@ -166,14 +164,14 @@ test('a stop noticed late still ends the run as stopped, not as done', () => {
   assert.ok(between.includes('checkStop(projectId)'), 'no checkpoint between the join and success');
   assert.match(runner, /DB\.clearStopRequest\(projectId\);/, 'and an honoured stop clears the flag');
 
-  const ro = src('../src/pipeline/render-only.js');
+  const ro = sourceOf('src/pipeline/render-only.js');
   // mode:'concat' skips the scene loop, so the "ghép lại" path reached finalize without ever
   // asking whether the owner still wanted it.
   assert.match(ro, /checkStop\(projectId\);\s*\n\s*await finalize\(projectId/);
   assert.match(ro, /DB\.clearStopRequest\(projectId\);/);
 
   // A stopped render used to be filed in the job ledger as 'done'.
-  assert.match(src('../src/pipeline/scheduler.js'),
+  assert.match(sourceOf('src/pipeline/scheduler.js'),
     /await renderOnly\(projectId, job\.payload\);[\s\S]{0,220}status: 'cancelled', error: 'stopped by user'/);
 });
 
@@ -183,9 +181,9 @@ test('stopError is one definition shared by every layer', () => {
   assert.equal(notStopped(e), true);
   // media/ffmpeg.js imports it rather than re-inventing the tag, which is why stop.js has no
   // imports of its own — a database dependency there would reach into every spawn.
-  assert.match(src('../src/media/ffmpeg.js'), /import \{ stopError \} from '\.\.\/pipeline\/stop\.js';/);
+  assert.match(sourceOf('src/media/ffmpeg.js'), /import \{ stopError \} from '\.\.\/pipeline\/stop\.js';/);
   // `graph.args`, not `args`: the filtergraph is swapped for a -filter_complex_script file before
   // the spawn so `ps` cannot read the transition doctrine. The signal must survive that rewrite.
-  assert.match(src('../src/media/ffmpeg.js'), /spawn\(bin, graph\.args, \{ stdio: \['ignore', 'pipe', 'pipe'\], signal \}\)/);
-  assert.ok(!/^import .*db\//m.test(src('../src/pipeline/stop.js')), 'stop.js must stay dependency-free');
+  assert.match(sourceOf('src/media/ffmpeg.js'), /spawn\(bin, graph\.args, \{ stdio: \['ignore', 'pipe', 'pipe'\], signal \}\)/);
+  assert.ok(!/^import .*db\//m.test(sourceOf('src/pipeline/stop.js')), 'stop.js must stay dependency-free');
 });

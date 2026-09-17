@@ -5,11 +5,10 @@
 import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { sourceOf } from './_source.mjs';
 
-const src = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
-const css = src('../public/css/app.css');
-const swift = src('../shell/main.swift');
+const css = sourceOf('public/css/app.css');
+const swift = sourceOf('shell/main.swift');
 
 test('a page fills the viewport and scrolls; nothing may take that away', () => {
   // `.page` is `position:absolute;inset:0` so it is exactly as tall as `.content` and scrolls its

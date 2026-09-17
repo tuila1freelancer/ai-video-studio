@@ -2,6 +2,7 @@
 //   consistent-scenes: prompt block locks bg + primary accent for every scene
 //   image-full: master-assigned scene assets ride rows → prompt block + {{asset:NAME}}
 //   substitution AFTER lint; unresolved placeholders can never reach the page.
+import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { consistentScenesBlock, imageFullBlock, applyAssetMedia } from '../src/hyperframe/codegen.js';

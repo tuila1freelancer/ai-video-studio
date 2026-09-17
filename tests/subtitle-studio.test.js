@@ -9,8 +9,8 @@
 import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { sourceOf } from './_source.mjs';
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
 import { buildAss, cueText, readableOn, toAssColor } from '../src/subtitles/ass.js';
 import { boxDrawing, captionAnchor, roundedRectPath } from '../src/subtitles/box.js';
 import { burnStyleFrom } from '../src/subtitles/presets.js';
@@ -265,7 +265,7 @@ test('the wrap mode is selectable and defaults to balanced', () => {
  * and demands that every `config.subtitle*` it consumes has a validator.
  */
 test('every subtitle setting the resolver reads can be saved to a channel', () => {
-  const src = readFileSync(new URL('../src/subtitles/presets.js', import.meta.url), 'utf8');
+  const src = sourceOf('src/subtitles/presets.js');
   const read = new Set([...src.matchAll(/\bc\.(subtitle[A-Z]\w*)/g)].map((m) => m[1]));
   assert.ok(read.size > 25, `expected the resolver to read many settings, found ${read.size}`);
   // Two are deliberately not channel settings: the lane is stated by the panel rather than chosen
@@ -352,7 +352,7 @@ test('measured line breaks are burned as breaks, not handed back to libass', () 
 // ------------------------------------------------------------------ saved presets
 
 test('a saved preset carries settings, not an id the resolver would have to know', () => {
-  const routes = readFileSync(new URL('../src/api/routes.js', import.meta.url), 'utf8');
+  const routes = sourceOf('src/api/routes.js');
   // stored through the same validator channel defaults use, so a preset cannot smuggle in a
   // setting the renderer would refuse — it would look saved and then not apply
   assert.match(routes, /pickSubtitleConfig\(req\.body\?\.config \|\| \{\}\)/);
@@ -361,7 +361,7 @@ test('a saved preset carries settings, not an id the resolver would have to know
   // a corrupt row must not empty the whole gallery
   assert.match(routes, /catch \{ \/\* a corrupt row must not empty the gallery \*\/ \}/);
 
-  const cfg = readFileSync(new URL('../public/js/views/config.js', import.meta.url), 'utf8');
+  const cfg = sourceOf('public/js/views/config.js');
   // clicking a saved preset POURS it back into the panel; a built-in only sets the id
   assert.match(cfg, /SUB_FIELDS\.forEach\(\(f\) => writeSubField\(f, mine\.config\)\)/);
   // …with `applying` held, or every field written would fire its own save back at the channel
@@ -371,7 +371,7 @@ test('a saved preset carries settings, not an id the resolver would have to know
 test('a slider whose resting value is a legal choice only counts once touched', () => {
   // The burn's default vertical margin is 7% on a landscape frame, so a panel that shipped its
   // parked 12 would move every caption the first time subtitles were saved.
-  const cfg = readFileSync(new URL('../public/js/views/config.js', import.meta.url), 'utf8');
+  const cfg = sourceOf('public/js/views/config.js');
   assert.match(cfg, /if \(f\.t === 'color' \|\| f\.off === null\) \{\s*\n\s*if \(el\.dataset\.set !== '1'\) return undefined;/);
   assert.match(cfg, /if \(f\.off === null\) el\.dataset\.set = has \? '1' : '';/, 'a stored value is a decision');
   assert.match(cfg, /\{ k: 'subtitleMarginV', el: '#cfgSubMarginV', t: 'num', off: null/);

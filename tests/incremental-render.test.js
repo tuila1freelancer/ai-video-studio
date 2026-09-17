@@ -7,11 +7,10 @@
 import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { sourceOf } from './_source.mjs';
 import { renderFingerprint, renderCurrent, fpStamp } from '../src/pipeline/fingerprint.js';
 
-const src = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
-const renderOnly = src('../src/pipeline/render-only.js');
+const renderOnly = sourceOf('src/pipeline/render-only.js');
 
 const PROJECT = { id: 'p1', aspect_ratio: '16:9', config: { visualMode: 'hyperframe', subtitleLane: 'final' } };
 const scene = (over = {}) => ({ id: 's1', idx: 0, template: 'hyperframe', props: { a: 1 }, duration: 6, ...over });
@@ -39,9 +38,9 @@ test('the predicate answers the two questions the owner asked', () => {
 test('voice is answered by the clip being GONE, not by a second fingerprint', () => {
   // Both re-voice paths already null `video_path` with the reason written next to them, so a
   // re-voiced scene has no clip to keep and needs no extra stamp to notice.
-  assert.match(src('../src/pipeline/stages/tts.js'),
+  assert.match(sourceOf('src/pipeline/stages/tts.js'),
     /DB\.updateScene\(sc\.id, \{ video_path: null \}\); \/\/ the clip carries the old voice/);
-  assert.match(src('../src/pipeline/regen.js'), /status: 'tts', video_path: null,/);
+  assert.match(sourceOf('src/pipeline/regen.js'), /status: 'tts', video_path: null,/);
   // …which is why the skip's first branch is "is there a clip at all"
   assert.match(renderOnly, /if \(!\(s\.video_path && existsSync\(s\.video_path\)\)\) \{ fresh\.push\(s\); continue; \}/);
 });
@@ -80,6 +79,6 @@ test('the run says what it skipped, and what it will not do for you', () => {
 test('the variant lane is untouched — it was already concat-only', () => {
   // A variant layers concat-only settings for ONE run and re-uses the clips; it must not be
   // compared against those overrides, and in fact never reaches the render pass at all.
-  assert.match(src('../src/api/routes.js'), /Pipeline\.renderProject\(p\.id, \{ mode: 'concat', configOverrides: overrides/);
+  assert.match(sourceOf('src/api/routes.js'), /Pipeline\.renderProject\(p\.id, \{ mode: 'concat', configOverrides: overrides/);
   assert.match(renderOnly, /const clipCfg = project\.config \|\| config;/);
 });

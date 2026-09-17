@@ -6,6 +6,7 @@
 import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { sourceOf } from './_source.mjs';
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -13,9 +14,8 @@ import { dirname, join } from 'node:path';
 import { detachFilterGraph } from '../src/media/ffmpeg.js';
 import { ffmpeg } from '../src/media/ffmpeg.js';
 
-const src = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
-const swift = src('../shell/main.swift');
-const build = src('../shell/build-app.sh');
+const swift = sourceOf('shell/main.swift');
+const build = sourceOf('shell/build-app.sh');
 
 test('the dist payload ships bytecode, and the launcher can start it', () => {
   // The three halves of one contract: no src/ in the payload, --no-lazy on the command line

@@ -8,7 +8,7 @@
 import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { sourceOf } from './_source.mjs';
 import { buildMasterPrompt, LANG_VOICE_NOTES, isMetaLeakVoice, planScenes } from '../src/content/master-script.js';
 import { offlineScript } from '../src/providers/llm.js';
 import { chapterLabel, phrase } from '../src/i18n/script-phrases.js';
@@ -79,7 +79,7 @@ test('doctrine: the YouTube chapter heading is in the video\'s language, not the
   // The description ships WITH the video, so it follows the video's language — an interface set
   // to Japanese while producing a French video must still write "Chapitres", not "チャプター".
   // It read "Chương" for every language until this was fixed.
-  const src = readFileSync(new URL('../src/pipeline/stages/metadata.js', import.meta.url), 'utf8');
+  const src = sourceOf('src/pipeline/stages/metadata.js');
   assert.doesNotMatch(src, /📑 Chương/, 'the heading is no longer hardcoded Vietnamese');
   assert.match(src, /phrase\(resolveLang\(config, scs\), 'chapters'\)/, 'it resolves the VIDEO language');
   for (const code of LANG_CODES) {

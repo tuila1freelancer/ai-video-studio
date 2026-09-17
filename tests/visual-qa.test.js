@@ -3,12 +3,9 @@
 import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { sourceOf } from './_source.mjs';
 import { overlapFrac, contrastRatio } from '../src/hyperframe/validate.js';
 
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 test('overlapFrac: fraction of the SMALLER box; disjoint boxes are 0', () => {
   const a = { x: 0, y: 0, w: 100, h: 100 };
@@ -26,7 +23,7 @@ test('contrastRatio: WCAG anchors (white/black 21:1, same color 1:1) and the 2.2
 });
 
 test('P39 codegen re-asks ONLY on the structural floor; geometry is advisory (no HARD_DEFECT lane)', () => {
-  const s = readFileSync(join(ROOT, 'src/hyperframe/codegen.js'), 'utf8');
+  const s = sourceOf('src/hyperframe/codegen.js');
   // P39 (reference-parity): the hard/soft defect classifier and the lastGood graceful-fallback
   // lane are gone. A scene ships as soon as it passes lint + syntax + the structural render floor
   // (script didn't throw, scene isn't blank); every geometry finding is an advisory warning.

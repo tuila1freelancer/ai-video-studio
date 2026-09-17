@@ -5,7 +5,7 @@
 import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { sourceOf } from './_source.mjs';
 import * as DB from '../src/db/index.js';
 import { scheduleSuggestion } from '../src/api/services/assistant.js';
 import { suggestTopics } from '../src/api/services/topic-autopilot.js';
@@ -16,7 +16,6 @@ const okResponse = (payload) => ({
   ok: true,
   text: async () => JSON.stringify({ choices: [{ message: { content: JSON.stringify(payload) } }] }),
 });
-const src = (f) => readFileSync(new URL(f, import.meta.url), 'utf8');
 
 test('P34 schedule: slot topic = researched topic; click-title rides as titleOverride', () => {
   const [r] = DB.recordSuggestionBatch({ topics: [{ topic: 'P34 chủ đề nghiên cứu gốc về lãi kép', titles: ['Bí Mật Ngân Hàng Giấu Bạn!'] }] });
@@ -58,22 +57,22 @@ test('P34 suggestions speak the channel language', async () => {
 });
 
 test('P34 source pins: sheet fixes + accept path + promote restore + estimate-cost route', () => {
-  const sheet = src('../public/js/features/assistant-sheet.js');
+  const sheet = sourceOf('public/js/features/assistant-sheet.js');
   assert.match(sheet, /if \(v\('vd'\)\) \{ config\.videoDuration = \+v\('vd'\); config\.durationMode = 'target'; \}/,
     'durationMode applies ONLY with an explicit duration pick (the clobber bug)');
   assert.match(sheet, /data-a="gate"/, 'script-approval gate checkbox exists');
   assert.match(sheet, /config\.sceneGate = /, 'gate reaches the request config');
   assert.match(sheet, /openProject\(r\.projectId\)/, 'accept lands the owner on the new project');
   assert.match(sheet, /estimate-cost/, 'cost preview wired');
-  const svc = src('../src/api/services/assistant.js');
+  const svc = sourceOf('src/api/services/assistant.js');
   assert.match(svc, /topics: \[row\.topic\.trim\(\)\]/, 'accept feeds the researched topic to B2');
   assert.match(svc, /titleOverride/, 'accept carries the click-title as metadata');
-  const sched = src('../src/pipeline/scheduler.js');
+  const sched = sourceOf('src/pipeline/scheduler.js');
   assert.match(sched, /restoreSuggestionBySlot\(slot\.id\)/, 'promote failure returns the idea to the pool');
   assert.match(sched, /config\.titleOverride \|\| slot\.topic/, 'promoted project titled by the override');
-  const routes = src('../src/api/routes.js');
+  const routes = sourceOf('src/api/routes.js');
   assert.equal((routes.match(/r\.post\('\/estimate'/g) || []).length, 1, 'the duration-estimate route is not shadowed');
   assert.equal((routes.match(/r\.post\('\/estimate-cost'/g) || []).length, 1, 'the cost route exists once');
-  const scriptStage = src('../src/pipeline/stages/script.js');
+  const scriptStage = sourceOf('src/pipeline/stages/script.js');
   assert.match(scriptStage, /config\.titleOverride \|\| script\.title/, 'owner-picked title beats the engine title');
 });

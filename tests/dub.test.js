@@ -12,13 +12,12 @@
 import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { sourceOf } from './_source.mjs';
 import * as DB from '../src/db/index.js';
 import { dubProject } from '../src/pipeline/dub.js';
 import { LANG_WPS } from '../src/providers/llm.js';
 import { countWords } from '../src/i18n/segment.js';
 
-const src = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 
 function seedProject() {
   const p = DB.createProject({
@@ -83,7 +82,7 @@ test('dub: the target word count comes from BOTH languages\' speaking rates', ()
   // Vietnamese speaks 4.4 tokens a second and English 2.6, so a faithful English rendering of a
   // Vietnamese scene runs nearly twice as long as the slot the visual was designed around. The
   // lane asks for a word count, not for a translation.
-  const s = src('../src/pipeline/dub.js');
+  const s = sourceOf('src/pipeline/dub.js');
   assert.match(s, /const ratio = \(LANG_WPS\[to\] \|\| 3\) \/ \(LANG_WPS\[from\] \|\| 3\)/);
   assert.match(s, /countWords\(sc\.voice_text \|\| '', from\) \* ratio/,
     'and it counts the source the way the source language is written');
@@ -92,7 +91,7 @@ test('dub: the target word count comes from BOTH languages\' speaking rates', ()
 });
 
 test('dub: creating one never spends a credit on its own (P16)', () => {
-  const routes = src('../src/api/routes.js');
+  const routes = sourceOf('src/api/routes.js');
   const route = routes.slice(routes.indexOf("r.post('/projects/:id/dub'"), routes.indexOf("r.post('/projects/:id/dub'") + 700);
   assert.ok(!/runPipeline|enqueue|startProject/.test(route),
     'the dub route must create the project and stop — running it is the owner\'s own click');

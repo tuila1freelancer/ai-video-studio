@@ -4,12 +4,11 @@
 import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { sourceOf } from './_source.mjs';
 import { resolveProjectConfig } from '../src/core/config.js';
 import * as DB from '../src/db/index.js';
 import { viewportBlock } from '../src/hyperframe/prompt.js';
 
-const src = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 
 // ai-providers amends this pillar (owner's call 2026-08-13). The pin used to be the constant
 // `ag/gemini-pro-agent`, which exists only on the owner's own proxy — fine while that was the
@@ -41,19 +40,19 @@ test('P39 pillar 3: a new project pins the codegen model its provider actually s
 test('P39 pillar 3: codegen sends generous token headroom for full-page specs', () => {
   // The ceiling moved with the model call into doctrine.js, so that the store implementation of
   // the same interface inherits it rather than re-deciding it.
-  const s = src('../src/hyperframe/doctrine.js');
+  const s = sourceOf('src/hyperframe/doctrine.js');
   assert.match(s, /const MAX_TOKENS = 24000;/, 'codegen requests 24k tokens (was 6500)');
   assert.match(s, /maxTokens: MAX_TOKENS/);
 });
 
 test('P39 pillar 4: per-scene + master + colorkey encodes are reference-grade (crf 18)', () => {
-  assert.match(src('../src/animation/renderer.js'), /'-crf', '18'.*'-profile:v', 'high'/s, 'per-scene encode crf18 High');
-  assert.match(src('../src/pipeline/render.js'), /'-crf', '18'.*'-profile:v', 'high'/s, 'final master encode crf18 High');
-  assert.match(src('../src/media/ffmpeg.js'), /'-crf', '18'/, 'overlay colorkey encode crf18');
+  assert.match(sourceOf('src/animation/renderer.js'), /'-crf', '18'.*'-profile:v', 'high'/s, 'per-scene encode crf18 High');
+  assert.match(sourceOf('src/pipeline/render.js'), /'-crf', '18'.*'-profile:v', 'high'/s, 'final master encode crf18 High');
+  assert.match(sourceOf('src/media/ffmpeg.js'), /'-crf', '18'/, 'overlay colorkey encode crf18');
 });
 
 test('P39 pillar 2: the prompt teaches raw GSAP, not an FX-only ban', () => {
-  const p = src('../src/hyperframe/prompt.js');
+  const p = sourceOf('src/hyperframe/prompt.js');
   assert.ok(!/NEVER call gsap\.\* directly/.test(p), 'the blanket "never gsap.*" ban is gone');
   assert.match(p, /RAW GSAP TIMELINE/, 'the model is told to author a raw GSAP timeline');
   assert.match(p, /gsap\.set\(\) for instant/, 'gsap.set is explicitly allowed');

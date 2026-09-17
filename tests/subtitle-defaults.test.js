@@ -12,12 +12,11 @@
 import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { sourceOf } from './_source.mjs';
 import * as DB from '../src/db/index.js';
 import { saveSubtitleDefaults, pickSubtitleConfig } from '../src/api/services/subtitle-defaults.js';
 import { resolveProjectConfig } from '../src/core/config.js';
 
-const src = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const LOOK = {
   enableSubtitles: true, subtitlePreset: 'bold-impact', subtitleFont: 'Anton', subtitleFontSize: 96,
   subtitleColor: '#00E5FF', subtitleTextCase: 'uppercase', subtitleMode: 'karaoke',
@@ -109,7 +108,7 @@ test('the default preset cannot shadow what was just saved', () => {
 });
 
 test('the panel saves as it is edited, and cannot save while it is being populated', () => {
-  const cfg = src('../public/js/views/config.js');
+  const cfg = sourceOf('public/js/views/config.js');
   assert.match(cfg, /saveSubtitleDefaults\(\)/, 'the controls call it');
   assert.match(cfg, /if \(applying \|\| !state\.activeChannel\) return;/,
     'populating the panel is not the owner editing it');
@@ -128,12 +127,12 @@ test('the panel starts on the channel it is pointed at', () => {
   // Nothing loaded the active channel's config at boot, and "video mới" left the previous
   // project's settings in the form — so a saved channel look was invisible until the owner
   // switched channels and back, and one edit later the panel's version won.
-  const st = src('../public/js/state.js');
+  const st = sourceOf('public/js/state.js');
   assert.match(st, /export function channelDefaults\(\)/);
   assert.match(st, /\(state\.presets \|\| \[\]\)\.find\(\(p\) => p\.is_default\)/, 'same layering as the server');
-  assert.match(src('../public/js/main.js'), /applyConfig\(channelDefaults\(\)\);/);
-  assert.match(src('../public/js/views/studio.js'), /applyConfig\(channelDefaults\(\)\);/);
-  const ch = src('../public/js/features/channels.js');
+  assert.match(sourceOf('public/js/main.js'), /applyConfig\(channelDefaults\(\)\);/);
+  assert.match(sourceOf('public/js/views/studio.js'), /applyConfig\(channelDefaults\(\)\);/);
+  const ch = sourceOf('public/js/features/channels.js');
   assert.match(ch, /await loadChannelPresets\(\);\s*\n\s*applyConfig\(channelDefaults\(\)\);/);
   assert.ok(!/if \(ch && ch\.config && Object\.keys\(ch\.config\)\.length\) applyConfig/.test(ch),
     'unconditional: a channel with no config resets the panel instead of inheriting the last one');
@@ -143,7 +142,7 @@ test('every subtitle restore in applyConfig is unconditional', () => {
   // A guarded restore leaves the PREVIOUS channel's value in the control on a channel that never
   // set one — and gatherConfig then pins it onto the new channel's video. This is the same trap
   // already fixed for #cfgLang and #cfgSubCase; these are the rest of the group.
-  const cfg = src('../public/js/views/config.js');
+  const cfg = sourceOf('public/js/views/config.js');
   for (const line of [
     /\$\('#cfgSubSize'\)\.value = cfg\.subtitleFontSize \|\| 80;/,
     /\$\('#cfgSubCase'\)\.value = cfg\.subtitleTextCase \|\| '';/,

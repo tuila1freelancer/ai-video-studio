@@ -4,12 +4,11 @@
 import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { sourceOf } from './_source.mjs';
 import { PROVIDERS, getProvider, listProviders, providerConfig } from '../src/providers/voice/index.js';
 import supertonic from '../src/providers/voice/supertonic.js';
 import { supertonicUrl } from '../src/media/tts-server.js';
 
-const src = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 
 test('P40-C: supertonic joins the registry as a free, offline provider', () => {
   assert.ok(PROVIDERS.supertonic, 'registered');
@@ -51,7 +50,7 @@ test('P40-C: synthesis posts the payload the local server expects, with clamped 
 });
 
 test('P40-C: the façade writes .wav for supertonic and passes the language explicitly', async () => {
-  const s = src('../src/providers/tts.js');
+  const s = sourceOf('src/providers/tts.js');
   // The container is declared BY the provider now, so the preview lane — which calls a provider
   // directly — stops saving Supertonic's wav bytes into a .mp3 file, and a new provider needs no
   // edit in the façade at all.
@@ -69,9 +68,9 @@ test('P40-C: the façade writes .wav for supertonic and passes the language expl
 });
 
 test('P40-C: the server lifecycle is exposed as routes and cleaned up on shutdown', () => {
-  const routes = src('../src/api/routes.js');
+  const routes = sourceOf('src/api/routes.js');
   for (const p of ['/tts/server/status', '/tts/server/start', '/tts/server/stop']) {
     assert.ok(routes.includes(p), `${p} route exists`);
   }
-  assert.match(src('../src/server.js'), /stopAllTtsServers\(\)/, 'no orphan process survives the app');
+  assert.match(sourceOf('src/server.js'), /stopAllTtsServers\(\)/, 'no orphan process survives the app');
 });

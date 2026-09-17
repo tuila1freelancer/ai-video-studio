@@ -5,11 +5,10 @@
 import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { sourceOf } from './_source.mjs';
 import { isCharacterAsset, brandFolderFor, sanitizeCast, castBrandAssets, sceneMediaResolver, normalizeAssets } from '../src/pipeline/brand-assets.js';
 import { imageFullBlock } from '../src/hyperframe/codegen.js';
 
-const src = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const CATALOG = [
   { name: 'character ema thinking.png', path: '/tmp/a.png', character: true },
   { name: 'character ema smiling.png', path: '/tmp/b.png', character: true },
@@ -85,15 +84,15 @@ test('P40-B: a mascot is briefed as a co-star, a picture as the hero', () => {
 });
 
 test('P40-B: both codegen lanes resolve media through the same resolver', () => {
-  assert.match(src('../src/pipeline/stages/visuals.js'), /sceneMediaResolver\(config, \{ heroMediaUri \}\)/, 'batch lane');
-  assert.match(src('../src/pipeline/regen.js'), /sceneMediaResolver\(config, \{ heroMediaUri \}\)\(sc\)/, 'single-scene lane');
-  assert.match(src('../src/util/asset-uri.js'), /alpha = false/, 'transparency-preserving inline path exists');
+  assert.match(sourceOf('src/pipeline/stages/visuals.js'), /sceneMediaResolver\(config, \{ heroMediaUri \}\)/, 'batch lane');
+  assert.match(sourceOf('src/pipeline/regen.js'), /sceneMediaResolver\(config, \{ heroMediaUri \}\)\(sc\)/, 'single-scene lane');
+  assert.match(sourceOf('src/util/asset-uri.js'), /alpha = false/, 'transparency-preserving inline path exists');
 });
 
 test('P40-B: cast numbering follows the list the model was GIVEN, not scene indices', () => {
   // The prompt numbers the scenes it receives 1..N. When some scenes already carry assets the
   // uncast subset is not scene.idx+1, so mapping by scene index would decorate the wrong scenes.
-  const vis = readFileSync(new URL('../src/pipeline/stages/visuals.js', import.meta.url), 'utf8');
+  const vis = sourceOf('src/pipeline/stages/visuals.js');
   assert.match(vis, /uncast\.forEach\(\(sc, k\) => \{[\s\S]*?cast\.get\(k \+ 1\)/, 'mapped back by position');
   assert.ok(!/cast\.get\(sc\.idx \+ 1\)/.test(vis), 'never keyed by scene index');
 });
@@ -123,7 +122,7 @@ test('P40-B: an uploaded asset actually reaches a scene, by name OR by filename'
 });
 
 test('P40-B: the brand catalog sees art dropped into the folder, not just DB rows', () => {
-  const s = src('../src/pipeline/brand-assets.js');
+  const s = sourceOf('src/pipeline/brand-assets.js');
   assert.match(s, /readdirSync\(dir\)/, 'the folder itself is read');
   assert.match(s, /seen\.has\(f\.toLowerCase\(\)\)/, 'a DB row wins over the same filename on disk');
   assert.match(s, /export function brandFolders/, 'folders made in Finder are offered too');

@@ -8,6 +8,7 @@
 import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { sourceOf } from './_source.mjs';
 import { readFileSync } from 'node:fs';
 import { MAX_GRAPH_CLIPS, planTransitions, transitionLoss } from '../src/pipeline/render.js';
 
@@ -54,7 +55,7 @@ test('the transition graph is not capped at a clip count real videos exceed', ()
   // fingerprinted, charged for, and then silently not rendered on all of them. The stated reason
   // was decoder exhaustion; measured, 192 clips join in 77s at a 2.6 GB peak and exit clean.
   assert.ok(MAX_GRAPH_CLIPS >= 200, 'the ceiling is a backstop, not a working limit');
-  const src = readFileSync(new URL('../src/pipeline/render.js', import.meta.url), 'utf8');
+  const src = sourceOf('src/pipeline/render.js');
   assert.match(src, /const useGraph = anyBlend && sceneVideos\.length > 1 && sceneVideos\.length <= MAX_GRAPH_CLIPS;/);
   // …and it exists in exactly one place. Three copies had drifted apart: the renderer skipped the
   // blend above 24 clips while finalize's SFX offsets assumed it ran, which placed every effect
@@ -68,7 +69,7 @@ test('the fingerprint describes the join that will actually happen', () => {
   // A plan the graph will not execute must not move the digest, or the owner pays for a re-encode
   // that produces identical pixels — which is exactly what changing the transition style did on a
   // capped video.
-  const src = readFileSync(new URL('../src/pipeline/render.js', import.meta.url), 'utf8');
+  const src = sourceOf('src/pipeline/render.js');
   assert.match(src, /const effPlan = useGraph \? plan : null;/);
   assert.match(src, /concatFingerprint\(\{\s*\n\s*clips: sceneVideos, size, frame: \{ w: fw, h: fh \}, fps: ffps, transitions: effPlan,/);
   assert.match(src, /needsVideoFilter\(\{ logo, watermark, assText, transitions: effPlan, masterFade \}\)/);
@@ -78,19 +79,19 @@ test('the audio seam is equal-power out and does not fade the incoming voice up'
   // acrossfade defaults to linear on both sides: ~3 dB power dip at the midpoint. And the material
   // is asymmetric — the outgoing clip ends in 0.68–0.93s of breath pad while the incoming one has
   // only 0.19–0.20s of leading silence, so fading it in ate the first words of every scene.
-  assert.match(readFileSync(new URL('../src/pipeline/render.js', import.meta.url), 'utf8'),
+  assert.match(sourceOf('src/pipeline/render.js'),
     /acrossfade=d=\$\{d\.toFixed\(3\)\}:c1=qsin:c2=nofade/);
 });
 
 test('the final frame rate follows the clips, so a 60fps project stays 60fps', () => {
   // The encoder ran at a constant 30 while the scenes rendered at config.fps: a 60fps project paid
   // double the render time and shipped a 30fps file, and the fps control in the UI did nothing.
-  const src = readFileSync(new URL('../src/pipeline/render.js', import.meta.url), 'utf8');
+  const src = sourceOf('src/pipeline/render.js');
   assert.match(src, /const ffps = \(await probeFrameRate\(sceneVideos\[0\]\)\) \|\| FPS;/);
   assert.match(src, /videoCodecArgs\(encoder, ffps\)/);
   assert.match(src, /function videoCodecArgs\(encoder, fps = FPS\)/);
   assert.match(src, /'-pix_fmt', 'yuv420p', '-r', String\(fps\)\]/);
   assert.doesNotMatch(src, /String\(FPS\)\]/, 'no path re-encodes at the hardcoded rate');
-  assert.match(readFileSync(new URL('../src/media/ffmpeg.js', import.meta.url), 'utf8'),
+  assert.match(sourceOf('src/media/ffmpeg.js'),
     /export async function probeFrameRate/);
 });

@@ -13,11 +13,11 @@
 import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { sourceOf, indexHtml } from './_source.mjs';
 import { readFileSync, readdirSync } from 'node:fs';
 import { resolveProjectConfig } from '../src/core/config.js';
 import { renderFingerprint, renderCurrent } from '../src/pipeline/fingerprint.js';
 
-const src = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 
 test('a new project is born with its subtitles on the far side of the concat', () => {
   assert.equal(resolveProjectConfig({}).subtitleLane, 'final');
@@ -30,10 +30,10 @@ test('a new project is born with its subtitles on the far side of the concat', (
 });
 
 test('the panel states the lane instead of offering it', () => {
-  const html = src('../public/index.html');
+  const html = indexHtml();
   assert.ok(!/id="cfgSubLane"/.test(html), 'the picker is gone');
   assert.match(html, /id="subLaneHint"/, 'and what happens instead is written where it stood');
-  const cfg = src('../public/js/views/config.js');
+  const cfg = sourceOf('public/js/views/config.js');
   assert.match(cfg, /subtitleLane: 'final',/, 'gatherConfig sends it as a fact');
   // Sent as the literal, never as `undefined`: an omitted key would let a channel or preset layer
   // carrying the old lane win the merge, and the panel would show one thing while the video did
@@ -73,7 +73,7 @@ test('a clip made on the old lane reads as stale the moment the burn is switched
 });
 
 test('finalize rebuilds a clip it cannot vouch for before printing on it', () => {
-  const fin = src('../src/pipeline/stages/finalize.js');
+  const fin = sourceOf('src/pipeline/stages/finalize.js');
   // The cheap ways in here — a concat-only "ghép lại", a variant export — skip the render stage
   // entirely. Without this, one of them on a project that just moved lanes would print captions
   // onto clips that already draw their own, and ship a video with two rows of subtitles.
@@ -111,9 +111,9 @@ test('nothing writes a subtitle onto anything except the assembled programme', (
   // them again put two subtitles on the screen. The lane is decided by where the burn happens —
   // still once, at the concat — not by which file a preview samples a frame from. It reads the
   // BARE clip precisely so the only styling on screen is the one being previewed.
-  assert.match(src('../src/api/services/frame-preview.js'), /const source = bare \? scene\.video_path : finished;/,
+  assert.match(sourceOf('src/api/services/frame-preview.js'), /const source = bare \? scene\.video_path : finished;/,
     'the preview samples the caption-free clip, never the already-burned export');
   // and the concat builds it from the offsets it has just computed, so the caption timeline and
   // the picture cannot disagree
-  assert.match(src('../src/pipeline/render.js'), /const cues = programCues\(subtitles\.scenes, starts,/);
+  assert.match(sourceOf('src/pipeline/render.js'), /const cues = programCues\(subtitles\.scenes, starts,/);
 });

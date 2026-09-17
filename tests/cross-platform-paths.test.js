@@ -3,6 +3,7 @@
 // branch: the shapes are asserted here, the actual Windows run still has to happen on Windows.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { sourceOf } from './_source.mjs';
 import { resolvePaths } from '../src/config/paths.js';
 
 test('cross-platform: /usr/bin/say is offered on macOS and nowhere else', () => {
@@ -41,8 +42,7 @@ test('cross-platform: resolving for another platform never throws, even with an 
 // videos the owner had banned. Overall coverage cannot catch it — losing the whole ending of a
 // 2,500-word script barely moves the number — so the tail is guarded on its own.
 test('master script: polish mode is told the owner closing is final copy', async () => {
-  const { readFileSync } = await import('node:fs');
-  const src = readFileSync(new URL('../src/content/master-script.js', import.meta.url), 'utf8');
+  const src = sourceOf('src/content/master-script.js');
   assert.match(src, /is FINAL COPY/, 'polish mode must declare the closing block untouchable');
   assert.match(src, /do NOT add a subscribe line/, 'the old "(subscribe)" instruction invited the rewrite');
   assert.match(src, /ENDING_REWRITTEN/, 'a rewritten ending must be a named defect, not a silent pass');

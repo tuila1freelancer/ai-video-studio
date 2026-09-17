@@ -7,11 +7,10 @@
 import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { sourceOf, indexHtml } from './_source.mjs';
 import { typesetRisk, atRiskScenes } from '../src/pipeline/typeset-scan.js';
 import { TYPESET_VERSION } from '../src/pipeline/fingerprint.js';
 
-const src = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const scene = (props, id = 's1', idx = 0) => ({ id, idx, props });
 
 test('no marks in the drawn text, no work', () => {
@@ -64,33 +63,33 @@ test('a subset render can finish the job, and says why it may', () => {
   // renderOnly's subset mode deliberately stops at the clips — picking scenes by hand means
   // inspecting them next. The repair already knows its whole list, and two queued jobs would
   // leave a window where the video on disk mixes repaired and unrepaired clips.
-  const ro = src('../src/pipeline/render-only.js');
+  const ro = sourceOf('src/pipeline/render-only.js');
   assert.match(ro, /const doJoin = mode !== 'scenes' \|\| alsoJoin;/);
   // named `alsoJoin` because this module imports `join` from node:path: a parameter called
   // `join` shadows it for the whole function and the render loop calls a boolean.
   assert.doesNotMatch(ro, /, join = false \}/, 'never shadow the path helper');
   assert.match(ro, /variantName = null, alsoJoin = false \}/);
   assert.doesNotMatch(ro, /if \(mode !== 'scenes' && stillUnvoiced\)/, 'the old gate must be gone, not shadowed');
-  const routes = src('../src/api/routes.js');
+  const routes = sourceOf('src/api/routes.js');
   assert.match(routes, /r\.get\('\/projects\/:id\/typeset-scan'/);
   assert.match(routes, /mode: 'scenes', sceneIds: at\.map\(\(x\) => x\.id\), alsoJoin: true,/);
   // …and it must not redesign the artwork on the way past. finalize regenerates the thumbnail and
   // all six platform covers on every join — 7 LLM calls, ~$0.09 a video, replacing a cover the
   // owner may already have uploaded. configOverrides is never written back, so this is one run.
   assert.match(routes, /configOverrides: \{ thumbnailAi: false \}/);
-  assert.match(src('../src/pipeline/stages/finalize.js'), /const aiOn = config\.thumbnailAi !== false/, 'the key that gates it');
+  assert.match(sourceOf('src/pipeline/stages/finalize.js'), /const aiOn = config\.thumbnailAi !== false/, 'the key that gates it');
   // a run in flight is refused rather than queued on top of itself
   assert.match(routes, /if \(\['running', 'queued'\]\.includes\(p\.status\)\) return res\.status\(409\)/);
 });
 
 test('the button only exists when there is something to repair', () => {
-  const studio = src('../public/js/views/studio.js');
+  const studio = sourceOf('public/js/views/studio.js');
   assert.match(studio, /async function syncTypesetButton\(p\) \{/);
   assert.match(studio, /if \(state\.current\?\.id !== p\.id \|\| !r\?\.atRisk\) return;/, 'a slow scan must not light up the wrong project');
   assert.match(studio, /Sửa lỗi tiếng Việt \(\$\{r\.atRisk\} cảnh\)/, 'it promises a number, not a guess');
   assert.match(studio, /ghi đè file hiện tại/, 'and says the video on disk is replaced');
   assert.match(studio, /Không gọi AI, không đổi thiết kế/);
-  assert.match(src('../public/index.html'), /id="btnTypeset"/);
+  assert.match(indexHtml(), /id="btnTypeset"/);
 });
 
 test('a clip already drawn by the fixed typesetter is not offered again', () => {
@@ -109,10 +108,10 @@ test('the stamp is written wherever a clip is written, and nowhere else', () => 
   // Three sites produce a clip: the pipeline render stage, the render-only lane, and finalize's
   // missing-clip repair. The migrate branches only correct a digest whose DEFINITION moved — they
   // touch no file, so they must keep the plain stamp or they would claim a repair that never ran.
-  for (const f of ['../src/pipeline/render-only.js', '../src/pipeline/stages/render.js', '../src/pipeline/stages/finalize.js']) {
-    assert.match(src(f), /fp: stampRendered\(/, `${f} does not stamp the typesetter`);
+  for (const f of ['src/pipeline/render-only.js', 'src/pipeline/stages/render.js', 'src/pipeline/stages/finalize.js']) {
+    assert.match(sourceOf(f), /fp: stampRendered\(/, `${f} does not stamp the typesetter`);
   }
-  assert.match(src('../src/pipeline/render-only.js'), /if \(cur\.migrate\) DB\.updateScene\(s\.id, \{ fp: fpStamp\(s, 'render', cur\.want\) \}\);/);
-  assert.match(src('../src/pipeline/fingerprint.js'), /export const TYPESET_VERSION = \d+;/);
-  assert.match(src('../src/pipeline/fingerprint.js'), /return \{ \.\.\.\(scene\.fp \|\| \{\}\), render: digest, typeset: TYPESET_VERSION \};/);
+  assert.match(sourceOf('src/pipeline/render-only.js'), /if \(cur\.migrate\) DB\.updateScene\(s\.id, \{ fp: fpStamp\(s, 'render', cur\.want\) \}\);/);
+  assert.match(sourceOf('src/pipeline/fingerprint.js'), /export const TYPESET_VERSION = \d+;/);
+  assert.match(sourceOf('src/pipeline/fingerprint.js'), /return \{ \.\.\.\(scene\.fp \|\| \{\}\), render: digest, typeset: TYPESET_VERSION \};/);
 });
