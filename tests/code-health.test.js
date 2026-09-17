@@ -30,7 +30,6 @@ const OVERSIZE = {
   'public/js/views/guide.js': 678,
   'src/providers/fetchlink.js': 519,
   'src/media/ffmpeg.js': 493,
-  'src/pipeline/render.js': 460,
   'public/js/features/brandkit.js': 451,
   'public/js/features/settings.js': 439,
   'src/hyperframe/prompt.js': 418,
