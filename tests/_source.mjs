@@ -75,6 +75,14 @@ export const RELOCATED = {
     'public/js/views/studio/projects.js', 'public/js/views/studio/actions.js', 'public/js/views/studio/project-view.js',
     'public/js/views/studio/outputs.js', 'public/js/views/studio/source.js',
   ],
+  'public/js/features/settings.js': [
+    'public/js/features/settings.js', 'public/js/features/settings/index.js', 'public/js/features/settings/publish.js',
+    'public/js/features/settings/llm.js', 'public/js/features/settings/tts.js',
+  ],
+  'public/js/features/brandkit.js': [
+    'public/js/features/brandkit.js', 'public/js/features/brandkit/draft.js', 'public/js/features/brandkit/stage.js',
+    'public/js/features/brandkit/index.js',
+  ],
 };
 
 /** `m('x')` → `'x'`, `tp\`x\`` → `` `x` ``. Nothing else is touched. */

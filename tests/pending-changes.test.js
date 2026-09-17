@@ -72,7 +72,7 @@ test('a stale answer never overwrites a fresh one', () => {
 test('the bar is re-asked at the two moments the config panel cannot report', () => {
   // The brand kit lives on the CHANNEL, so saving one moves nothing inside the config column…
   assert.match(sourceOf('public/js/features/brandkit.js'),
-    /\(await import\('\.\/pending-changes\.js'\)\)\.schedulePendingCheck\(\{ now: true \}\);/);
+    /\(await import\('\.\.\/pending-changes\.js'\)\)\.schedulePendingCheck\(\{ now: true \}\);/);
   // …and a run starting or finishing changes what "pending" means without any edit at all
   const studio = sourceOf('public/js/views/studio.js');
   assert.match(studio, /function updateStatusBadge\(status\) \{[\s\S]{0,340}schedulePendingCheck\(\{ now: true \}\)/);
