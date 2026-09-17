@@ -9,13 +9,12 @@ import { mountRoutes } from '../src/api/routes.js';
 import { errorHandler } from '../src/api/http.js';
 import * as DB from '../src/db/index.js';
 
-let base;
 const app = express();
 app.use('/api', express.json({ limit: '2mb' }));
 mountRoutes(app, { version: 'test' });
 app.use('/api', errorHandler);
 const server = await new Promise((resolve) => { const s = app.listen(0, '127.0.0.1', () => resolve(s)); });
-base = `http://127.0.0.1:${server.address().port}/api`;
+const base = `http://127.0.0.1:${server.address().port}/api`;
 test.after(() => server.close());
 
 const get = async (p) => { const r = await fetch(base + p); return { status: r.status, body: await r.json() }; };

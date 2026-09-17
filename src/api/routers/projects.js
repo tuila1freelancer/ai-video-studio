@@ -13,8 +13,8 @@ import { framePreview } from '../services/frame-preview.js';
 import { normalizeAssets } from '../../pipeline/brand-assets.js';
 import { atRiskScenes } from '../../pipeline/typeset-scan.js';
 
-/** @param {import('express').Router} r */
-export function mount(r) {
+/** List, create, read, update, versions, variants, QC, pending changes. */
+function mountProjects(r) {
   // ---- projects ----
   // Summaries only (no config/metadata): the list never reads them and they were 97% of the bytes.
   r.get('/projects', (req, res) => {
@@ -128,7 +128,10 @@ export function mount(r) {
       res.json({ ok: true, plan, started: true });
     } catch (e) { res.status(400).json({ error: e.message }); }
   });
+}
 
+/** Frame preview, asset copy, restart. */
+function mountProjectEdits(r) {
   // One real frame with the pending logo / subtitle settings applied through the REAL final
   // pipeline. About a second, against fifteen minutes of re-concatenating to find out a badge
   // was four pixels too high.
@@ -178,6 +181,10 @@ export function mount(r) {
       res.json({ projectId: fresh.id, status: 'running' });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
+}
+
+/** Footprint, typesetting repair, deletion. */
+function mountProjectMaintenance(r) {
   /**
    * What disappears if this project is deleted — asked BEFORE the confirmation is shown.
    *
@@ -255,4 +262,11 @@ export function mount(r) {
     DB.deleteAllProjects();
     res.json({ ok: true, files, bytes });
   });
+}
+
+/** @param {import('express').Router} r */
+export function mount(r) {
+  mountProjects(r);
+  mountProjectEdits(r);
+  mountProjectMaintenance(r);
 }

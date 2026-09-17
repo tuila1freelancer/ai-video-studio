@@ -4,8 +4,8 @@ import { suggestTopics } from '../services/topic-autopilot.js';
 import { aiSettingsFor } from '../../core/config.js';
 import { acceptSuggestion, scheduleSuggestion, buildSeries, planWeek } from '../services/assistant.js';
 
-/** @param {import('express').Router} r */
-export function mount(r) {
+/** Assistant preferences and topic suggestions. */
+function mountAssistant(r) {
   // ---- trend autopilot + content calendar + ops dashboard ----
   // assistant preferences (trend packs, custom feeds, notify) — no secrets in this subtree
   r.get('/assistant/settings', (req, res) => res.json({ assistant: DB.getSetting('assistant', {}) || {} }));
@@ -70,6 +70,10 @@ export function mount(r) {
       })) });
     } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
   });
+}
+
+/** The content calendar, recurrences, planning and the dashboard. */
+function mountCalendar(r) {
   r.get('/calendar', (req, res) => res.json({ slots: DB.listSlots() }));
   r.post('/calendar', (req, res) => {
     try {
@@ -143,4 +147,10 @@ export function mount(r) {
       week, funnel, upcoming: slots.slice(0, 5),
     });
   });
+}
+
+/** @param {import('express').Router} r */
+export function mount(r) {
+  mountAssistant(r);
+  mountCalendar(r);
 }

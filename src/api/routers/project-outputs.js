@@ -21,8 +21,8 @@ import { COVER_SIZES, orientationOf } from '../../publish/platforms.js';
 import { repurposeProject } from '../../pipeline/repurpose.js';
 import { dubProject } from '../../pipeline/dub.js';
 
-/** @param {import('express').Router} r */
-export function mount(r) {
+/** The approved thumbnail: read, regenerate, edit by instruction. */
+function mountThumbnail(r) {
   // ---- multi-aspect repurposing (16:9 <-> 9:16, no crop — full reflow re-render) ----
   // one-click platform exports (fast remux / confirmed fade-trim; aspect mismatch →
   // the caller runs the existing repurpose flow)
@@ -109,7 +109,10 @@ export function mount(r) {
       res.json({ path, url: fileUrlOf(path), html: edited, version });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
+}
 
+/** The six cover designs and the thumbnail history. */
+function mountCoverVersions(r) {
   // Re-design the platform covers. They used to be generated once, inside finalize, and never
   // again — so a bad cover set could only be fixed by re-rendering the whole video. Seeding from
   // the thumbnail the owner already approved means the six canvases inherit a design they liked
@@ -189,7 +192,10 @@ export function mount(r) {
     if (v.path === p.thumb_path) return res.status(409).json({ error: 'không xoá được phiên bản đang dùng — chọn bản khác trước' });
     res.json({ ok: DB.deleteThumbnail(v.id) });
   });
+}
 
+/** Export, open, repurpose, dub — actions on a finished project. */
+function mountProjectActions(r) {
   /**
    * Copy the platform covers somewhere the owner can actually use them.
    *
@@ -269,4 +275,11 @@ export function mount(r) {
       res.json({ ok: true, project: out.project, scenes: out.scenes, language: out.language });
     } catch (e) { res.status(e.status || 400).json({ error: e.message }); }
   });
+}
+
+/** @param {import('express').Router} r */
+export function mount(r) {
+  mountThumbnail(r);
+  mountCoverVersions(r);
+  mountProjectActions(r);
 }

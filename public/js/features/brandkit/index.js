@@ -13,6 +13,12 @@ export function initBrandKit() {
   const be = $('#btnBrandEditor');
   if (!be) return;
   be.addEventListener('click', openBrandEditor);
+  wireStage();
+  wireControls();
+}
+
+/** The stage: dragging, resizing and nudging the ghosts. */
+function wireStage() {
   wireBrandDrag($('#bstLogo'), () => state.brandDraft?.stamp?.position, { snap: true });
   wireBrandDrag($('#bstBadge'), () => state.brandDraft?.badge?.position);
   // free resize: wheel over the ghost (±0.5%, shift ±2%) + corner handle drag
@@ -68,6 +74,10 @@ export function initBrandKit() {
     state.brandDraft.stamp.opacity = +$('#brandLogoOpacity').value / 100;
     syncBrandStage();
   });
+}
+
+/** The form: watermark, badge and save. */
+function wireControls() {
   // watermark controls
   $('#wmOn').addEventListener('change', () => {
     state.brandDraft.watermark.enabled = $('#wmOn').checked;

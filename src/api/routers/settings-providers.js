@@ -16,8 +16,8 @@ import { SUBTITLE_PRESETS } from '../../subtitles/presets.js';
 import { pickSubtitleConfig } from '../services/subtitle-defaults.js';
 import { getProvider, providerConfig } from '../../providers/voice/index.js';
 
-/** @param {import('express').Router} r */
-export function mount(r) {
+/** Settings (masked on egress), the voice catalogue, previews, the LLM endpoint test. */
+function mountSettings(r) {
   // ---- settings ----
   // Secrets are masked '••' on EVERY egress (recursive — covers nested tts.providers.*.apiKey)
   // and a masked round-trip on ingest keeps the saved value. Never ship raw keys to the client.
@@ -75,7 +75,10 @@ export function mount(r) {
       res.json({ ok: true, model: llm.model, ms: Date.now() - t0, message: tp`Kết nối OK — model trả lời "${String(reply).trim().slice(0, 40)}"` });
     } catch (e) { res.status(200).json({ ok: false, message: e.message.slice(0, 220) }); }
   });
+}
 
+/** The LLM provider catalogue and the local TTS server lifecycle. */
+function mountProviders(r) {
   // ---- LLM provider catalogue (ai-providers) ----
   // What the provider picker in AI Setting is built from. Unlike every other settings egress
   // in this file it is NOT masked: nothing in the catalogue ever came from the user, so there
@@ -156,7 +159,10 @@ export function mount(r) {
       res.json({ stopped: stopSupertonic(DB.aiSettings().tts?.providers?.supertonic || {}) });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
+}
 
+/** Platform table, subtitle presets, provider connection test. */
+function mountCatalogs(r) {
   // ---- the platform table (limits + cover sizes), so the panel and the writer agree ----
   r.get('/platforms', async (req, res) => {
     res.json(localize({ platforms: PLATFORMS, coverSizes: COVER_SIZES }));
@@ -211,4 +217,11 @@ export function mount(r) {
       res.json(await prov.testConnection(applyMaskedUpdate(saved, cfg)));
     } catch (e) { res.json({ ok: false, message: e.message }); }
   });
+}
+
+/** @param {import('express').Router} r */
+export function mount(r) {
+  mountSettings(r);
+  mountProviders(r);
+  mountCatalogs(r);
 }
