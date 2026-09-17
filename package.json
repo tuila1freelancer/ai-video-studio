@@ -10,7 +10,7 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
-    "test": "node --test \"tests/*.test.js\"",
+    "test": "node --test --test-timeout=120000 \"tests/*.test.js\"",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "test:smoke": "node scripts/tpl-smoke.mjs",
