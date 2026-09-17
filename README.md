@@ -331,7 +331,7 @@ defaults.
 ## Development
 
 ```bash
-npm test              # 104 files, 855 tests, hermetic, 120 s per-test timeout
+npm test              # 104 files, 856 tests, hermetic, 120 s per-test timeout
 npm run lint          # ESLint 9 flat config — errors block CI, warnings are a to-do list
 npm run test:smoke    # every template built in 16:9 and 9:16, GSAP compiled
 npm run test:e2e      # boot, make a real short video, verify the MP4
