@@ -1,7 +1,7 @@
 // All REST routes.
 import express from 'express';
 import multer from 'multer';
-import { existsSync, statSync, mkdirSync, unlinkSync, renameSync, writeFileSync, readdirSync, rmSync, copyFileSync } from 'node:fs';
+import { existsSync, statSync, mkdirSync, unlinkSync, renameSync, readdirSync, rmSync, copyFileSync } from 'node:fs';
 import { join, resolve, extname, basename } from 'node:path';
 import * as DB from '../db/index.js';
 import db from '../db/index.js';
@@ -23,6 +23,7 @@ import { getVoiceCatalog } from './services/voice-catalog.js';
 import { resolveLang, declaredLang, detectLang, majorityLang, padMsFor, DEFAULT_LANG } from '../util/lang.js';
 import { isSupported } from '../i18n/languages.js';
 import { WEB_SAFE, toPng } from './services/image-convert.js';
+import { mount as mountFilesMedia } from './routers/files-media.js';
 import { licenseGate } from '../license/gate.js';
 import { activate, publicStatus, refreshNow } from '../license/index.js';
 import { adoptWithStoredSession, sessionAccount, signIn, signOut } from '../license/auth.js';
@@ -2143,15 +2144,7 @@ export function mountRoutes(app, { version }) {
     } catch (e) { res.status(400).json({ error: e.message }); }
   });
 
-  // ---- internal media file serving (data/ + every registered channel root; guard in services/file-access) ----
-  r.get('/file', (req, res) => {
-    const p = resolve(req.query.path || '');
-    if (!inAllowedRoots(p)) return res.status(403).json({ error: 'forbidden' });
-    if (!existsSync(p) || !statSync(p).isFile()) return res.status(404).json({ error: 'not found' });
-    // NO maxAge here: previews/renders overwrite the SAME path, so the browser must
-    // revalidate (etag 304 — ~1ms on loopback) or regenerated frames would show stale.
-    res.sendFile(p);
-  });
+  mountFilesMedia(r);
 
   // ---- edit video: quick cut ----
   r.post('/edit-cut', async (req, res) => {
@@ -2165,29 +2158,6 @@ export function mountRoutes(app, { version }) {
       await ffmpeg(['-ss', String(start), '-i', src, '-t', String(dur),
         '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-c:a', 'aac', '-movflags', '+faststart', out]);
       res.json({ path: out });
-    } catch (e) { res.status(500).json({ error: e.message }); }
-  });
-
-  // Bring a remote image/video into the project (P40 — reference `/media/download`). An image
-  // search result is a URL on someone else's server; a scene must be self-contained and offline,
-  // so the file is fetched ONCE into uploads and everything downstream works with a local path.
-  r.post('/media/download', async (req, res) => {
-    try {
-      const url = String(req.body?.url || '').trim();
-      if (!/^https?:\/\//i.test(url)) return res.status(400).json({ error: 'cần URL http(s)' });
-      const resp = await fetch(url, { redirect: 'follow', signal: AbortSignal.timeout(60000) });
-      if (!resp.ok) return res.status(400).json({ error: tp`tải về lỗi HTTP ${resp.status}` });
-      const type = (resp.headers.get('content-type') || '').toLowerCase();
-      if (!/^(image|video)\//.test(type)) {
-        return res.status(400).json({ error: tp`không phải ảnh/video (${type || m('không rõ')})` });
-      }
-      const buf = Buffer.from(await resp.arrayBuffer());
-      if (!buf.length) return res.status(400).json({ error: 'file rỗng' });
-      const EXT = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp', 'image/gif': '.gif', 'video/mp4': '.mp4', 'video/quicktime': '.mov' };
-      const ext = EXT[type.split(';')[0]] || extname(new URL(url).pathname) || '.bin';
-      const out = join(DIRS.uploads, `${newId('dl')}${ext}`);
-      writeFileSync(out, buf);
-      res.json({ path: out, name: basename(out), size: buf.length, type });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 

@@ -1,5 +1,6 @@
 // AI Video Studio — backend entry. Express + WebSocket + static SPA.
 import express from 'express';
+import compression from 'compression';
 import http from 'node:http';
 import { join } from 'node:path';
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -7,6 +8,7 @@ import { hub } from './ws/hub.js';
 import { bindHub, logger } from './util/log.js';
 import { ensureDirs, DIRS, ROOT } from './config/paths.js';
 import { mountRoutes } from './api/routes.js';
+import { errorHandler } from './api/http.js';
 import { setUiLang } from './i18n/t.js';
 import { getSetting } from './db/index.js';
 
@@ -75,26 +77,29 @@ async function boot() {
   } catch (e) { logger.warn(`boot recovery failed: ${e.message}`); }
 
   const app = express();
-  app.use(express.json({ limit: '64mb' }));
-  app.use(express.urlencoded({ extended: true, limit: '64mb' }));
-
-  // CORS for localhost dev / native shell
-  app.use((req, res, next) => {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-    if (req.method === 'OPTIONS') return res.sendStatus(204);
-    next();
-  });
+  // Loopback is fast but not free: a 2 MB project list still parses faster as 300 KB.
+  app.use(compression({ threshold: 1024 }));
+  // Bodies are forms, except the three routes that carry a scene's HTML or an SRT. Previously
+  // every route accepted 64 MB — from any origin, since the API also answered with CORS `*`.
+  const jsonSmall = express.json({ limit: '2mb' });
+  const jsonLarge = express.json({ limit: '64mb' });
+  const LARGE_BODY = /^\/(scenes\/[^/]+(\/custom-html)?|projects\/[^/]+\/thumbnail\/regen)$/;
+  app.use('/api', (req, res, next) => (LARGE_BODY.test(req.path) ? jsonLarge : jsonSmall)(req, res, next));
+  app.use('/api', express.urlencoded({ extended: true, limit: '2mb' }));
+  // No CORS header: both shells and the browser load the UI from this very origin, and a
+  // wildcard let any web page the owner visited call DELETE /api/projects.
 
   mountRoutes(app, { version: VERSION });
+  app.use('/api', errorHandler);
 
   // SPA static (after API so /api wins). Font filenames encode family+weight+subset,
   // so /fonts can be cached immutable — a manifest change produces new URLs.
   app.use('/fonts', express.static(join(PUBLIC_DIR, 'fonts'), { maxAge: '365d', immutable: true, fallthrough: false }));
-  app.use(express.static(PUBLIC_DIR));
+  app.use(express.static(PUBLIC_DIR, { index: false }));
+  // The document is always revalidated (the release build hashes everything it references).
   app.get('*', (req, res, next) => {
     if (req.path.startsWith('/api')) return next();
+    res.set('Cache-Control', 'no-cache');
     res.sendFile(join(PUBLIC_DIR, 'index.html'));
   });
 
