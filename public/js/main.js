@@ -3,30 +3,21 @@ import { api } from './api.js';
 import { initI18n } from './i18n.js';
 import { state, channelDefaults } from './state.js';
 import { initModals } from './ui/modals.js';
-import { initNav, switchPage, renderDeps } from './views/nav.js';
+import { initNav, switchPage, renderDeps, registerPageHook } from './views/nav.js';
+import { lazyClick } from './ui/lazy.js';
 import { initHome } from './views/home.js';
 import { initStudio, initWs, loadProjects, openProject } from './views/studio.js';
 import { initScenes, renderScenes } from './views/scenes.js';
 import { buildPipeSteps } from './views/progress.js';
 import { initConfig, applyConfig, buildSubColors, updateEstimate, loadBgmOptions, loadBrandFolders, loadMetadataStyles, loadChannelPresets, loadSubtitlePresets, loadFontFamilies } from './views/config.js';
 import { initLibrary } from './views/library.js';
-import { initBrandGen } from './views/brandgen.js';
-import { initEditVideo } from './views/editvideo.js';
-import { initGuide } from './views/guide.js';
 import { initDragDrop } from './features/dragdrop.js';
-import { initPlayer } from './views/player.js';
 import { initSettings, loadVoices, loadSettings } from './features/settings.js';
-import { initVoicePicker } from './features/voicepicker.js';
 import { initChannels, loadChannels } from './features/channels.js';
 import { initBrandKit, refreshBrandSummary } from './features/brandkit.js';
-import { initSrt } from './features/srt.js';
 import { initChangePlan } from './features/changeplan.js';
-import { initAftercare } from './features/aftercare.js';
 import { initBatch } from './features/batch.js';
-import { initAutopilot } from './features/autopilot.js';
 import { initJournal } from './features/journal.js';
-import { initTasks } from './features/tasks.js';
-import { initSceneStudio } from './features/scene-studio.js';
 import { initPalette } from './ui/palette.js';
 import { bootLicense, initLicense } from './features/license.js';
 
@@ -63,23 +54,14 @@ async function init() {
   initBrandKit();
   initModals();
   initChangePlan();
-  initAftercare();
   initLibrary();
-  initBrandGen();
-  initEditVideo();
-  initGuide();
   initDragDrop();
-  initPlayer();
   initSettings();
-  initVoicePicker();
   initChannels();
-  initSrt();
   initBatch();
-  initAutopilot();
   initJournal();
-  initTasks();
-  initSceneStudio();
   initPalette();
+  wireLazyModules();
   buildSubColors();
   buildPipeSteps();
   initWs();
@@ -110,5 +92,22 @@ async function init() {
     await loadSettings(); // needs state.providers from loadVoices
     if (state.current) renderScenes(); // re-render once catalogs are in (template names etc.)
     performance.mark('avs:idle-done');
+  });
+}
+
+/**
+ * Screens and modals nobody has opened cost nothing until they do (~170 KB of the 415 KB
+ * frontend). Pages load on first show; modal features load on their first trigger, wire their
+ * own listeners, and the click is replayed. Everything a running video needs is still eager.
+ */
+function wireLazyModules() {
+  registerPageHook('tutorials', () => import('./views/guide.js').then((m) => m.openGuide()));
+  registerPageHook('brandgen', () => import('./views/brandgen.js').then((m) => m.openBrandGen()));
+  registerPageHook('editvideo', () => import('./views/editvideo.js').then((m) => m.initEditVideo()));
+  lazyClick('#heroAutopilot', () => import('./features/autopilot.js'), (m) => m.initAutopilot());
+  lazyClick('#heroTasks', () => import('./features/tasks.js'), (m) => m.initTasks());
+  lazyClick('#btnRoughCut', () => import('./views/player.js'), (m) => m.initPlayer());
+  lazyClick('#btnOpenVoicePicker', () => import('./features/voicepicker.js'), (m) => {
+    document.querySelector('#btnOpenVoicePicker')?.addEventListener('click', () => m.openVoicePicker());
   });
 }

@@ -8,7 +8,6 @@ import { toast } from '../ui/toast.js';
 import { confirmDialog } from '../ui/dialog.js';
 import { api, fileUrl, withLock } from '../api.js';
 import { t, m, tp } from '../i18n.js';
-import { registerPageHook } from './nav.js';
 
 const GENERATE_TIMEOUT_MS = 25 * 60 * 1000; // server does ×10 attempts — outlive them
 
@@ -202,10 +201,14 @@ async function copyToBrand() {
   } catch (e) { $('#bgCopyStatus').textContent = tp`❌ Lỗi: ${e.message}`; }
 }
 
+let wired = false;
+/** First show of the page: wire the controls once, then (re)load the catalogues every show. */
+export function openBrandGen() {
+  if (!wired) { wired = true; initBrandGen(); }
+  loadBrands(); loadImageProviders();
+}
 export function initBrandGen() {
   if (!$('#bgGo')) return;
-  // Loaded when the page is shown, not at boot: two requests for a screen nobody is looking at.
-  registerPageHook('brandgen', () => { loadBrands(); loadImageProviders(); });
   // reference image
   $('#bgRef').addEventListener('change', (e) => {
     refFile = e.target.files[0] || null;

@@ -65,7 +65,10 @@ export function switchPage(p) {
     && document.querySelectorAll('#sceneGrid .scene').length < 60;
   // A second switch while one animates aborts the first; the DOM is already right, so the
   // rejected transition promises are noise, not a failure.
-  if (okVt) { const t = document.startViewTransition(apply); t.finished?.catch(() => {}); t.ready?.catch(() => {}); } else apply();
+  if (okVt) {
+    const t = document.startViewTransition(apply);
+    for (const p of [t.ready, t.updateCallbackDone, t.finished]) p?.catch(() => {});
+  } else apply();
 }
 
 /**

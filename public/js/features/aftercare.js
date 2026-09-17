@@ -17,12 +17,11 @@ import { toast } from '../ui/toast.js';
 import { state } from '../state.js';
 import { m, tp } from '../i18n.js';
 import { confirmDialog, menuDialog } from '../ui/dialog.js';
-import { openSceneStudio } from './scene-studio.js';
 
 /** Scene Studio takes the row, not the id — the list the view already holds has it. */
 function openSceneFromId(sceneId) {
   const row = (state.scenes || []).find((s) => s.id === sceneId);
-  if (row) openSceneStudio(row);
+  if (row) import('./scene-studio.js').then((m) => m.openSceneStudio(row));
   else toast('Không tìm thấy cảnh này trong danh sách đang mở', 'error');
 }
 
@@ -162,7 +161,10 @@ export function initJumpToScene() {
   }
 }
 
+let wired = false;
 export function initAftercare() {
+  if (wired) return;
+  wired = true;
   $('#btnVersions')?.addEventListener('click', openVersions);
   $('#btnVariant')?.addEventListener('click', openVariant);
   $('#btnQcScan')?.addEventListener('click', openQcScan);

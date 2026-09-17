@@ -22,7 +22,10 @@ let pool = []; // pending suggestion rows shown in the suggest tab
 let recs = []; // fixed weekly production windows (templates)
 let sourcesLoaded = false;
 
+let wired = false;
 export function initAutopilot() {
+  if (wired) return;
+  wired = true;
   $('#heroAutopilot')?.addEventListener('click', openAutopilot);
   $('#apSuggest')?.addEventListener('click', () => withLock($('#apSuggest'), suggest));
   $('#apNiche')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') withLock($('#apSuggest'), suggest); });

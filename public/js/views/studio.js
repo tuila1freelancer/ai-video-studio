@@ -4,17 +4,13 @@ import { api, fileUrl, thumbUrl, withLock, WS } from '../api.js';
 import { state, channelDefaults } from '../state.js';
 import { PIPE, PHASE_W, PHASE_ORDER, prog, resetProgress, setProgress, recomputeProgress, setStep, showOp, hideOp } from './progress.js';
 import { loadJournal, clearJournal, onJournalEvent } from '../features/journal.js';
-import { refreshTasks } from '../features/tasks.js';
 import { renderScenes, refreshScenes, onSceneUpdate, flushSceneUpdates, selectedIds, updateSelCount, regenScene, renderScenes2 } from './scenes.js';
 import { icon } from '../ui/icons.js';
-import { renderGallery } from './home.js';
 import { switchPage } from './nav.js';
 import { gatherConfig, applyConfig } from './config.js';
 import { openChangePlan } from '../features/changeplan.js';
 import { initPendingChanges, schedulePendingCheck, resetPendingCheck } from '../features/pending-changes.js';
-import { openSrt } from '../features/srt.js';
 import { confirmDialog, menuDialog, publishDialog, promptDialog } from '../ui/dialog.js';
-import { renderThumbPanel } from './thumbnail.js';
 import { t, m, tp, setLabel } from '../i18n.js';
 
 let ws = null;
@@ -106,7 +102,7 @@ export function initStudio() {
     } catch (e) { toast(tp`Không copy được: ${e?.message || e}`, 'error'); }
   });
   $('#checkAll').addEventListener('change', (e) => { $$('#sceneGrid .scene').forEach((c) => { c.classList.toggle('sel', e.target.checked); c.querySelector('.chk').checked = e.target.checked; }); updateSelCount(); });
-  $('#btnSrt').addEventListener('click', openSrt);
+  $('#btnSrt').addEventListener('click', () => import('../features/srt.js').then((m) => m.openSrt()));
   $('#btnRepurpose').addEventListener('click', () => withLock($('#btnRepurpose'), repurposeCurrent));
   $('#btnDub')?.addEventListener('click', () => withLock($('#btnDub'), dubCurrent));
   $('#btnExport')?.addEventListener('click', () => withLock($('#btnExport'), exportCurrent));
@@ -148,7 +144,8 @@ export async function loadProjects(prefetched = null) {
   state.projects = projects;
   state.projectsLoaded = true;
   renderProjectList();
-  renderGallery();
+  // home.js listens; importing it here made home ↔ studio a cycle
+  document.dispatchEvent(new CustomEvent('projects:changed'));
 }
 export function renderProjectList() {
   const box = $('#projList');
@@ -501,7 +498,7 @@ export function renderProjectView() {
   renderScenes();
   renderFinal();
   renderMeta();
-  renderThumbPanel();
+  import('./thumbnail.js').then((m) => m.renderThumbPanel());
   renderPublishHistory();
 }
 
@@ -545,6 +542,7 @@ function renderFinal() {
   const show = p && p.video_path && p.status === 'done';
   $('#finalView').classList.toggle('hidden', !show);
   if (show) {
+    import('../features/aftercare.js').then((m) => m.initAftercare()); // its buttons exist only here
     $('#finalVideo').src = fileUrl(p.video_path);
     $('#btnDownload').href = fileUrl(p.video_path);
     $('#btnDownloadSrt').href = '/api/projects/' + p.id + '/srt';
@@ -713,7 +711,7 @@ async function genMeta() {
 function onWsMessage(ev) {
   if (ev.type === '_status') { state.wsOpen = ev.open; $('#wsDot').textContent = ev.open ? m('● realtime') : m('● offline'); $('#wsDot').classList.toggle('on', ev.open); return; }
   // cross-project broadcasts (before the current-project filter)
-  if (ev.type === 'job') { refreshTasks(); return; }
+  if (ev.type === 'job') { document.dispatchEvent(new CustomEvent('ws:job', { detail: ev })); return; }
   if (!state.current || (ev.projectId && ev.projectId !== state.current.id)) return;
   if (ev.type === 'replay') {
     // buffered feed replayed on (re)subscribe: a page reload mid-run catches up instantly.
