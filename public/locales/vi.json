@@ -38,6 +38,7 @@
   "srv.Bản Tin": "Bản Tin",
   "srv.Bản cài đặt này chưa được cấu hình cửa hàng.": "Bản cài đặt này chưa được cấu hình cửa hàng.",
   "srv.Bản cài đặt này thiếu khoá xác thực license. Hãy tải lại bản mới từ cửa hàng.": "Bản cài đặt này thiếu khoá xác thực license. Hãy tải lại bản mới từ cửa hàng.",
+  "srv.Bản cài đặt này đã bị can thiệp nên không thể chạy. Hãy cài lại bản gốc từ cửa hàng.": "Bản cài đặt này đã bị can thiệp nên không thể chạy. Hãy cài lại bản gốc từ cửa hàng.",
   "srv.Cao độ (-20 đến 20)": "Cao độ (-20 đến 20)",
   "srv.Cao độ (-24 đến +24, semitone)": "Cao độ (-24 đến +24, semitone)",
   "srv.Cao độ (Hz) — vd +20 cho giọng tươi hơn": "Cao độ (Hz) — vd +20 cho giọng tươi hơn",
@@ -328,6 +329,7 @@
   "srv.dự án không ở bước duyệt cảnh": "dự án không ở bước duyệt cảnh",
   "srv.dự án nguồn chưa có cảnh": "dự án nguồn chưa có cảnh",
   "srv.dự án nguồn không có asset nào còn trên đĩa": "dự án nguồn không có asset nào còn trên đĩa",
+  "srv.dự án đang chạy — đợi xong rồi tạo lại cảnh": "dự án đang chạy — đợi xong rồi tạo lại cảnh",
   "srv.edge returned empty audio": "edge trả về audio rỗng",
   "srv.edit rejected by lint": "bản sửa bị lint từ chối",
   "srv.edit rejected by render validation": "bản sửa không qua được kiểm tra render",
@@ -336,6 +338,7 @@
   "srv.file không hợp lệ": "file không hợp lệ",
   "srv.file logo của preset không còn trên đĩa": "file logo của preset không còn trên đĩa",
   "srv.file logo không hợp lệ": "file logo không hợp lệ",
+  "srv.file quá lớn ({0} MB)": "file quá lớn ({0} MB)",
   "srv.file rỗng": "file rỗng",
   "srv.file thiếu": "file thiếu",
   "srv.font \"{0}\" đang ở dạng {1} — libass chỉ đọc được .ttf/.otf. ": "font \"{0}\" đang ở dạng {1} — libass chỉ đọc được .ttf/.otf. ",
@@ -455,6 +458,7 @@
   "srv.thiếu nội dung HTML": "thiếu nội dung HTML",
   "srv.thiếu thời điểm hẹn": "thiếu thời điểm hẹn",
   "srv.thiếu tên bộ mẫu": "thiếu tên bộ mẫu",
+  "srv.thiếu tên hoặc loại style": "thiếu tên hoặc loại style",
   "srv.thiếu tên kênh": "thiếu tên kênh",
   "srv.thiếu video stream": "thiếu video stream",
   "srv.thiếu voiceId": "thiếu voiceId",
@@ -528,6 +532,7 @@
   "srv.đổi phụ đề ({0} thiết lập, in ở bước cuối)": "đổi phụ đề ({0} thiết lập, in ở bước cuối)",
   "srv.đổi watermark": "đổi watermark",
   "srv.đổi {0}": "đổi {0}",
+  "srv.Ảnh bìa/thumbnail AI lỗi — giữ bản cơ bản: {0}": "Ảnh bìa/thumbnail AI lỗi — giữ bản cơ bản: {0}",
   "srv.ảnh bìa các nền tảng": "ảnh bìa các nền tảng",
   "srv.ảnh của phiên bản này không còn trên đĩa": "ảnh của phiên bản này không còn trên đĩa",
   "srv.ảnh trả về rỗng/quá nhỏ": "ảnh trả về rỗng/quá nhỏ",
@@ -2154,6 +2159,5 @@
   "ui.wmSource.ten-kenh": "Tên kênh",
   "ui.wmSpeed.cham-75s-vong": "Chậm — 75s/vòng",
   "ui.wmSpeed.rat-cham-120s-vong": "Rất chậm — 120s/vòng",
-  "ui.wmSpeed.vua-45s-vong": "Vừa — 45s/vòng",
-  "srv.Bản cài đặt này đã bị can thiệp nên không thể chạy. Hãy cài lại bản gốc từ cửa hàng.": "Bản cài đặt này đã bị can thiệp nên không thể chạy. Hãy cài lại bản gốc từ cửa hàng."
+  "ui.wmSpeed.vua-45s-vong": "Vừa — 45s/vòng"
 }

@@ -1,5 +1,6 @@
 // Channels and their named presets.
-import { mkdirSync, renameSync } from 'node:fs';
+import { mkdirSync } from 'node:fs';
+import { moveFile } from '../../util/fs.js';
 import { join, extname } from 'node:path';
 import * as DB from '../../db/index.js';
 import { newId } from '../../util/util.js';
@@ -92,7 +93,7 @@ export function mount(r) {
       // renderer cannot use directly is CONVERTED to PNG instead of rejected.
       if (WEB_SAFE.has(ext)) {
         const dest = join(dir, `${newId('logo')}${ext}`);
-        renameSync(req.file.path, dest);
+        moveFile(req.file.path, dest);
         return res.json({ path: dest, url: `/api/file?path=${encodeURIComponent(dest)}` });
       }
       const dest = join(dir, `${newId('logo')}.png`);

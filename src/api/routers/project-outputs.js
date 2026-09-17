@@ -208,7 +208,7 @@ export function mount(r) {
         dir = await pickFolder(m('Chọn thư mục lưu ảnh bìa'));
         if (!dir) return res.json({ ok: false, cancelled: true });
       }
-      if (!dir) dir = p.outputDir || DB.projectDirFor(p.id);
+      if (!dir) dir = resolveOutputDir(p.id, p.config || {}, DB.projectDirFor(p.id));
       if (!existsSync(dir) || !statSync(dir).isDirectory()) return res.status(400).json({ error: tp`thư mục không tồn tại: ${dir}` });
       // A folder per video, named after it: six files called cover_youtube.jpg from three videos
       // in one Downloads folder is not a set anyone can use.

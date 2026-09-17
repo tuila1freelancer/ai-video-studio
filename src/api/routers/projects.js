@@ -48,10 +48,14 @@ export function mount(r) {
     const scenes = DB.getScenes(p.id);
     res.json({ project: p, scenes: mode === 'lite' ? scenes.map(DB.liteScene) : scenes });
   });
+  // Only what the interface edits: status, video_path and the scene-gate stamp belong to the
+  // pipeline (P17's approval has exactly one writer, the approve-scenes route).
+  const EDITABLE = ['title', 'topic', 'aspect_ratio', 'config', 'metadata'];
   r.put('/projects/:id', (req, res) => {
     const p = DB.getProject(req.params.id);
     if (!p) return res.status(404).json({ error: 'not found' });
-    res.json({ project: DB.updateProject(p.id, req.body || {}) });
+    const fields = Object.fromEntries(Object.entries(req.body || {}).filter(([k]) => EDITABLE.includes(k)));
+    res.json({ project: DB.updateProject(p.id, fields) });
   });
   // ---- export history ----
   // Every past version of every video has always been on disk; nothing indexed it. That is the

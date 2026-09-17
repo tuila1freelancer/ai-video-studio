@@ -109,7 +109,7 @@ test('covers can be looked at, and put where the owner uploads from', () => {
   assert.match(routes, /r\.post\('\/projects\/:id\/covers\/export'/);
   // a WKWebView has no File System Access API, so the folder is chosen natively
   assert.match(routes, /choose folder with prompt/);
-  assert.match(routes, /if \(!dir\) dir = p\.outputDir \|\| DB\.projectDirFor\(p\.id\);/, 'and defaults to the project folder');
+  assert.match(routes, /if \(!dir\) dir = resolveOutputDir\(p\.id, p\.config \|\| \{\}, DB\.projectDirFor\(p\.id\)\);/, 'and defaults to the channel output folder');
   // six files called cover_youtube.jpg from three videos in one folder is not a set anyone can use
   assert.match(routes, /\$\{slug\}_anh-bia/);
   assert.match(routes, /\$\{slug\}_\$\{c\.id\}_\$\{px\.w\}x\$\{px\.h\}\.jpg/);

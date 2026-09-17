@@ -1,5 +1,6 @@
 // The media library and the font registry.
-import { existsSync, mkdirSync, unlinkSync, renameSync } from 'node:fs';
+import { existsSync, mkdirSync, unlinkSync } from 'node:fs';
+import { moveFile } from '../../util/fs.js';
 import { join, extname, basename } from 'node:path';
 import * as DB from '../../db/index.js';
 import { DIRS } from '../../config/paths.js';
@@ -48,7 +49,7 @@ export function mount(r) {
       const ext = extname(f.originalname) || '';
       const finalName = (wantName ? wantName.replace(/[^\w.\- ]/g, '') : basename(f.originalname, ext)) + ext;
       const finalPath = join(dest, `${Date.now()}_${i}_${finalName}`);
-      renameSync(f.path, finalPath);
+      moveFile(f.path, finalPath);
       return DB.addLibrary({ kind, brandFolder: brand, name: finalName, filename: basename(finalPath), path: finalPath, size: f.size });
     });
     res.json({ items });

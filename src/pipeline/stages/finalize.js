@@ -426,8 +426,8 @@ export async function finalize(projectId, { dir, size, config, variantName = nul
       }
     }
   } catch (e) {
-    if (e.stopped) throw e; // packaging may fail silently; a stop may not
-    /* keep basic */
+    if (e.stopped) throw e; // packaging may fail silently; a stop may not — but never unexplained
+    logger.warn(tp`Ảnh bìa/thumbnail AI lỗi — giữ bản cơ bản: ${e.message}`, { projectId, stage: 'b7' });
   }
 
   // The exact timeline this export was assembled on. Everything that has to map a moment in the

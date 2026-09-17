@@ -106,14 +106,22 @@ export function mount(r) {
   // Awaited on purpose: callers (Scene Studio, grid buttons) treat the response as "the
   // new take is ready" — fire-and-forget here made the UI lie and let an immediate
   // per-scene render race the still-running regen (clip then re-nulled moments later).
+  // A running pipeline/render job owns its scenes; a regen underneath it would be overwritten by
+  // the stage's own result (or overwrite it), so it is refused rather than raced.
+  const busy = (sceneId) => {
+    const pid = DB.getScene(sceneId)?.project_id;
+    return pid && (DB.activeJobFor(pid, 'pipeline') || DB.activeJobFor(pid, 'render'));
+  };
   r.post('/scenes/:id/regen-voice', async (req, res) => {
     try {
+      if (busy(req.params.id)) return res.status(409).json({ error: 'dự án đang chạy — đợi xong rồi tạo lại cảnh' });
       await Pipeline.regenScene(req.params.id, 'voice');
       res.json({ ok: true, scene: DB.getScene(req.params.id) });
     } catch (e) { logger.error(e.message); res.status(500).json({ error: e.message }); }
   });
   r.post('/scenes/:id/regen-html', async (req, res) => {
     try {
+      if (busy(req.params.id)) return res.status(409).json({ error: 'dự án đang chạy — đợi xong rồi tạo lại cảnh' });
       await Pipeline.regenScene(req.params.id, 'html');
       res.json({ ok: true, scene: DB.getScene(req.params.id) });
     } catch (e) { logger.error(e.message); res.status(500).json({ error: e.message }); }
