@@ -1,0 +1,87 @@
+          <div class="cfg-group open" id="grpFormat">
+            <button class="cfg-head" type="button"><span class="cfg-ic">🎞</span><span class="cfg-meta"><span class="cfg-title" data-i18n="ui.grpFormat.dinh-dang-chat-luong">Định dạng & chất lượng</span><span class="cfg-chip" data-chip="format"></span></span><span class="cfg-arr">▾</span></button>
+            <div class="cfg-body">
+              <div class="field" id="hfOpts">
+                <label class="label" data-i18n="ui.hfOpts.phong-cach-video">Phong cách video</label>
+                <button class="hf-style-btn" id="btnHfStyle" type="button">
+                  <span class="hfsb-sw" id="hfStyleSw"></span>
+                  <span class="hfsb-name" id="hfStyleName" data-i18n-exempt>Chrome Kinetic</span>
+                  <span class="hfsb-hint" data-i18n="ui.btnHfStyle.doi">đổi ▸</span>
+                </button>
+                <div class="hint" data-i18n="ui.hfOpts.ai-viet-do-hoa-hoat">AI viết đồ hoạ + hoạt ảnh riêng cho từng cảnh, keyword hiện đúng lúc voice nhắc tới.</div>
+                <label class="label mt-10" for="cfgHfDensity" data-i18n="ui.hfOpts.mat-do-chuyen-dong">Mật độ chuyển động</label>
+                <select class="input hidden" id="cfgHfDensity"><option value="minimal" data-i18n="ui.cfgHfDensity.toi-gian">Tối giản</option><option value="balanced" selected data-i18n="ui.cfgHfDensity.can-bang">Cân bằng</option><option value="rich" data-i18n="ui.cfgHfDensity.day-dac">Dày đặc</option></select>
+                <div class="seg block" data-target="cfgHfDensity"><button type="button" data-v="minimal" data-i18n="ui.hfOpts.toi-gian">Tối giản</button><button type="button" data-v="balanced" data-i18n="ui.hfOpts.can-bang">Cân bằng</button><button type="button" data-v="rich" data-i18n="ui.hfOpts.day-dac">Dày đặc</button></div>
+                <label class="label mt-10" for="cfgHfDirection" data-i18n="ui.hfOpts.dinh-huong-sang-tao-tuy">Định hướng sáng tạo (tuỳ chọn)</label>
+                <input class="input" id="cfgHfDirection" placeholder="vd: trẻ trung năng động · nghiêm túc tối giản · nhiều icon minh hoạ…" data-i18n-placeholder="ui.hfOpts.vd-tre-trung-nang-dong">
+                <div class="hint" data-i18n="ui.hfOpts.ghi-chu-ap-cho-moi">Ghi chú áp cho MỌI cảnh — AI sẽ theo tinh thần này khi dàn dựng.</div>
+                <label class="label mt-10" for="cfgHfModel" data-i18n="ui.hfOpts.model-ai-rieng-cho-hyperframe">Model AI riêng cho HyperFrame (tuỳ chọn)</label>
+                <input class="input" id="cfgHfModel" placeholder="để trống = dùng model chung ở AI Setting" data-i18n-placeholder="ui.hfOpts.de-trong-dung-model-chung">
+                <div class="hint" data-i18n="ui.hfOpts.hyperframe-dep-amp-on-dinh">💡 HyperFrame đẹp &amp; ổn định nhất với model mạnh (vd gpt-4o, claude, gemini-pro). Nhập tên model để dùng riêng cho khâu AI dựng cảnh.</div>
+                <label class="switch-row mt-10"><span class="switch"><input type="checkbox" id="cfgHfConsistent"><span class="sl"></span></span> <span data-i18n="ui.hfOpts.scene-nhat-quan-khoa-nen">🎨 Scene nhất quán (khoá nền + màu chữ chính mọi cảnh)</span></label>
+                <label class="switch-row"><span class="switch"><input type="checkbox" id="cfgHfImageFull" checked><span class="sl"></span></span> <span data-i18n="ui.hfOpts.image-full-asset-anh-cua">🖼️ Image-full (asset ảnh của dự án làm hero giữa khung 75% + Ken Burns)</span></label>
+                <label class="label mt-10" for="cfgBrandAssets" data-i18n="ui.hfOpts.asset-thuong-hieu-tu-dong">🎭 Asset thương hiệu tự động</label>
+                <select class="input" id="cfgBrandAssets">
+                  <option value="auto" data-i18n="ui.cfgBrandAssets.tu-dong-thu-muc-default">Tự động — thư mục Default</option>
+                  <option value="none" data-i18n="ui.cfgBrandAssets.tat">Tắt</option>
+                </select>
+                <div class="hint" data-i18n="ui.hfOpts.ai-tu-chon-nhan-vat">💡 AI tự chọn nhân vật/concept art từ Thư viện → Brand cho từng cảnh hợp nội dung (nhân vật đứng cạnh chữ, giữ nền trong suốt). Cảnh nào không hợp thì để trống.</div>
+                <label class="switch-row"><span class="switch"><input type="checkbox" id="cfgOverlay"><span class="sl"></span></span> <span data-i18n="ui.hfOpts.overlay-mode-do-hoa-trong">🎥 Overlay mode (đồ hoạ trong suốt ghép lên video nền)</span></label>
+                <div class="field mt-6" id="overlayOpts" style="display:none">
+                  <label class="label" for="cfgOverlaySrc" data-i18n="ui.overlayOpts.video-nen-duong-dan-file">Video nền (đường dẫn file)</label>
+                  <input class="input" id="cfgOverlaySrc" placeholder="/đường/dẫn/video-nền.mp4" data-i18n-placeholder="ui.overlayOpts.duong-dan-video-nen-mp4">
+                  <div class="hint" data-i18n="ui.overlayOpts.canh-render-tren-nen-key">Cảnh render trên nền key #050510 → colorkey trong suốt → ghép lên video này (slice liên tục theo timeline).</div>
+                </div>
+              </div>
+              <div class="field">
+                <div class="grid2">
+                  <div><label class="label" for="cfgFps" data-i18n="ui.grpFormat.fps">FPS</label>
+                    <select class="input hidden" id="cfgFps"><option value="30" selected>30</option><option value="60">60</option></select>
+                    <div class="seg block" data-target="cfgFps"><button type="button" data-v="30">30</button><button type="button" data-v="60">60</button></div></div>
+                  <div><label class="label" for="cfgRes" data-i18n="ui.grpFormat.chat-luong">Chất lượng</label>
+                    <select class="input hidden" id="cfgRes"><option value="1" selected>1080p</option><option value="1.3333">2K</option><option value="2">4K</option></select>
+                    <div class="seg block" data-target="cfgRes"><button type="button" data-v="1">1080p</button><button type="button" data-v="1.3333">2K</button><button type="button" data-v="2">4K</button></div></div>
+                </div>
+              </div>
+              <div class="field">
+                <label class="label" for="cfgLang" data-i18n="ui.grpFormat.ngon-ngu-video">Ngôn ngữ video</label>
+                <select class="input" id="cfgLang">
+                  <option value="auto" data-i18n="ui.cfgLang.tu-nhan-theo-chu-de">🌐 Tự nhận theo chủ đề</option>
+                  <option value="vi" data-i18n="ui.cfgLang.tieng-viet">🇻🇳 Tiếng Việt</option>
+                  <option value="en">🇺🇸 English</option>
+                  <option value="ja">🇯🇵 日本語</option>
+                  <option value="ko">🇰🇷 한국어</option>
+                  <option value="zh">🇨🇳 中文</option>
+                  <option value="es">🇪🇸 Español</option>
+                  <option value="fr">🇫🇷 Français</option>
+                  <option value="de">🇩🇪 Deutsch</option>
+                  <option value="pt" data-i18n="ui.cfgLang.portugues">🇧🇷 Português</option>
+                  <option value="id">🇮🇩 Indonesia</option>
+                  <option value="th">🇹🇭 ไทย</option>
+                  <option value="hi">🇮🇳 हिन्दी</option>
+                  <option value="ru">🇷🇺 Русский</option>
+                </select>
+                <div class="hint" data-i18n="ui.grpFormat.quyet-dinh-loi-thoai-chu">Quyết định lời thoại, chữ trên màn hình và giọng đọc. Lưu vào kênh thì mọi video sau của kênh dùng luôn ngôn ngữ này.</div>
+              </div>
+              <div class="field">
+                <label class="label" for="cfgAr" data-i18n="ui.grpFormat.ti-le-khung-hinh">Tỉ lệ khung hình</label>
+                <select class="input hidden" id="cfgAr">
+                  <option value="9:16">9:16 — TikTok / Reels</option>
+                  <option value="16:9">16:9 — YouTube</option>
+                  <option value="1:1" data-i18n="ui.cfgAr.1-1-vuong">1:1 — Vuông</option>
+                  <option value="4:5">4:5 — Instagram</option>
+                </select>
+                <div class="seg block" data-target="cfgAr"><button type="button" data-v="9:16">9:16</button><button type="button" data-v="16:9">16:9</button><button type="button" data-v="1:1">1:1</button><button type="button" data-v="4:5">4:5</button></div>
+              </div>
+              <div class="field">
+                <label class="label" for="cfgDurMode" data-i18n="ui.grpFormat.che-do-thoi-luong">Chế độ thời lượng</label>
+                <select class="input hidden" id="cfgDurMode"><option value="target" selected data-i18n="ui.cfgDurMode.theo-muc-tieu">Theo mục tiêu</option><option value="auto" data-i18n="ui.cfgDurMode.tu-dong-theo-kich-ban">Tự động theo kịch bản</option></select>
+                <div class="seg block" data-target="cfgDurMode"><button type="button" data-v="target" title="Kịch bản được viết vừa khít thời lượng bạn chọn (±12%)" data-i18n="ui.grpFormat.muc-tieu" data-i18n-title="ui.grpFormat.kich-ban-duoc-viet-vua">🎯 Mục tiêu</button><button type="button" data-v="auto" title="Dán kịch bản chi tiết — giữ NGUYÊN VĂN lời thoại, thời lượng video theo nội dung" data-i18n="ui.grpFormat.tu-dong-theo-kich-ban" data-i18n-title="ui.grpFormat.dan-kich-ban-chi-tiet">🪄 Tự động theo kịch bản</button></div>
+                <label class="label mt-8"><span data-i18n="ui.grpFormat.thoi-luong-video">Thời lượng video:</span> <strong id="cfgVdL" data-i18n="ui.grpFormat.1-phut">1 phút</strong></label>
+                <input type="range" class="range" id="cfgVd" min="15" max="1800" step="15" value="60">
+                <label class="label mt-8"><span data-i18n="ui.grpFormat.thoi-luong-canh">Thời lượng cảnh:</span> <strong id="cfgSdL" data-i18n="ui.grpFormat.7-giay">7 giây</strong></label>
+                <input type="range" class="range" id="cfgSd" min="4" max="12" step="1" value="7">
+                <div class="hint" id="cfgEst"></div>
+              </div>
+            </div>
+          </div>

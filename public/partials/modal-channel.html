@@ -1,0 +1,17 @@
+<div class="modal-bg" id="channelModal" role="dialog" aria-modal="true">
+  <div class="modal" style="max-width:620px">
+    <h2><span data-i18n="ui.channelModal.quan-ly-kenh">📺 Quản lý kênh</span> <button class="x" data-close>×</button></h2>
+    <div id="channelList" style="margin-bottom:14px"></div>
+    <div class="sec-label" data-i18n="ui.channelModal.them-kenh-moi">➕ Thêm kênh mới</div>
+    <div class="grid2">
+      <div class="field"><label class="label" for="chName" data-i18n="ui.channelModal.ten-kenh">Tên kênh *</label><input class="input" id="chName" placeholder="vd: TuiLa1Freelancer" data-i18n-placeholder="ui.channelModal.vd-tuila1freelancer"></div>
+      <div class="field"><label class="label" for="chRoot" data-i18n="ui.channelModal.thu-muc-bo-trong-movies">Thư mục (bỏ trống = ~/Movies/AI Video Studio/…)</label><input class="input" id="chRoot" placeholder="~/Movies/AI Video Studio/ten-kenh" data-i18n-placeholder="ui.channelModal.movies-ai-video-studio-ten"></div>
+    </div>
+    <div class="field"><label class="label" for="chWatermark" data-i18n="ui.channelModal.watermark-cua-kenh">Watermark của kênh</label><input class="input" id="chWatermark" placeholder="vd: tuila1freelancer" data-i18n-placeholder="ui.channelModal.vd-tuila1freelancer-2"></div>
+    <div class="row">
+      <label class="switch-row flex-1"><span class="switch"><input type="checkbox" id="chCopyConfig" checked><span class="sl"></span></span>
+        <span style="font-size:12px" data-i18n="ui.channelModal.lay-config-panel-hien-tai">📋 Lấy config panel hiện tại làm mặc định kênh (theme, giọng, tỉ lệ…)</span></label>
+      <button class="btn primary" id="chCreate" data-i18n="ui.channelModal.tao-kenh">Tạo kênh</button>
+    </div>
+  </div>
+</div>

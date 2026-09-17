@@ -9,6 +9,7 @@
 // UI is not where the value is. The engine is, and that ships as encrypted bytecode.
 import { build } from 'esbuild';
 import { cpSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { assembleIndex } from '../src/util/html-include.js';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -26,9 +27,11 @@ const out = resolve(ROOT, arg('out', join('dist', 'public')));
 rmSync(out, { recursive: true, force: true });
 mkdirSync(out, { recursive: true });
 
-// Everything but the module tree, verbatim: css, fonts, images, index.html.
-cpSync(PUBLIC, out, { recursive: true, filter: (src) => !src.startsWith(join(PUBLIC, 'js')) });
+// Everything but the module tree, verbatim: css, fonts, images. index.html ships assembled from
+// its partials, which stay behind.
+cpSync(PUBLIC, out, { recursive: true, filter: (src) => !src.startsWith(join(PUBLIC, 'js')) && !src.startsWith(join(PUBLIC, 'partials')) && !src.endsWith('.DS_Store') });
 rmSync(join(out, 'js'), { recursive: true, force: true });
+writeFileSync(join(out, 'index.html'), assembleIndex(PUBLIC));
 
 await build({
   entryPoints: [join(PUBLIC, 'js', 'main.js')],

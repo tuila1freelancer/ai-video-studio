@@ -1,0 +1,125 @@
+    <section class="page" id="page-brandgen">
+      <div class="center-narrow">
+        <h1 data-i18n="ui.page-brandgen.tao-brand-asset">🎨 Tạo Brand Asset</h1>
+        <p class="sub" style="color:var(--muted);margin:6px 0 18px" data-i18n="ui.page-brandgen.upload-anh-tham-chieu-ai">Upload ảnh tham chiếu → AI tạo bộ character với nhiều cảm xúc/hành động khác nhau. Nền ảnh luôn trong suốt để chèn thẳng vào video.</p>
+
+        <div class="bg-card"><div class="bg-sec" data-i18n="ui.page-brandgen.1-anh-tham-chieu">1. Ảnh tham chiếu</div>
+          <div class="row">
+            <label class="btn sm"><span data-i18n="ui.page-brandgen.chon-anh">📁 Chọn ảnh</span><input type="file" id="bgRef" accept="image/*" hidden></label>
+            <span id="bgRefName" class="hint" data-i18n="ui.page-brandgen.chua-chon">Chưa chọn</span>
+          </div>
+          <img id="bgRefPreview" class="hidden mt-8" style="max-width:140px;max-height:140px;border-radius:8px" alt="">
+        </div>
+
+        <div class="bg-card"><div class="bg-sec" data-i18n="ui.page-brandgen.2-ten-nhan-vat">2. Tên nhân vật</div>
+          <input class="input" id="bgName" placeholder="Ví dụ: ema, luna, alex..." data-i18n-placeholder="ui.page-brandgen.vi-du-ema-luna-alex">
+        </div>
+
+        <div class="bg-card"><div class="bg-sec" data-i18n="ui.page-brandgen.3-style-nhan-vat">3. Style nhân vật</div>
+          <div class="row wrap" id="bgStyleChips" style="gap:6px">
+            <button type="button" class="btn sm bg-chip active" data-i18n-exempt data-style="2D Anime style">🎨 2D Anime</button>
+            <button type="button" class="btn sm bg-chip" data-i18n-exempt data-style="Manhwa style">📖 Manhwa</button>
+            <button type="button" class="btn sm bg-chip" data-i18n-exempt data-style="3D Pixar style">🧸 3D Pixar</button>
+            <button type="button" class="btn sm bg-chip" data-i18n-exempt data-style="3D Realistic style">🎬 3D Realistic</button>
+            <button type="button" class="btn sm bg-chip" data-i18n-exempt data-style="Minecraft style">⛏ Minecraft</button>
+            <button type="button" class="btn sm bg-chip" data-style="" data-i18n="ui.bgStyleChips.khac">✏️ Khác</button>
+          </div>
+          <input class="input hidden mt-8" id="bgStyleCustom" placeholder="Nhập style tuỳ ý… (vd: watercolor style)" data-i18n-placeholder="ui.page-brandgen.nhap-style-tuy-y-vd">
+        </div>
+
+        <div class="bg-card"><div class="bg-sec" data-i18n="ui.page-brandgen.4-brand-dich">4. Brand đích</div>
+          <div class="row">
+            <select class="input flex-1" id="bgBrand"></select>
+            <button class="btn sm" id="bgBrandNew" data-i18n="ui.page-brandgen.brand">＋ Brand</button>
+          </div>
+          <div class="row hidden mt-8" id="bgBrandForm">
+            <input class="input flex-1" id="bgBrandName" placeholder="Tên brand mới…" data-i18n-placeholder="ui.bgBrandForm.ten-brand-moi">
+            <button class="btn sm primary" id="bgBrandSave" data-i18n="ui.bgBrandForm.tao">Tạo</button>
+          </div>
+        </div>
+
+        <div class="bg-card"><div class="bg-sec" data-i18n="ui.page-brandgen.5-danh-sach-cam-xuc">5. Danh sách cảm xúc / hành động</div>
+          <div class="row" style="gap:8px">
+            <button type="button" class="btn sm bg-mode active flex-1" data-mode="auto" data-i18n="ui.page-brandgen.ai-tu-sinh">🤖 AI tự sinh</button>
+            <button type="button" class="btn sm bg-mode flex-1" data-mode="manual" data-i18n="ui.page-brandgen.nhap-thu-cong">✍ Nhập thủ công</button>
+          </div>
+          <div class="mt-10" id="bgModeAuto">
+            <div class="row">
+              <label class="label" for="bgCount" style="margin:0" data-i18n="ui.bgModeAuto.so-luong">Số lượng:</label>
+              <input class="input" id="bgCount" type="number" min="1" max="50" value="20" style="max-width:80px">
+              <button class="btn sm" id="bgGenEmotions" data-i18n="ui.bgModeAuto.sinh-danh-sach">📋 Sinh danh sách</button>
+            </div>
+            <textarea class="input mt-8" id="bgContext" rows="4" placeholder="(Tuỳ chọn) Mô tả thêm về nhân vật để AI sinh emotions chính xác hơn. VD: nhân vật nữ, chủ đề crypto/tài chính, phong cách dễ thương..." data-i18n-placeholder="ui.bgModeAuto.tuy-chon-mo-ta-them"></textarea>
+          </div>
+          <div id="bgModeManual" class="hidden mt-10">
+            <textarea class="input" id="bgManual" rows="6" placeholder="Mỗi dòng một cảm xúc/hành động (tiếng Anh)…&#10;smiling brightly&#10;crying&#10;pointing at rising chart" data-i18n-placeholder="ui.bgModeManual.moi-dong-mot-cam-xuc"></textarea>
+            <button class="btn sm mt-8" id="bgParseManual" data-i18n="ui.bgModeManual.dung-danh-sach-nay">📋 Dùng danh sách này</button>
+          </div>
+          <div id="bgPreviewSec" class="hidden mt-10">
+            <div class="hint"><span data-i18n="ui.bgPreviewSec.se-tao">Sẽ tạo</span> <strong id="bgPreviewCount">0</strong> <span data-i18n="ui.bgPreviewSec.anh">ảnh:</span></div>
+            <div id="bgPreviewList" class="bg-prevlist"></div>
+          </div>
+        </div>
+
+        <div class="bg-card"><div class="bg-sec" data-i18n="ui.page-brandgen.6-provider-model-tao-anh">6. Provider & model tạo ảnh</div>
+          <div class="grid2">
+            <div><label class="label" data-i18n="ui.page-brandgen.provider-images-edits">Provider (images/edits)</label>
+              <div class="row">
+                <select class="input flex-1" id="bgProvider"></select>
+                <button class="btn sm" id="bgProviderNew" title="Thêm provider" data-i18n-title="ui.page-brandgen.them-provider">＋</button>
+                <button class="btn sm danger" id="bgProviderDel" title="Xoá provider đang chọn" data-i18n-title="ui.page-brandgen.xoa-provider-dang-chon">🗑</button>
+              </div></div>
+            <div><label class="label" for="bgModel" data-i18n="ui.page-brandgen.model">Model</label>
+              <input class="input" id="bgModel" list="bgModelList" placeholder="gpt-image-2">
+              <datalist id="bgModelList">
+                <option value="gpt-image-2"></option><option value="gpt-image-1"></option>
+                <option value="gemini-2.5-flash-image"></option><option value="seedream-4.5"></option>
+                <option value="flux-kontext-pro"></option>
+              </datalist></div>
+          </div>
+          <div class="grid2 mt-8">
+            <div><label class="label" for="bgSize" data-i18n="ui.page-brandgen.kich-thuoc">Kích thước</label>
+              <select class="input" id="bgSize">
+                <option value="1024x1536" selected data-i18n="ui.bgSize.1024-1536-doc-nhu-app">1024×1536 — dọc (như app tham khảo)</option>
+                <option value="1024x1024" data-i18n="ui.bgSize.1024-1024-vuong">1024×1024 — vuông</option>
+                <option value="1536x1024" data-i18n="ui.bgSize.1536-1024-ngang">1536×1024 — ngang</option>
+              </select></div>
+            <div></div>
+          </div>
+          <div id="bgProviderForm" class="hidden mt-10" style="border:1px dashed var(--hairline-2);border-radius:8px;padding:10px">
+            <div class="field"><label class="label" for="bgPfPreset" data-i18n="ui.bgProviderForm.nha-cung-cap">Nhà cung cấp</label>
+              <select class="input" id="bgPfPreset"></select>
+              <div class="hint mt-5" id="bgPfNote" style="line-height:1.7"></div></div>
+            <div class="grid2 hidden" id="bgPfCustom">
+              <div><label class="label" for="bgPfLabel" data-i18n="ui.bgPfCustom.ten-hien-thi">Tên hiển thị</label><input class="input" id="bgPfLabel" placeholder="vd: Infinity API" data-i18n-placeholder="ui.bgPfCustom.vd-infinity-api"></div>
+              <div><label class="label" for="bgPfUrl" data-i18n="ui.bgPfCustom.base-url">Base URL</label><input class="input" id="bgPfUrl" placeholder="https://infinityapis.com/v1"></div>
+            </div>
+            <div class="field mt-8"><label class="label" for="bgPfKey" data-i18n="ui.bgProviderForm.api-key">API key</label><input class="input" id="bgPfKey" type="password" placeholder="sk-…"></div>
+            <div class="row mt-8">
+              <button class="btn sm primary" id="bgPfSave" data-i18n="ui.bgProviderForm.luu-provider">💾 Lưu provider</button>
+              <button class="btn sm" id="bgPfCancel" data-i18n="ui.bgProviderForm.huy">Huỷ</button>
+            </div>
+          </div>
+          <div class="hint mt-6" id="bgProviderHint"></div>
+        </div>
+
+        <div class="row" style="margin:14px 0 6px">
+          <button class="btn primary big flex-1" id="bgGo" data-i18n="ui.page-brandgen.bat-dau-tao-anh">✨ Bắt đầu tạo ảnh</button>
+          <button class="btn danger hidden" id="bgStop" data-i18n="ui.page-brandgen.dung">⏹ Dừng</button>
+        </div>
+        <div id="bgProgressWrap" class="hidden">
+          <div class="bg-progress"><div id="bgProgressFill"></div></div>
+          <div class="hint ta-center" id="bgProgressLabel">0 / 0</div>
+        </div>
+        <div id="bgLog" class="bg-log hidden"></div>
+        <div class="libgrid mt-12" id="bgResults"></div>
+        <div id="bgCopySec" class="bg-card hidden mt-12">
+          <div class="bg-sec" data-i18n="ui.bgCopySec.copy-sang-brand-khac">Copy sang brand khác</div>
+          <div class="row">
+            <select class="input flex-1" id="bgCopyTarget"></select>
+            <button class="btn sm" id="bgCopyGo" data-i18n="ui.bgCopySec.copy">📂 Copy</button>
+          </div>
+          <div class="hint mt-6" id="bgCopyStatus"></div>
+        </div>
+      </div>
+    </section>
