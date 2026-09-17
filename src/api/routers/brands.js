@@ -1,5 +1,6 @@
 // Uploads, brand folders and brand-asset generation (P27).
 import { existsSync, unlinkSync, renameSync, readdirSync, rmSync } from 'node:fs';
+import { moveFile } from '../../util/fs.js';
 import { join, resolve, extname } from 'node:path';
 import * as DB from '../../db/index.js';
 import { DIRS } from '../../config/paths.js';
@@ -16,7 +17,7 @@ export function mount(r) {
     const out = (req.files || []).map((f) => {
       const ext = extname(f.originalname) || '';
       const finalPath = join(DIRS.uploads, `${newId('u')}${ext}`);
-      renameSync(f.path, finalPath);
+      moveFile(f.path, finalPath);
       return { name: f.originalname, path: finalPath, size: f.size };
     });
     res.json({ files: out });

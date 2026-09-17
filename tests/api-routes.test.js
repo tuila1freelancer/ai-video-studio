@@ -98,3 +98,45 @@ test('the route table is exactly the one pinned before routes.js was split', asy
   }
   assert.deepEqual(rows.sort(), pinned, 'a route vanished or changed its path in the split');
 });
+
+test('PUT /projects/:id ignores fields the pipeline owns', async () => {
+  const p = DB.createProject({ title: 'Guarded', topic: 't', aspectRatio: '9:16', config: {} });
+  const r = await fetch(`${base}/projects/${p.id}`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title: 'Renamed', status: 'done', scenes_approved_at: Date.now(), video_path: '/etc/passwd' }),
+  });
+  assert.equal(r.status, 200);
+  const row = DB.getProject(p.id);
+  assert.equal(row.title, 'Renamed');
+  assert.equal(row.status, 'draft', 'status is the pipeline\'s to write');
+  assert.equal(row.scenes_approved_at, null, 'the scene gate has exactly one approver (P17)');
+  assert.equal(row.video_path, null);
+});
+
+test('POST /styles never accepts a client-supplied builtin flag', async () => {
+  const r = await fetch(`${base}/styles`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'Mine', kind: 'metadata', prompt: 'p', builtin: 1 }) });
+  const { style } = await r.json();
+  assert.equal(style.builtin, 0);
+  DB.deleteStyle(style.id);
+  assert.equal(DB.listStyles('metadata').some((s) => s.id === style.id), false, 'so it can be deleted');
+  const bad = await fetch(`${base}/styles`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+  assert.equal(bad.status, 400);
+});
+
+test('GET /file coerces a repeated path parameter instead of throwing', async () => {
+  const { status, body } = await get('/file?path=/etc/hosts&path=/etc/passwd');
+  assert.equal(status, 403);
+  assert.equal(body.error, 'forbidden');
+});
+
+test('moveFile falls back to copy+unlink on EXDEV', async () => {
+  const { moveFile } = await import('../src/util/fs.js');
+  const fs = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const dir = fs.mkdtempSync(join(tmpdir(), 'avs-mv-'));
+  const a = join(dir, 'a'); const b = join(dir, 'b');
+  fs.writeFileSync(a, 'x');
+  moveFile(a, b);
+  assert.equal(fs.existsSync(a), false); assert.equal(fs.readFileSync(b, 'utf8'), 'x');
+});

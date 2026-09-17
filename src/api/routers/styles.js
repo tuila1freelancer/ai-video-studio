@@ -9,7 +9,12 @@ import { safeJson } from '../../util/util.js';
 export function mount(r) {
   // ---- styles ----
   r.get('/styles', (req, res) => res.json({ styles: DB.listStyles(req.query.kind || 'scene') }));
-  r.post('/styles', (req, res) => res.json({ style: DB.createStyle({ ...req.body }) }));
+  // name/kind/prompt only: a client-supplied builtin:1 would make the row undeletable.
+  r.post('/styles', (req, res) => {
+    const { name, kind, prompt } = req.body || {};
+    if (!name || !kind) return res.status(400).json({ error: 'thiếu tên hoặc loại style' });
+    res.json({ style: DB.createStyle({ name: String(name), kind: String(kind), prompt: prompt == null ? '' : String(prompt) }) });
+  });
   r.delete('/styles/:id', (req, res) => { DB.deleteStyle(req.params.id); res.json({ ok: true }); });
 
   // Logo presets (P42 — reference `/logo-presets*`): a named, reusable {logo file + placement}.

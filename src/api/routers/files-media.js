@@ -1,6 +1,8 @@
 // Media file serving: the allowlisted /file lane (P15), its downscaled /thumb twin, and
 // /media/download, which brings a remote image or video local so a scene stays self-contained.
-import { existsSync, statSync, writeFileSync } from 'node:fs';
+import { createWriteStream, existsSync, statSync, unlinkSync } from 'node:fs';
+import { pipeline } from 'node:stream/promises';
+import { Readable } from 'node:stream';
 import { join, resolve, extname, basename } from 'node:path';
 import { DIRS } from '../../config/paths.js';
 import { newId } from '../../util/util.js';
@@ -8,10 +10,13 @@ import { m, tp } from '../../i18n/t.js';
 import { inAllowedRoots } from '../services/file-access.js';
 import { thumbFor, thumbWidth } from '../services/thumb-cache.js';
 
+const MAX_DOWNLOAD = 512 * 1024 * 1024;
+
 /** @param {import('express').Router} r */
 export function mount(r) {
   r.get('/file', (req, res) => {
-    const p = resolve(req.query.path || '');
+    // String(): `?path=a&path=b` is an array, and resolve() throws on one.
+    const p = resolve(String(req.query.path || ''));
     if (!inAllowedRoots(p)) return res.status(403).json({ error: 'forbidden' });
     if (!existsSync(p) || !statSync(p).isFile()) return res.status(404).json({ error: 'not found' });
     // NO maxAge here: previews/renders overwrite the SAME path, so the browser must
@@ -42,13 +47,18 @@ export function mount(r) {
       if (!/^(image|video)\//.test(type)) {
         return res.status(400).json({ error: tp`không phải ảnh/video (${type || m('không rõ')})` });
       }
-      const buf = Buffer.from(await resp.arrayBuffer());
-      if (!buf.length) return res.status(400).json({ error: 'file rỗng' });
+      const declared = Number(resp.headers.get('content-length') || 0);
+      if (declared > MAX_DOWNLOAD) return res.status(400).json({ error: tp`file quá lớn (${Math.round(declared / 1048576)} MB)` });
       const EXT = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp', 'image/gif': '.gif', 'video/mp4': '.mp4', 'video/quicktime': '.mov' };
       const ext = EXT[type.split(';')[0]] || extname(new URL(url).pathname) || '.bin';
       const out = join(DIRS.uploads, `${newId('dl')}${ext}`);
-      writeFileSync(out, buf);
-      res.json({ path: out, name: basename(out), size: buf.length, type });
+      // Streamed to disk with a running total: a lying Content-Length cannot fill memory or the disk.
+      let size = 0;
+      const reader = Readable.fromWeb(resp.body);
+      reader.on('data', (chunk) => { size += chunk.length; if (size > MAX_DOWNLOAD) reader.destroy(new Error('file quá lớn')); });
+      try { await pipeline(reader, createWriteStream(out)); } catch (e) { try { unlinkSync(out); } catch { /* not created */ } throw e; }
+      if (!size) { unlinkSync(out); return res.status(400).json({ error: 'file rỗng' }); }
+      res.json({ path: out, name: basename(out), size, type });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 }

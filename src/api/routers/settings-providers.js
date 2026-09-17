@@ -138,7 +138,9 @@ export function mount(r) {
   // full output comes back so a failure is readable instead of mysterious.
   r.post('/tts/server/install', async (req, res) => {
     try {
-      const py = ['python3', 'python'].find(Boolean) || 'python3';
+      // The launcher probe already knows which interpreter works here; otherwise try both names.
+      const py = supertonicLauncher()?.[0]?.startsWith('python') ? supertonicLauncher()[0]
+        : (process.platform === 'win32' ? 'python' : 'python3');
       execFile(py, ['-m', 'pip', 'install', '--upgrade', 'supertonic'], { timeout: 600000, maxBuffer: 4 * 1024 * 1024 }, async (err, stdout, stderr) => {
         const installed = !!supertonicLauncher({ fresh: true });
         res.json({

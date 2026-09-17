@@ -38,6 +38,7 @@
   "srv.Bản Tin": "Новости",
   "srv.Bản cài đặt này chưa được cấu hình cửa hàng.": "В этой установке не настроен магазин.",
   "srv.Bản cài đặt này thiếu khoá xác thực license. Hãy tải lại bản mới từ cửa hàng.": "Нет ключа лицензии. Скачайте приложение заново из магазина.",
+  "srv.Bản cài đặt này đã bị can thiệp nên không thể chạy. Hãy cài lại bản gốc từ cửa hàng.": "Эта копия была изменена и не может быть запущена. Переустановите оригинал из магазина.",
   "srv.Cao độ (-20 đến 20)": "Высота тона (от -20 до 20)",
   "srv.Cao độ (-24 đến +24, semitone)": "Высота тона (от -24 до +24 полутонов)",
   "srv.Cao độ (Hz) — vd +20 cho giọng tươi hơn": "Высота тона (Гц) — напр., +20 для бодрости",
@@ -328,6 +329,7 @@
   "srv.dự án không ở bước duyệt cảnh": "Проект не на этапе проверки сцен",
   "srv.dự án nguồn chưa có cảnh": "в исходном проекте нет сцен",
   "srv.dự án nguồn không có asset nào còn trên đĩa": "В исходном проекте нет ресурсов на диске",
+  "srv.dự án đang chạy — đợi xong rồi tạo lại cảnh": "Проект выполняется — дождитесь завершения и пересоздайте сцену",
   "srv.edge returned empty audio": "Edge вернул пустую аудиозапись",
   "srv.edit rejected by lint": "Правка отклонена проверкой линтера",
   "srv.edit rejected by render validation": "Правка отклонена проверкой рендера",
@@ -336,6 +338,7 @@
   "srv.file không hợp lệ": "Недопустимый файл",
   "srv.file logo của preset không còn trên đĩa": "Файл логотипа пресета отсутствует на диске",
   "srv.file logo không hợp lệ": "Недопустимый файл логотипа",
+  "srv.file quá lớn ({0} MB)": "Файл слишком велик ({0} МБ)",
   "srv.file rỗng": "Пустой файл",
   "srv.file thiếu": "файл отсутствует",
   "srv.font \"{0}\" đang ở dạng {1} — libass chỉ đọc được .ttf/.otf. ": "шрифт «{0}» в формате {1} — libass поддерживает только .ttf/.otf. ",
@@ -455,6 +458,7 @@
   "srv.thiếu nội dung HTML": "Отсутствует HTML-контент",
   "srv.thiếu thời điểm hẹn": "не задано время",
   "srv.thiếu tên bộ mẫu": "Отсутствует название набора шаблонов",
+  "srv.thiếu tên hoặc loại style": "Не указано название или тип стиля",
   "srv.thiếu tên kênh": "Отсутствует название канала",
   "srv.thiếu video stream": "нет видеопотока",
   "srv.thiếu voiceId": "нет voiceId",
@@ -528,6 +532,7 @@
   "srv.đổi phụ đề ({0} thiết lập, in ở bước cuối)": "Смена субтитров ({0} настр., вшивание в конце)",
   "srv.đổi watermark": "Сменить водяной знак",
   "srv.đổi {0}": "Изменить {0}",
+  "srv.Ảnh bìa/thumbnail AI lỗi — giữ bản cơ bản: {0}": "Сбой ИИ-обложки — оставлена базовая: {0}",
   "srv.ảnh bìa các nền tảng": "Обложки для платформ",
   "srv.ảnh của phiên bản này không còn trên đĩa": "Изображение этой версии отсутствует на диске",
   "srv.ảnh trả về rỗng/quá nhỏ": "Пустое или слишком малое изображение",
@@ -2154,6 +2159,5 @@
   "ui.wmSource.ten-kenh": "Название канала",
   "ui.wmSpeed.cham-75s-vong": "Медленно — 75 с/круг",
   "ui.wmSpeed.rat-cham-120s-vong": "Очень медленно — 120 с/круг",
-  "ui.wmSpeed.vua-45s-vong": "Средне — 45 с/круг",
-  "srv.Bản cài đặt này đã bị can thiệp nên không thể chạy. Hãy cài lại bản gốc từ cửa hàng.": "Эта копия была изменена и не может быть запущена. Переустановите оригинал из магазина."
+  "ui.wmSpeed.vua-45s-vong": "Средне — 45 с/круг"
 }

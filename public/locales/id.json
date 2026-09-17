@@ -38,6 +38,7 @@
   "srv.Bản Tin": "Berita",
   "srv.Bản cài đặt này chưa được cấu hình cửa hàng.": "Instalasi ini belum dikonfigurasi toko.",
   "srv.Bản cài đặt này thiếu khoá xác thực license. Hãy tải lại bản mới từ cửa hàng.": "Instalasi ini tidak memiliki kunci lisensi. Unduh ulang dari toko.",
+  "srv.Bản cài đặt này đã bị can thiệp nên không thể chạy. Hãy cài lại bản gốc từ cửa hàng.": "Salinan ini telah dirusak sehingga tidak dapat dijalankan. Silakan pasang ulang versi asli dari toko.",
   "srv.Cao độ (-20 đến 20)": "Nada (-20 hingga 20)",
   "srv.Cao độ (-24 đến +24, semitone)": "Nada (-24 hingga +24, semitone)",
   "srv.Cao độ (Hz) — vd +20 cho giọng tươi hơn": "Nada (Hz) — cth. +20 untuk suara lebih ceria",
@@ -328,6 +329,7 @@
   "srv.dự án không ở bước duyệt cảnh": "proyek tidak di tahap tinjau scene",
   "srv.dự án nguồn chưa có cảnh": "proyek sumber belum ada adegan",
   "srv.dự án nguồn không có asset nào còn trên đĩa": "aset proyek sumber tidak ada di disk",
+  "srv.dự án đang chạy — đợi xong rồi tạo lại cảnh": "Proyek sedang berjalan — tunggu selesai lalu buat ulang adegan",
   "srv.edge returned empty audio": "Edge mengembalikan audio kosong",
   "srv.edit rejected by lint": "Edit ditolak lint",
   "srv.edit rejected by render validation": "Edit ditolak validasi render",
@@ -336,6 +338,7 @@
   "srv.file không hợp lệ": "file tidak valid",
   "srv.file logo của preset không còn trên đĩa": "file logo preset tidak ada di disk",
   "srv.file logo không hợp lệ": "file logo tidak valid",
+  "srv.file quá lớn ({0} MB)": "File terlalu besar ({0} MB)",
   "srv.file rỗng": "file kosong",
   "srv.file thiếu": "file tidak ditemukan",
   "srv.font \"{0}\" đang ở dạng {1} — libass chỉ đọc được .ttf/.otf. ": "font \"{0}\" berformat {1} — libass hanya dukung .ttf/.otf. ",
@@ -455,6 +458,7 @@
   "srv.thiếu nội dung HTML": "konten HTML tidak ada",
   "srv.thiếu thời điểm hẹn": "jadwal waktu belum ditentukan",
   "srv.thiếu tên bộ mẫu": "nama preset tidak ada",
+  "srv.thiếu tên hoặc loại style": "Nama atau jenis gaya belum diisi",
   "srv.thiếu tên kênh": "nama channel tidak ada",
   "srv.thiếu video stream": "video stream belum ada",
   "srv.thiếu voiceId": "voiceId belum ada",
@@ -528,6 +532,7 @@
   "srv.đổi phụ đề ({0} thiết lập, in ở bước cuối)": "ubah subtitel ({0} preset, cetak di tahap akhir)",
   "srv.đổi watermark": "ubah watermark",
   "srv.đổi {0}": "ubah {0}",
+  "srv.Ảnh bìa/thumbnail AI lỗi — giữ bản cơ bản: {0}": "Thumbnail AI gagal — pakai versi dasar: {0}",
   "srv.ảnh bìa các nền tảng": "thumbnail multiplatform",
   "srv.ảnh của phiên bản này không còn trên đĩa": "gambar versi ini tidak ada di disk",
   "srv.ảnh trả về rỗng/quá nhỏ": "gambar hasil kosong/terlalu kecil",
@@ -2154,6 +2159,5 @@
   "ui.wmSource.ten-kenh": "Nama kanal",
   "ui.wmSpeed.cham-75s-vong": "Lambat — 75 dtk/putaran",
   "ui.wmSpeed.rat-cham-120s-vong": "Sangat lambat — 120 dtk/putaran",
-  "ui.wmSpeed.vua-45s-vong": "Sedang — 45 dtk/putaran",
-  "srv.Bản cài đặt này đã bị can thiệp nên không thể chạy. Hãy cài lại bản gốc từ cửa hàng.": "Salinan ini telah dirusak sehingga tidak dapat dijalankan. Silakan pasang ulang versi asli dari toko."
+  "ui.wmSpeed.vua-45s-vong": "Sedang — 45 dtk/putaran"
 }
