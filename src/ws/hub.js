@@ -50,6 +50,14 @@ export class Hub {
     this.hb.unref?.();
   }
 
+  /** Shutdown: server.close() waits for every open socket, and a browser tab holds one forever. */
+  close() {
+    clearInterval(this.hb);
+    for (const ws of this.clients) { try { ws.terminate(); } catch { /* gone */ } }
+    this.clients.clear();
+    this.wss?.close();
+  }
+
   send(ws, obj) {
     if (ws.readyState !== 1) return;
     if (ws.bufferedAmount > MAX_BUFFERED) return; // slow client: drop frames, keep the server healthy
