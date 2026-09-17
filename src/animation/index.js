@@ -247,7 +247,7 @@ export function sceneTemplateSource(scene, project, config) {
 // Render a full scene → mp4 (+ mid-frame preview jpeg). In overlay mode the keyed scene
 // then composites onto the owner's base footage (slice offset = the scene's start on the
 // final timeline, so consecutive scenes ride one continuous shot).
-export async function renderAnimationScene(scene, project, config, { dir, progressStart, progressTotal, total, onProgress, onLog } = {}) {
+export async function renderAnimationScene(scene, project, config, { dir, progressStart, progressTotal, total, onProgress, onLog, signal } = {}) {
   const k = resRung(config.resolutionScale);
   const { w, h } = animSize(project.aspect_ratio, k); // PHYSICAL viewport (2560×1440 at 4/3, 4K at 2)
   const fps = parseInt(config.fps || 30, 10);
@@ -272,7 +272,7 @@ export async function renderAnimationScene(scene, project, config, { dir, progre
   const res = await renderScenePage({
     html, w, h, fps, duration,
     audioPath: scene.audio_path && existsSync(scene.audio_path) ? scene.audio_path : null,
-    outPath, previewPath, onProgress, onLog,
+    outPath, previewPath, onProgress, onLog, signal,
   });
   if (overlayOn) {
     const { compositeColorkey } = await import('../media/ffmpeg.js');

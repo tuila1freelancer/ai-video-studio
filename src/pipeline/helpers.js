@@ -15,11 +15,15 @@ import { acquire } from './governor.js';
 export async function mapPool(items, concurrency, fn, { pool = null } = {}) {
   const ret = new Array(items.length);
   let i = 0;
+  // Fail fast: once one item has thrown the pool starts nothing new. Promise.all already rejects
+  // for the caller, but the other workers used to keep pulling — renders and paid TTS calls that
+  // finished after the job was settled and wrote over its result.
+  let failed = false;
   const workers = Array.from({ length: Math.max(1, concurrency) }, async () => {
-    while (i < items.length) {
+    while (i < items.length && !failed) {
       const idx = i++;
       const release = pool ? await acquire(pool) : null;
-      try { ret[idx] = await fn(items[idx], idx); } finally { release?.(); }
+      try { ret[idx] = await fn(items[idx], idx); } catch (e) { failed = true; throw e; } finally { release?.(); }
     }
   });
   await Promise.all(workers);

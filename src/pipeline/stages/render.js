@@ -10,7 +10,7 @@ import { logger } from '../../util/log.js';
 import { renderAnimationScene } from '../../animation/index.js';
 import { headline } from '../../animation/planner.js';
 import { qcSceneClip } from '../qc.js';
-import { checkStop } from '../stop.js';
+import { abortSignalFor, checkStop } from '../stop.js';
 import { step, op, progressPlan } from '../progress.js';
 import { mapPool } from '../helpers.js';
 import { renderFingerprint, renderCurrent, fpStamp, stampRendered } from '../fingerprint.js';
@@ -33,6 +33,7 @@ export async function runRender(ctx) {
       onProgress: (f) => { if (f >= 0.999 || Math.round(f * 4) !== Math.round((f - 0.01) * 4)) op(projectId, tp`🎬 Cảnh ${sc.idx + 1}/${scenes.length} · ${(f * 100).toFixed(0)}%`); },
       // a substituted font used to reach logger.warn and nowhere the owner looks
       onLog: (s) => op(projectId, tp`cảnh ${sc.idx + 1}: ${s}`),
+      signal: abortSignalFor(projectId),
     }));
     const { path, duration, preview } = r;
     DB.updateScene(sc.id, { video_path: path, duration, status: 'rendered', error: null, ...(preview ? { image_path: preview } : {}),
