@@ -102,7 +102,9 @@ export async function packageCovers({ projectId, project, config, size, scenes, 
       const seed = thumbHtml ? { [orientationOf(size)]: thumbHtml } : {};
       const { covers } = await generateCoverSet({
         title: project.title, hook: thumbTitle, prompt: project.metadata?.thumbnail?.prompt || '',
-        guide, sizes: COVER_SIZES, outDir, baseName: 'cover',
+        // Named per project: the channel's output folder is shared, and a fixed `cover_*.jpg`
+        // meant every finished video overwrote the previous video's covers.
+        guide, sizes: COVER_SIZES, outDir, baseName: `cover_${projectId}`,
         language: resolveLang(config, scenes), media: thumbMedia, llm: thumbLlm,
         fragments: seed, onLog: (m) => op(projectId, m),
       });
