@@ -18,7 +18,8 @@ import db, { getSetting } from './db/index.js';
 
 // Both of these hang off ROOT rather than this file's own location: a release bundles the whole
 // server into one file, so "one directory up from here" stops meaning what it means in the repo.
-const PUBLIC_DIR = join(ROOT, 'public');
+// AVS_PUBLIC_DIR points the dev server at a built payload, which is how a release is smoke-tested.
+const PUBLIC_DIR = process.env.AVS_PUBLIC_DIR || join(ROOT, 'public');
 // One source for the version: package.json. It used to be spelled out here, in package.json AND
 // in the build script's Info.plist, so a release could ship three different answers.
 const VERSION = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).version;
@@ -82,6 +83,7 @@ async function boot() {
   } catch (e) { logger.warn(`boot recovery failed: ${e.message}`); }
 
   const app = express();
+  app.disable('x-powered-by');
   // Loopback is fast but not free: a 2 MB project list still parses faster as 300 KB.
   app.use(compression({ threshold: 1024 }));
   // Bodies are forms, except the three routes that carry a scene's HTML or an SRT. Previously
@@ -112,9 +114,17 @@ async function boot() {
   };
   app.get(['/', '/index.html'], sendIndex);
   app.use('/partials', (req, res) => res.status(404).end());
-  app.use(express.static(PUBLIC_DIR, { index: false }));
+  // A release build names every script and stylesheet by its content hash, so those can live in
+  // the cache forever; a dev tree has no hashes and every file is revalidated.
+  const HASHED = /-[A-Z0-9]{8}\.(?:js|css)$/;
+  app.use(express.static(PUBLIC_DIR, {
+    index: false,
+    setHeaders: (res, path) => { if (HASHED.test(path)) res.set('Cache-Control', 'public, max-age=31536000, immutable'); },
+  }));
+  // Deep links get the document; a missing asset gets a 404, not 120 KB of HTML parsed as script.
   app.get('*', (req, res, next) => {
     if (req.path.startsWith('/api')) return next();
+    if (/\.[a-z0-9]+$/i.test(req.path)) return res.status(404).end();
     sendIndex(req, res);
   });
 
