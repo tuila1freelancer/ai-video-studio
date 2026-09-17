@@ -48,6 +48,11 @@ export const RELOCATED = {
     'src/content/master-script/repair.js', 'src/content/master-script/prompt.js', 'src/content/master-script/shape.js',
     'src/content/master-script/outline.js', 'src/content/master-script/generate.js',
   ],
+  'src/animation/harness.js': [
+    'src/animation/harness.js', 'src/animation/harness/fonts.js', 'src/animation/harness/runtime-core.js',
+    'src/animation/harness/runtime-typeset.js', 'src/animation/harness/runtime-seek.js', 'src/animation/harness/runtime.js',
+    'src/animation/harness/page.js',
+  ],
 };
 
 /** `m('x')` → `'x'`, `tp\`x\`` → `` `x` ``. Nothing else is touched. */
