@@ -103,7 +103,7 @@ test('nothing writes a subtitle onto anything except the assembled programme', (
   assert.deepEqual(callers.sort(),
     // the concat itself, the builder, and the preview that draws ONE frame the way the next join
     // will draw it
-    ['api/services/frame-preview.js', 'pipeline/render.js', 'subtitles/ass.js'],
+    ['api/services/frame-preview.js', 'pipeline/render/captions.js', 'subtitles/ass.js'],
     'only the concat and the preview of the concat build an ASS document');
   // This used to demand the preview read `project.video_path`, on the reasoning that reading a
   // scene clip would make it "a per-scene lane in disguise". That was backwards, and the assertion
