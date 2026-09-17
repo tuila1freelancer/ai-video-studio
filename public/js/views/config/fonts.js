@@ -4,7 +4,7 @@ import { $, esc } from '../../ui/dom.js';
 import { api } from '../../api.js';
 import { state } from '../../state.js';
 import { m } from '../../i18n.js';
-import { syncSubWeights, updateSubPreview } from '../config.js';
+import { syncSubWeights, updateSubPreview } from './subtitle-studio.js';
 
 // Both pickers are built from /fonts/families, which is the app's ONE list. index.html used to
 // carry ten hard-coded <option>s, two of which (Arial, Impact) existed in neither the vendored
