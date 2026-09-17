@@ -57,6 +57,10 @@ export const RELOCATED = {
     'src/providers/fetchlink.js', 'src/providers/fetchlink/extract.js', 'src/providers/fetchlink/images.js',
     'src/providers/fetchlink/refine.js', 'src/providers/fetchlink/fetch.js',
   ],
+  'src/media/ffmpeg.js': [
+    'src/media/ffmpeg.js', 'src/media/ffmpeg/run.js', 'src/media/ffmpeg/probe.js', 'src/media/ffmpeg/images.js',
+    'src/media/ffmpeg/audio.js', 'src/media/ffmpeg/footage.js',
+  ],
 };
 
 /** `m('x')` → `'x'`, `tp\`x\`` → `` `x` ``. Nothing else is touched. */
