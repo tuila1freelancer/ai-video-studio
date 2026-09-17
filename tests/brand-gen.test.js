@@ -176,7 +176,7 @@ test('P27 transparency gate: an opaque result consumes an attempt and hardens th
   const ref = join(dir, 'ref.png');
   writeFileSync(ref, Buffer.alloc(2000, 1));
   const prompts = [];
-  let verdicts = [{ ok: false, reason: 'corner alpha 255' }, { ok: true }];
+  const verdicts = [{ ok: false, reason: 'corner alpha 255' }, { ok: true }];
   const out = await generateBrandAsset({ imagePath: ref, characterName: 'ema', emotion: 'smiling brightly', brand: 'TestGate' }, {
     settings: SETTINGS, _sleep: async () => {},
     _editImage: async ({ prompt }) => { prompts.push(prompt); return Buffer.alloc(4000, 2); },

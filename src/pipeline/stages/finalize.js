@@ -23,7 +23,7 @@ import { planSoundDesign, usableLibrary } from '../../audio/sound-design.js';
 import { withRetry } from '../../util/retry.js';
 import { abortSignalFor, checkStop, notStopped } from '../stop.js';
 import { step, op, retryHook, progressPlan } from '../progress.js';
-import { renderCurrent, renderFingerprint, fpStamp, stampRendered } from '../fingerprint.js';
+import { renderCurrent, renderFingerprint, stampRendered } from '../fingerprint.js';
 import { resolveOutputDir } from '../helpers.js';
 import { timed } from '../stats.js';
 import { resolveLang } from '../../util/lang.js';

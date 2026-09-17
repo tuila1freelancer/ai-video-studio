@@ -134,9 +134,9 @@ test('the join can be interrupted at every point it spends time', () => {
   // B7 had ZERO checkpoints. It contains, in order: clip repairs (one render each), the join,
   // the audio master, a QC decode and up to three AI thumbnails — the longest stretch in the
   // app, and the one the owner is most likely to be watching when they give up on it.
-  assert.match(fin, /checkStop\(projectId\);\n  step\(projectId, 'b7', 'running'/);
+  assert.match(fin, /checkStop\(projectId\);\n {2}step\(projectId, 'b7', 'running'/);
   assert.match(fin, /checkStop\(projectId\); \/\/ a repair pass/);
-  assert.match(fin, /checkStop\(projectId\);\n  const res = await timed\(projectId, 'concat'/);
+  assert.match(fin, /checkStop\(projectId\);\n {2}const res = await timed\(projectId, 'concat'/);
   assert.match(fin, /checkStop\(projectId\); \/\/ an AI thumbnail/);
   // The encoder gets the signal itself…
   assert.match(fin, /signal: abortSignalFor\(projectId\),/);
@@ -146,7 +146,7 @@ test('the join can be interrupted at every point it spends time', () => {
   // Two catch blocks in B7 swallow errors on purpose (a failed master or thumbnail must never
   // fail a finished video). A stop is not a failure and has to pass through them.
   assert.match(fin, /if \(e\.stopped\) throw e; \/\/ packaging may fail silently/);
-  assert.match(fin, /if \(e\.stopped\) throw e;\n    logger\.warn\(`master:/);
+  assert.match(fin, /if \(e\.stopped\) throw e;\n {4}logger\.warn\(`master:/);
 
   const render = src('../src/pipeline/render.js');
   assert.match(render, /signal = undefined,/);

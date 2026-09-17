@@ -4,7 +4,7 @@
 // the same way: a subtle wiggle on the pre-label text and a slow ambient drift on h1/h2.
 // NOTE: .pre keeps its CSS fadeup (fill:both) intro, which owns `transform` in the cascade;
 // the wiggle therefore targets an inner .prew span so the rotation is not overridden.
-import { esc, IC, icon, ICON_NAMES, words, pad2, hudLabel, base, headingStyle, EASE, fx } from './_shared.js';
+import { esc, words, base, headingStyle, EASE, fx } from './_shared.js';
 
 export default {
   id: 'kinetic-statement', name: 'Kinetic Statement', desc: 'Câu nhấn chữ lớn + wipe reveal',

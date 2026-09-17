@@ -2,7 +2,7 @@
 //
 // Shared by the audit command and its test, so the number the audit prints and the number CI
 // enforces can never drift apart.
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { stripComments, msgCalls, tpTemplates } from './msgid.mjs';
 
