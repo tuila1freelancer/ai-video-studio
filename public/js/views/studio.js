@@ -216,8 +216,8 @@ async function renameProject(p) {
   const title = String(name).trim();
   if (!title || title === p.title) return;
   try {
-    // metadata, not config: a rename must not touch anything a render fingerprint reads
-    const md = { ...(p.metadata || {}), titleLocked: true };
+    // metadata, not config (a fingerprint input); fetched whole first — the list row carries none
+    const md = { ...((await api.get(`/projects/${p.id}?scenes=0`)).project?.metadata || {}), titleLocked: true };
     await api.put(`/projects/${p.id}`, { title, metadata: md });
     p.title = title; p.metadata = md;
     if (state.current?.id === p.id) state.current.title = title;

@@ -32,6 +32,28 @@ export function listProjects(channelId) {
   }
   return _listProjects.all().map(rowToProject);
 }
+/**
+ * The list the interface renders: everything but `config` and `metadata`. Measured on the live
+ * DB, those two columns were 1.9 MB of a 1.95 MB /projects reply; nothing in a list reads them.
+ */
+const SUMMARY_COLS = 'id,title,topic,input_type,aspect_ratio,status,current_step,video_path,thumb_path,error,channel_id,created_at,updated_at,scenes_approved_at';
+export function listProjectSummaries(channelId) {
+  if (channelId && channelId !== 'all') {
+    return stmt(`SELECT ${SUMMARY_COLS} FROM projects WHERE channel_id=? ORDER BY updated_at DESC`).all(channelId);
+  }
+  return stmt(`SELECT ${SUMMARY_COLS} FROM projects ORDER BY updated_at DESC`).all();
+}
+/** Titles for a set of ids in one query (the tasks feed used to fetch one full project per job). */
+export function projectTitles(ids) {
+  const uniq = [...new Set(ids.filter(Boolean))];
+  if (!uniq.length) return new Map();
+  const rows = stmt(`SELECT id, title FROM projects WHERE id IN (${uniq.map(() => '?').join(',')})`).all(...uniq);
+  return new Map(rows.map((r) => [r.id, r.title]));
+}
+/** `{ status: count }` without loading a single row's JSON. */
+export function projectCountsByStatus() {
+  return Object.fromEntries(stmt('SELECT status, COUNT(*) n FROM projects GROUP BY status').all().map((r) => [r.status, r.n]));
+}
 export function deleteProject(id) { _delProject.run(id); }
 export function deleteAllProjects() { stmt('DELETE FROM projects').run(); }
 // Boot recovery: a project can only be 'running' while a pipeline holds it in-process,
