@@ -15,8 +15,8 @@ export function initChannels() {
   $('#chCreate').addEventListener('click', createChannelUI);
 }
 
-export async function loadChannels() {
-  const { channels, active } = await api.get('/channels');
+export async function loadChannels(prefetched = null) {
+  const { channels, active } = prefetched || await api.get('/channels');
   state.channels = channels || []; state.activeChannel = active;
   $('#channelSelect').innerHTML = state.channels
     .map((c) => `<option value="${c.id}"${c.id === active ? ' selected' : ''}>${esc(c.name)}</option>`).join('');

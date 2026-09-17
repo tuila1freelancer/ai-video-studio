@@ -140,3 +140,20 @@ test('moveFile falls back to copy+unlink on EXDEV', async () => {
   moveFile(a, b);
   assert.equal(fs.existsSync(a), false); assert.equal(fs.readFileSync(b, 'utf8'), 'x');
 });
+
+test('GET /thumb serves a downscaled, cacheable copy of an allowed image', async () => {
+  const { PATHS, DIRS } = await import('../src/config/paths.js');
+  const { execFileSync } = await import('node:child_process');
+  const { join } = await import('node:path');
+  const { existsSync } = await import('node:fs');
+  if (!PATHS.ffmpeg) return; // nothing to scale with
+  const src = join(DIRS.tmp, 'thumb-src.jpg');
+  execFileSync(PATHS.ffmpeg, ['-v', 'error', '-y', '-f', 'lavfi', '-i', 'color=c=red:s=1280x720', '-frames:v', '1', src]);
+  const r = await fetch(`${base}/thumb?path=${encodeURIComponent(src)}&w=320&v=1`);
+  assert.equal(r.status, 200);
+  assert.match(r.headers.get('cache-control'), /max-age=86400/);
+  const small = Buffer.from(await r.arrayBuffer());
+  const big = (await import('node:fs')).statSync(src).size;
+  assert.ok(small.length < big, `downscaled ${small.length} < ${big}`);
+  assert.ok(existsSync(join(DIRS.tmp, 'thumbs')), 'cached under data/tmp/thumbs');
+});

@@ -11,6 +11,16 @@ import { PATHS, DIRS } from '../../config/paths.js';
 
 const WIDTHS = new Set([160, 320, 480, 640]);
 const inflight = new Map();
+// A cold gallery asks for twenty thumbnails in the same tick; four encoders at a time keep the
+// machine (and the render that may be running) responsive, the rest queue.
+const MAX_ENCODERS = 4;
+let running = 0;
+const waiting = [];
+function slot() {
+  if (running < MAX_ENCODERS) { running += 1; return Promise.resolve(); }
+  return new Promise((resolve) => waiting.push(resolve)).then(() => { running += 1; });
+}
+function release() { running -= 1; waiting.shift()?.(); }
 
 /** The nearest offered width, so a stray query cannot fill the cache with one-off sizes. */
 export function thumbWidth(w) {
@@ -34,10 +44,10 @@ export function thumbFor(src, w) {
   if (existsSync(out)) return Promise.resolve(out);
   if (inflight.has(out)) return inflight.get(out);
   mkdirSync(dir, { recursive: true });
-  const job = new Promise((resolve) => {
+  const job = slot().then(() => new Promise((resolve) => {
     execFile(PATHS.ffmpeg, ['-v', 'error', '-i', src, '-frames:v', '1', '-vf', `scale='min(${w},iw)':-2`, '-q:v', '5', out, '-y'],
       { timeout: 20000 }, (err) => resolve(err ? null : out));
-  }).finally(() => inflight.delete(out));
+  }).finally(release)).finally(() => inflight.delete(out));
   inflight.set(out, job);
   return job;
 }

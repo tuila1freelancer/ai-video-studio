@@ -65,6 +65,7 @@ export const RELOCATED = {
     'src/hyperframe/prompt.js', 'src/hyperframe/prompt/system.js', 'src/hyperframe/prompt/blocks.js',
     'src/hyperframe/prompt/layout.js', 'src/hyperframe/prompt/animation.js', 'src/hyperframe/prompt/build.js',
   ],
+  'public/js/views/config.js': ['public/js/views/config.js', 'public/js/views/config/fonts.js'],
 };
 
 /** `m('x')` → `'x'`, `tp\`x\`` → `` `x` ``. Nothing else is touched. */

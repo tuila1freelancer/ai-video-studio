@@ -63,7 +63,9 @@ export function switchPage(p) {
   const okVt = typeof document.startViewTransition === 'function'
     && !matchMedia('(prefers-reduced-motion: reduce)').matches
     && document.querySelectorAll('#sceneGrid .scene').length < 60;
-  if (okVt) document.startViewTransition(apply); else apply();
+  // A second switch while one animates aborts the first; the DOM is already right, so the
+  // rejected transition promises are noise, not a failure.
+  if (okVt) { const t = document.startViewTransition(apply); t.finished?.catch(() => {}); t.ready?.catch(() => {}); } else apply();
 }
 
 /**

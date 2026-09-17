@@ -38,9 +38,24 @@ async function init() {
   initLicense();
   if (!(await bootLicense())) return;
   initNav();
+  // ONE round trip for everything the first paint needs. The catalogue for a translated
+  // interface is fetched alongside it, on the language the last session left in localStorage;
+  // if the server says otherwise the right one is fetched afterwards (a rare, one-time cost).
+  let hint = null;
+  try { hint = localStorage.uiLang || null; } catch { /* private window */ }
+  const catalogueP = hint ? initI18n(hint).catch(() => null) : null;
+  let boot = null;
+  try { boot = await api.get('/boot'); } catch { /* offline or locked mid-way: the loaders below fetch on their own */ }
+  if (boot) {
+    api.seed('/settings', { settings: boot.settings, uiLang: boot.uiLang });
+    api.seed('/health', { ok: true, deps: boot.deps });
+  }
   // Paint the interface in the owner's language BEFORE any view patches a label, or the boot-time
   // label writes in studio.js and nav.js would overwrite the translation with Vietnamese.
-  try { await initI18n((await api.get('/settings')).uiLang); } catch { /* offline: the markup is Vietnamese already */ }
+  try {
+    if (catalogueP && (!boot || boot.uiLang === hint)) await catalogueP;
+    else await initI18n(boot?.uiLang);
+  } catch { /* offline: the markup is Vietnamese already */ }
   initHome();
   initStudio();
   initScenes();
@@ -68,13 +83,14 @@ async function init() {
   buildSubColors();
   buildPipeSteps();
   initWs();
-  try {
-    const health = await api.get('/health');
-    renderDeps(health.deps);
-  } catch {}
+  if (boot) renderDeps(boot.deps);
+  else { try { renderDeps((await api.get('/health')).deps); } catch {} }
   // Startup fast-path: paint the shell with critical data first…
-  await Promise.all([loadChannels(), loadProjects()]);
-  await loadChannelPresets();
+  await Promise.all([
+    loadChannels(boot && { channels: boot.channels, active: boot.activeChannel }),
+    loadProjects(boot && { projects: boot.projects }),
+  ]);
+  await loadChannelPresets(boot && boot.activeChannel === state.activeChannel ? { presets: boot.presets } : null);
   // Start the panel on the active channel's own settings. Nothing did this before: the form
   // opened on the markup defaults, so a channel that had chosen its subtitle font, aspect ratio
   // and voice showed none of them until the owner switched channels and back.
