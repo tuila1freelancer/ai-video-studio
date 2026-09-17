@@ -15,6 +15,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { indexHtml } from './_source.mjs';
 
 const REPO = dirname(dirname(fileURLToPath(import.meta.url)));
 const SRC = readFileSync(join(REPO, 'public', 'js', 'views', 'guide.js'), 'utf8');
@@ -89,7 +90,7 @@ test('every "open that screen" button names an action the guide implements', () 
 });
 
 test('the guide page markup carries the hooks the renderer writes into', () => {
-  const html = readFileSync(join(REPO, 'public', 'index.html'), 'utf8');
+  const html = indexHtml();
   for (const id of ['gdNav', 'gdBody', 'gdSearch', 'gdCount', 'gdMore', 'gdEmpty']) {
     assert.ok(html.includes(`id="${id}"`), `index.html is missing #${id}`);
   }

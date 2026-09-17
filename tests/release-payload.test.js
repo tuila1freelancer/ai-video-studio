@@ -39,6 +39,10 @@ test('the UI ships as one file, with no preload hints pointing at files that are
       new URL('../scripts/build-frontend.mjs', import.meta.url).pathname, '--out', out,
     ], { stdio: 'pipe' });
     const html = readFileSync(join(out, 'index.html'), 'utf8');
+    // The document ships assembled: no include marker survives and the partials stay behind.
+    assert.doesNotMatch(html, /<!--#include/);
+    assert.match(html, /id="settingsModal"/);
+    assert.equal(existsSync(join(out, 'partials')), false, 'partials/ is not part of the payload');
     // 23 of the 24 hints named modules that no longer exist; each one left in would be a 404 on
     // first paint. main.js keeps its hint because it is still the entry.
     const preloads = html.match(/rel="modulepreload" href="([^"]+)"/g) || [];

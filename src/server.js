@@ -8,6 +8,8 @@ import { hub } from './ws/hub.js';
 import { bindHub, logger } from './util/log.js';
 import { openLogFile } from './util/log-file.js';
 import { sweepStale } from './util/sweep.js';
+import { assembleIndex } from './util/html-include.js';
+import { createHash } from 'node:crypto';
 import { ensureDirs, DIRS, ROOT } from './config/paths.js';
 import { mountRoutes } from './api/routes.js';
 import { errorHandler, processHealth } from './api/http.js';
@@ -98,12 +100,22 @@ async function boot() {
   // SPA static (after API so /api wins). Font filenames encode family+weight+subset,
   // so /fonts can be cached immutable — a manifest change produces new URLs.
   app.use('/fonts', express.static(join(PUBLIC_DIR, 'fonts'), { maxAge: '365d', immutable: true, fallthrough: false }));
+  // The document is assembled from its partials once, served from memory, always revalidated
+  // (the release build hashes everything it references). The partials themselves are not a page.
+  const indexHtml = assembleIndex(PUBLIC_DIR);
+  const indexEtag = `"${createHash('sha1').update(indexHtml).digest('hex').slice(0, 16)}"`;
+  const sendIndex = (req, res) => {
+    res.set('Cache-Control', 'no-cache');
+    res.set('ETag', indexEtag);
+    if (req.headers['if-none-match'] === indexEtag) return res.status(304).end();
+    res.type('html').send(indexHtml);
+  };
+  app.get(['/', '/index.html'], sendIndex);
+  app.use('/partials', (req, res) => res.status(404).end());
   app.use(express.static(PUBLIC_DIR, { index: false }));
-  // The document is always revalidated (the release build hashes everything it references).
   app.get('*', (req, res, next) => {
     if (req.path.startsWith('/api')) return next();
-    res.set('Cache-Control', 'no-cache');
-    res.sendFile(join(PUBLIC_DIR, 'index.html'));
+    sendIndex(req, res);
   });
 
   const server = http.createServer(app);

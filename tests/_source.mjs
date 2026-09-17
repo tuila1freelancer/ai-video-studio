@@ -14,6 +14,7 @@
 // file keeps matching, and an order-dependent assertion (`indexOf(a) < indexOf(b)`) keeps its
 // meaning as long as both markers moved into the same file. Splitting a file is one entry here.
 import { readFileSync } from 'node:fs';
+import { assembleIndex } from '../src/util/html-include.js';
 
 const ROOT = new URL('../', import.meta.url);
 
@@ -97,13 +98,14 @@ const readRoot = (rel) => readFileSync(new URL(rel, ROOT), 'utf8');
 
 /** The source at `rel` (repo-root relative), following `RELOCATED`, with the i18n wrappers removed. */
 export function sourceOf(rel) {
+  if (rel === 'public/index.html') return indexHtml(); // the shell alone is 174 lines of markers
   const parts = RELOCATED[rel] || [rel];
   return unwrapI18n(parts.map(readRoot).join('\n'));
 }
 
-/** The interface markup as the browser receives it. */
+/** The interface markup as the browser receives it: the shell with every partial expanded. */
 export function indexHtml() {
-  return readRoot('public/index.html');
+  return assembleIndex(new URL('public/', ROOT).pathname);
 }
 
 /** The source of `path`, relative to the CALLER, with the i18n wrappers removed. */
