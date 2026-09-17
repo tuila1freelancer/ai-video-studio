@@ -7,6 +7,7 @@ import { getBrowser } from '../media/puppeteer.js';
 import { PATHS } from '../config/paths.js';
 import { makeSilence, probeDuration } from '../media/ffmpeg.js';
 import { logger } from '../util/log.js';
+import { stopError } from '../pipeline/stop.js';
 
 import { m, tp } from '../i18n/t.js';
 const JPEG_QUALITY = 92;
@@ -21,7 +22,8 @@ function withTimeout(promise, ms, label) {
 /**
  * Render one scene page to an mp4.
  * opts: { html, w, h, fps, duration, audioPath (nullable), outPath,
- *         previewPath (nullable — mid-scene JPEG), onProgress(fraction), onLog }
+ *         previewPath (nullable — mid-scene JPEG), onProgress(fraction), onLog,
+ *         signal (AbortSignal — a user stop ends the frame loop and kills the encoder) }
  * Returns { path, duration }.
  */
 export async function renderScenePage(opts) {
@@ -83,6 +85,8 @@ export async function renderScenePage(opts) {
 
       const midFrame = Math.floor(frames / 2);
       for (let i = 0; i < frames; i++) {
+        // "Dừng" used to wait for every in-flight scene to finish — up to a minute each.
+        if (opts.signal?.aborted) throw stopError();
         const t = i / fps;
         await withTimeout(page.evaluate(`window.__seek(${t})`), FRAME_TIMEOUT_MS, `seek f${i}`);
         const buf = await withTimeout(
@@ -106,6 +110,7 @@ export async function renderScenePage(opts) {
   for (let i = 0; i < 3; i++) {
     try { return await attempt(); }
     catch (e) {
+      if (e.stopped) throw e; // a stop is not a failed attempt
       lastErr = e;
       logger.warn(tp`Render animation lần ${i + 1} lỗi (${e.message}) — ${i < 2 ? m('thử lại') : m('bỏ cuộc')}`);
       await new Promise((r) => setTimeout(r, 2000 + i * 3000)); // let the machine breathe

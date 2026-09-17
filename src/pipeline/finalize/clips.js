@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs';
 import * as DB from '../../db/index.js';
 import { logger } from '../../util/log.js';
 import { renderAnimationScene } from '../../animation/index.js';
-import { checkStop } from '../stop.js';
+import { abortSignalFor, checkStop } from '../stop.js';
 import { op, progressPlan } from '../progress.js';
 import { renderCurrent, renderFingerprint, stampRendered } from '../fingerprint.js';
 import { tp } from '../../i18n/t.js';
@@ -57,6 +57,7 @@ export async function rebuildClips({ projectId, project, all, config, renderDir 
       const r = await renderAnimationScene(sc, project, clipCfg, {
         dir: renderDir, progressStart: pp.offsets[sc.idx] || 0, progressTotal: pp.total, total: all.length,
         onLog: (s) => op(projectId, tp`cảnh ${sc.idx + 1}: ${s}`),
+        signal: abortSignalFor(projectId),
       });
       // Stamp the clip. Without this the repair leaves the OLD fingerprint next to a NEW file,
       // so the very next join would find the same scene stale and rebuild it all over again.

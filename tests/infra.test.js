@@ -136,3 +136,18 @@ test('the file log sink rotates at its size cap and never throws', async () => {
   assert.ok(names.length <= 4, 'at most the live file plus three rotations');
   assert.ok(statSync(join(dir, 'app.log')).size < 6 * 1024 * 1024);
 });
+
+test('mapPool stops pulling new items once one has thrown', async () => {
+  const { mapPool } = await import('../src/pipeline/helpers.js');
+  const started = [];
+  const items = [1, 2, 3, 4, 5, 6];
+  await assert.rejects(mapPool(items, 2, async (n) => {
+    started.push(n);
+    await new Promise((r) => setTimeout(r, 5));
+    if (n === 2) throw new Error('boom');
+    return n;
+  }), /boom/);
+  await new Promise((r) => setTimeout(r, 40));
+  assert.ok(started.length <= 4, `only what was already in flight ran: ${started.join(',')}`);
+  assert.ok(!started.includes(6), 'the tail of the list was never started');
+});
