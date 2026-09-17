@@ -11,17 +11,17 @@ import { padMsFor } from '../src/util/lang.js';
 
 
 test('P1: chatOnce floors max_tokens at 16000 (reasoning models burn tokens on hidden thinking)', () => {
-  const s = sourceOf('src/providers/llm.js');
+  const s = sourceOf('src/providers/llm/transport.js');
   assert.match(s, /maxTokensFloor\).*:\s*16000/, 'the 16000 floor must survive');
   assert.match(s, /Math\.max\(maxTokens,\s*floor\)/, 'max_tokens must be floored, not capped');
 });
 
 test('P2: chatJson enables response_format json_object only on the first attempt', () => {
-  assert.match(sourceOf('src/providers/llm.js'), /json:\s*preferJson\s*&&\s*i\s*===\s*0/);
+  assert.match(sourceOf('src/providers/llm/json.js'), /json:\s*preferJson\s*&&\s*i\s*===\s*0/);
 });
 
 test('P3: 429 handled BEFORE dead-key, with backoff [8s,20s,45s]', () => {
-  const s = sourceOf('src/providers/llm.js');
+  const s = sourceOf('src/providers/llm/transport.js');
   assert.match(s, /RL_DELAYS\s*=\s*\[8000,\s*20000,\s*45000\]/);
   const rl = s.indexOf('RATE_LIMIT.test(msg)');
   const dk = s.indexOf('DEAD_KEY.test(msg)');
@@ -29,7 +29,7 @@ test('P3: 429 handled BEFORE dead-key, with backoff [8s,20s,45s]', () => {
 });
 
 test('P4: script validate enforces >=70% of target scenes (60% per chapter)', () => {
-  const s = sourceOf('src/providers/llm.js');
+  const s = sourceOf('src/providers/llm/generate.js');
   assert.match(s, /Math\.ceil\(sceneCount\s*\*\s*0\.7\)/);
   assert.match(s, /Math\.ceil\(perCh\s*\*\s*0\.6\)/);
 });

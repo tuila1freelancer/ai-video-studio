@@ -30,6 +30,10 @@ export const RELOCATED = {
     'src/api/routers/edit-video.js', 'src/api/helpers.js', 'src/core/llm-accounts.js',
     'src/api/services/project-files.js', 'src/api/services/contact-sheet.js', 'src/api/services/folder-picker.js',
   ],
+  'src/providers/llm.js': [
+    'src/providers/llm.js', 'src/providers/llm/transport.js', 'src/providers/llm/json.js', 'src/providers/llm/script.js',
+    'src/providers/llm/budget.js', 'src/providers/llm/generate.js', 'src/providers/llm/metadata.js',
+  ],
 };
 
 /** `m('x')` → `'x'`, `tp\`x\`` → `` `x` ``. Nothing else is touched. */
