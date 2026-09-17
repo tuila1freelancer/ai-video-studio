@@ -48,16 +48,25 @@ export async function canSynthesize(base) {
   } catch { return false; }
 }
 
-/** Is the CLI installed? Returns the argv prefix to launch it, or null. */
-export function supertonicLauncher() {
+let launcherCache; // undefined = never probed
+/**
+ * Is the CLI installed? Returns the argv prefix to launch it, or null. Probed once per process —
+ * three blocking spawns (a Python import can take seconds) used to run on every status poll;
+ * `fresh` re-probes after an install.
+ */
+export function supertonicLauncher({ fresh = false } = {}) {
+  if (launcherCache !== undefined && !fresh) return launcherCache;
   const probe = (cmd, args) => {
     try { return spawnSync(cmd, args, { stdio: 'ignore', timeout: 8000 }).status === 0; } catch { return false; }
   };
-  if (probe('supertonic', ['--help'])) return ['supertonic'];
-  for (const py of ['python3', 'python']) {
-    if (probe(py, ['-c', 'import supertonic'])) return [py, '-m', 'supertonic.cli'];
+  launcherCache = null;
+  if (probe('supertonic', ['--help'])) launcherCache = ['supertonic'];
+  else {
+    for (const py of ['python3', 'python']) {
+      if (probe(py, ['-c', 'import supertonic'])) { launcherCache = [py, '-m', 'supertonic.cli']; break; }
+    }
   }
-  return null;
+  return launcherCache;
 }
 
 export function stopSupertonic(cfg = {}) {

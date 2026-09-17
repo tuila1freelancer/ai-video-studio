@@ -103,11 +103,17 @@ export async function runRender(ctx) {
   // Verify & repair: every scene clip must exist, probe sane, carry BOTH streams (a silent
   // scene is a defect, never shipped) and match its voice duration.
   op(projectId, m('🔍 Kiểm tra chất lượng từng cảnh…'));
-  for (const sc of DB.getScenes(projectId)) {
+  // Probes run four abreast (a probe is one ffprobe spawn, N of them per run); repairs stay serial.
+  const clips = DB.getScenes(projectId);
+  const checks = await mapPool(clips, 4, async (sc) => {
     checkStop(projectId);
-    const check = sc.video_path && existsSync(sc.video_path)
-      ? await qcSceneClip(sc.video_path, { expectDur: sc.duration || 0 })
+    return sc.video_path && existsSync(sc.video_path)
+      ? qcSceneClip(sc.video_path, { expectDur: sc.duration || 0 })
       : { ok: false, reason: m('file thiếu') };
+  });
+  for (const [i, sc] of clips.entries()) {
+    checkStop(projectId);
+    const check = checks[i];
     if (!check.ok) {
       op(projectId, tp`🩹 Cảnh ${sc.idx + 1}: ${check.reason} — render lại…`);
       logger.warn(tp`Cảnh ${sc.idx + 1}: clip không đạt kiểm tra (${check.reason}) — render lại`, { projectId, kind: 'retry', stage: 'b6', sceneIdx: sc.idx });

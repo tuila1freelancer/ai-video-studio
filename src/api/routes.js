@@ -324,7 +324,7 @@ export function mountRoutes(app, { version }) {
       const py = ['python3', 'python'].find(Boolean) || 'python3';
       execFile(py, ['-m', 'pip', 'install', '--upgrade', 'supertonic'], { timeout: 600000, maxBuffer: 4 * 1024 * 1024 }, async (err, stdout, stderr) => {
         const { supertonicLauncher } = await import('../media/tts-server.js');
-        const installed = !!supertonicLauncher();
+        const installed = !!supertonicLauncher({ fresh: true });
         res.json({
           ok: installed && !err, installed,
           message: installed ? m('Đã cài Supertonic — bấm ▶ Khởi động') : tp`Cài thất bại: ${(stderr || err?.message || '').slice(-400)}`,

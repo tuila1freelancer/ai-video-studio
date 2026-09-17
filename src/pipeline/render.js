@@ -9,6 +9,7 @@ import { buildAss, cueText } from '../subtitles/ass.js';
 import { measureCaptions } from '../subtitles/box.js';
 import { concatFingerprint, needsVideoFilter, planConcat, tierLog } from './concat-plan.js';
 import { ratioToSize, newId } from '../util/util.js';
+import { mapPool } from './helpers.js';
 import { m, tp } from '../i18n/t.js';
 
 const FPS = 30; // fallback only — the real rate is probed off the clips
@@ -135,8 +136,7 @@ export async function concatScenes(sceneVideos, project, {
 
   // Durations + timeline.
   const TD = XFADE_DUR;
-  const durs = [];
-  for (const v of sceneVideos) durs.push(await probeDuration(v));
+  const durs = await mapPool(sceneVideos, 4, (v) => probeDuration(v));
   const plan = Array.isArray(transitions)
     ? transitions.slice(0, sceneVideos.length - 1)
     : (transitions ? sceneVideos.map(() => ({ type: 'fade', dur: TD })).slice(0, sceneVideos.length - 1) : null);
