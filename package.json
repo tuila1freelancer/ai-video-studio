@@ -13,6 +13,7 @@
     "test": "node --test \"tests/*.test.js\"",
     "test:smoke": "node scripts/tpl-smoke.mjs",
     "test:e2e": "node scripts/e2e.mjs",
+    "perf:boot": "node scripts/perf/boot-audit.mjs",
     "fonts:build": "node scripts/build-fonts.mjs",
     "fonts:build:ui": "node scripts/build-fonts.mjs --ui",
     "icon:build": "node scripts/build-icon.mjs",

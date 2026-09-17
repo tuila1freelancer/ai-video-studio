@@ -85,11 +85,14 @@ async function init() {
   const busy = state.projects.find((p) => p.status === 'running')
     || (localStorage.lastProjectId && state.projects.find((p) => p.id === localStorage.lastProjectId && ['paused', 'error'].includes(p.status)));
   if (busy) { switchPage('studio'); openProject(busy.id); }
+  // Boot marks read by scripts/perf/boot-audit.mjs: shell painted with real data, then idle catalogs in.
+  performance.mark('avs:boot-done');
   // …then load the heavy catalogs when the main thread is idle (voice list ~322 items, BGM, subtitle presets).
   const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 50));
   idle(async () => {
     await Promise.all([loadVoices(), loadBgmOptions(), loadBrandFolders(), loadMetadataStyles(), loadSubtitlePresets(), loadFontFamilies()]);
     await loadSettings(); // needs state.providers from loadVoices
     if (state.current) renderScenes(); // re-render once catalogs are in (template names etc.)
+    performance.mark('avs:idle-done');
   });
 }
