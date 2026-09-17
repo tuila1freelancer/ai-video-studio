@@ -28,7 +28,6 @@ const OVERSIZE = {
   'public/js/views/guide.js': 678,
   'public/js/features/brandkit.js': 451,
   'public/js/features/settings.js': 439,
-  'src/hyperframe/prompt.js': 418,
 };
 
 test('code health: no source file over 400 lines (ratchet)', () => {
