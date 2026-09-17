@@ -5,7 +5,7 @@
   "type": "module",
   "main": "shell/electron/main.cjs",
   "engines": {
-    "node": ">=20"
+    "node": ">=22 <23"
   },
   "scripts": {
     "start": "node src/server.js",
