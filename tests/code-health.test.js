@@ -23,7 +23,6 @@ const lines = (p) => { const s = readFileSync(p, 'utf8'); return s.split('\n').l
 // each shrinks (never grows) until it is under the bar and leaves the list.
 const MAX_LINES = 400;
 const OVERSIZE = {
-  'public/js/views/studio.js': 982,
   'public/js/features/brandkit.js': 451,
   'public/js/features/settings.js': 439,
 };

@@ -70,6 +70,11 @@ export const RELOCATED = {
     'public/js/views/config/form.js', 'public/js/views/config/frame-preview.js', 'public/js/views/config/hf-style.js',
     'public/js/views/config/catalogs.js', 'public/js/views/config/groups.js', 'public/js/views/config/presets.js',
   ],
+  'public/js/views/studio.js': [
+    'public/js/views/studio.js', 'public/js/views/studio/ws.js', 'public/js/views/studio/wiring.js',
+    'public/js/views/studio/projects.js', 'public/js/views/studio/actions.js', 'public/js/views/studio/project-view.js',
+    'public/js/views/studio/outputs.js', 'public/js/views/studio/source.js',
+  ],
 };
 
 /** `m('x')` → `'x'`, `tp\`x\`` → `` `x` ``. Nothing else is touched. */
