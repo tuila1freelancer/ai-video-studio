@@ -104,3 +104,35 @@ test('sqlite: stmt() compiles a statement once per SQL string', async () => {
   assert.equal(stmt('SELECT 1 AS one'), a, 'same object for the same SQL');
   assert.equal(a.get().one, 1);
 });
+
+test('sweepStale removes only entries older than the keep window', async () => {
+  const { mkdtempSync, writeFileSync, utimesSync, existsSync, mkdirSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const { sweepStale } = await import('../src/util/sweep.js');
+  const dir = mkdtempSync(join(tmpdir(), 'avs-sweep-'));
+  const old = join(dir, 'old.bin'); const fresh = join(dir, 'fresh.bin'); const oldDir = join(dir, 'old-dir');
+  writeFileSync(old, 'x'); writeFileSync(fresh, 'y'); mkdirSync(oldDir); writeFileSync(join(oldDir, 'f'), 'z');
+  const past = (Date.now() - 10 * 24 * 3600 * 1000) / 1000;
+  utimesSync(old, past, past); utimesSync(oldDir, past, past);
+  const r = await sweepStale([dir, join(dir, 'missing')]);
+  assert.equal(r.removed, 2);
+  assert.equal(existsSync(old), false);
+  assert.equal(existsSync(oldDir), false);
+  assert.equal(existsSync(fresh), true);
+});
+
+test('the file log sink rotates at its size cap and never throws', async () => {
+  const { mkdtempSync, readdirSync, statSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const { openLogFile, writeLogLine } = await import('../src/util/log-file.js');
+  const dir = mkdtempSync(join(tmpdir(), 'avs-log-'));
+  assert.equal(openLogFile(dir), join(dir, 'app.log'));
+  const big = 'x'.repeat(1024 * 1024);
+  for (let i = 0; i < 12; i += 1) writeLogLine(big);
+  const names = readdirSync(dir).sort();
+  assert.ok(names.includes('app.log') && names.includes('app.log.1'), `rotated: ${names.join(', ')}`);
+  assert.ok(names.length <= 4, 'at most the live file plus three rotations');
+  assert.ok(statSync(join(dir, 'app.log')).size < 6 * 1024 * 1024);
+});

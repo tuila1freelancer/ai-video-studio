@@ -24,6 +24,7 @@ import { resolveLang, declaredLang, detectLang, majorityLang, padMsFor, DEFAULT_
 import { isSupported } from '../i18n/languages.js';
 import { WEB_SAFE, toPng } from './services/image-convert.js';
 import { mount as mountFilesMedia } from './routers/files-media.js';
+import { processHealth } from './http.js';
 import { licenseGate } from '../license/gate.js';
 import { activate, publicStatus, refreshNow } from '../license/index.js';
 import { adoptWithStoredSession, sessionAccount, signIn, signOut } from '../license/auth.js';
@@ -128,7 +129,7 @@ export function mountRoutes(app, { version }) {
   const maskChannel = (ch) => ch && { ...ch, config: maskSecrets(ch.config || {}) };
 
   r.get('/health', (req, res) => {
-    res.json({ ok: true, version, deps: depStatus(), paths: {
+    res.json({ ok: true, version, degraded: processHealth.degraded, deps: depStatus(), paths: {
       ffmpeg: PATHS.ffmpeg, whisper: !!PATHS.whisperCli, chrome: !!PATHS.chrome, say: !!PATHS.say,
     } });
   });

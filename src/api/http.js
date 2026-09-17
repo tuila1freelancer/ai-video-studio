@@ -3,6 +3,12 @@
 import { logger } from '../util/log.js';
 
 /**
+ * Set by server.js when an uncaught error was logged and swallowed: the process is still
+ * serving, but its in-memory state may no longer match the database. Shown by /health.
+ */
+export const processHealth = { degraded: null };
+
+/**
  * Express 4 does not catch a rejected async handler: the request hangs until the client gives
  * up. Wrapped, it becomes a JSON error like any other.
  * @template {(req: import('express').Request, res: import('express').Response, next: import('express').NextFunction) => unknown} F

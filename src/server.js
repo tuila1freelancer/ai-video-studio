@@ -6,11 +6,13 @@ import { join } from 'node:path';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { hub } from './ws/hub.js';
 import { bindHub, logger } from './util/log.js';
+import { openLogFile } from './util/log-file.js';
+import { sweepStale } from './util/sweep.js';
 import { ensureDirs, DIRS, ROOT } from './config/paths.js';
 import { mountRoutes } from './api/routes.js';
-import { errorHandler } from './api/http.js';
+import { errorHandler, processHealth } from './api/http.js';
 import { setUiLang } from './i18n/t.js';
-import { getSetting } from './db/index.js';
+import db, { getSetting } from './db/index.js';
 
 // Both of these hang off ROOT rather than this file's own location: a release bundles the whole
 // server into one file, so "one directory up from here" stops meaning what it means in the repo.
@@ -25,6 +27,7 @@ const VERSION = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).ver
 // any run), so they stay exactly where they are; only their container changed.
 async function boot() {
   ensureDirs();
+  openLogFile(join(DIRS.data, 'logs'));
   bindHub(hub);
   await import('./pipeline/journal.js'); // P32 journal: bindJournal before any logger fanout
   await import('./core/metering.js'); // cost meter: subscribe to provider usage before any run
@@ -136,20 +139,39 @@ async function boot() {
     logger.info(`AI Video Studio v${VERSION} ready`);
     // Sentinel line the Swift/launcher waits for:
     console.log(`AVS_READY ${url}`);
+    // Housekeeping after the UI is reachable, never before.
+    setTimeout(() => { sweepStale([DIRS.tmp, DIRS.uploads]).catch((e) => logger.warn(`sweep: ${e.message}`)); }, 15000).unref();
   });
 
-  // Any local TTS server we spawned dies with us — an orphan would hold its port and the next
-  // start would find an unreachable zombie.
+  // Everything this process owns goes down with it: spawned TTS servers (an orphan holds its port
+  // and the next start finds an unreachable zombie), headless Chrome, in-flight ffmpeg children
+  // (aborted like a user stop, so the run resumes cleanly), WebSocket clients (server.close()
+  // would otherwise wait on them forever), then the DB with a checkpointed WAL.
+  let closing = false;
   const shutdown = async () => {
+    if (closing) return;
+    closing = true;
+    setTimeout(() => process.exit(1), 3000).unref(); // never hang on a socket that will not close
     try { (await import('./media/tts-server.js')).stopAllTtsServers(); } catch { /* nothing spawned */ }
-    server.close(() => process.exit(0));
+    try { await (await import('./media/puppeteer.js')).closeBrowser(); } catch { /* never launched */ }
+    try { (await import('./pipeline/stop.js')).abortAll(); } catch { /* nothing running */ }
+    hub.close();
+    server.close(() => {
+      try { db.pragma('wal_checkpoint(TRUNCATE)'); db.close(); } catch (e) { logger.warn(`db close: ${e.message}`); }
+      process.exit(0);
+    });
   };
   process.on('SIGTERM', shutdown);
   process.on('SIGINT', shutdown);
 
-  // A long-running render server must never die from one stray async error.
-  process.on('unhandledRejection', (e) => logger.error(`unhandledRejection: ${e?.message || e}`));
-  process.on('uncaughtException', (e) => logger.error(`uncaughtException: ${e?.message || e}`));
+  // A long-running render server must never die from one stray async error — but after one,
+  // in-memory state (governor pools, stop flags) may disagree with the DB, and /health says so.
+  const survived = (kind) => (e) => {
+    logger.error(`${kind}: ${e?.stack || e?.message || e}`);
+    processHealth.degraded = { kind, message: String(e?.message || e), at: Date.now() };
+  };
+  process.on('unhandledRejection', survived('unhandledRejection'));
+  process.on('uncaughtException', survived('uncaughtException'));
 }
 
 // Nothing has registered uncaughtException yet while boot() is running, so a failure here would
