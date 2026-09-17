@@ -10,7 +10,7 @@
 //
 // AI config comes from the repo DB's `ai` setting (read-only copy) — never hardcoded.
 // All output goes under --out; reference data is READ-ONLY.
-import { mkdirSync, writeFileSync, readFileSync, existsSync, copyFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -81,7 +81,7 @@ async function refPage(_b, htmlPath) {
   await page.setViewport({ width: 1920, height: 1080, deviceScaleFactor: 1 });
   if (OFFLINE_REF) {
     // no network: swap the CDN gsap for our vendor copy and drop webfont links
-    let html = readFileSync(htmlPath, 'utf8')
+    const html = readFileSync(htmlPath, 'utf8')
       .replace(/<script src="https:\/\/cdn[^"]*gsap[^"]*"><\/script>/i, `<script>${gsapVendor}</script>`)
       .replace(/<link[^>]*fonts\.googleapis[^>]*>/gi, `<style>${fontsCss}</style>`)
       .replace(/<link[^>]*fonts\.gstatic[^>]*>/gi, '');

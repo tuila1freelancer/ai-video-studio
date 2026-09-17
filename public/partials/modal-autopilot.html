@@ -1,0 +1,70 @@
+<div class="modal-bg" id="autopilotModal" role="dialog" aria-modal="true">
+  <div class="modal" style="max-width:860px">
+    <h2><span data-i18n="ui.autopilotModal.tro-ly-noi-dung">🛰 Trợ lý nội dung</span> <button class="x" data-close>×</button></h2>
+    <div class="ap-stats row mb-10" id="apStats" style="gap:14px;flex-wrap:wrap"></div>
+    <div class="gtabs" id="apTabs" style="margin:8px 0">
+      <button class="gtab active" data-tab="suggest" data-i18n="ui.apTabs.goi-y">💡 Gợi ý</button>
+      <button class="gtab" data-tab="history" data-i18n="ui.apTabs.lich-su">🕘 Lịch sử</button>
+      <button class="gtab" data-tab="calendar" data-i18n="ui.apTabs.lich-san-xuat">🗓 Lịch sản xuất</button>
+    </div>
+    <div id="apTabSuggest">
+      <div class="row" style="gap:8px;align-items:stretch">
+        <input class="input flex-1" id="apNiche" placeholder="Ngách của kênh (vd: AI cho freelancer)…" data-i18n-placeholder="ui.apTabSuggest.ngach-cua-kenh-vd-ai">
+        <select class="input" id="apCount" title="Số gợi ý mỗi lần quét" style="max-width:76px" data-i18n-title="ui.apTabSuggest.so-goi-y-moi-lan">
+          <option value="4">4</option><option value="8" selected>8</option><option value="12">12</option>
+        </select>
+        <button class="btn" id="apSuggest" data-i18n="ui.apTabSuggest.goi-y">Gợi ý</button>
+      </div>
+      <details class="mt-8" id="apSources">
+        <summary class="hint pointer" data-i18n="ui.apSources.nguon-xu-huong-google-trends">⚙ Nguồn xu hướng (Google Trends luôn bật)</summary>
+        <div class="row" id="apPacks" style="gap:14px;margin:8px 0;flex-wrap:wrap"></div>
+        <textarea class="input" id="apFeeds" rows="2" placeholder="RSS/Atom tuỳ chỉnh — mỗi dòng một URL (vd: https://vnexpress.net/rss/giai-tri.rss)" data-i18n-placeholder="ui.apSources.rss-atom-tuy-chinh-moi"></textarea>
+        <div class="row mt-6" style="justify-content:flex-end"><button class="btn sm" id="apSaveSources" data-i18n="ui.apSources.luu-nguon">💾 Lưu nguồn</button></div>
+      </details>
+      <div class="hint mt-6" id="apSuggestNote"></div>
+      <div class="mt-6" id="apTopics"></div>
+      <details class="mt-12" id="apPrefs">
+        <summary class="hint pointer" data-i18n="ui.apPrefs.cai-dat-tro-ly-cho">⚙ Cài đặt trợ lý cho kênh này</summary>
+        <div class="as-grid" style="margin:8px 0">
+          <label><span data-i18n="ui.apPrefs.ngach-mac-dinh">Ngách mặc định</span> <input class="input" id="apPrefNiche" placeholder="vd: AI cho freelancer" data-i18n-placeholder="ui.apPrefs.vd-ai-cho-freelancer"></label>
+          <label><span data-i18n="ui.apPrefs.khung-gio-ua-thich">Khung giờ ưa thích</span> <input class="input" id="apPrefTimes" placeholder="08:00, 19:30"></label>
+        </div>
+        <div class="row" style="gap:8px;align-items:center">
+          <span class="hint flex-1" id="apPrefCfgState"></span>
+          <button class="btn sm" id="apPrefCfgSave" title="Toàn bộ panel cấu hình Studio hiện tại trở thành config mặc định khi tạo video từ trợ lý" data-i18n="ui.apPrefs.luu-panel-studio-lam-config" data-i18n-title="ui.apPrefs.toan-bo-panel-cau-hinh">📋 Lưu panel Studio làm config trợ lý</button>
+          <button class="btn sm" id="apPrefCfgClear" title="Xoá config trợ lý đã lưu" data-i18n-title="ui.apPrefs.xoa-config-tro-ly-da">🗑</button>
+        </div>
+        <div class="row mt-8" style="justify-content:flex-end"><button class="btn sm" id="apPrefSave" data-i18n="ui.apPrefs.luu-cai-dat">💾 Lưu cài đặt</button></div>
+      </details>
+    </div>
+    <div id="apTabHistory" style="display:none">
+      <div class="row" style="gap:8px;align-items:center">
+        <select class="input" id="apHistStatus" style="max-width:170px">
+          <option value="" data-i18n="ui.apHistStatus.tat-ca-trang-thai">Tất cả trạng thái</option>
+          <option value="suggested" data-i18n="ui.apHistStatus.dang-cho">Đang chờ</option>
+          <option value="accepted" data-i18n="ui.apHistStatus.da-tao-video">Đã tạo video</option>
+          <option value="scheduled" data-i18n="ui.apHistStatus.da-hen-lich">Đã hẹn lịch</option>
+          <option value="dismissed" data-i18n="ui.apHistStatus.da-bo-qua">Đã bỏ qua</option>
+          <option value="expired" data-i18n="ui.apHistStatus.het-han">Hết hạn</option>
+        </select>
+        <input class="input flex-1" id="apHistQ" placeholder="Tìm chủ đề…" data-i18n-placeholder="ui.apTabHistory.tim-chu-de">
+        <label class="hint" style="display:flex;align-items:center;gap:6px;white-space:nowrap"><input type="checkbox" id="apHistAll"> <span data-i18n="ui.apTabHistory.moi-kenh">Mọi kênh</span></label>
+      </div>
+      <div class="mt-8" id="apHistory"></div>
+    </div>
+    <div id="apTabCalendar" style="display:none">
+      <div class="row" style="align-items:center;gap:8px;margin:2px 0 8px">
+        <div class="hint flex-1" data-i18n="ui.apTabCalendar.den-han-se-tu-tao">Đến hạn sẽ tự tạo video — với đúng cấu hình bạn đã duyệt khi hẹn lịch.</div>
+        <button class="btn sm" id="apPlanWeek" data-i18n="ui.apTabCalendar.len-ke-hoach-tuan">📅 Lên kế hoạch tuần</button>
+      </div>
+      <div id="apCalendar"></div>
+      <div class="row" style="align-items:center;gap:8px;margin:14px 0 2px">
+        <div class="label flex-1" data-i18n="ui.apTabCalendar.khung-gio-co-dinh-hang">⏰ Khung giờ cố định hằng tuần</div>
+        <button class="btn sm" id="apAddRec" data-i18n="ui.apTabCalendar.them-khung-gio">➕ Thêm khung giờ</button>
+      </div>
+      <div class="hint mb-6" data-i18n="ui.apTabCalendar.khung-trong-lap-moi-tuan">Khung trống lặp mỗi tuần — bấm "＋ Chọn chủ đề" để lấp bằng một gợi ý đang chờ. Khung giờ không bao giờ tự tạo video.</div>
+      <div id="apRecs"></div>
+    </div>
+    <div class="row mt-14" style="justify-content:flex-end"><button class="btn primary" data-close data-i18n="ui.autopilotModal.dong">Đóng</button></div>
+  </div>
+</div>

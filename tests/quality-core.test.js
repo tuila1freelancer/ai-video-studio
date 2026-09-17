@@ -3,6 +3,7 @@
 import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { sourceOf, indexHtml } from './_source.mjs';
 import { readFileSync } from 'node:fs';
 import { beatWarpMap, warpTime, slopeAt } from '../src/animation/timewarp.js';
 import { auditBudget, trimToBudget, pickDroppable } from '../src/pipeline/stages/budget.js';
@@ -144,33 +145,33 @@ test('logical canvas + lossless zoom: LLM px space is resolution-independent', a
   assert.ok(!/body\{zoom/.test(html1080), 'scale 1 emits no zoom rule');
   assert.match(html1080, /width="1920" height="1080"/);
   // codegen/validate stay logical regardless of resolutionScale
-  const visuals = readFileSync(new URL('../src/pipeline/stages/visuals.js', import.meta.url), 'utf8');
+  const visuals = sourceOf('src/pipeline/stages/visuals.js');
   assert.match(visuals, /animSize\(project\.aspect_ratio, 1\); \/\/ codegen\/validate in the LOGICAL canvas/);
-  const prompt = readFileSync(new URL('../src/hyperframe/prompt.js', import.meta.url), 'utf8');
+  const prompt = sourceOf('src/hyperframe/prompt.js');
   assert.match(prompt, /upscaled LOSSLESSLY/, 'canvas mandate stated to the model');
   assert.match(prompt, /complete Vietnamese words/, 'no truncated labels rule');
 });
 
 test('cinema pacing v3: FX floors, settle state, and the prompt contract', () => {
-  const fx = readFileSync(new URL('../src/animation/templates/_shared.js', import.meta.url), 'utf8');
+  const fx = sourceOf('src/animation/templates/_shared.js');
   assert.match(fx, /Math\.max\(Math\.min\(0\.45, hold\*0\.5\), Math\.min\(0\.8, hold\*0\.45\)\)/, 'entrance floor 0.45–0.8s');
   assert.match(fx, /o\.out === 'settle'/, 'persistent settle state exists');
   assert.match(fx, /back\.out\(1\.5\)/, 'pop spring softened');
-  const prompt = readFileSync(new URL('../src/hyperframe/prompt.js', import.meta.url), 'utf8');
+  const prompt = sourceOf('src/hyperframe/prompt.js');
   assert.match(prompt, /SMOOTH MOTION/, 'smooth-motion contract present');
   assert.match(prompt, /out:'settle'/, 'persistence/settle semantics present');
   assert.match(prompt, /EVEN — THE ZONE BUDGET/, 'balanced-composition rule present (P41: renamed to the zone budget)');
   assert.match(prompt, /premium surfaces/, 'premium-surface bar present');
   assert.match(prompt, /ease in gently/, 'gentle entrance timing stated');
-  const warp = readFileSync(new URL('../src/animation/timewarp.js', import.meta.url), 'utf8');
+  const warp = sourceOf('src/animation/timewarp.js');
   assert.match(warp, /SLOPE_MIN = 0\.6/, 'gentler warp slope floor');
   assert.match(warp, /SLOPE_MAX = 1\.8/, 'gentler warp slope cap');
-  const sample = readFileSync(new URL('../src/styleguide/guide.js', import.meta.url), 'utf8');
+  const sample = sourceOf('src/styleguide/guide.js');
   assert.match(sample, /out: 'settle'/, 'worked example models the settle style');
 });
 
 test('motion doctrine v4: new FX vocabulary + smooth/sequential/no-breathing prompt contract', () => {
-  const fx = readFileSync(new URL('../src/animation/templates/_shared.js', import.meta.url), 'utf8');
+  const fx = sourceOf('src/animation/templates/_shared.js');
   assert.match(fx, /zoomThrough: function/, 'velocity-matched Z-cut exists');
   assert.match(fx, /jitter: function/, 'sanctioned-aliveness jitter exists');
   assert.match(fx, /targetZoom: function/, 'counter-translated target zoom exists');
@@ -178,13 +179,13 @@ test('motion doctrine v4: new FX vocabulary + smooth/sequential/no-breathing pro
   assert.match(fx, /iconSpin: function/, 'svgOrigin icon spin exists');
   assert.match(fx, /profile === 'front'/, 'camPush front-half profile exists');
   assert.match(fx, /ease:o\.ease\|\|'back\.out\(1\.5\)'/, 'beat pop ease is overridable (smooth by prompt, compat by default)');
-  const prompt = readFileSync(new URL('../src/hyperframe/prompt.js', import.meta.url), 'utf8');
+  const prompt = sourceOf('src/hyperframe/prompt.js');
   assert.match(prompt, /playful accent/, 'bounce-restraint ease doctrine stated');
   assert.match(prompt, /one main thing arriving at a time/i, 'sequential-reveal rule stated');
   assert.match(prompt, /TECHNICAL RULES/, 'technical must-not-break block present');
   assert.match(prompt, /profile:'front'/, 'camera front-profile mandated');
   assert.match(prompt, /FX\.zoomThrough/, 'seam-cut vocabulary taught');
-  const sample = readFileSync(new URL('../src/styleguide/guide.js', import.meta.url), 'utf8');
+  const sample = sourceOf('src/styleguide/guide.js');
   assert.match(sample, /profile: 'front'/, 'worked example uses the front camera profile');
   assert.match(sample, /FX\.jitter/, 'worked example models jitter aliveness');
 });
@@ -192,7 +193,7 @@ test('motion doctrine v4: new FX vocabulary + smooth/sequential/no-breathing pro
 test('font-swap flash fix: every face force-loaded before the timeline builds, no font-display swap', () => {
   // fonts.ready only waits for loads already TRIGGERED — 23/32 faces stayed unloaded and
   // could swap in mid-video (measured in Chrome). __init must force-load all of them.
-  const h = readFileSync(new URL('../src/animation/harness.js', import.meta.url), 'utf8');
+  const h = sourceOf('src/animation/harness.js');
   assert.match(h, /document\.fonts\.forEach\(\(f\) => \{ try \{ loads\.push\(f\.load\(\)\); \}/, 'force-load of every declared face');
   assert.ok(h.indexOf('Promise.allSettled(loads)') < h.indexOf('window.__fitText()'), 'faces load BEFORE fitText/SplitText measure');
   // vendor/ is gitignored (fonts are built locally) — assert only when present
@@ -200,27 +201,27 @@ test('font-swap flash fix: every face force-loaded before the timeline builds, n
     const css = readFileSync(new URL('../vendor/fonts/fonts.css', import.meta.url), 'utf8');
     assert.ok(!/font-display:\s*swap/.test(css), 'vendored fonts.css never paints fallback (block, not swap)');
   } catch (e) { if (e.code !== 'ENOENT') throw e; }
-  const gen = readFileSync(new URL('../scripts/build-fonts.mjs', import.meta.url), 'utf8');
+  const gen = sourceOf('scripts/build-fonts.mjs');
   assert.match(gen, /font-display: block/, 'the generator keeps emitting block on rebuilds');
 });
 
 test('template premium infrastructure: auto backdrop, beat pulses, FX.impact', () => {
-  const hf = readFileSync(new URL('../src/animation/templates/hyperframe.js', import.meta.url), 'utf8');
+  const hf = sourceOf('src/animation/templates/hyperframe.js');
   assert.match(hf, /function decoLayer/, 'auto set-dressing layer exists');
   assert.match(hf, /hf-dpulse/, 'beat pulse element present');
   assert.match(hf, /__hfBeats/, 'pulses wired to narration beats');
   assert.match(hf, /hfsheen/, 'underline auto-sheen present');
-  const fx = readFileSync(new URL('../src/animation/templates/_shared.js', import.meta.url), 'utf8');
+  const fx = sourceOf('src/animation/templates/_shared.js');
   assert.match(fx, /impact: function/, 'FX.impact primitive exists');
-  const prompt = readFileSync(new URL('../src/hyperframe/prompt.js', import.meta.url), 'utf8');
+  const prompt = sourceOf('src/hyperframe/prompt.js');
   assert.match(prompt, /THE STAGE/, 'model told the stage/backdrop already exists');
   assert.match(prompt, /FX\.impact/, 'impact mandated in the prompt');
-  const sample = readFileSync(new URL('../src/styleguide/guide.js', import.meta.url), 'utf8');
+  const sample = sourceOf('src/styleguide/guide.js');
   assert.match(sample, /FX\.impact/, 'worked example models the impact accent');
 });
 
 test('blueprint layouts + narrative roles wired into the direction pass', () => {
-  const d = readFileSync(new URL('../src/pipeline/direction.js', import.meta.url), 'utf8');
+  const d = sourceOf('src/pipeline/direction.js');
   for (const l of ['kinetic-type-beats', 'ticker-takeover', 'overwhelm-surround', 'pan-stations', 'titlecard-reveal']) {
     assert.ok(d.includes(`'${l}'`), `layout ${l} present`);
   }
@@ -228,12 +229,12 @@ test('blueprint layouts + narrative roles wired into the direction pass', () => 
   assert.match(d, /\[CHOREOGRAPHY\]/, 'per-element motion verbs demanded');
   assert.match(d, /at least ONE titlecard-reveal/, 'breather rule present');
   assert.match(d, /\[ROLE\] \$\{role\}/, 'role rides at the top of the brief');
-  const p = readFileSync(new URL('../src/hyperframe/prompt.js', import.meta.url), 'utf8');
+  const p = sourceOf('src/hyperframe/prompt.js');
   assert.match(p, /\[MAIN FOCUS\]/, 'codegen reads the structured visual brief');
 });
 
 test('prompt v2 + budget stage source anchors (P4/P5 intact, gate wired pre-seed)', () => {
-  const llm = readFileSync(new URL('../src/providers/llm.js', import.meta.url), 'utf8');
+  const llm = sourceOf('src/providers/llm.js');
   assert.match(llm, /Math\.ceil\(sceneCount\s*\*\s*0\.7\)/, 'P4 anchor survives prompt v2');
   assert.match(llm, /Math\.ceil\(perCh\s*\*\s*0\.6\)/, 'P4 chapter anchor survives');
   assert.equal(LANG_WPS.vi, 4.4, 'P5 anchor survives');
@@ -247,11 +248,11 @@ test('prompt v2 + budget stage source anchors (P4/P5 intact, gate wired pre-seed
   assert.match(llm, /each scene CONTINUES the previous one/, 'positive scene-to-scene linkage rule present');
   assert.match(llm, /scriptBudgetOk\(p\.scenes, wordsPerScene, language\)/, 'gross-overrun re-ask wired into validate');
   assert.match(llm, /export function wordsForSlot/, 'canonical per-scene budget formula exported');
-  const runner = readFileSync(new URL('../src/pipeline/runner.js', import.meta.url), 'utf8');
+  const runner = sourceOf('src/pipeline/runner.js');
   const iBudget = runner.indexOf('runBudgetFit(ctx)');
   const iSeed = runner.indexOf('seedEstimatedTiming(ctx)');
   assert.ok(iBudget > 0 && iSeed > iBudget, 'budget fit runs BEFORE the timing seed');
-  const budget = readFileSync(new URL('../src/pipeline/stages/budget.js', import.meta.url), 'utf8');
+  const budget = sourceOf('src/pipeline/stages/budget.js');
   assert.match(budget, /durationMode === 'auto'\) return/, 'auto mode is never trimmed');
   assert.match(budget, /input_type === 'json'\) return/, 'pasted JSON is never trimmed');
 });
@@ -273,14 +274,14 @@ test('resolution rungs land on exact even frames at every aspect ratio', async (
       assert.ok(w % 2 === 0 && h % 2 === 0, `${ar}@${s} is even`);
     }
   }
-  const ui = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
+  const ui = indexHtml();
   assert.match(ui, /id="cfgRes"[\s\S]*?value="1\.3333">2K</, 'the 2K rung is reachable from the UI');
 });
 
 test('a scene clip that came out the wrong size fails loudly', () => {
   // A long-running server holding older code rendered a 2K project at 1080p and said nothing:
   // the clips joined, the file shipped, and only ffprobe knew. Same doctrine as the font check.
-  const src = readFileSync(new URL('../src/animation/index.js', import.meta.url), 'utf8');
+  const src = sourceOf('src/animation/index.js');
   assert.match(src, /const got = await probeImageSize\(res\.path\);/);
   assert.match(src, /got\.w !== w \|\| got\.h !== h/);
   assert.match(src, /kích thước không khớp/);

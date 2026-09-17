@@ -1,0 +1,89 @@
+/* AI Video Studio — HyperFrame picker, rough-cut player, assistant sheet, scene studio. One of the per-area sheets index.html links in cascade order; the release build joins them. */
+/* ===== HyperFrame — style picker ===== */
+.hf-style-btn{display:flex;align-items:center;gap:10px;width:100%;padding:9px 12px;background:var(--surface-1);border:1px solid var(--hairline-2);border-radius:10px;color:var(--text);cursor:pointer;transition:border-color .16s var(--spring),background .16s var(--spring)}
+.hf-style-btn:hover{border-color:var(--accent);background:var(--surface-2)}
+.hfsb-sw{display:inline-flex;gap:3px}
+.hfsb-sw i{width:13px;height:13px;border-radius:4px;border:1px solid rgba(255,255,255,.18)}
+.hfsb-name{font-weight:700;font-size:13px}
+.hfsb-hint{margin-left:auto;font-size:11px;color:var(--text-3)}
+.hf-preset-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.hfp-card{border:1px solid var(--hairline-2);border-radius:12px;overflow:hidden;cursor:pointer;background:var(--surface-1);transition:transform .16s var(--spring),border-color .16s var(--spring),box-shadow .16s var(--spring)}
+.hfp-card:hover{transform:translateY(-2px);border-color:var(--accent)}
+.hfp-card.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent),0 8px 22px rgba(109,92,255,.25)}
+.hfp-demo{position:relative;height:74px;display:grid;place-items:center}
+.hfp-kw{font-weight:900;font-size:30px;letter-spacing:.02em}
+.hfp-dot{position:absolute;width:9px;height:9px;border-radius:50%}
+.hfp-dot:nth-of-type(2){left:12px;bottom:10px}
+.hfp-dot:nth-of-type(3){right:12px;top:10px}
+.hfp-name{padding:7px 10px;font-size:12px;font-weight:700;border-top:1px solid var(--hairline)}
+.hf-badge{display:inline-block;margin-left:5px;padding:1px 7px;border-radius:999px;font-size:10px;font-weight:800;color:#c9b8ff;background:rgba(109,92,255,.16);border:1px solid rgba(109,92,255,.35);vertical-align:1px}
+
+/* ---- Rough-cut player (preview before render) ---- */
+.rc-overlay{position:fixed;inset:0;z-index:120;background:rgba(4,6,12,.96);display:flex;flex-direction:column}
+.rc-overlay.hidden{display:none}
+.rc-top{display:flex;align-items:center;gap:14px;padding:10px 16px;border-bottom:1px solid rgba(120,160,255,.14)}
+.rc-title{font-weight:800}
+.rc-note{color:var(--muted,#8b93b0);font-size:12.5px}
+.rc-top .btn{margin-left:auto}
+.rc-stagewrap{flex:1;display:grid;place-items:center;overflow:hidden;min-height:0}
+.rc-stage{position:relative;transform-origin:center center;background:#000;border-radius:8px;overflow:hidden;box-shadow:0 12px 60px rgba(0,0,0,.6)}
+.rc-frame{position:absolute;inset:0;border:0;display:none;background:#000}
+.rc-frame.on{display:block}
+.rc-controls{display:flex;align-items:center;gap:12px;padding:12px 16px;border-top:1px solid rgba(120,160,255,.14)}
+.rc-controls input[type=range]{flex:1}
+.rc-time{font-variant-numeric:tabular-nums;color:var(--muted,#8b93b0);font-size:13px;white-space:nowrap}
+.badge.review{background:rgba(139,92,246,.16);color:#a78bfa}
+
+/* ---- Subtitle studio ---- */
+.srt-cue{display:flex;gap:6px;margin-top:4px}
+.srt-cue .num{width:84px;flex:0 0 auto}
+.srt-cue .txt{flex:1}
+.btn.sm{padding:4px 10px;font-size:12px}
+.input.sm{padding:4px 8px;font-size:12.5px}
+.srt-cues,.srt-takes{margin-top:6px;padding:8px;border:1px solid rgba(120,160,255,.12);border-radius:8px;background:rgba(10,14,26,.4)}
+.srt-cues.hidden,.srt-takes.hidden{display:none}
+.rc-timeline{padding:0 16px}
+.rc-timeline canvas{display:block;width:100%;height:86px;border:1px solid rgba(120,160,255,.14);border-radius:8px;background:rgba(8,11,20,.6);cursor:crosshair;touch-action:none}
+
+/* ---- Content assistant (autopilot) ---- */
+.ap-chip{display:flex;flex-direction:column;gap:2px;padding:8px 14px;border:1px solid rgba(120,160,255,.14);border-radius:10px;background:rgba(10,14,26,.4)}
+.ap-chip b{font-size:18px}
+.ap-chip span{font-size:11.5px;color:var(--muted,#8b93b0)}
+.ap-topic{display:flex;gap:8px;align-items:center;padding:8px 10px;border:1px solid rgba(120,160,255,.12);border-radius:10px;margin-top:6px}
+.ap-topic .t{font-weight:650}
+.ap-slot{display:flex;gap:10px;align-items:center;padding:6px 10px;border-bottom:1px solid rgba(120,160,255,.1);font-size:13.5px}
+.ap-slot .when{font-variant-numeric:tabular-nums;color:var(--muted,#8b93b0);white-space:nowrap}
+.ap-hist{display:flex;gap:10px;align-items:center;padding:7px 10px;border:1px solid rgba(120,160,255,.1);border-radius:10px;margin-top:6px}
+.ap-hist-main{flex:1;min-width:0}
+.ap-hist-main .t{font-weight:600;font-size:13.5px}
+.ap-hist-acts{display:flex;gap:5px;white-space:nowrap}
+.as-score{font-size:11.5px;color:var(--muted,#8b93b0);font-weight:600;letter-spacing:.02em;cursor:help}
+/* pre-create config sheet */
+.as-block{margin-bottom:12px}
+.as-radio{display:flex;gap:8px;align-items:center;padding:5px 2px;font-size:13.5px;cursor:pointer}
+.as-radio.disabled{opacity:.45;cursor:default}
+.as-radio input[type=radio]{accent-color:var(--accent,#6c8cff)}
+.as-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px}
+.as-grid label{display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--muted,#8b93b0)}
+/* ---- Scene Studio ---- */
+.ss-body{display:flex;gap:18px;align-items:flex-start}
+.ss-left{flex:0 0 auto}
+.ss-right{flex:1;min-width:0}
+.ss-frame{overflow:hidden;border-radius:12px;border:1px solid rgba(120,160,255,.18);background:#000}
+.ss-ta{width:100%;resize:vertical;line-height:1.45}
+.ss-code{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;line-height:1.5;tab-size:2;white-space:pre;overflow-x:auto}
+.ss-take{display:flex;gap:10px;align-items:center;padding:7px 10px;border:1px solid rgba(120,160,255,.1);border-radius:10px;margin-top:6px;font-size:13px}
+.ss-take span:first-child{flex:1}
+/* code editor: transparent textarea over a highlighted <pre> underlay (no deps) */
+.ss-editor{position:relative}
+.ss-editor pre{position:absolute;inset:0;margin:0;padding:10px 12px;overflow:hidden;pointer-events:none;
+  font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;line-height:1.5;tab-size:2;
+  white-space:pre;color:var(--text,#e8ecff);border:1px solid transparent;border-radius:10px}
+.ss-editor textarea{position:relative;background:transparent;color:transparent;caret-color:var(--text,#e8ecff);z-index:1}
+.ss-editor textarea::selection{background:rgba(124,140,255,.28)}
+.ss-editor pre i{font-style:normal}
+.ss-editor pre i.t{color:#7C8CFF}
+.ss-editor pre i.a{color:#69F0AE}
+.ss-editor pre i.s{color:#F7B500}
+.ss-editor pre i.c{color:#8b93b0;font-style:italic}
+@media (max-width: 900px){.ss-body{flex-direction:column}.ss-left{width:100%}}

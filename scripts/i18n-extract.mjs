@@ -1,4 +1,4 @@
-// Pull every Vietnamese string out of index.html into the catalogue, and tag its node.
+// Pull every Vietnamese string out of index.html and its partials into the catalogue, tagging each node.
 //
 // 530 text nodes and 92 attributes: doing that by hand is a guarantee of a missed one, and a
 // missed one is a Vietnamese word sitting in an otherwise Japanese interface. So it is a tool,
@@ -10,13 +10,14 @@
 // changes — which is exactly when a translation should be re-done.
 //
 //   node scripts/i18n-extract.mjs           # report what would change
-//   node scripts/i18n-extract.mjs --write   # tag index.html and write public/locales/vi.json
+//   node scripts/i18n-extract.mjs --write   # tag the markup files and write public/locales/vi.json
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
-const HTML = join(ROOT, 'public', 'index.html');
+const PUBLIC = join(ROOT, 'public');
+const HTML = join(PUBLIC, 'index.html');
 const CATALOGUE = join(ROOT, 'public', 'locales', 'vi.json');
 const WRITE = process.argv.includes('--write');
 
@@ -43,11 +44,15 @@ function scopes(html) {
   return out;
 }
 
-function run() {
-  let html = readFileSync(HTML, 'utf8');
-  const existing = JSON.parse(readFileSync(CATALOGUE, 'utf8'));
-  const found = new Map();     // key → Vietnamese source text
-  const used = new Set(Object.keys(existing));
+/** The shell and every partial it pulls in, in document order, so key collisions resolve the same way the one-file version did. */
+function documentOrder(file, out = []) {
+  out.push(file);
+  for (const m of readFileSync(file, 'utf8').matchAll(/<!--#include "([^"]+)" -->/g)) documentOrder(join(PUBLIC, m[1]), out);
+  return out;
+}
+
+/** Tag one markup file in place; `found`/`used` are shared across files so every key stays unique. */
+function tagFile(html, { found, used }) {
   const edits = [];            // { at, insert }  applied right-to-left
 
   const keyFor = (scope, text) => {
@@ -113,14 +118,21 @@ function run() {
 
   edits.sort((a, b) => b.at - a.at);
   for (const e of edits) html = html.slice(0, e.at) + e.insert + html.slice(e.at + (e.len || 0));
+  return html;
+}
+
+function run() {
+  const existing = JSON.parse(readFileSync(CATALOGUE, 'utf8'));
+  const shared = { found: new Map(), used: new Set(Object.keys(existing)) }; // key → Vietnamese source text
+  const outputs = documentOrder(HTML).map((file) => [file, tagFile(readFileSync(file, 'utf8'), shared)]);
 
   const merged = { ...existing };
-  for (const [k, v] of found) merged[k] = v;
+  for (const [k, v] of shared.found) merged[k] = v;
   const sorted = Object.fromEntries(Object.keys(merged).sort().map((k) => [k, merged[k]]));
 
-  console.log(`${found.size} strings tagged · catalogue ${Object.keys(existing).length} → ${Object.keys(sorted).length} keys`);
+  console.log(`${shared.found.size} strings tagged across ${outputs.length} files · catalogue ${Object.keys(existing).length} → ${Object.keys(sorted).length} keys`);
   if (!WRITE) return console.log('(dry run — pass --write to apply)');
-  writeFileSync(HTML, html);
+  for (const [file, html] of outputs) writeFileSync(file, html);
   writeFileSync(CATALOGUE, `${JSON.stringify(sorted, null, 2)}\n`);
   console.log('written');
 }

@@ -1,11 +1,14 @@
 // Vbee AIVoice — Vietnamese TTS SaaS (async API: submit → poll → download).
 // Docs: https://vbee.vn/api-docs (Postman: documenter.getpostman.com/view/12951168/Uz5FHbSd)
-import { writeFileSync } from 'node:fs';
+import { writeFileSync, unlinkSync } from 'node:fs';
+import { join } from 'node:path';
+import { DIRS } from '../../config/paths.js';
 import { probeDuration } from '../../media/ffmpeg.js';
 import { recordUsage } from '../../util/usage.js';
 import { failed } from '../../core/errors.js';
 
 import { m, tp } from '../../i18n/t.js';
+import { sleep } from '../../util/util.js';
 const BASE = 'https://vbee.vn/api/v1';
 
 // Common Vietnamese voice_codes (North/Central/South). Users can also type any code manually.
@@ -24,7 +27,6 @@ const CATALOG = [
   { id: 'sg_female_lantrinh_vdts_48k-fhg', name: 'Lan Trinh (Nam · nữ)', gender: 'f' },
 ];
 
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 export default {
   id: 'vbee', get name() { return m('Vbee AIVoice (tiếng Việt)'); }, free: false, needsNetwork: true,
@@ -85,8 +87,9 @@ export default {
   async testConnection(cfg) {
     if (!cfg?.token || !cfg?.appId) return { ok: false, message: m('Cần API Token + App ID (lấy tại vbee.vn → API)') };
     try {
-      const tmp = `/tmp/vbee_test_${Date.now()}.mp3`;
+      const tmp = join(DIRS.tmp, `vbee_test_${Date.now()}.mp3`); // the app's own temp dir works on Windows too
       const r = await this.synthesize('Xin chào', CATALOG[0].id, cfg, tmp); // i18n-exempt: spoken, not shown
+      try { unlinkSync(tmp); } catch { /* the sweep gets it */ }
       return { ok: true, message: tp`Kết nối OK — synth thử ${r.duration.toFixed(1)}s audio` };
     } catch (e) { return { ok: false, message: e.message.slice(0, 200) }; }
   },

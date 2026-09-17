@@ -11,7 +11,7 @@
 import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { sourceOf } from './_source.mjs';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -19,7 +19,6 @@ import { renderAnimationScene } from '../src/animation/index.js';
 import { prepareBurnFontDir } from '../src/fonts/files.js';
 import { familyReady } from '../src/fonts/registry.js';
 
-const src = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 
 const project = { id: 'nofontproj', aspect_ratio: '16:9' };
 const scene = {
@@ -50,13 +49,13 @@ test('…and a font that IS there does not', async () => {
 });
 
 test('a substitution that slips through anyway reaches the owner, not a debug log', () => {
-  const renderer = src('../src/animation/renderer.js');
+  const renderer = sourceOf('src/animation/renderer.js');
   assert.match(renderer, /fontMiss = init\.fontMiss/, 'the probe result is kept');
   assert.match(renderer, /opts\.onLog\?\.\(msg\)/, 'and travels back to the caller');
   assert.match(renderer, /duration: await probeDuration\(outPath\) \|\| duration, fontMiss/, 'and out with the result');
   // every render entry point has to pass a channel the owner actually sees
-  for (const f of ['../src/pipeline/stages/render.js', '../src/pipeline/render-only.js', '../src/pipeline/stages/finalize.js']) {
-    assert.match(src(f), /onLog: \(s\) => op\(projectId,/, `${f} forwards it to the run log`);
+  for (const f of ['src/pipeline/stages/render.js', 'src/pipeline/render-only.js', 'src/pipeline/stages/finalize.js']) {
+    assert.match(sourceOf(f), /onLog: \(s\) => op\(projectId,/, `${f} forwards it to the run log`);
   }
 });
 

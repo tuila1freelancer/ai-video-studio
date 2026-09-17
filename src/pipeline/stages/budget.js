@@ -33,7 +33,6 @@ const wordsOf = (t) => (String(t || '').match(/[\p{L}\p{N}]+/gu) || []).length;
 // severs continuity. When trimming, prefer a low-information INTERIOR sentence and keep the
 // opener (prev-bridge) and closer (next-bridge) so the reconciliation pass can't re-fracture
 // the whole-script flow the generation built.
-const CONNECTOR = /^(vì vậy|vì thế|do đó|bởi vậy|bởi thế|nhưng|vậy nên|thế nên|cho nên|và |rồi |sau đó|tiếp theo|nói cách khác|so |but |which is why|and |then )/i;
 export function pickDroppable(sentences) {
   if (sentences.length >= 3) {
     // shortest interior sentence (lowest information), never the first or last

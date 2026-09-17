@@ -1,5 +1,5 @@
 // Project rows — the top-level unit of work (topic → config → scenes → final video).
-import db from '../connection.js';
+import db, { stmt } from '../connection.js';
 import { newId, safeJson } from '../../util/util.js';
 import { activeChannelId } from './channels.js';
 
@@ -28,16 +28,36 @@ export function createProject({ title, topic, inputType, aspectRatio, config, ch
 export function getProject(id) { return rowToProject(_getProject.get(id)); }
 export function listProjects(channelId) {
   if (channelId && channelId !== 'all') {
-    return db.prepare('SELECT * FROM projects WHERE channel_id=? ORDER BY updated_at DESC').all(channelId).map(rowToProject);
+    return stmt('SELECT * FROM projects WHERE channel_id=? ORDER BY updated_at DESC').all(channelId).map(rowToProject);
   }
   return _listProjects.all().map(rowToProject);
 }
+// The list the interface renders: everything but `config` and `metadata` (1.9 MB of a 1.95 MB
+// reply on the live DB) and only the head of `topic`, which is often a whole pasted script.
+const SUMMARY_COLS = 'id,title,substr(topic,1,200) AS topic,input_type,aspect_ratio,status,current_step,video_path,thumb_path,error,channel_id,created_at,updated_at,scenes_approved_at';
+export function listProjectSummaries(channelId) {
+  if (channelId && channelId !== 'all') {
+    return stmt(`SELECT ${SUMMARY_COLS} FROM projects WHERE channel_id=? ORDER BY updated_at DESC`).all(channelId);
+  }
+  return stmt(`SELECT ${SUMMARY_COLS} FROM projects ORDER BY updated_at DESC`).all();
+}
+/** Titles for a set of ids in one query (the tasks feed used to fetch one full project per job). */
+export function projectTitles(ids) {
+  const uniq = [...new Set(ids.filter(Boolean))];
+  if (!uniq.length) return new Map();
+  const rows = stmt(`SELECT id, title FROM projects WHERE id IN (${uniq.map(() => '?').join(',')})`).all(...uniq);
+  return new Map(rows.map((r) => [r.id, r.title]));
+}
+/** `{ status: count }` without loading a single row's JSON. */
+export function projectCountsByStatus() {
+  return Object.fromEntries(stmt('SELECT status, COUNT(*) n FROM projects GROUP BY status').all().map((r) => [r.status, r.n]));
+}
 export function deleteProject(id) { _delProject.run(id); }
-export function deleteAllProjects() { db.prepare('DELETE FROM projects').run(); }
+export function deleteAllProjects() { stmt('DELETE FROM projects').run(); }
 // Boot recovery: a project can only be 'running' while a pipeline holds it in-process,
 // so any 'running' rows at startup are crash leftovers → flip to 'paused' (Resume-able).
 export function recoverZombieProjects() {
-  return db.prepare("UPDATE projects SET status='paused' WHERE status='running'").run().changes;
+  return stmt("UPDATE projects SET status='paused' WHERE status='running'").run().changes;
 }
 
 // ---- durable stop ----------------------------------------------------------------------
@@ -49,20 +69,20 @@ export function recoverZombieProjects() {
 // run is deliberately started again, and when a run settles as paused.
 
 export function markStopRequested(id) {
-  return db.prepare('UPDATE projects SET stop_requested_at=? WHERE id=?').run(Date.now(), id).changes;
+  return stmt('UPDATE projects SET stop_requested_at=? WHERE id=?').run(Date.now(), id).changes;
 }
 
 export function clearStopRequest(id) {
-  return db.prepare('UPDATE projects SET stop_requested_at=NULL WHERE id=?').run(id).changes;
+  return stmt('UPDATE projects SET stop_requested_at=NULL WHERE id=?').run(id).changes;
 }
 
 export function stopRequestedAt(id) {
-  return db.prepare('SELECT stop_requested_at FROM projects WHERE id=?').get(id)?.stop_requested_at ?? null;
+  return stmt('SELECT stop_requested_at FROM projects WHERE id=?').get(id)?.stop_requested_at ?? null;
 }
 
 /** Every project with a stop still pending — used to rehydrate the signal at boot. */
 export function stopRequestedProjects() {
-  return db.prepare('SELECT id FROM projects WHERE stop_requested_at IS NOT NULL').all().map((r) => r.id);
+  return stmt('SELECT id FROM projects WHERE stop_requested_at IS NOT NULL').all().map((r) => r.id);
 }
 
 export function updateProject(id, fields) {
@@ -77,6 +97,6 @@ export function updateProject(id, fields) {
   }
   if (!sets.length) return getProject(id);
   vals.id = id; vals.updated_at = Date.now();
-  db.prepare(`UPDATE projects SET ${sets.join(',')}, updated_at=@updated_at WHERE id=@id`).run(vals);
+  stmt(`UPDATE projects SET ${sets.join(',')}, updated_at=@updated_at WHERE id=@id`).run(vals);
   return getProject(id);
 }

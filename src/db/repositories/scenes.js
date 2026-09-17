@@ -1,5 +1,5 @@
 // Scene rows — one narrated beat of a project (voice, visual spec, timing, clip path).
-import db from '../connection.js';
+import db, { stmt } from '../connection.js';
 import { newId, safeJson } from '../../util/util.js';
 
 const _insScene = db.prepare(`INSERT INTO scenes
@@ -30,6 +30,21 @@ export function replaceScenes(projectId, scenes) {
   return getScenes(projectId);
 }
 export function getScenes(projectId) { return _listScenes.all(projectId).map(rowToScene); }
+/**
+ * A scene as a LIST needs it: the generated page (`props.html/css/script/guide`, ~8 KB a row)
+ * and the fingerprint stay behind; the beat count survives as `hfBeats`. A 200-scene project
+ * measured 2.0 MB → 0.6 MB. `_lite` marks the shape so nothing writes it back over the full row.
+ */
+export function liteScene(s) {
+  if (!s) return s;
+  const { fp: _fp, keywords: _kw, assets: _as, props, ...rest } = s;
+  const lite = { ...rest, hfBeats: Array.isArray(props?.beats) ? props.beats.length : null };
+  if (props) {
+    const { html: _h, css: _c, script: _s, guide: _g, beats: _b, ...keep } = props;
+    lite.props = { ...keep, _lite: true };
+  } else lite.props = props;
+  return lite;
+}
 export function getScene(id) { return rowToScene(_getScene.get(id)); }
 export function updateScene(id, fields) {
   const allowed = ['idx', 'voice_text', 'visual_prompt', 'keywords', 'image_path', 'audio_path', 'srt_path', 'srt_json', 'html_path', 'video_path', 'duration', 'status', 'error', 'template', 'props', 'fp', 'assets'];
@@ -43,6 +58,6 @@ export function updateScene(id, fields) {
   }
   if (!sets.length) return getScene(id);
   vals.id = id;
-  db.prepare(`UPDATE scenes SET ${sets.join(',')} WHERE id=@id`).run(vals);
+  stmt(`UPDATE scenes SET ${sets.join(',')} WHERE id=@id`).run(vals);
   return getScene(id);
 }

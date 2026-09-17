@@ -58,7 +58,3 @@ export function deviceInfo(appVersion) {
   };
 }
 
-/** Test seam: forget the memoised id. */
-export function resetDeviceCache() {
-  cached = null;
-}

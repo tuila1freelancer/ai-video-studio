@@ -3,7 +3,8 @@
 import { logger } from './log.js';
 
 import { tp } from '../i18n/t.js';
-export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+import { sleep } from './util.js';
+export { sleep };
 
 /**
  * withRetry(fn, opts) — run fn() up to `tries` times.

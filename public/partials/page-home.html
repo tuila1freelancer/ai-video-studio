@@ -1,0 +1,34 @@
+    <section class="page active" id="page-home">
+      <div class="home-mesh" aria-hidden="true"><i class="m1"></i><i class="m2"></i><i class="m3"></i></div>
+      <div class="gallery">
+        <div class="home-hero">
+          <h1 class="home-title"><span data-i18n="ui.page-home.bien-y-tuong-thanh-video">Biến ý tưởng thành video</span><span class="grad-text" data-i18n="ui.page-home.trong-mot-cham"> trong một chạm</span></h1>
+          <div class="sub" data-i18n="ui.page-home.kich-ban-giong-doc-phu">Kịch bản · giọng đọc · phụ đề karaoke · nhạc nền · dựng cảnh motion-graphics — tất cả tự động.</div>
+          <div class="hero cmdbar">
+            <textarea id="heroTopic" class="input" rows="3" placeholder="Nhập chủ đề video... vd: 5 thói quen buổi sáng của người thành công" data-i18n-placeholder="ui.page-home.nhap-chu-de-video-vd"></textarea>
+            <div class="cmdbar-row">
+              <select id="heroAr" class="input">
+                <option value="9:16">9:16 — TikTok / Reels / Shorts</option>
+                <option value="16:9">16:9 — YouTube</option>
+                <option value="1:1" data-i18n="ui.heroAr.1-1-vuong">1:1 — Vuông</option>
+                <option value="4:5">4:5 — Instagram</option>
+              </select>
+              <span class="flex-spacer"></span>
+              <button class="btn big" id="heroTasks" title="Mọi tác vụ đang chờ / đang chạy / gần đây trên tất cả dự án" data-i18n="ui.page-home.tac-vu" data-i18n-title="ui.page-home.moi-tac-vu-dang-cho">🗂 Tác vụ</button>
+              <button class="btn big" id="heroBatch" title="Nhiều chủ đề — tự chạy lần lượt" data-i18n="ui.page-home.hang-loat" data-i18n-title="ui.page-home.nhieu-chu-de-tu-chay">Hàng loạt</button>
+              <button class="btn big" id="heroAutopilot" title="Gợi ý chủ đề theo xu hướng + lịch đăng + tổng quan hệ thống" data-i18n="ui.page-home.tro-ly" data-i18n-title="ui.page-home.goi-y-chu-de-theo">🛰 Trợ lý</button>
+              <button class="btn primary big" id="heroGo" data-i18n="ui.page-home.tao-video-tu-dong">Tạo video tự động</button>
+            </div>
+            <div class="hint" data-i18n="ui.page-home.tu-dong-dung-canh-gsap">Tự động: dựng cảnh GSAP · giọng đọc neural · phụ đề karaoke · nhạc nền · metadata.</div>
+          </div>
+        </div>
+        <div class="home-sec-head">
+          <div class="row"><h2 class="home-sec-title" data-i18n="ui.page-home.video-cua-ban">Video của bạn</h2><span class="badge" id="galleryCount"></span></div>
+          <div class="gtabs">
+            <button class="gtab active" data-cat="short" data-i18n="ui.page-home.short-doc">Short (dọc)</button>
+            <button class="gtab" data-cat="landscape" data-i18n="ui.page-home.landscape">Landscape</button>
+          </div>
+        </div>
+        <div class="ggrid" id="galleryGrid"></div>
+      </div>
+    </section>

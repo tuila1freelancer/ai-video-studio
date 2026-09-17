@@ -1,0 +1,19 @@
+<div class="modal-bg" id="hfStyleModal" role="dialog" aria-modal="true">
+  <div class="modal" style="max-width:680px">
+    <h2><span data-i18n="ui.hfStyleModal.phong-cach-video-hyperframe">✨ Phong cách video HyperFrame</span> <button class="x" data-close>×</button></h2>
+    <div class="hint mb-10" data-i18n="ui.hfStyleModal.mot-phong-cach-ap-cho">Một phong cách áp cho cả video: bảng màu, chữ, nền và tính cách chuyển động. AI phải tuân theo ở mọi cảnh.</div>
+    <div class="hf-preset-grid" id="hfPresetGrid"></div>
+    <div class="hf-ai-row">
+      <div class="label" style="margin:14px 0 6px" data-i18n="ui.hfStyleModal.hoac-de-ai-tu-thiet">🎨 Hoặc để AI tự thiết kế theo mô tả</div>
+      <div class="row" style="gap:8px;align-items:stretch">
+        <input class="input flex-1" id="hfDescribe" placeholder="vd: tối giản kiểu Apple, nền kem, chữ đen lớn, nhấn cam đất…" data-i18n-placeholder="ui.hfStyleModal.vd-toi-gian-kieu-apple">
+        <button class="btn" id="btnHfGenerate" data-i18n="ui.hfStyleModal.thiet-ke">Thiết kế</button>
+      </div>
+      <div class="hint mt-6" id="hfGenNote"></div>
+    </div>
+    <div class="row mt-14" style="justify-content:space-between">
+      <button class="btn" id="btnHfSaveChannel" title="Mọi video mới của kênh sẽ dùng phong cách này" data-i18n="ui.hfStyleModal.dat-lam-phong-cach-cua" data-i18n-title="ui.hfStyleModal.moi-video-moi-cua-kenh">💾 Đặt làm phong cách của kênh</button>
+      <button class="btn primary" data-close data-i18n="ui.hfStyleModal.xong">Xong</button>
+    </div>
+  </div>
+</div>

@@ -5,10 +5,7 @@ import { join } from 'node:path';
 import * as DB from '../db/index.js';
 import { hub } from '../ws/hub.js';
 import { newId } from '../util/util.js';
-import { synthesizeVoice } from '../providers/tts.js';
-import { buildSubtitles } from '../providers/subtitle.js';
-import { normalizeForTts, moodOf } from '../providers/tts-normalize.js';
-import { normalizeVoice } from '../media/ffmpeg.js';
+import { voiceScene } from './voice.js';
 import { resolveLang, padMsFor } from '../util/lang.js';
 import { generateSceneDirection } from './direction.js';
 import { generateSceneSpec } from '../hyperframe/codegen.js';
@@ -40,13 +37,10 @@ export async function regenOne(sceneId, what) {
     // the WHOLE video's language, exactly as B3+4 resolves it — a re-recorded scene must not
     // land on a different voice than the ones around it
     const lang = resolveLang(config, DB.getScenes(project.id));
-    // parity with stages/tts.js: normalized speech, prosody hint, provider word timestamps
-    const speakText = normalizeForTts(sc.voice_text || ' ', { lang, lexicon: ttsOverride?.lexicon || ai.tts?.lexicon });
-    const r = await synthesizeVoice(speakText, audioOut, { ttsOverride, style: moodOf(sc, total), lang });
-    const padMs = padMsFor(lang);
-    const { path, duration } = await normalizeVoice(r.path, audioOut.replace(/\.m4a$/, '_n.m4a'), { padMs });
-    const sub = await buildSubtitles(path, sc.voice_text || '', Math.max(0.3, duration - padMs / 1000), { language: lang, engine: ai.subtitle?.engine, words: r.words });
-    DB.updateScene(sc.id, { audio_path: path, duration, srt_json: sub.cues, status: 'tts', video_path: null,
+    const { path, duration, cues } = await voiceScene(sc, {
+      lang, padMs: padMsFor(lang), ai, ttsOverride, total, audioOut, normOut: audioOut.replace(/\.m4a$/, '_n.m4a'),
+    });
+    DB.updateScene(sc.id, { audio_path: path, duration, srt_json: cues, status: 'tts', video_path: null,
       fp: fpStamp(sc, 'tts', ttsFingerprint(sc, { config, channel, ai })) });
     DB.snapshotTake(DB.getScene(sc.id), 'voice', { active: true });
     hub.toProject(project.id, { type: 'scene', sceneId: sc.id, idx: sc.idx, status: 'tts', duration });

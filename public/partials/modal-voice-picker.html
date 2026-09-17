@@ -1,0 +1,22 @@
+<div class="modal-bg" id="voicePickerModal" role="dialog" aria-modal="true">
+  <div class="modal" style="max-width:640px">
+    <h2><span data-i18n="ui.voicePickerModal.kho-giong-doc">🎙 Kho giọng đọc</span> <button class="x" data-close>×</button></h2>
+    <div class="row mb-8">
+      <input class="input flex-1" id="vpSearch" placeholder="🔎 Tìm tên giọng… (vd: HoaiMy, Ngọc Huyền)" data-i18n-placeholder="ui.voicePickerModal.tim-ten-giong-vd-hoaimy">
+      <button class="btn sm" id="vpRefresh" title="Tải lại danh sách" data-i18n-title="ui.voicePickerModal.tai-lai-danh-sach">↻</button>
+    </div>
+    <div class="row wrap mb-6" id="vpLangChips"></div>
+    <div class="row wrap mb-10">
+      <span id="vpProvChips" class="row wrap" style="gap:6px"></span>
+      <span class="flex-1"></span>
+      <select class="input" id="vpGender" style="max-width:110px">
+        <option value="" data-i18n="ui.vpGender.gioi-tinh">Giới tính</option><option value="f" data-i18n="ui.vpGender.nu">Nữ</option><option value="m" data-i18n="ui.vpGender.nam">Nam</option>
+      </select>
+    </div>
+    <div class="row mb-8">
+      <input class="input flex-1" id="vpCustomText" placeholder="✏️ Câu nghe thử tuỳ ý (bỏ trống = câu mẫu)" style="font-size:12px" data-i18n-placeholder="ui.voicePickerModal.cau-nghe-thu-tuy-y">
+    </div>
+    <div id="vpList" style="max-height:44vh;overflow:auto;border:1px solid var(--border);border-radius:8px"></div>
+    <div class="hint mt-8"><span data-i18n="ui.voicePickerModal.nghe-thu-ghim">▶ nghe thử · ⭐ ghim ·</span> <strong data-i18n="ui.voicePickerModal.chon">Chọn</strong> <span data-i18n="ui.voicePickerModal.dat-lam-giong-mac-dinh">= đặt làm giọng mặc định cho ngôn ngữ của giọng đó.</span></div>
+  </div>
+</div>

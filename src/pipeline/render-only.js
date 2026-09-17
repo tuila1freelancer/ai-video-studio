@@ -8,7 +8,7 @@ import { aiSettingsFor } from '../core/config.js';
 import { hub } from '../ws/hub.js';
 import { ratioToSize } from '../util/util.js';
 import { renderAnimationScene } from '../animation/index.js';
-import { clearStop, checkStop } from './stop.js';
+import { abortSignalFor, clearStop, checkStop } from './stop.js';
 import { step, op, progressPlan } from './progress.js';
 import { jlog } from './journal.js';
 import { mapPool } from './helpers.js';
@@ -121,6 +121,7 @@ export async function renderOnly(projectId, { mode = 'all', sceneIds = [], confi
         const r = await renderAnimationScene(sc, project, config, {
           dir: join(dir, 'render'), progressStart: pp.offsets[sc.idx] || 0, progressTotal: pp.total, total: allScenes.length,
           onLog: (s) => op(projectId, tp`cảnh ${sc.idx + 1}: ${s}`),
+          signal: abortSignalFor(projectId),
         });
         const { path, duration, preview } = r;
         // STAMP the clip. Without this the fresh file keeps the OLD fingerprint, so the skip above

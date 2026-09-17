@@ -3,7 +3,7 @@
 import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { sourceOf } from './_source.mjs';
 import { estimateSpeechDuration, estimateWordTiming } from '../src/providers/subtitle.js';
 import { LANG_WPS } from '../src/providers/llm.js';
 import { templateTimeScale } from '../src/animation/index.js';
@@ -57,7 +57,7 @@ test('harness + FX run template layers in authored coordinates, captions on real
 });
 
 test('runner order: visuals precede TTS; estimate seed precedes visuals', () => {
-  const s = readFileSync(new URL('../src/pipeline/runner.js', import.meta.url), 'utf8');
+  const s = sourceOf('src/pipeline/runner.js');
   const iSeed = s.indexOf('seedEstimatedTiming(ctx)');
   const iVis = s.indexOf('await runVisuals(ctx)');
   const iTts = s.indexOf('await runTts(ctx)');
@@ -76,20 +76,20 @@ test('review-hardened invariants: warp is hyperframe-only, gate needs unvoiced w
   const html = buildSceneHtml(scene, { aspect_ratio: '9:16', title: 't' }, { visualMode: 'hyperframe' }, {});
   assert.match(html, /"tplScale":1/, 'a non-hyperframe fallback template rebuilds at real duration — no warp');
   // 2. the gate only holds while there is unspent TTS to protect (repurposed projects skip it)
-  const runner = readFileSync(new URL('../src/pipeline/runner.js', import.meta.url), 'utf8');
+  const runner = sourceOf('src/pipeline/runner.js');
   assert.match(runner, /scenes_approved_at\s*\n?\s*&& DB\.getScenes\(projectId\)\.some\(\(s\) => !s\.audio_path\)/);
   // 3. a regenerated script revokes any prior approval (fresh storyboard = fresh review)
-  const script = readFileSync(new URL('../src/pipeline/stages/script.js', import.meta.url), 'utf8');
+  const script = sourceOf('src/pipeline/stages/script.js');
   assert.match(script, /scenes_approved_at:\s*null/);
   // 4. approve route only accepts a project actually holding at the gate
-  const routes = readFileSync(new URL('../src/api/routes.js', import.meta.url), 'utf8');
+  const routes = sourceOf('src/api/routes.js');
   assert.match(routes, /status !== 'scenes'\) return res\.status\(409\)/);
   // 5. render-only never concats while any scene is unvoiced (finalize repair would bake
   //    silent estimate-length clips)
-  const ro = readFileSync(new URL('../src/pipeline/render-only.js', import.meta.url), 'utf8');
+  const ro = sourceOf('src/pipeline/render-only.js');
   assert.match(ro, /stillUnvoiced/);
   assert.match(ro, /\['scenes', 'review'\]\.includes\(project\.status\)/, 'holds survive a render-only run');
   // 6. editorial never rewrites text after the timing seed bound visuals to it
-  const ed = readFileSync(new URL('../src/pipeline/stages/editorial.js', import.meta.url), 'utf8');
+  const ed = sourceOf('src/pipeline/stages/editorial.js');
   assert.match(ed, /s\.audio_path \|\| s\.srt_json/);
 });

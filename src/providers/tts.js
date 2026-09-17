@@ -14,6 +14,7 @@ import { logger } from '../util/log.js';
 import { detectLang } from '../util/lang.js';
 
 import { m, tp } from '../i18n/t.js';
+import { sleep } from '../util/util.js';
 // Re-exported so existing importers of detectLang keep working.
 export { detectLang };
 
@@ -110,7 +111,6 @@ async function synthWith(pid, voice, text, s, outPath, style, lang) {
   throw lastErr;
 }
 
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // Main entry. Always returns { path, duration, provider, fallback } — falls back rather than
 // throwing. VOICE LOCK: the chosen voice defines the video's identity, so the primary target

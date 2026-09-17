@@ -15,10 +15,11 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import vm from 'node:vm';
+import { indexHtml } from './_source.mjs';
 
 const REPO = dirname(dirname(fileURLToPath(import.meta.url)));
 const SRC = readFileSync(join(REPO, 'public', 'js', 'views', 'guide.js'), 'utf8');
+const CONTENT = readFileSync(join(REPO, 'public', 'guide', 'sections.json'), 'utf8');
 
 // Required fields per block type, mirroring what each renderer in BLOCK reads.
 const NEEDS = {
@@ -27,11 +28,11 @@ const NEEDS = {
   note: ['kind', 'text'],
 };
 
+// Strict JSON is the authored source now (public/guide/sections.json); a stray comment breaks it here first.
 function sections() {
-  const from = SRC.indexOf('const SECTIONS = [');
-  const to = SRC.indexOf('\n];', from);
-  assert.ok(from > 0 && to > from, 'SECTIONS array not found in guide.js');
-  return vm.runInNewContext(`${SRC.slice(from, to + 3)}\nSECTIONS`);
+  const parsed = JSON.parse(CONTENT);
+  assert.ok(Array.isArray(parsed) && parsed.length, 'sections.json holds no chapters');
+  return parsed;
 }
 
 test('every guide block is one the renderer can draw', () => {
@@ -89,7 +90,7 @@ test('every "open that screen" button names an action the guide implements', () 
 });
 
 test('the guide page markup carries the hooks the renderer writes into', () => {
-  const html = readFileSync(join(REPO, 'public', 'index.html'), 'utf8');
+  const html = indexHtml();
   for (const id of ['gdNav', 'gdBody', 'gdSearch', 'gdCount', 'gdMore', 'gdEmpty']) {
     assert.ok(html.includes(`id="${id}"`), `index.html is missing #${id}`);
   }

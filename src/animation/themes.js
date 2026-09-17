@@ -40,4 +40,3 @@ export const THEMES = {
 };
 
 export function getTheme(id) { return THEMES[id] || THEMES['neon-tech']; }
-export function accentFor(theme, idx) { return theme.accents[(idx || 0) % theme.accents.length]; }

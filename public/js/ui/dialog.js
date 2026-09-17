@@ -99,7 +99,7 @@ export function menuDialog({ title, items }) {
  * cover that — you cannot fix a typo in a caption you never saw.
  * @returns {Promise<{caption,title,when}|null>} `when` is unix SECONDS, or null for "now".
  */
-export function publishDialog({ title = m('Đăng video'), platform = 'facebook', caption = '', postTitle = '', canSchedule = true }) {
+export function publishDialog({ title = m('Đăng video'), caption = '', postTitle = '', canSchedule = true }) {
   const QUICK = [
     { id: '', label: m('Đăng ngay') },
     { id: '1h', label: m('+1 giờ') },

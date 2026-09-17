@@ -6,11 +6,10 @@
 import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { sourceOf } from './_source.mjs';
 import { SAMPLE_SPEC } from '../src/styleguide/index.js';
 import { viewportBlock, overlayBlock } from '../src/hyperframe/prompt.js';
 
-const src = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 
 /** Which of the 9 zones each slot's anchor point falls in. */
 function slotZones(html) {
@@ -43,11 +42,11 @@ test('P41: no subtitle rule may evict a third of the frame', () => {
   assert.match(on, /do NOT leave the bottom of the frame empty/i, 'the bottom must still be used');
   // edit-video reserves nothing at all
   assert.ok(!/KEEP THE BOTTOM/.test(overlayBlock({ edit: true })), 'edit mode reserves no band');
-  assert.match(src('../src/hyperframe/prompt.js'), /an empty bottom strip is a worse mistake than a busy one/);
+  assert.match(sourceOf('src/hyperframe/prompt.js'), /an empty bottom strip is a worse mistake than a busy one/);
 });
 
 test('P41: the validator measures zones by PRESENCE, and stays advisory', () => {
-  const v = src('../src/hyperframe/validate.js');
+  const v = sourceOf('src/hyperframe/validate.js');
   assert.match(v, /const zones=\[0,0,0,0,0,0,0,0,0\], zoneEls=/, 'ink share AND an anchor count per zone');
   assert.match(v, /zones:zones\.map\(z=>\+\(z\/zTotal\)\.toFixed\(3\)\),zoneEls/, 'both reach the caller');
   // a zone is dead only when it has NO anchor and almost no ink — ink alone flags good frames
@@ -62,7 +61,7 @@ test('P41: the validator measures zones by PRESENCE, and stays advisory', () => 
 });
 
 test('P41: the doctrine is countable, and size no longer masquerades as position', () => {
-  const p = src('../src/hyperframe/prompt.js');
+  const p = sourceOf('src/hyperframe/prompt.js');
   // named zones + a quota the model can evaluate on its own draft
   assert.match(p, /TL TC TR \/ ML MC MR \/ BL BC BR/, 'the nine zones are NAMED, not merely described');
   assert.match(p, /at least 7 of the 9 zones hold an anchor/);
@@ -86,5 +85,5 @@ test('P41: SAFE_CENTER no longer reads as "where the composition lives"', () => 
   assert.match(vp, /FOOTPRINT CEILING for ONE construction/);
   assert.match(vp, /MAXIMA AND MARGINS/, 'thresholds cap size, they do not nominate a destination');
   assert.match(vp, /misread a maximum as a target/);
-  assert.match(src('../src/hyperframe/prompt.js'), /SIZE IS NOT POSITION/);
+  assert.match(sourceOf('src/hyperframe/prompt.js'), /SIZE IS NOT POSITION/);
 });

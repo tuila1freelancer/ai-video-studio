@@ -10,11 +10,11 @@
 import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { sourceOf } from './_source.mjs';
 import { classifyCta, auditCtas, stripCtaSentences } from '../src/content/cta-audit.js';
 import {
   buildMasterPrompt, batchNoteFor, ctaPlanFor, normalizeChapters, planScenes,
-  generateMasterScenes, VISUAL_BRACKETS,
+  generateMasterScenes,
 } from '../src/content/master-script.js';
 import { scoreScript } from '../src/content/scorer.js';
 
@@ -178,7 +178,7 @@ test('P33 scorer: farewell/cta-excess/hook-weak/idea-repeat/anchorless fire corr
 });
 
 test('P33 editorial: instruction table covers every new defect type + chunked drain + strip floor', () => {
-  const src = readFileSync(new URL('../src/pipeline/stages/editorial.js', import.meta.url), 'utf8');
+  const src = sourceOf('src/pipeline/stages/editorial.js');
   for (const t of ['farewell', 'cta-excess', 'cta-cluster', 'idea-repeat', 'hook-weak', 'anchorless', 'seam', 'arc-unresolved']) {
     assert.ok(src.includes(`- ${t}:`), `FIX_RULES entry for ${t}`);
   }
@@ -189,7 +189,7 @@ test('P33 editorial: instruction table covers every new defect type + chunked dr
 });
 
 test('P33 source pin: the shared head no longer force-feeds closing CTAs to batches', () => {
-  const src = readFileSync(new URL('../src/content/master-script.js', import.meta.url), 'utf8');
+  const src = sourceOf('src/content/master-script.js');
   assert.match(src, /partial = !!batchNote/, 'partial-span switch exists');
   assert.match(src, /enforceCtaFloor/, 'deterministic floor wired into the pipeline shape');
   assert.match(src, /generateOutline/, 'pinned outline for batched videos');

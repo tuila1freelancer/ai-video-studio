@@ -8,8 +8,10 @@ import { m, tp } from '../i18n.js';
 const vpFilter = { q: '', lang: '', gender: '', provider: '' };
 let vpAudio = null, vpPlayingId = null;
 
+let wired = false;
 export function initVoicePicker() {
-  $('#btnOpenVoicePicker').addEventListener('click', openVoicePicker);
+  if (wired) return;
+  wired = true;
   // search debounced 200ms — one list render per pause, not per keystroke
   let debT = null;
   $('#vpSearch').addEventListener('input', () => {
@@ -41,6 +43,7 @@ export function initVoicePicker() {
 }
 
 export function openVoicePicker() {
+  initVoicePicker();
   $('#voicePickerModal').classList.add('open');
   renderVpChips(); renderVpList();
 }
@@ -64,7 +67,7 @@ function renderVpChips() {
 }
 function renderVpList() {
   const favs = new Set(state.settings?.tts?.favVoices || []);
-  let list = state.voiceCatalog.filter((v) =>
+  const list = state.voiceCatalog.filter((v) =>
     (!vpFilter.lang || v.lang === vpFilter.lang)
     && (!vpFilter.gender || v.gender === vpFilter.gender)
     && (!vpFilter.provider || v.provider === vpFilter.provider)
@@ -86,7 +89,7 @@ function renderVpList() {
       <button class="btn sm ghost vp-fav" data-k="${esc(key)}" title="${esc(m('Ghim'))}">${favs.has(key) ? '⭐' : '☆'}</button>
       <button class="btn sm primary vp-pick" data-p="${v.provider}" data-v="${esc(v.id)}" data-l="${v.lang}">${esc(m('Chọn'))}</button>
     </div>`;
-  }).join('') + (list.length > 150 ? `<div class="hint" style="padding:10px">${esc(tp`…còn ${list.length - 150} giọng — thu hẹp bộ lọc để xem.`)}</div>` : '');
+  }).join('') + (list.length > CAP ? `<div class="hint" style="padding:10px">${esc(tp`…còn ${list.length - CAP} giọng — thu hẹp bộ lọc để xem.`)}</div>` : '');
 }
 // play-state change touches only the two affected buttons — no list re-render mid-audio
 function syncPlayGlyphs() {

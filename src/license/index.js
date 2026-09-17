@@ -226,11 +226,6 @@ export function startLicenseLoop() {
   timer.unref?.();
 }
 
-export function stopLicenseLoop() {
-  if (timer) clearInterval(timer);
-  timer = null;
-}
-
 let version = null;
 /** Set once at boot so device info and update checks report the running version. */
 export function setAppVersion(v) {

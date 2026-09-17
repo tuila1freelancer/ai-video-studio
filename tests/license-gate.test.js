@@ -7,12 +7,11 @@
 import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { sourceOf } from './_source.mjs';
 import { licenseGate } from '../src/license/gate.js';
 import { bypassed, status } from '../src/license/index.js';
 import { maskKey } from '../src/license/store.js';
 
-const src = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 
 function call(path) {
   const res = { code: 200, body: null, status(c) { this.code = c; return this; }, json(b) { this.body = b; return this; } };
@@ -63,18 +62,18 @@ test('the developer bypass cannot survive being shipped', (t) => {
   // AVS_DIST is set by the Swift launcher, inside the app, before node starts — a customer
   // cannot unset it without repackaging the bundle, at which point they have edited the source
   // anyway and the deterrent has done its job.
-  assert.match(src('../shell/build-app.sh'), /AVS_DIST/);
+  assert.match(sourceOf('shell/build-app.sh'), /AVS_DIST/);
 });
 
 test('a locked copy stops taking new work but never kills a running render', () => {
-  const sched = src('../src/pipeline/scheduler.js');
+  const sched = sourceOf('src/pipeline/scheduler.js');
   assert.match(sched, /if \(!licensed\(\)\) \{\s*\n\s*scheduleTick\(60_000\);\s*\n\s*return;/);
   // The guard sits ahead of claimNextJob and touches nothing that is already running: cutting a
   // customer's video off halfway destroys work they have already paid for.
   assert.ok(sched.indexOf('if (!licensed())') < sched.indexOf('DB.claimNextJob'));
   assert.ok(!/running\.(clear|delete)\(\)/.test(sched.slice(sched.indexOf('if (!licensed())'), sched.indexOf('promoteDueSlots();'))));
 
-  const server = src('../src/server.js');
+  const server = sourceOf('src/server.js');
   assert.match(server, /if \(isRunnable\(license\.status\(\)\)\) \{\s*\n\s*startScheduler\(\);/);
   // …and activating must not mean restarting the app.
   assert.match(server, /license\.licenseEvents\.on\('change'/);
@@ -82,7 +81,7 @@ test('a locked copy stops taking new work but never kills a running render', () 
 });
 
 test('the gate stands in front of every route, not the ones somebody remembered', () => {
-  const routes = src('../src/api/routes.js');
+  const routes = sourceOf('src/api/routes.js');
   const mount = routes.indexOf('const r = express.Router();');
   assert.ok(routes.indexOf('r.use(licenseGate);') > mount);
   assert.ok(routes.indexOf('r.use(licenseGate);') < routes.indexOf("r.get('/health'"));
@@ -93,9 +92,9 @@ test('the version has one source', () => {
   // ship three different answers to "what version am I?".
   // Read off ROOT, not this file's own directory: a release collapses the whole server into one
   // file at the payload root, where "one directory up" points outside the payload entirely.
-  assert.match(src('../src/server.js'), /JSON\.parse\(readFileSync\(join\(ROOT, 'package\.json'\), 'utf8'\)\)\.version/);
-  assert.ok(!/const VERSION = '\d/.test(src('../src/server.js')));
-  assert.match(src('../shell/build-app.sh'), /package\.json/);
+  assert.match(sourceOf('src/server.js'), /JSON\.parse\(readFileSync\(join\(ROOT, 'package\.json'\), 'utf8'\)\)\.version/);
+  assert.ok(!/const VERSION = '\d/.test(sourceOf('src/server.js')));
+  assert.match(sourceOf('shell/build-app.sh'), /package\.json/);
 });
 
 test('a tampered copy locks even a build with no store wired in', async (t) => {
@@ -126,5 +125,5 @@ test('a tampered copy locks even a build with no store wired in', async (t) => {
 test('nothing user-facing ever prints a whole licence key', () => {
   assert.equal(maskKey('TOOLS-A1B2-C3D4-E5F6-G7H8'), 'TOOLS-••••-••••-••••-G7H8');
   assert.equal(maskKey(null), null);
-  assert.match(src('../src/license/index.js'), /key: maskKey\(s\.key\)/);
+  assert.match(sourceOf('src/license/index.js'), /key: maskKey\(s\.key\)/);
 });

@@ -1,18 +1,25 @@
 // AI Video Studio — backend entry. Express + WebSocket + static SPA.
 import express from 'express';
+import compression from 'compression';
 import http from 'node:http';
 import { join } from 'node:path';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { hub } from './ws/hub.js';
 import { bindHub, logger } from './util/log.js';
+import { openLogFile } from './util/log-file.js';
+import { sweepStale } from './util/sweep.js';
+import { assembleIndex } from './util/html-include.js';
+import { createHash } from 'node:crypto';
 import { ensureDirs, DIRS, ROOT } from './config/paths.js';
 import { mountRoutes } from './api/routes.js';
+import { errorHandler, processHealth } from './api/http.js';
 import { setUiLang } from './i18n/t.js';
-import { getSetting } from './db/index.js';
+import db, { getSetting } from './db/index.js';
 
 // Both of these hang off ROOT rather than this file's own location: a release bundles the whole
 // server into one file, so "one directory up from here" stops meaning what it means in the repo.
-const PUBLIC_DIR = join(ROOT, 'public');
+// AVS_PUBLIC_DIR points the dev server at a built payload, which is how a release is smoke-tested.
+const PUBLIC_DIR = process.env.AVS_PUBLIC_DIR || join(ROOT, 'public');
 // One source for the version: package.json. It used to be spelled out here, in package.json AND
 // in the build script's Info.plist, so a release could ship three different answers.
 const VERSION = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).version;
@@ -23,6 +30,7 @@ const VERSION = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).ver
 // any run), so they stay exactly where they are; only their container changed.
 async function boot() {
   ensureDirs();
+  openLogFile(join(DIRS.data, 'logs'));
   bindHub(hub);
   await import('./pipeline/journal.js'); // P32 journal: bindJournal before any logger fanout
   await import('./core/metering.js'); // cost meter: subscribe to provider usage before any run
@@ -75,27 +83,49 @@ async function boot() {
   } catch (e) { logger.warn(`boot recovery failed: ${e.message}`); }
 
   const app = express();
-  app.use(express.json({ limit: '64mb' }));
-  app.use(express.urlencoded({ extended: true, limit: '64mb' }));
-
-  // CORS for localhost dev / native shell
-  app.use((req, res, next) => {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-    if (req.method === 'OPTIONS') return res.sendStatus(204);
-    next();
-  });
+  app.disable('x-powered-by');
+  // Loopback is fast but not free: a 2 MB project list still parses faster as 300 KB.
+  app.use(compression({ threshold: 1024 }));
+  // Bodies are forms, except the three routes that carry a scene's HTML or an SRT. Previously
+  // every route accepted 64 MB — from any origin, since the API also answered with CORS `*`.
+  const jsonSmall = express.json({ limit: '2mb' });
+  const jsonLarge = express.json({ limit: '64mb' });
+  const LARGE_BODY = /^\/(scenes\/[^/]+(\/custom-html)?|projects\/[^/]+\/thumbnail\/regen)$/;
+  app.use('/api', (req, res, next) => (LARGE_BODY.test(req.path) ? jsonLarge : jsonSmall)(req, res, next));
+  app.use('/api', express.urlencoded({ extended: true, limit: '2mb' }));
+  // No CORS header: both shells and the browser load the UI from this very origin, and a
+  // wildcard let any web page the owner visited call DELETE /api/projects.
 
   mountRoutes(app, { version: VERSION });
+  app.use('/api', errorHandler);
 
   // SPA static (after API so /api wins). Font filenames encode family+weight+subset,
   // so /fonts can be cached immutable — a manifest change produces new URLs.
   app.use('/fonts', express.static(join(PUBLIC_DIR, 'fonts'), { maxAge: '365d', immutable: true, fallthrough: false }));
-  app.use(express.static(PUBLIC_DIR));
+  // The document is assembled from its partials once, served from memory, always revalidated
+  // (the release build hashes everything it references). The partials themselves are not a page.
+  const indexHtml = assembleIndex(PUBLIC_DIR);
+  const indexEtag = `"${createHash('sha1').update(indexHtml).digest('hex').slice(0, 16)}"`;
+  const sendIndex = (req, res) => {
+    res.set('Cache-Control', 'no-cache');
+    res.set('ETag', indexEtag);
+    if (req.headers['if-none-match'] === indexEtag) return res.status(304).end();
+    res.type('html').send(indexHtml);
+  };
+  app.get(['/', '/index.html'], sendIndex);
+  app.use('/partials', (req, res) => res.status(404).end());
+  // A release build names every script and stylesheet by its content hash, so those can live in
+  // the cache forever; a dev tree has no hashes and every file is revalidated.
+  const HASHED = /-[A-Z0-9]{8}\.(?:js|css)$/;
+  app.use(express.static(PUBLIC_DIR, {
+    index: false,
+    setHeaders: (res, path) => { if (HASHED.test(path)) res.set('Cache-Control', 'public, max-age=31536000, immutable'); },
+  }));
+  // Deep links get the document; a missing asset gets a 404, not 120 KB of HTML parsed as script.
   app.get('*', (req, res, next) => {
     if (req.path.startsWith('/api')) return next();
-    res.sendFile(join(PUBLIC_DIR, 'index.html'));
+    if (/\.[a-z0-9]+$/i.test(req.path)) return res.status(404).end();
+    sendIndex(req, res);
   });
 
   const server = http.createServer(app);
@@ -131,20 +161,39 @@ async function boot() {
     logger.info(`AI Video Studio v${VERSION} ready`);
     // Sentinel line the Swift/launcher waits for:
     console.log(`AVS_READY ${url}`);
+    // Housekeeping after the UI is reachable, never before.
+    setTimeout(() => { sweepStale([DIRS.tmp, DIRS.uploads]).catch((e) => logger.warn(`sweep: ${e.message}`)); }, 15000).unref();
   });
 
-  // Any local TTS server we spawned dies with us — an orphan would hold its port and the next
-  // start would find an unreachable zombie.
+  // Everything this process owns goes down with it: spawned TTS servers (an orphan holds its port
+  // and the next start finds an unreachable zombie), headless Chrome, in-flight ffmpeg children
+  // (aborted like a user stop, so the run resumes cleanly), WebSocket clients (server.close()
+  // would otherwise wait on them forever), then the DB with a checkpointed WAL.
+  let closing = false;
   const shutdown = async () => {
+    if (closing) return;
+    closing = true;
+    setTimeout(() => process.exit(1), 3000).unref(); // never hang on a socket that will not close
     try { (await import('./media/tts-server.js')).stopAllTtsServers(); } catch { /* nothing spawned */ }
-    server.close(() => process.exit(0));
+    try { await (await import('./media/puppeteer.js')).closeBrowser(); } catch { /* never launched */ }
+    try { (await import('./pipeline/stop.js')).abortAll(); } catch { /* nothing running */ }
+    hub.close();
+    server.close(() => {
+      try { db.pragma('wal_checkpoint(TRUNCATE)'); db.close(); } catch (e) { logger.warn(`db close: ${e.message}`); }
+      process.exit(0);
+    });
   };
   process.on('SIGTERM', shutdown);
   process.on('SIGINT', shutdown);
 
-  // A long-running render server must never die from one stray async error.
-  process.on('unhandledRejection', (e) => logger.error(`unhandledRejection: ${e?.message || e}`));
-  process.on('uncaughtException', (e) => logger.error(`uncaughtException: ${e?.message || e}`));
+  // A long-running render server must never die from one stray async error — but after one,
+  // in-memory state (governor pools, stop flags) may disagree with the DB, and /health says so.
+  const survived = (kind) => (e) => {
+    logger.error(`${kind}: ${e?.stack || e?.message || e}`);
+    processHealth.degraded = { kind, message: String(e?.message || e), at: Date.now() };
+  };
+  process.on('unhandledRejection', survived('unhandledRejection'));
+  process.on('uncaughtException', survived('uncaughtException'));
 }
 
 // Nothing has registered uncaughtException yet while boot() is running, so a failure here would

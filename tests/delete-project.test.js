@@ -7,11 +7,10 @@
 import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { sourceOf } from './_source.mjs';
 
-const src = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
-const routes = src('../src/api/routes.js');
-const studio = src('../public/js/views/studio.js');
+const routes = sourceOf('src/api/routes.js');
+const studio = sourceOf('public/js/views/studio.js');
 
 test('a project owns its working directory, and NOTHING it merely shares', () => {
   // THE dangerous case. `outputDir` is a CHANNEL folder: every video of "Tui Là 1 Freelancer"
@@ -34,11 +33,11 @@ test('the confirmation names what disappears, measured rather than guessed', () 
   assert.match(routes, /r\.get\('\/projects\/:id\/footprint'/);
   assert.match(routes, /bytes \+= statSync\(f\)\.size/);
   assert.match(studio, /await api\.get\(`\/projects\/\$\{p\.id\}\/footprint`\)/);
-  assert.match(studio, /SẼ XOÁ VĨNH VIỄN \$\{fp\.files\} file \(\$\{mb\(fp\.bytes\)\}\) khỏi ổ đĩa/);
+  assert.match(studio, /SẼ XOÁ VĨNH VIỄN \$\{fp\.files\} file \(\$\{fmtBytes\(fp\.bytes\)\}\) khỏi ổ đĩa/);
   assert.match(studio, /Không khôi phục được/);
   assert.match(studio, /danger: true/);
   // a multi-line body only reads as lines if the dialog renders them as lines
-  assert.match(src('../public/css/app.css'), /\.dlg \.dlg-body\{[^}]*white-space:pre-line/);
+  assert.match(sourceOf('public/css/app.css'), /\.dlg \.dlg-body\{[^}]*white-space:pre-line/);
 });
 
 test('a running project is refused, not deleted out from under its own pipeline', () => {
@@ -50,11 +49,18 @@ test('deleting the OPEN project clears the screen it was filling', () => {
   // Otherwise the panel keeps offering Render / Ghép / Xuất buttons that now act on nothing.
   assert.match(studio, /if \(state\.current\?\.id === p\.id\) startNewProject\(\);/);
   assert.match(studio, /it\.querySelector\('\.pitem-del'\)\.addEventListener/);
-  assert.match(src('../public/css/app.css'), /\.pitem-del:hover\{background:var\(--red/, 'a destructive control looks destructive');
+  assert.match(sourceOf('public/css/app.css'), /\.pitem-del:hover\{background:var\(--red/, 'a destructive control looks destructive');
 });
 
 test('"xoá tất cả" keeps the same promise as "xoá"', () => {
   // One of the two silently keeping files would be the worst of both worlds.
   assert.match(routes, /r\.delete\('\/projects', \(req, res\) => \{[\s\S]{0,400}purgeProjectFiles\(p\)/);
   assert.match(studio, /kèm TOÀN BỘ file trên ổ đĩa/);
+});
+
+test('a project\'s covers are named after it, so the next video cannot overwrite them', () => {
+  // The channel's output folder is shared by every project; a fixed cover_shorts.jpg meant each
+  // finished video replaced the previous video's covers while its metadata still pointed at them.
+  assert.match(sourceOf('src/pipeline/finalize/thumbnail.js'), /baseName: `cover_\$\{projectId\}`/);
+  assert.match(sourceOf('src/api/routers/project-outputs.js'), /baseName: `cover_\$\{p\.id\}`/);
 });

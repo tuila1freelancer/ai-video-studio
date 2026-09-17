@@ -5,10 +5,9 @@
 import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { sourceOf } from './_source.mjs';
 import { ratioOf, segmentTranscript, scenesFromSegments, repairTranscript, isEditVideo } from '../src/pipeline/edit-video.js';
 
-const src = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 
 // whisper phrases, the shape the lane actually consumes
 const PHRASES = [
@@ -103,18 +102,18 @@ test('P40-E: an edit project keeps the footage audio and its exact source moment
   assert.equal(isEditVideo({}), false);
   assert.equal(isEditVideo(null), false);
   // the composite must slice at `start` (never wrapped) and map the FOOTAGE audio
-  const ff = src('../src/media/ffmpeg.js');
+  const ff = sourceOf('src/media/ffmpeg.js');
   assert.match(ff, /exact = false, audioFrom = 'scene'/, 'plain overlay mode keeps its historic behaviour');
   assert.match(ff, /audioFrom === 'footage' \? '0:a\?' : '1:a\?'/, 'edit mode keeps the original soundtrack');
-  const anim = src('../src/animation/index.js');
+  const anim = sourceOf('src/animation/index.js');
   assert.match(anim, /const edit = config\.overlay\.mode === 'edit'/);
   assert.match(anim, /exact: edit, audioFrom: edit \? 'footage' : 'scene'/);
 });
 
 test('P40-E: the lane runs through the ordinary pipeline, so stop/resume/queue apply', () => {
-  const runner = src('../src/pipeline/runner.js');
+  const runner = sourceOf('src/pipeline/runner.js');
   assert.match(runner, /if \(isEditVideo\(config\)\)/, 'routed inside runPipeline, not as a second pipeline');
-  const lane = src('../src/pipeline/edit-video.js');
+  const lane = sourceOf('src/pipeline/edit-video.js');
   assert.match(lane, /granularity: 'segment'/, 'decoding accuracy beats karaoke granularity when the transcript IS the content');
   assert.match(lane, /autoBgm: false, soundDesign: false/, 'never mix our audio over the owner\'s');
   assert.match(lane, /if \(!existing\.length\)/, 'a resumed run does not re-transcribe');
@@ -131,5 +130,5 @@ test('P40-E: edit mode annotates the footage, and reserves NO band for its subti
   for (const b of [plain, edit]) assert.ok(!/KEEP THE BOTTOM/.test(b), 'no reserved band');
   // both keep the shared overlay rules
   for (const b of [plain, edit]) assert.match(b, /KEEP THE CENTER ~40-50% OF THE FRAME CLEAR/);
-  assert.match(src('../src/pipeline/stages/visuals.js'), /config\.overlay\.mode === 'edit' \? 'edit' : true/);
+  assert.match(sourceOf('src/pipeline/stages/visuals.js'), /config\.overlay\.mode === 'edit' \? 'edit' : true/);
 });

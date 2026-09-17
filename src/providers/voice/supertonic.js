@@ -12,6 +12,7 @@ import { probeDuration } from '../../media/ffmpeg.js';
 import { supertonicUrl, ensureSupertonic } from '../../media/tts-server.js';
 
 import { m, tp } from '../../i18n/t.js';
+import { clampNum } from '../../util/util.js';
 // Shipped with the model — ids are stable, the descriptions come from the upstream voice card.
 // i18n-exempt: `name` is the voice's own name and stays; the `note` beside it is a description and
 // IS translated — src/api/routes.js localises that field.
@@ -30,10 +31,6 @@ const CATALOG = [
 
 export const SUPERTONIC_LANGS = ['vi', 'en', 'ko', 'ja', 'zh', 'fr', 'de', 'es', 'pt'];
 
-const clamp = (v, lo, hi, dflt) => {
-  const n = Number.parseFloat(v);
-  return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : dflt;
-};
 
 export default {
   id: 'supertonic', get name() { return m('Supertonic (chạy máy mình — miễn phí)'); }, free: true, needsNetwork: false,
@@ -62,8 +59,8 @@ export default {
         text,
         voice: voiceId && voiceId !== 'auto' ? voiceId : CATALOG[0].id,
         lang,
-        steps: Math.round(clamp(cfg?.steps, 2, 32, 8)),
-        speed: clamp(cfg?.speed, 0.5, 2, 1),
+        steps: Math.round(clampNum(cfg?.steps, 2, 32, 8)),
+        speed: clampNum(cfg?.speed, 0.5, 2, 1),
         response_format: 'wav',
       }),
       signal: AbortSignal.timeout(180000), // local diffusion TTS is slow on CPU

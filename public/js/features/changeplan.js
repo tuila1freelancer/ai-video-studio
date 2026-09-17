@@ -19,13 +19,8 @@ import { gatherConfig } from '../views/config.js';
 import { confirmDialog } from '../ui/dialog.js';
 import { showJournal } from './journal.js';
 import { switchPage } from '../views/nav.js';
+import { fmtApprox } from '../ui/format.js';
 
-const fmt = (s) => {
-  const n = Math.max(1, Math.round(s));
-  if (n < 60) return tp`~${n} giây`;
-  if (n < 3600) return tp`~${Math.round(n / 60)} phút`;
-  return tp`~${(n / 3600).toFixed(1)} giờ`;
-};
 const ICON = { tts: '🎙', render: '🎬', concat: '🔗' };
 
 function row(item) {
@@ -35,7 +30,7 @@ function row(item) {
       <div style="font-weight:600${item.costly ? ';color:var(--warn,#F7B500)' : ''}">${item.label}</div>
       <div class="hint">${item.detail}</div>
     </div>
-    <div class="hint" style="white-space:nowrap;font-variant-numeric:tabular-nums">${fmt(item.seconds)}</div>
+    <div class="hint" style="white-space:nowrap;font-variant-numeric:tabular-nums">${fmtApprox(item.seconds)}</div>
   </div>`;
 }
 
@@ -65,7 +60,7 @@ export async function openChangePlan() {
       + `${plan.measured ? '' : m(' · ước tính theo số liệu mặc định, chưa đo dự án này')}</div>`
       + plan.items.map(row).join('')
       + `<div class="row" style="justify-content:space-between;padding-top:8px;border-top:1px solid var(--line);font-weight:600">
-           <span>${m('Tổng')}</span><span style="font-variant-numeric:tabular-nums">${fmt(plan.totalSec)}</span></div>`
+           <span>${m('Tổng')}</span><span style="font-variant-numeric:tabular-nums">${fmtApprox(plan.totalSec)}</span></div>`
       + (plan.fadeBlocksFastJoin
         ? `<div class="hint" style="margin-top:8px">${m('💡 Chỉ còn hiệu ứng mờ đầu/cuối video buộc phải encode lại.')} `
           + `${tp`Tắt nó ở ${`<strong>${m('Nâng cao')}</strong>`} thì lượt ghép này gần như tức thì.`}</div>`

@@ -12,10 +12,11 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { checkCatalogue } from '../scripts/lib/locale-check.mjs';
 import { classifyError, failed, coded, ERROR_CLASS } from '../src/core/errors.js';
-import { t, setUiLang, uiLang, reloadCatalogues } from '../src/i18n/t.js';
+import { t, setUiLang, uiLang } from '../src/i18n/t.js';
 import { PATHS } from '../src/config/paths.js';
 import { LANG_CODES } from '../src/i18n/languages.js';
 import { join } from 'node:path';
+import { indexHtml } from './_source.mjs';
 
 test('errors: the class comes from a code, not from the wording', () => {
   // The same failure, said three ways, in three languages.
@@ -121,7 +122,7 @@ test('ui: a language declared shipped is actually complete, interface and manual
 });
 
 test('ui: the markup carries a key for every string a translator must reach', () => {
-  const html = readFileSync(join(PATHS.publicDir, 'index.html'), 'utf8');
+  const html = indexHtml(); // the shell plus every partial — what the browser is sent
   const keyed = (html.match(/data-i18n[a-z-]*="/g) || []).length;
   assert.ok(keyed > 450, `only ${keyed} nodes carry a translation key`);
   const source = JSON.parse(readFileSync(join(PATHS.publicDir, 'locales', 'vi.json'), 'utf8'));

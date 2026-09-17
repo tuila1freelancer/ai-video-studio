@@ -41,6 +41,3 @@ export function gsapBundle() {
   return bundleCache;
 }
 
-export function gsapAvailable() {
-  return existsSync(join(VENDOR_DIR, 'gsap', 'gsap.min.js'));
-}

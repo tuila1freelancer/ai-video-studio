@@ -56,13 +56,14 @@ export default {
     // with-timestamps returns character-level alignment alongside the audio — perfect
     // word timing for the exact script, no transcription pass needed downstream.
     let words = null;
-    let res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/with-timestamps`, { method: 'POST', headers, body });
+    const signal = AbortSignal.timeout(120000); // a hung provider used to hang the scene forever
+    let res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/with-timestamps`, { method: 'POST', headers, body, signal });
     if (res.ok) {
       const data = await res.json();
       writeFileSync(outPath, Buffer.from(data.audio_base64, 'base64'));
       words = charAlignmentToWords(text, data.alignment);
     } else {
-      res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, { method: 'POST', headers, body });
+      res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, { method: 'POST', headers, body, signal });
       if (!res.ok) throw new Error(`ElevenLabs ${res.status}: ${(await res.text()).slice(0, 160)}`);
       writeFileSync(outPath, Buffer.from(await res.arrayBuffer()));
     }

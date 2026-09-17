@@ -10,13 +10,13 @@
 import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { PROVIDERS, listProviders, getProvider, providerExt, legacyVoice } from '../src/providers/voice/index.js';
+import { sourceOf } from './_source.mjs';
+import { PROVIDERS, listProviders, getProvider, providerExt } from '../src/providers/voice/index.js';
 import { signRequest, amzDate } from '../src/providers/voice/aws-sig.js';
 import { parseSpeechMarks } from '../src/providers/voice/polly.js';
 import { escapeXml, ssmlProsody } from '../src/providers/voice/ssml.js';
 import { estimateCost } from '../src/core/pricing.js';
 import { LANG_CODES } from '../src/i18n/languages.js';
-import { readFileSync } from 'node:fs';
 
 const NEW = ['azure', 'google', 'polly'];
 
@@ -121,7 +121,7 @@ test('every paid provider records what it spent', () => {
   // openai and vbee synthesised without calling recordUsage at all, so their spend appeared
   // nowhere: not in the per-video cost meter, not in the budget guardrail that is supposed to
   // downgrade to the free lane when a cap is reached.
-  const src = (id) => readFileSync(new URL(`../src/providers/voice/${id}.js`, import.meta.url), 'utf8');
+  const src = (id) => sourceOf(`src/providers/voice/${id}.js`);
   for (const id of ['elevenlabs', 'larvoice', 'openai', 'vbee', 'azure', 'google', 'polly']) {
     assert.match(src(id), /recordUsage\('tts'/, `${id} spends money without metering it`);
   }

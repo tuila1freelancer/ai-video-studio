@@ -1,14 +1,20 @@
 import { $, $$, el, esc, badgeText } from '../ui/dom.js';
 import { icon } from '../ui/icons.js';
 import { toast } from '../ui/toast.js';
-import { fileUrl, withLock } from '../api.js';
+import { thumbUrl, withLock } from '../api.js';
 import { state } from '../state.js';
 import { registerPageHook, switchPage } from './nav.js';
 import { openProject, createAndStart } from './studio.js';
 import { setLabel, m, tp } from '../i18n.js';
+import { fmtDate } from '../ui/format.js';
 
 export function initHome() {
   registerPageHook('home', renderGallery);
+  // studio.js announces list changes instead of importing this module (home ↔ studio was a cycle).
+  // A hidden gallery is rebuilt on its next show (the page hook), not on every status event of a run.
+  document.addEventListener('projects:changed', () => {
+    if ($('#page-home')?.classList.contains('active')) renderGallery();
+  });
   setLabel('#heroGo', icon('wand', 16));
   setLabel('#heroBatch', icon('layers', 16));
   $$('#page-home .gtab').forEach((b) => {
@@ -38,9 +44,9 @@ export function renderGallery() {
   list.forEach((p) => {
     const c = el('div', 'gcard');
     const gAr = { '16:9': '16/9', '1:1': '1/1', '4:5': '4/5' }[p.aspect_ratio] || '9/16';
-    c.innerHTML = `<div class="gt" style="aspect-ratio:${gAr}">${p.thumb_path ? `<img src="${fileUrl(p.thumb_path)}" loading="lazy" decoding="async" alt="">` : `<div class="ph">${icon('film', 30)}</div>`}
+    c.innerHTML = `<div class="gt" style="aspect-ratio:${gAr}">${p.thumb_path ? `<img src="${thumbUrl(p.thumb_path, 480, p.updated_at)}" loading="lazy" decoding="async" alt="">` : `<div class="ph">${icon('film', 30)}</div>`}
         <span class="badge ${p.status} gstat">${badgeText(p.status)}</span></div>
-      <div class="gi"><div class="t">${esc(p.title)}</div><div class="s">${p.aspect_ratio} · ${new Date(p.updated_at).toLocaleDateString('vi-VN')}</div></div>`;
+      <div class="gi"><div class="t">${esc(p.title)}</div><div class="s">${p.aspect_ratio} · ${fmtDate(p.updated_at, 'date')}</div></div>`;
     c.addEventListener('click', () => { switchPage('studio'); openProject(p.id); });
     grid.appendChild(c);
   });

@@ -8,15 +8,15 @@ export function escapeXml(s) {
     .replace(/"/g, '&quot;').replace(/'/g, '&apos;');
 }
 
-const clamp = (v, lo, hi) => {
+const prosodyValue = (v, lo, hi) => {
   const n = Number.parseFloat(v);
   return Number.isFinite(n) && n !== 0 ? Math.min(hi, Math.max(lo, n)) : null;
 };
 
 /** Wrap text in `<prosody>` when the owner asked for a rate or pitch change, else return it bare. */
 export function ssmlProsody(inner, cfg = {}) {
-  const rate = clamp(cfg.rate, -50, 100);
-  const pitch = clamp(cfg.pitch, -24, 24);
+  const rate = prosodyValue(cfg.rate, -50, 100);
+  const pitch = prosodyValue(cfg.pitch, -24, 24);
   if (rate == null && pitch == null) return inner;
   const attrs = [
     rate != null ? `rate="${rate > 0 ? '+' : ''}${rate}%"` : '',

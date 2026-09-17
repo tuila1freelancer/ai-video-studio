@@ -5,10 +5,9 @@
 import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { sourceOf, indexHtml } from './_source.mjs';
 
-const src = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
-const routes = src('../src/api/routes.js');
+const routes = sourceOf('src/api/routes.js');
 
 test('P42: assets can be borrowed from another project, by path and without duplicating files', () => {
   assert.match(routes, /'\/projects\/:id\/copy-assets-from\/:sourceId'/);
@@ -44,11 +43,11 @@ test('P42: a logo preset carries its PLACEMENT, not just the file', () => {
 });
 
 test('P42: all four are reachable from the UI, not just from curl', () => {
-  const studio = src('../public/js/views/studio.js');
+  const studio = sourceOf('public/js/views/studio.js');
   assert.match(studio, /btnRestart/);
   assert.match(studio, /btnCopyAssets/);
   assert.match(studio, /publish\/generate-caption/);
-  const html = src('../public/index.html');
+  const html = indexHtml();
   for (const id of ['btnRestart', 'btnCopyAssets']) assert.ok(html.includes(`id="${id}"`), `${id} exists in the markup`);
 });
 
@@ -64,7 +63,7 @@ test('P42: brand-folder rename and delete are pinned inside the library and refu
   assert.match(routes, /req\.query\.confirm !== String\(files\.length\)/);
   assert.match(routes, /status\(409\)/);
   // and the library rows follow the folder instead of pointing at art that moved
-  const cat = src('../src/db/repositories/catalogs.js');
+  const cat = sourceOf('src/db/repositories/catalogs.js');
   assert.match(cat, /export function renameBrandFolder/);
   assert.match(cat, /export function deleteBrandFolder/);
 });
@@ -92,7 +91,7 @@ test('P42: Facebook Pages are a registry with token health, not one silent slot'
   for (const fn of ['listPages', 'selectPage', 'removePage', 'checkToken', 'extendToken']) {
     assert.equal(typeof fb[fn], 'function', `${fn} exists`);
   }
-  const f = src('../src/publish/facebook.js');
+  const f = sourceOf('src/publish/facebook.js');
   // the single-slot config from before the registry must keep working
   assert.match(f, /if \(!pages\.length && c\.pageId\)/, 'a pre-registry config is still the active page');
   assert.match(f, /debug_token/, 'token validity comes from Graph, not from a guess');
@@ -109,7 +108,7 @@ test('P42: a saved preset can be put BACK, and a style can be renamed', () => {
   assert.match(routes, /finalOverlay: \{ enabled: true, \.\.\.payload\.placement \}/, 'placement is restored, not just the file');
   assert.match(routes, /file logo của preset không còn trên đĩa/, 'a preset pointing at a deleted file fails clearly');
   assert.match(routes, /r\.patch\('\/styles\/:id'/);
-  assert.match(src('../src/db/repositories/catalogs.js'), /export function renameStyle/);
+  assert.match(sourceOf('src/db/repositories/catalogs.js'), /export function renameStyle/);
 });
 
 test('P42: the LLM endpoint and the local voice engine can be checked/installed from the app', () => {
@@ -119,7 +118,7 @@ test('P42: the LLM endpoint and the local voice engine can be checked/installed 
   assert.match(routes, /r\.post\('\/tts\/server\/install'/);
   assert.match(routes, /'-m', 'pip', 'install', '--upgrade', 'supertonic'/);
   assert.match(routes, /EXPLICIT button, never automatic/, 'installing on the owner\'s machine is never implicit');
-  const settings = src('../public/js/features/settings.js');
+  const settings = sourceOf('public/js/features/settings.js');
   assert.match(settings, /btnTestLlm/);
   assert.match(settings, /ttsSrvInstall/);
 });
@@ -130,7 +129,7 @@ test('P42: a thumbnail can be edited BY INSTRUCTION, keeping everything else', a
   assert.equal(await editThumbnailFragment('<div>x</div>', 'to hơn', { llm: { enabled: false } }), null);
   assert.equal(await editThumbnailFragment('', 'to hơn', { llm: { enabled: true, apiKey: 'k', baseUrl: 'u', model: 'm' } }), null);
   assert.equal(await editThumbnailFragment('<div>x</div>', '', { llm: { enabled: true, apiKey: 'k', baseUrl: 'u', model: 'm' } }), null);
-  const t = src('../src/pipeline/thumbnail-codegen.js');
+  const t = sourceOf('src/pipeline/thumbnail-codegen.js');
   assert.match(t, /YOU ARE EDITING an existing thumbnail, not designing a new one/);
   assert.match(t, /Apply ONLY what is asked and change nothing else/);
   // a reply that collapsed the design is a failed edit, not one worth shipping
