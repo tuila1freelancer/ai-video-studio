@@ -1,5 +1,6 @@
 // Project outputs: repurposing, thumbnails and covers, thumbnail versions, open/export/dub.
 import { existsSync, statSync, mkdirSync, copyFileSync } from 'node:fs';
+import { execFile } from 'node:child_process';
 import { join } from 'node:path';
 import * as DB from '../../db/index.js';
 import { logger } from '../../util/log.js';
@@ -8,6 +9,7 @@ import * as Pipeline from '../../pipeline/queue.js';
 import { resolveLang } from '../../util/lang.js';
 import { m, tp } from '../../i18n/t.js';
 import { fileUrlOf, thumbLlmFor } from '../helpers.js';
+import { pickFolder } from '../services/folder-picker.js';
 
 /** @param {import('express').Router} r */
 export function mount(r) {
@@ -209,27 +211,9 @@ export function mount(r) {
       if (!p) return res.status(404).json({ error: 'not found' });
       const covers = (p.metadata?.covers || []).filter((c) => c?.path && existsSync(c.path));
       if (!covers.length) return res.status(400).json({ error: 'chưa có ảnh bìa nào — tạo metadata/ảnh bìa trước' });
-      const { execFile } = await import('node:child_process');
       let dir = String(req.body?.dir || '').trim();
       if (req.body?.pick) {
-        // The native folder chooser differs per OS. Anywhere without one, the caller still gets a
-        // usable answer: the UI falls back to typing a path, which is why this resolves '' instead
-        // of throwing — a missing picker must not make exporting covers impossible.
-        dir = await new Promise((resolve) => {
-          const done = (err, out) => resolve(err ? '' : String(out).trim());
-          // The prompt is translated text now, so it must be escaped for the script it lands in:
-          // a catalogue with a quote in it would end the AppleScript/PowerShell string early.
-          const ask = m('Chọn thư mục lưu ảnh bìa');
-          if (process.platform === 'darwin') {
-            execFile('osascript', ['-e', 'POSIX path of (choose folder with prompt "' + ask.replace(/["\\]/g, '\\$&') + '")'], done);
-          } else if (process.platform === 'win32') {
-            execFile('powershell', ['-NoProfile', '-STA', '-Command',
-              'Add-Type -AssemblyName System.Windows.Forms; $d = New-Object System.Windows.Forms.FolderBrowserDialog;'
-              + ' $d.Description = "' + ask.replace(/[`$"]/g, '`$&') + '"; if ($d.ShowDialog() -eq "OK") { $d.SelectedPath }'], done);
-          } else {
-            execFile('zenity', ['--file-selection', '--directory', '--title=' + ask], done);
-          }
-        });
+        dir = await pickFolder(m('Chọn thư mục lưu ảnh bìa'));
         if (!dir) return res.json({ ok: false, cancelled: true });
       }
       if (!dir) dir = p.outputDir || DB.projectDirFor(p.id);
@@ -259,7 +243,6 @@ export function mount(r) {
       const { resolveOutputDir } = await import('../../pipeline/helpers.js');
       const dir = resolveOutputDir(p.id, p.config || {}, DB.projectDirFor(p.id));
       if (!existsSync(dir)) return res.status(400).json({ error: 'chưa có thư mục xuất — render xong đã' });
-      const { execFile } = await import('node:child_process');
       // Reveal the finished file when there is one, otherwise just open the folder.
       const target = p.video_path && existsSync(p.video_path) ? p.video_path : dir;
       execFile('open', target === dir ? [dir] : ['-R', target], () => {});
