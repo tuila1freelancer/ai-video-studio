@@ -61,6 +61,10 @@ export const RELOCATED = {
     'src/media/ffmpeg.js', 'src/media/ffmpeg/run.js', 'src/media/ffmpeg/probe.js', 'src/media/ffmpeg/images.js',
     'src/media/ffmpeg/audio.js', 'src/media/ffmpeg/footage.js',
   ],
+  'src/hyperframe/prompt.js': [
+    'src/hyperframe/prompt.js', 'src/hyperframe/prompt/system.js', 'src/hyperframe/prompt/blocks.js',
+    'src/hyperframe/prompt/layout.js', 'src/hyperframe/prompt/animation.js', 'src/hyperframe/prompt/build.js',
+  ],
 };
 
 /** `m('x')` → `'x'`, `tp\`x\`` → `` `x` ``. Nothing else is touched. */
