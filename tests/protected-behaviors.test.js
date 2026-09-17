@@ -115,7 +115,7 @@ test('P14: maskSecrets masks on egress and applyMaskedUpdate round-trips •• 
 test('P15: /api/file path allowlist module guards internal media serving', () => {
   const s = sourceOf('src/api/services/file-access.js');
   assert.match(s, /allowlist|allowed/i);
-  assert.match(sourceOf('src/api/routes.js'), /file-access\.js|isPathAllowed|fileAllowed/, 'routes must serve files through the allowlist');
+  assert.match(sourceOf('src/api/routers/files-media.js'), /file-access\.js|isPathAllowed|fileAllowed/, 'the file routes serve through the allowlist');
 });
 
 test('P16: assistant proposals never auto-start a paid pipeline', () => {
@@ -130,7 +130,7 @@ test('P16: assistant proposals never auto-start a paid pipeline', () => {
   assert.ok(!/enqueueJob|startBatch|startProject/.test(afterPlan),
     'planWeek/buildSeries must never enqueue or start anything');
   // the suggest route itself must not create projects either
-  const routes = sourceOf('src/api/routes.js');
+  const routes = sourceOf('src/api/routers/assistant-calendar.js');
   const suggestHandler = routes.slice(routes.indexOf("r.post('/topics/suggest'"), routes.indexOf("r.get('/topics/history'"));
   assert.ok(suggestHandler.length > 0 && !/startBatch|enqueueJob|createProject/.test(suggestHandler),
     'POST /topics/suggest returns proposals, never projects');
@@ -144,7 +144,7 @@ test('P17: scene gate holds cleanly and only the explicit owner route approves i
   const gateBlock = runner.slice(runner.indexOf("config.sceneGate === true"), runner.indexOf('await runTts'));
   assert.match(gateBlock, /return;/, 'gate exits via a clean return, not the error path');
   // the approval stamp has exactly one writer: the explicit owner route
-  const routes = sourceOf('src/api/routes.js');
+  const routes = sourceOf('src/api/routers/pipeline.js');
   assert.match(routes, /approve-scenes/, 'explicit approve route exists');
   const writers = [runner, sourceOf('src/pipeline/scheduler.js'), sourceOf('src/pipeline/estimate.js'),
     sourceOf('src/api/services/topic-autopilot.js'), sourceOf('src/api/services/assistant.js')];
@@ -177,7 +177,7 @@ test('P18: master scenes JSON contract — no META_LEAK persisted, canonical exp
   assert.match(b2, /config\.scriptEngine !== 'legacy'/, 'legacy escape hatch stays');
   assert.match(b2, /scenesJsonFromRows\(DB\.getProject\(projectId\), scenes\)/, 'artifact is rebuilt from persisted rows');
   // the export route serves the same canonical builder
-  assert.match(sourceOf('src/api/routes.js'), /scenes-json/, 'export route exists');
+  assert.match(sourceOf('src/api/routers/project-exports.js'), /scenes-json/, 'export route exists');
   // owner's detailed script: duration follows content — the fitter must skip it
   assert.match(sourceOf('src/pipeline/stages/budget.js'), /SCRIPT_MODE_MIN_WORDS\) return;/, 'budget fit never trims a pasted detailed script');
 });
