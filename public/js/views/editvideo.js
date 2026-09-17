@@ -4,7 +4,10 @@ import { api, fileUrl } from '../api.js';
 import { state } from '../state.js';
 import { m, tp } from '../i18n.js';
 
+let wired = false;
 export function initEditVideo() {
+  if (wired) return;
+  wired = true;
   $('#evFile').addEventListener('change', async (e) => {
     const f = e.target.files[0]; if (!f) return;
     $('#evName').textContent = f.name;

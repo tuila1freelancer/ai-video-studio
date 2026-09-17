@@ -21,7 +21,10 @@ const peaksLoading = new Set();
 const dur = (i) => Math.max(1.5, scenes[i]?.duration || 6);
 const fmt = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
+let wired = false;
 export function initPlayer() {
+  if (wired) return;
+  wired = true;
   $('#btnRoughCut')?.addEventListener('click', openPlayer);
   $('#rcClose')?.addEventListener('click', closePlayer);
   $('#rcPlay')?.addEventListener('click', toggle);

@@ -2,7 +2,6 @@ import { $, $$, el, esc, fmtDur } from '../ui/dom.js';
 import { toast } from '../ui/toast.js';
 import { api } from '../api.js';
 import { state, activeChannelBrand } from '../state.js';
-import { openVoicePicker } from '../features/voicepicker.js';
 import { confirmDialog, promptDialog, menuDialog } from '../ui/dialog.js';
 import { icon } from '../ui/icons.js';
 import { m, tp } from '../i18n.js';
@@ -894,7 +893,7 @@ function wireConfigGroups() {
   $('#cfgModal').addEventListener('change', updateCfgChips);
   $('#cfgModal').addEventListener('input', updateCfgChips);
   const vb = $('#btnCfgVoice');
-  if (vb) vb.addEventListener('click', openVoicePicker);
+  if (vb) vb.addEventListener('click', () => import('../features/voicepicker.js').then((m) => m.openVoicePicker()));
   updateCfgChips();
 }
 // Current-value summary rendered on each card (data-chip hooks are load-bearing:

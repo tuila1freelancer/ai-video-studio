@@ -1,26 +1,25 @@
 // The in-app manual, as data a translator can be handed.
 //
-// SECTIONS in views/guide.js is 33KB of Vietnamese prose inside a JS literal — the largest single
-// body of text in the interface and the one most likely to be edited. Keying every string inside
-// it by hand would make the file unreadable and every future edit a two-file job.
+// public/guide/sections.json is 40KB of Vietnamese prose — the largest single body of text in
+// the interface and the one most likely to be edited. Keying every string inside it by hand would
+// make the file unreadable and every future edit a two-file job.
 //
-// So the literal stays the authored source, and this flattens it by JSON path into
+// So the JSON stays the authored source, and this flattens it by JSON path into
 // public/locales/guide.vi.json. The runtime rehydrates a translated copy over the same shape, so
 // a translated manual can never have a different set of chapters from the Vietnamese one.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import vm from 'node:vm';
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
-const SRC = join(ROOT, 'public', 'js', 'views', 'guide.js');
+const SRC = join(ROOT, 'public', 'guide', 'sections.json');
 const OUT = join(ROOT, 'public', 'locales', 'guide.vi.json');
 
+/** The authored chapters. Strict JSON: a stray comment or trailing comma is a parse error here. */
 export function sectionsFromSource(src) {
-  const from = src.indexOf('const SECTIONS = [');
-  const to = src.indexOf('\n];', from);
-  if (from < 0 || to < from) throw new Error('SECTIONS array not found in guide.js');
-  return vm.runInNewContext(`${src.slice(from, to + 3)}\nSECTIONS`);
+  const sections = JSON.parse(src);
+  if (!Array.isArray(sections) || !sections.length) throw new Error('public/guide/sections.json holds no chapters');
+  return sections;
 }
 
 /**

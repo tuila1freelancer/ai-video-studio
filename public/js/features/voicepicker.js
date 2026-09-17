@@ -8,8 +8,10 @@ import { m, tp } from '../i18n.js';
 const vpFilter = { q: '', lang: '', gender: '', provider: '' };
 let vpAudio = null, vpPlayingId = null;
 
+let wired = false;
 export function initVoicePicker() {
-  $('#btnOpenVoicePicker').addEventListener('click', openVoicePicker);
+  if (wired) return;
+  wired = true;
   // search debounced 200ms — one list render per pause, not per keystroke
   let debT = null;
   $('#vpSearch').addEventListener('input', () => {
@@ -41,6 +43,7 @@ export function initVoicePicker() {
 }
 
 export function openVoicePicker() {
+  initVoicePicker();
   $('#voicePickerModal').classList.add('open');
   renderVpChips(); renderVpList();
 }

@@ -9,6 +9,8 @@ import { setLabel, m, tp } from '../i18n.js';
 
 export function initHome() {
   registerPageHook('home', renderGallery);
+  // studio.js announces list changes instead of importing this module (home ↔ studio was a cycle)
+  document.addEventListener('projects:changed', () => renderGallery());
   setLabel('#heroGo', icon('wand', 16));
   setLabel('#heroBatch', icon('layers', 16));
   $$('#page-home .gtab').forEach((b) => {

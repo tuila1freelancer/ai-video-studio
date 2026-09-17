@@ -12,7 +12,10 @@ import { m, tp } from '../i18n.js';
 let cur = null;          // scene currently open in the studio
 let htmlLoaded = false;  // template-source fetched for this open
 
+let wired = false;
 export function initSceneStudio() {
+  if (wired) return;
+  wired = true;
   $('#ssTabs')?.addEventListener('click', (e) => {
     const b = e.target.closest('.gtab');
     if (b) switchTab(b.dataset.tab);
@@ -62,6 +65,7 @@ export function initSceneStudio() {
 }
 
 export function openSceneStudio(s) {
+  initSceneStudio();
   cur = s;
   htmlLoaded = false;
   $('#ssTitle').textContent = tp`Cảnh ${s.idx + 1}`;

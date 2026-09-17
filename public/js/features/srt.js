@@ -10,11 +10,15 @@ import { state } from '../state.js';
 import { renderScenes } from '../views/scenes.js';
 import { m, tp } from '../i18n.js';
 
+let wired = false;
 export function initSrt() {
+  if (wired) return;
+  wired = true;
   $('#srtSave').addEventListener('click', saveSrt);
 }
 
 export function openSrt() {
+  initSrt();
   if (!state.scenes.length) { toast('Chưa có cảnh nào.', 'error'); return; }
   const box = $('#srtList'); box.innerHTML = '';
   state.scenes.forEach((s) => {

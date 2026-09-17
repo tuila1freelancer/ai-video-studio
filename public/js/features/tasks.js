@@ -3,7 +3,6 @@
 // happened in THIS project"; this view answers "what is the app doing right now, anywhere".
 import { $, el, esc } from '../ui/dom.js';
 import { api } from '../api.js';
-import { openProject } from '../views/studio.js';
 import { closeModal } from '../ui/modals.js';
 import { fmtMs } from './journal.js';
 import { m } from '../i18n.js';
@@ -12,12 +11,17 @@ import { m } from '../i18n.js';
 const kindLabel = () => ({ pipeline: m('🎬 Sản xuất video'), render: m('🎞 Render') });
 const statusLabel = () => ({ queued: m('⏳ đang chờ'), running: m('▶ đang chạy'), done: m('✅ xong'), error: m('⛔ lỗi'), cancelled: m('🚫 huỷ') });
 
+let wired = false;
 export function initTasks() {
+  if (wired) return;
+  wired = true;
   $('#heroTasks')?.addEventListener('click', async () => {
     $('#tasksModal').classList.add('open');
     await refreshTasks();
   });
   $('#tasksRefresh')?.addEventListener('click', refreshTasks);
+  // studio.js announces every WebSocket `job` event here instead of importing this module
+  document.addEventListener('ws:job', () => { refreshTasks(); });
 }
 
 let busy = false;
@@ -40,7 +44,7 @@ export async function refreshTasks() {
       if (j.project_id) {
         row.classList.add('click');
         row.title = m('Mở dự án + nhật ký của lần chạy này');
-        row.addEventListener('click', () => { closeModal('#tasksModal'); openProject(j.project_id); });
+        row.addEventListener('click', () => { closeModal('#tasksModal'); import('../views/studio.js').then((m) => m.openProject(j.project_id)); });
       }
       box.appendChild(row);
     }
