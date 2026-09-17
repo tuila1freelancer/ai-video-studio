@@ -3,11 +3,9 @@
 // mis-hear words); it only donates timestamps. Needleman-Wunsch over diacritic-folded
 // tokens (scene texts are ≤~80 words, so the DP is trivial), then unmatched script words
 // interpolate between the bracketing matched anchors weighted by word length.
+import { foldDiacritics } from '../util/util.js';
 
-function fold(s) {
-  return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D');
-}
-function norm(w) { return fold(w).toLowerCase().replace(/[^\p{L}\p{N}]/gu, ''); }
+function norm(w) { return foldDiacritics(w).toLowerCase().replace(/[^\p{L}\p{N}]/gu, ''); }
 
 // Global alignment (match +2, mismatch -1, gap -1) → pairs of [scriptIdx, heardIdx].
 function nwPairs(A, B) {

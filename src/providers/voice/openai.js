@@ -49,6 +49,7 @@ export default {
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${cfg?.apiKey}` },
       body: JSON.stringify({ model, voice: voiceId || 'alloy', input: text, format: 'mp3',
         ...(instructions ? { instructions } : {}) }),
+      signal: AbortSignal.timeout(120000), // a hung provider used to hang the scene forever
     });
     if (!res.ok) throw new Error(`OpenAI TTS ${res.status}: ${(await res.text()).slice(0, 160)}`);
     writeFileSync(outPath, Buffer.from(await res.arrayBuffer()));

@@ -63,7 +63,7 @@ test('code health: no console.* in src/ outside the logger and the launcher sent
 
 // (c) One definition per helper. The counts are today's copies; each drops to 1 as the copies are
 // replaced by an import from util/util.js (server) or ui/format.js (browser).
-const HELPER_COPIES = { sleep: 4, clamp: 5, fold: 5, escapeHtml: 2, safeJson: 2, fmtT: 2 };
+const HELPER_COPIES = { sleep: 1, clamp: 0, fold: 1, escapeHtml: 1, safeJson: 1, fmtT: 2 };
 
 test('code health: duplicated helpers only ever decrease (ratchet)', () => {
   const files = [...walk(join(ROOT, 'src')), ...walk(join(ROOT, 'public', 'js'))];

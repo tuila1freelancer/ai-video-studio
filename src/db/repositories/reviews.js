@@ -20,10 +20,6 @@ export function listReviews(projectId) {
   return stmt('SELECT * FROM scene_reviews WHERE project_id=?').all(projectId);
 }
 
-export function clearSceneReview(sceneId) {
-  stmt('DELETE FROM scene_reviews WHERE scene_id=?').run(sceneId);
-}
-
 /** Scene ids still blocking the gate: unreviewed or rejected. */
 export function pendingReview(projectId, sceneIds) {
   const byId = new Map(listReviews(projectId).map((r) => [r.scene_id, r.status]));

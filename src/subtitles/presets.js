@@ -112,7 +112,7 @@ const px1080 = (v, { w, h }) => {
  * computed before. That is the contract that lets 46 finished projects re-render unchanged: an
  * untouched config must produce a byte-identical .ass.
  */
-export function advancedStyleFrom(config, size) {
+function advancedStyleFrom(config, size) {
   const c = config || {};
   const on = (v) => (v === true ? true : undefined); // false and absent both mean "as before"
   const pad = c.subtitleBoxPadding || {};

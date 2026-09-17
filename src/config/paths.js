@@ -157,9 +157,6 @@ export function projectDirIn(rootDir, id) {
   return p;
 }
 
-// Legacy signature — Default-channel layout.
-export function projectDir(id) { return projectDirIn(DATA_DIR, id); }
-
 // Create the on-disk skeleton for a channel root.
 export function ensureChannelDirs(rootDir) {
   for (const sub of ['projects', 'library/bgm', 'library/logo', 'output']) {

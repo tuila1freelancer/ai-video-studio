@@ -14,6 +14,7 @@ import { detectLibs, libsBundle } from '../libs.js';
 import { fontsCss, familiesIn, vendoredFamilies } from './fonts.js';
 import { userFontsCss, uploadedFamilies } from '../userfonts.js';
 import { HANDOFF, RUNTIME } from './runtime.js';
+import { escapeHtml } from '../../util/util.js';
 
 /**
  * Build the complete scene page HTML.
@@ -169,8 +170,4 @@ ${libScript}${template.script ? `<script>${gsapBundle()}<\/script>
 };<\/script>` : ''}
 <script>${RUNTIME}<\/script>${opts.handoff ? `\n<script>${HANDOFF}<\/script>` : ''}
 </body></html>`;
-}
-
-function escapeHtml(s) {
-  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }

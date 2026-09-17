@@ -123,6 +123,3 @@ export function createSeries({ channelId = null, name, description = '' }) {
   return stmt('SELECT * FROM suggestion_series WHERE id=?').get(id);
 }
 
-export function getSeries(id) {
-  return stmt('SELECT * FROM suggestion_series WHERE id=?').get(id) || null;
-}
