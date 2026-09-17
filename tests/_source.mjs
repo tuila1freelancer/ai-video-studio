@@ -19,7 +19,16 @@ const ROOT = new URL('../', import.meta.url);
 
 /** Old path → the files it was split into, in the order the old file had them. */
 export const RELOCATED = {
-  'src/api/routes.js': ['src/api/routes.js', 'src/api/routers/files-media.js'],
+  'src/api/routes.js': [
+    'src/api/routes.js',
+    'src/api/routers/license.js', 'src/api/routers/settings-providers.js', 'src/api/routers/styles.js',
+    'src/api/routers/channels.js', 'src/api/routers/projects.js', 'src/api/routers/project-exports.js',
+    'src/api/routers/pipeline.js', 'src/api/routers/journal-usage.js', 'src/api/routers/assistant-calendar.js',
+    'src/api/routers/publish.js', 'src/api/routers/project-outputs.js', 'src/api/routers/jobs.js',
+    'src/api/routers/scene-studio.js', 'src/api/routers/scenes.js', 'src/api/routers/research.js',
+    'src/api/routers/library-fonts.js', 'src/api/routers/brands.js', 'src/api/routers/files-media.js',
+    'src/api/routers/edit-video.js', 'src/api/helpers.js', 'src/core/llm-accounts.js',
+  ],
 };
 
 /** `m('x')` → `'x'`, `tp\`x\`` → `` `x` ``. Nothing else is touched. */
