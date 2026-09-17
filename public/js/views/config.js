@@ -6,6 +6,9 @@ import { openVoicePicker } from '../features/voicepicker.js';
 import { confirmDialog, promptDialog, menuDialog } from '../ui/dialog.js';
 import { icon } from '../ui/icons.js';
 import { m, tp } from '../i18n.js';
+import { ensureFontLoaded, loadFontFamilies, loadPickerFonts, downloadFont } from './config/fonts.js';
+
+export { ensureFontLoaded, loadFontFamilies, loadPickerFonts, downloadFont };
 
 // Output resolution: the value stored in config.resolutionScale, and the label on the chip.
 // Mirrors resRung() in src/animation/index.js — 1.3333 lands on exactly 2560×1440.
@@ -797,7 +800,7 @@ export async function loadBrandFolders() {
   const sel = $('#cfgBrandAssets');
   if (!sel) return;
   let brands = [];
-  try { brands = (await api.get('/brands')).brands || []; } catch { return; }
+  try { brands = (await api.get('/brands', { ttl: 5000 })).brands || []; } catch { return; }
   const cur = sel.value || 'auto';
   const extra = brands.filter((b) => b && b !== 'Default');
   sel.innerHTML = `<option value="auto">${m('Tự động — thư mục Default')}</option>`
@@ -845,74 +848,6 @@ export async function loadBgmOptions() {
   const { items } = await api.get('/library/bgm');
   $('#cfgBgm').innerHTML = `<option value="">${m('— Không —')}</option>` + items.map((i) => `<option value="${esc(i.path)}">${esc(i.name)}</option>`).join('');
 }
-// ---------------- fonts ----------------
-// Both pickers are built from /fonts/families, which is the app's ONE list. index.html used to
-// carry ten hard-coded <option>s, two of which (Arial, Impact) existed in neither the vendored
-// CSS nor the burn directory — so the owner could pick a font the renderer had never heard of
-// and nothing anywhere said so.
-const SOURCE_MARK = { uploaded: '📤 ', downloaded: '⬇︎ ', system: '🖥 ', downloadable: '☁️ ' };
-const loadedFaces = new Set();
-
-/**
- * Pull a family's real bytes into the page before anything claims to show it.
- *
- * The old preview just set `fontFamily` and hoped. The app's own stylesheet only ever loaded
- * Lexend and JetBrains Mono, so picking Anton painted the system sans-serif and looked, to the
- * owner, exactly like a font that simply did not work.
- */
-export async function ensureFontLoaded(family) {
-  if (!family || loadedFaces.has(family)) return;
-  loadedFaces.add(family);
-  try {
-    const css = await (await fetch(`/api/fonts/${encodeURIComponent(family)}/css`)).text();
-    if (css.trim()) {
-      const el = document.createElement('style');
-      el.dataset.font = family;
-      el.textContent = css;
-      document.head.appendChild(el);
-    }
-    if (document.fonts?.load) await document.fonts.load(`16px "${family}"`);
-  } catch { /* the picker already marks unready families; a failed fetch just leaves it unloaded */ }
-}
-
-export async function loadFontFamilies() {
-  let families = [];
-  try { families = (await api.get('/fonts/families')).families || []; } catch { return; }
-  state.fontFamilies = families;
-  const label = (f) => `${SOURCE_MARK[f.source] || ''}${f.family}${f.ready ? '' : m(' — chưa tải')}`;
-
-  const bf = $('#cfgBrandFont');
-  if (bf) {
-    const cur = bf.value;
-    bf.innerHTML = `<option value="">${m('— Theo style guide —')}</option>`
-      + families.filter((f) => f.ready).map((f) => `<option value="${esc(f.family)}">${esc(label(f))}</option>`).join('');
-    bf.value = cur;
-  }
-  const sf = $('#cfgSubFont');
-  if (sf) {
-    // option value = BARE family name: one canonical form feeds both the harness caption stack
-    // and the ASS FontName, which must be a plain family or libass cannot match it.
-    const cur = sf.value;
-    sf.innerHTML = families.map((f) =>
-      `<option value="${esc(f.family)}" style="font-family:'${esc(f.family)}',sans-serif"${f.ready ? '' : ' data-unready="1"'}>${esc(label(f))}</option>`).join('');
-    sf.value = cur || 'Be Vietnam Pro';
-    syncSubWeights();
-  }
-  // draw the options in their own typeface — choosing a font you cannot see is guesswork
-  await Promise.all(families.filter((f) => f.ready && f.source !== 'system').slice(0, 12).map((f) => ensureFontLoaded(f.family)));
-  await ensureFontLoaded($('#cfgSubFont')?.value);
-  updateSubPreview();
-}
-
-/** Fetch a catalogue family the owner picked but has not got yet. */
-export async function downloadFont(family) {
-  const r = await api.post(`/fonts/${encodeURIComponent(family)}/download`, {});
-  loadedFaces.delete(family);
-  await loadFontFamilies();
-  await ensureFontLoaded(family);
-  return r;
-}
-
 // ================= config groups: summary cards + edit modal =================
 // Each .cfg-group is a read-only summary card; clicking it MOVES the group's live
 // .cfg-body node into #cfgModal (ids + listeners travel with the node — never clone),
@@ -939,6 +874,7 @@ function openCfgGroupModal(group) {
   // All five groups share this one shell, so the extra width has to be put on and taken off with
   // the body rather than living on .cfgm — the other four are single columns and would look lost.
   $('#cfgModal').querySelector('.modal')?.classList.toggle('sub-wide', group.id === 'grpSubtitle');
+  if (group.id === 'grpSubtitle') loadPickerFonts();
   $('#cfgModal').classList.add('open');
   // the real-frame preview only means anything once there IS a frame
   if (group.id === 'grpSubtitle') syncFramePreviewAvailability();
@@ -998,10 +934,10 @@ export function updateCfgChips() {
 }
 
 // ================= channel presets bar =================
-export async function loadChannelPresets() {
+export async function loadChannelPresets(prefetched = null) {
   if (!state.activeChannel) return;
   try {
-    const { presets } = await api.get(`/channels/${state.activeChannel}/presets`);
+    const { presets } = prefetched || await api.get(`/channels/${state.activeChannel}/presets`);
     state.presets = presets || [];
   } catch { state.presets = []; }
   const sel = $('#cfgPresetSelect');

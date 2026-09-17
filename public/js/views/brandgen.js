@@ -8,6 +8,7 @@ import { toast } from '../ui/toast.js';
 import { confirmDialog } from '../ui/dialog.js';
 import { api, fileUrl, withLock } from '../api.js';
 import { t, m, tp } from '../i18n.js';
+import { registerPageHook } from './nav.js';
 
 const GENERATE_TIMEOUT_MS = 25 * 60 * 1000; // server does ×10 attempts — outlive them
 
@@ -37,7 +38,7 @@ function setProgress(done, total) {
 
 async function loadBrands(selectValue) {
   try {
-    const { brands } = await api.get('/brands');
+    const { brands } = await api.get('/brands', { ttl: 5000 });
     const list = (brands && brands.length ? brands : ['Default']);
     if (!list.includes('Default')) list.unshift('Default');
     const cur = selectValue || getBrand();
@@ -49,7 +50,7 @@ async function loadBrands(selectValue) {
 let editProviders = [];
 async function loadImageProviders() {
   try {
-    const { settings } = await api.get('/settings');
+    const { settings } = await api.get('/settings', { ttl: 5000 });
     const ig = settings.imageGen || {};
     editProviders = Array.isArray(ig.editProviders) ? ig.editProviders : [];
     const pick = ig.brandEdit || {};
@@ -178,7 +179,7 @@ async function start() {
 
 async function loadCopyTargets() {
   try {
-    const { brands } = await api.get('/brands');
+    const { brands } = await api.get('/brands', { ttl: 5000 });
     const others = (brands || []).filter((b) => b !== getBrand());
     if (!$$('#bgResults .libitem').length) return;
     $('#bgCopySec').classList.remove('hidden');
@@ -203,7 +204,8 @@ async function copyToBrand() {
 
 export function initBrandGen() {
   if (!$('#bgGo')) return;
-  loadBrands(); loadImageProviders();
+  // Loaded when the page is shown, not at boot: two requests for a screen nobody is looking at.
+  registerPageHook('brandgen', () => { loadBrands(); loadImageProviders(); });
   // reference image
   $('#bgRef').addEventListener('change', (e) => {
     refFile = e.target.files[0] || null;

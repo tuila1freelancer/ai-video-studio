@@ -11,6 +11,7 @@ const TIMEOUT_MS = 120000; // some endpoints (fetch-link, voice preview) legitim
 
 async function request(method, path, { body, formData } = {}) {
   const retries = method === 'GET' ? 1 : 0; // mutations must never silently double-fire
+  if (method !== 'GET') cached.clear(); // a mutation may change any catalogue a cached GET described
   for (let attempt = 0; ; attempt++) {
     try {
       const res = await fetch('/api' + path, {
@@ -41,8 +42,27 @@ async function request(method, path, { body, formData } = {}) {
   }
 }
 
+// One request per URL at a time, and an optional short cache for catalogues: at boot three
+// modules asked for /settings and two for /brands within the same tick.
+const inflight = new Map();
+const cached = new Map(); // path -> { at, data }
+function getDeduped(p, { ttl = 0 } = {}) {
+  const hit = ttl > 0 && cached.get(p);
+  if (hit && Date.now() - hit.at < ttl) return Promise.resolve(hit.data);
+  if (inflight.has(p)) return inflight.get(p);
+  const job = request('GET', p).then((data) => {
+    if (ttl > 0) cached.set(p, { at: Date.now(), data });
+    return data;
+  }).finally(() => inflight.delete(p));
+  inflight.set(p, job);
+  return job;
+}
+
 export const api = {
-  get: (p) => request('GET', p),
+  /** @param {string} p @param {{ttl?:number}} [opts] `ttl` ms keeps the reply for later callers */
+  get: (p, opts) => getDeduped(p, opts),
+  /** Hand a reply obtained elsewhere (the /boot aggregate) to later GET callers of `p`. */
+  seed: (p, data) => { cached.set(p, { at: Date.now(), data }); },
   post: (p, body) => request('POST', p, { body: body || {} }),
   put: (p, body) => request('PUT', p, { body: body || {} }),
   patch: (p, body) => request('PATCH', p, { body: body || {} }),
@@ -51,6 +71,13 @@ export const api = {
 };
 
 export function fileUrl(path) { return path ? '/api/file?path=' + encodeURIComponent(path) : ''; }
+/**
+ * A downscaled copy of an image for a card. `version` (the row's updated_at) makes the URL
+ * change when the file does, so the reply can be cached for a day.
+ */
+export function thumbUrl(path, w = 320, version = 0) {
+  return path ? `/api/thumb?path=${encodeURIComponent(path)}&w=${w}&v=${version || 0}` : '';
+}
 
 // Lock a button for the duration of an async action — a double-click on "Tạo video"/"Bắt đầu"
 // must never create duplicate projects or start two pipelines.
@@ -64,16 +91,25 @@ export async function withLock(btn, fn) {
 
 export class WS {
   constructor(onMsg) {
-    this.onMsg = onMsg; this.sub = null; this.connect();
+    this.onMsg = onMsg; this.sub = null; this.attempt = 0; this.connect();
+    // A tab that comes back from the background reconnects at once instead of waiting out a backoff.
+    document.addEventListener('visibilitychange', () => { if (!document.hidden && !this._open) this.reconnectNow(); });
   }
   connect() {
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
     this.ws = new WebSocket(`${proto}://${location.host}/ws`);
     this.ws.onmessage = (e) => { try { this.onMsg(JSON.parse(e.data)); } catch {} };
-    this.ws.onopen = () => { this._open = true; if (this.sub) this.subscribe(this.sub); this.onMsg({ type: '_status', open: true }); };
-    this.ws.onclose = () => { this._open = false; this.onMsg({ type: '_status', open: false }); setTimeout(() => this.connect(), 1500); };
+    this.ws.onopen = () => { this._open = true; this.attempt = 0; if (this.sub) this.subscribe(this.sub); this.onMsg({ type: '_status', open: true }); };
+    // Exponential backoff with jitter, 1.5 s → 30 s: a server that is down for a minute used to be
+    // hammered every 1.5 s by every open tab.
+    this.ws.onclose = () => {
+      this._open = false; this.onMsg({ type: '_status', open: false });
+      const delay = Math.min(30000, 1500 * 2 ** Math.min(this.attempt++, 5)) * (0.75 + Math.random() * 0.5);
+      this.timer = setTimeout(() => this.connect(), delay);
+    };
     this.ws.onerror = () => {};
   }
+  reconnectNow() { clearTimeout(this.timer); this.attempt = 0; this.connect(); }
   subscribe(projectId) {
     this.sub = projectId;
     if (this._open) this.ws.send(JSON.stringify({ type: 'subscribe', projectId }));

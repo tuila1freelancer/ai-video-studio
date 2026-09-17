@@ -1,6 +1,6 @@
 import { $, $$, el, esc, badgeText, statusIcon } from '../ui/dom.js';
 import { toast } from '../ui/toast.js';
-import { api, fileUrl, withLock, WS } from '../api.js';
+import { api, fileUrl, thumbUrl, withLock, WS } from '../api.js';
 import { state, channelDefaults } from '../state.js';
 import { PIPE, PHASE_W, PHASE_ORDER, prog, resetProgress, setProgress, recomputeProgress, setStep, showOp, hideOp } from './progress.js';
 import { loadJournal, clearJournal, onJournalEvent } from '../features/journal.js';
@@ -143,8 +143,8 @@ export function initStudio() {
 }
 
 // ---------------- projects ----------------
-export async function loadProjects() {
-  const { projects } = await api.get('/projects');
+export async function loadProjects(prefetched = null) {
+  const { projects } = prefetched || await api.get('/projects');
   state.projects = projects;
   state.projectsLoaded = true;
   renderProjectList();
@@ -156,7 +156,7 @@ export function renderProjectList() {
   box.innerHTML = '';
   state.projects.forEach((p) => {
     const it = el('div', 'pitem' + (state.current && state.current.id === p.id ? ' active' : ''));
-    it.innerHTML = `${p.thumb_path ? `<img class="thumb" src="${fileUrl(p.thumb_path)}" loading="lazy" decoding="async">` : '<div class="thumb"></div>'}
+    it.innerHTML = `${p.thumb_path ? `<img class="thumb" src="${thumbUrl(p.thumb_path, 160, p.updated_at)}" loading="lazy" decoding="async" alt="">` : '<div class="thumb"></div>'}
       <div class="meta"><div class="t">${esc(p.title)}</div><div class="s">${badgeText(p.status)} · ${p.aspect_ratio}</div></div>
       <button class="pitem-ren" title="${esc(m('Đổi tên'))}">✏️</button>
       <button class="pitem-del" title="${esc(m('Xoá dự án'))}">🗑</button>`;

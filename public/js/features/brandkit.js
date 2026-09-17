@@ -107,11 +107,11 @@ export function openBrandEditor() {
     + (state.providers || []).map((p) => `<option value="${p.id}"${ai.tts?.provider === p.id ? ' selected' : ''}>${esc(p.name)}</option>`).join('');
   $('#brandAiLlmModel').value = ai.llm?.model || '';
   $('#brandAiSub').value = ai.subtitle?.engine || '';
-  api.get('/fonts/families').then(({ families }) => {
+  api.get('/fonts/families', { ttl: 5000 }).then(({ families }) => {
     const sel = $('#brandFont');
     if (!sel) return;
     sel.innerHTML = `<option value="">${esc(m('— Theo style guide —'))}</option>`
-      + (families || []).map((f) => `<option value="${esc(f.name)}">${f.source === 'uploaded' ? '📤 ' : ''}${esc(f.name)}</option>`).join('');
+      + (families || []).map((f) => `<option value="${esc(f.family)}">${f.source === 'uploaded' ? '📤 ' : ''}${esc(f.family)}</option>`).join('');
     sel.value = ch.config?.fonts?.display || '';
   }).catch(() => { /* picker just stays on the default option */ });
   // stage: true render aspect, latest real frame as backdrop, checkerboard when none
