@@ -43,6 +43,11 @@ export const RELOCATED = {
     'src/pipeline/render.js', 'src/pipeline/render/transitions.js', 'src/pipeline/render/captions.js',
     'src/pipeline/render/graph.js', 'src/pipeline/render/encode.js',
   ],
+  'src/content/master-script.js': [
+    'src/content/master-script.js', 'src/content/master-script/plan.js', 'src/content/master-script/validate.js',
+    'src/content/master-script/repair.js', 'src/content/master-script/prompt.js', 'src/content/master-script/shape.js',
+    'src/content/master-script/outline.js', 'src/content/master-script/generate.js',
+  ],
 };
 
 /** `m('x')` → `'x'`, `tp\`x\`` → `` `x` ``. Nothing else is touched. */
