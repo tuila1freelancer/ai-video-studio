@@ -1,12 +1,12 @@
 // Projects: CRUD, export history, variants, QC scan, change plans, frame preview, restart, footprint, typeset repair, deletion.
-import { existsSync, statSync, unlinkSync, readdirSync, rmSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, statSync } from 'node:fs';
 import * as DB from '../../db/index.js';
 import { logger } from '../../util/log.js';
 import { detectInputType } from '../../util/util.js';
 import * as Pipeline from '../../pipeline/queue.js';
 import { resolveProjectConfig } from '../../core/config.js';
 import { tp } from '../../i18n/t.js';
+import { projectOwnedFiles, purgeProjectFiles } from '../services/project-files.js';
 
 /** @param {import('express').Router} r */
 export function mount(r) {
@@ -233,29 +233,6 @@ export function mount(r) {
     res.json({ ok: true, atRisk: at.length, started: true });
   });
 
-  /**
-   * Every file this project OWNS — and nothing it merely shares.
-   *
-   * The working directory is exclusive, so it goes whole. `outputDir` is NOT: several projects of
-   * one channel publish into the same folder, so deleting it would take other people's finished
-   * videos with it. The deliverables there are removed one by one, by name.
-   */
-  function projectOwnedFiles(p, scenes) {
-    const out = [];
-    const dir = DB.projectDirFor(p.id);
-    const walk = (d) => {
-      for (const e of readdirSync(d, { withFileTypes: true })) {
-        const full = join(d, e.name);
-        if (e.isDirectory()) walk(full); else out.push(full);
-      }
-    };
-    try { if (existsSync(dir)) walk(dir); } catch { /* unreadable — report what we have */ }
-    for (const f of [p.video_path, p.thumb_path, ...(p.metadata?.covers || []).map((c) => c?.path)]) {
-      if (f && existsSync(f) && !f.startsWith(dir)) out.push(f);
-    }
-    return [...new Set(out)];
-  }
-
   r.delete('/projects/:id', (req, res) => {
     const p = DB.getProject(req.params.id);
     if (!p) return res.json({ ok: true, removed: 0 }); // already gone is the outcome asked for
@@ -264,19 +241,6 @@ export function mount(r) {
     logger.info(tp`🗑 Đã xoá dự án "${p.title}" — ${removed.files} file, ${(removed.bytes / 1048576).toFixed(0)} MB`, { projectId: p.id });
     res.json({ ok: true, ...removed });
   });
-
-  /** Delete the owned files, then the working directory itself. Never a shared output folder. */
-  function purgeProjectFiles(p) {
-    const scenes = DB.getScenes(p.id);
-    const files = projectOwnedFiles(p, scenes);
-    let bytes = 0;
-    let n = 0;
-    for (const f of files) {
-      try { bytes += statSync(f).size; unlinkSync(f); n++; } catch { /* gone or locked — keep going */ }
-    }
-    try { rmSync(DB.projectDirFor(p.id), { recursive: true, force: true }); } catch { /* best effort */ }
-    return { files: n, bytes };
-  }
 
   r.delete('/projects', (req, res) => {
     // Consistent with the single delete: "xoá" means the files go too.

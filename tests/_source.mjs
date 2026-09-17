@@ -28,6 +28,7 @@ export const RELOCATED = {
     'src/api/routers/scene-studio.js', 'src/api/routers/scenes.js', 'src/api/routers/research.js',
     'src/api/routers/library-fonts.js', 'src/api/routers/brands.js', 'src/api/routers/files-media.js',
     'src/api/routers/edit-video.js', 'src/api/helpers.js', 'src/core/llm-accounts.js',
+    'src/api/services/project-files.js', 'src/api/services/contact-sheet.js', 'src/api/services/folder-picker.js',
   ],
 };
 
