@@ -140,7 +140,7 @@ function mountCoverVersions(r) {
       const { covers } = await generateCoverSet({
         title: p.title, hook: req.body?.hook || md.thumbnail?.title || '',
         prompt: req.body?.prompt || md.thumbnail?.prompt || '',
-        guide: resolveGuide(p.config || {}), sizes, outDir, baseName: 'cover',
+        guide: resolveGuide(p.config || {}), sizes, outDir, baseName: `cover_${p.id}`,
         language: resolveLang(p.config, DB.getScenes(p.id)), media, llm, fragments,
         onLog: (m) => logger.info(m, { projectId: p.id }),
       });

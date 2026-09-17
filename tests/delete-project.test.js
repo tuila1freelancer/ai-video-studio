@@ -57,3 +57,10 @@ test('"xoá tất cả" keeps the same promise as "xoá"', () => {
   assert.match(routes, /r\.delete\('\/projects', \(req, res\) => \{[\s\S]{0,400}purgeProjectFiles\(p\)/);
   assert.match(studio, /kèm TOÀN BỘ file trên ổ đĩa/);
 });
+
+test('a project\'s covers are named after it, so the next video cannot overwrite them', () => {
+  // The channel's output folder is shared by every project; a fixed cover_shorts.jpg meant each
+  // finished video replaced the previous video's covers while its metadata still pointed at them.
+  assert.match(sourceOf('src/pipeline/finalize/thumbnail.js'), /baseName: `cover_\$\{projectId\}`/);
+  assert.match(sourceOf('src/api/routers/project-outputs.js'), /baseName: `cover_\$\{p\.id\}`/);
+});
