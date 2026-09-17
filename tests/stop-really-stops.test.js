@@ -181,7 +181,7 @@ test('stopError is one definition shared by every layer', () => {
   assert.equal(notStopped(e), true);
   // media/ffmpeg.js imports it rather than re-inventing the tag, which is why stop.js has no
   // imports of its own — a database dependency there would reach into every spawn.
-  assert.match(sourceOf('src/media/ffmpeg.js'), /import \{ stopError \} from '\.\.\/pipeline\/stop\.js';/);
+  assert.match(sourceOf('src/media/ffmpeg/run.js'), /import \{ stopError \} from '\.\.\/\.\.\/pipeline\/stop\.js';/);
   // `graph.args`, not `args`: the filtergraph is swapped for a -filter_complex_script file before
   // the spawn so `ps` cannot read the transition doctrine. The signal must survive that rewrite.
   assert.match(sourceOf('src/media/ffmpeg.js'), /spawn\(bin, graph\.args, \{ stdio: \['ignore', 'pipe', 'pipe'\], signal \}\)/);
