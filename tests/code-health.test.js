@@ -26,7 +26,6 @@ const OVERSIZE = {
   'public/js/views/config.js': 1127,
   'public/js/views/studio.js': 982,
   'public/js/views/guide.js': 678,
-  'src/providers/fetchlink.js': 519,
   'src/media/ffmpeg.js': 493,
   'public/js/features/brandkit.js': 451,
   'public/js/features/settings.js': 439,
