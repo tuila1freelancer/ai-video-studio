@@ -13,7 +13,7 @@ import { qcSceneClip } from '../qc.js';
 import { checkStop } from '../stop.js';
 import { step, op, progressPlan } from '../progress.js';
 import { mapPool } from '../helpers.js';
-import { renderFingerprint, renderCurrent, fpCurrent, fpStamp, stampRendered } from '../fingerprint.js';
+import { renderFingerprint, renderCurrent, fpStamp, stampRendered } from '../fingerprint.js';
 import { timed } from '../stats.js';
 
 import { m, tp } from '../../i18n/t.js';

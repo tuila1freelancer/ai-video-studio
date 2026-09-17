@@ -8,7 +8,7 @@ import db from '../db/index.js';
 import { hub } from '../ws/hub.js';
 import { DIRS, PATHS, depStatus } from '../config/paths.js';
 import { logger } from '../util/log.js';
-import { detectInputType, newId, ratioToSize, wordCount } from '../util/util.js';
+import { detectInputType, newId, ratioToSize } from '../util/util.js';
 import { fetchLink } from '../providers/fetchlink.js';
 import { imageSearch } from '../providers/imagesearch.js';
 import { generateMetadata, wordsForSlot, LANG_WPS } from '../providers/llm.js';
@@ -1810,7 +1810,7 @@ export function mountRoutes(app, { version }) {
     const changed = (k) => k in body && JSON.stringify(body[k]) !== JSON.stringify(before[k]);
     // props.audio (per-scene SFX) is mixed at the CONCAT stage, never baked into the clip —
     // an audio-only props edit must not stale the rendered clip
-    const strip = (pr) => { const { audio, ...rest } = pr || {}; return rest; };
+    const strip = (pr) => { const { audio: _audio, ...rest } = pr || {}; return rest; };
     const visualPropsChanged = changed('props')
       && JSON.stringify(strip(body.props)) !== JSON.stringify(strip(before.props));
     if (changed('voice_text')) {

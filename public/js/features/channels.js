@@ -22,6 +22,7 @@ export async function loadChannels() {
     .map((c) => `<option value="${c.id}"${c.id === active ? ' selected' : ''}>${esc(c.name)}</option>`).join('');
 }
 export async function switchChannel(id) {
+  const ch = state.channels.find((c) => c.id === id);
   await api.post(`/channels/${id}/activate`, {});
   state.activeChannel = id;
   startNewProject();

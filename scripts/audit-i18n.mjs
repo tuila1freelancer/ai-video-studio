@@ -26,6 +26,7 @@ const NEVER_TRANSLATED = [
   /^[\d.,\s]*(?:%|dB|ms|s|px|fps|p|K|MB|GB|×)$/i,
   /^https?:\/\//, /^sk-/, /^~\//, /^[a-z0-9-]+\/[a-z0-9-]+$/i,
   /^(?:Client ID|Client Secret|Page ID|Page Access Token|Base URL|TOOLS-)/,
+  // eslint-disable-next-line no-misleading-character-class -- ZWJ/VS16 belong in the emoji class
   /^[\p{Extended_Pictographic}\p{Emoji_Presentation}\s‍️●○▶◀·—–|]+$/u,
 ];
 // A Vietnamese word outranks every rule above it: `~/Movies/AI Video Studio/ten-kenh` is a path

@@ -3,7 +3,7 @@
 // side-by-side JPGs labeled only A/B plus a hidden key file. Judge the pairs visually,
 // then read key.json to unblind.
 //   node scripts/parity/blind.mjs --run DIR [--n 10] [--seed 7] [--frame 2]
-import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
+import { writeFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 

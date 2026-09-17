@@ -14,7 +14,7 @@ import { readFileSync } from 'node:fs';
 import { classifyCta, auditCtas, stripCtaSentences } from '../src/content/cta-audit.js';
 import {
   buildMasterPrompt, batchNoteFor, ctaPlanFor, normalizeChapters, planScenes,
-  generateMasterScenes, VISUAL_BRACKETS,
+  generateMasterScenes,
 } from '../src/content/master-script.js';
 import { scoreScript } from '../src/content/scorer.js';
 

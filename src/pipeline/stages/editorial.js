@@ -10,7 +10,7 @@
 // exist (a rewrite after TTS would silently desync audio from script).
 import * as DB from '../../db/index.js';
 import { logger } from '../../util/log.js';
-import { chatJson, llmEnabled, LANG_WPS, wordsForSlot } from '../../providers/llm.js';
+import { chatJson, llmEnabled, wordsForSlot } from '../../providers/llm.js';
 import { scoreScript } from '../../content/scorer.js';
 import { auditCtas, stripCtaSentences } from '../../content/cta-audit.js';
 import { checkStop } from '../stop.js';

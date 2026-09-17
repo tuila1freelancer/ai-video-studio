@@ -32,7 +32,7 @@ import {
 } from '../providers/llm.js';
 import { HF_LAYOUTS, guideBrief } from '../pipeline/direction.js';
 import { auditCtas, stripCtaSentences } from './cta-audit.js';
-import { wordCount, safeJson } from '../util/util.js';
+import { safeJson } from '../util/util.js';
 import { words, countWords, wordJoiner } from '../i18n/segment.js';
 import { column, LANGUAGES, lang as langRow } from '../i18n/languages.js';
 

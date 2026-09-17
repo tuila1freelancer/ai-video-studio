@@ -9,7 +9,7 @@
 // Only NON-interpolated strings qualify — a template that has already been filled in cannot be
 // looked up. Those are reported so the count is honest rather than quietly rounded down.
 import { readFileSync, writeFileSync, readdirSync, statSync } from 'node:fs';
-import { join, dirname, relative } from 'node:path';
+import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { msgCalls, tpTemplates } from './lib/msgid.mjs';
 

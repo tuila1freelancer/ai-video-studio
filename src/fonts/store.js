@@ -11,7 +11,7 @@
 import { mkdirSync, writeFileSync, renameSync, readdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { DIRS } from '../config/paths.js';
-import { normFamily, webFontDir, downloadedCssPath } from './files.js';
+import { normFamily, downloadedCssPath } from './files.js';
 import { catalogueEntry } from './registry.js';
 
 import { tp } from '../i18n/t.js';

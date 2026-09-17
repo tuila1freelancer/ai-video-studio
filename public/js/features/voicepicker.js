@@ -64,7 +64,7 @@ function renderVpChips() {
 }
 function renderVpList() {
   const favs = new Set(state.settings?.tts?.favVoices || []);
-  let list = state.voiceCatalog.filter((v) =>
+  const list = state.voiceCatalog.filter((v) =>
     (!vpFilter.lang || v.lang === vpFilter.lang)
     && (!vpFilter.gender || v.gender === vpFilter.gender)
     && (!vpFilter.provider || v.provider === vpFilter.provider)

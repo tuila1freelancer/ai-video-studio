@@ -11,6 +11,8 @@
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
     "test": "node --test \"tests/*.test.js\"",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "test:smoke": "node scripts/tpl-smoke.mjs",
     "test:e2e": "node scripts/e2e.mjs",
     "perf:boot": "node scripts/perf/boot-audit.mjs",
@@ -37,9 +39,12 @@
     "ws": "^8.18.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
     "electron": "^42.9.3",
     "electron-builder": "^26.15.3",
-    "esbuild": "^0.28.2"
+    "esbuild": "^0.28.2",
+    "eslint": "^9.39.5",
+    "globals": "^16.5.0"
   },
   "build": {
     "appId": "com.tuila1freelancer.aivideostudio",

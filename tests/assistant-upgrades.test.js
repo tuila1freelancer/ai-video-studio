@@ -28,7 +28,7 @@ test('P34 schedule: slot topic = researched topic; click-title rides as titleOve
 
 test('P34 promote: due slot → project titled by the override, topic intact; job stays queued', () => {
   const [r] = DB.recordSuggestionBatch({ topics: [{ topic: 'P34 chủ đề promote thử nghiệm dài hạn' }] });
-  const { slot } = scheduleSuggestion(r.id, { dueAt: Date.now() - 1000, config: {}, title: 'Tiêu Đề Hiển Thị' });
+  scheduleSuggestion(r.id, { dueAt: Date.now() - 1000, config: {}, title: 'Tiêu Đề Hiển Thị' });
   promoteDueSlots(); // direct call — no tick, so the enqueued job is never claimed/executed
   const s2 = DB.getSuggestion(r.id);
   const project = DB.getProject(DB.listProjects().find((p) => p.topic === 'P34 chủ đề promote thử nghiệm dài hạn')?.id);

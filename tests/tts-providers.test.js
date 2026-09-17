@@ -10,7 +10,7 @@
 import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { PROVIDERS, listProviders, getProvider, providerExt, legacyVoice } from '../src/providers/voice/index.js';
+import { PROVIDERS, listProviders, getProvider, providerExt } from '../src/providers/voice/index.js';
 import { signRequest, amzDate } from '../src/providers/voice/aws-sig.js';
 import { parseSpeechMarks } from '../src/providers/voice/polly.js';
 import { escapeXml, ssmlProsody } from '../src/providers/voice/ssml.js';

@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { checkCatalogue } from '../scripts/lib/locale-check.mjs';
 import { classifyError, failed, coded, ERROR_CLASS } from '../src/core/errors.js';
-import { t, setUiLang, uiLang, reloadCatalogues } from '../src/i18n/t.js';
+import { t, setUiLang, uiLang } from '../src/i18n/t.js';
 import { PATHS } from '../src/config/paths.js';
 import { LANG_CODES } from '../src/i18n/languages.js';
 import { join } from 'node:path';
