@@ -34,6 +34,11 @@ export const RELOCATED = {
     'src/providers/llm.js', 'src/providers/llm/transport.js', 'src/providers/llm/json.js', 'src/providers/llm/script.js',
     'src/providers/llm/budget.js', 'src/providers/llm/generate.js', 'src/providers/llm/metadata.js',
   ],
+  'src/pipeline/stages/finalize.js': [
+    'src/pipeline/stages/finalize.js', 'src/pipeline/finalize/clips.js', 'src/pipeline/finalize/dressing.js',
+    'src/pipeline/finalize/sound.js', 'src/pipeline/finalize/captions.js', 'src/pipeline/finalize/concat.js',
+    'src/pipeline/finalize/master.js', 'src/pipeline/finalize/qc.js', 'src/pipeline/finalize/thumbnail.js',
+  ],
 };
 
 /** `m('x')` → `'x'`, `tp\`x\`` → `` `x` ``. Nothing else is touched. */
