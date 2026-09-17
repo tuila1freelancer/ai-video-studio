@@ -40,12 +40,14 @@ export function thumbFor(src, w) {
   const st = statSync(src);
   const key = createHash('sha1').update(`${src}|${st.size}|${st.mtimeMs}|${w}`).digest('hex').slice(0, 20);
   const dir = join(DIRS.tmp, 'thumbs');
-  const out = join(dir, `${key}.jpg`);
+  // A PNG source keeps PNG so a logo's transparency survives; everything else is a JPEG frame.
+  const png = /\.png$/i.test(src);
+  const out = join(dir, `${key}.${png ? 'png' : 'jpg'}`);
   if (existsSync(out)) return Promise.resolve(out);
   if (inflight.has(out)) return inflight.get(out);
   mkdirSync(dir, { recursive: true });
   const job = slot().then(() => new Promise((resolve) => {
-    execFile(PATHS.ffmpeg, ['-v', 'error', '-i', src, '-frames:v', '1', '-vf', `scale='min(${w},iw)':-2`, '-q:v', '5', out, '-y'],
+    execFile(PATHS.ffmpeg, ['-v', 'error', '-i', src, '-frames:v', '1', '-vf', `scale='min(${w},iw)':-2`, ...(png ? [] : ['-q:v', '5']), out, '-y'],
       { timeout: 20000 }, (err) => resolve(err ? null : out));
   }).finally(release)).finally(() => inflight.delete(out));
   inflight.set(out, job);

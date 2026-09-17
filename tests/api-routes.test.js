@@ -30,8 +30,8 @@ test('GET /boot carries everything the first paint needs, in one reply', async (
   assert.equal(JSON.stringify(body.settings).includes('sk-'), false, 'secrets never leave masked');
 });
 
-test('GET /projects is a summary: no config, no metadata', async () => {
-  const p = DB.createProject({ title: 'Lite', topic: 't', aspectRatio: '16:9', config: { language: 'vi', big: 'x'.repeat(5000) } });
+test('GET /projects is a summary: no config, no metadata, the head of the topic', async () => {
+  const p = DB.createProject({ title: 'Lite', topic: 'Chủ đề ' + 'kịch bản dài '.repeat(400), aspectRatio: '16:9', config: { language: 'vi', big: 'x'.repeat(5000) } });
   DB.updateProject(p.id, { metadata: { thumbnail: { html: '<div>' + 'y'.repeat(5000) + '</div>' }, title: 'Lite' } });
   const { body } = await get('/projects');
   const row = body.projects.find((x) => x.id === p.id);
@@ -40,7 +40,9 @@ test('GET /projects is a summary: no config, no metadata', async () => {
   assert.equal(row.aspect_ratio, '16:9');
   assert.equal('config' in row, false);
   assert.equal('metadata' in row, false);
-  assert.ok(JSON.stringify(row).length < 600, 'a list row is a few hundred bytes');
+  assert.ok(row.topic.startsWith('Chủ đề kịch bản') && row.topic.length <= 200, 'a pasted script is cut to a caption');
+  assert.equal(DB.getProject(p.id).topic.length > 4000, true, 'the row itself keeps the whole script');
+  assert.ok(JSON.stringify(row).length < 800, 'a list row is a few hundred bytes');
 });
 
 test('GET /projects/:id?scenes=lite strips the generated page but keeps what the list renders', async () => {
