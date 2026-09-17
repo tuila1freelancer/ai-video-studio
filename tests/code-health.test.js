@@ -25,7 +25,6 @@ const MAX_LINES = 400;
 const OVERSIZE = {
   'public/js/views/config.js': 1127,
   'public/js/views/studio.js': 982,
-  'src/content/master-script.js': 877,
   'src/animation/harness.js': 733,
   'public/js/views/guide.js': 678,
   'src/providers/fetchlink.js': 519,
