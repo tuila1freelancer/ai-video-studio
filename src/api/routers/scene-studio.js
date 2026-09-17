@@ -40,7 +40,7 @@ export function mount(r) {
       });
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       res.send(html);
-    } catch (e) { res.status(500).send(e.message); }
+    } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
   r.post('/scenes/:id/preview-frame', async (req, res) => {
