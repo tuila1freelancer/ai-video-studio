@@ -18,7 +18,9 @@ import { readFileSync } from 'node:fs';
 const ROOT = new URL('../', import.meta.url);
 
 /** Old path → the files it was split into, in the order the old file had them. */
-export const RELOCATED = {};
+export const RELOCATED = {
+  'src/api/routes.js': ['src/api/routes.js', 'src/api/routers/files-media.js'],
+};
 
 /** `m('x')` → `'x'`, `tp\`x\`` → `` `x` ``. Nothing else is touched. */
 export function unwrapI18n(code) {
