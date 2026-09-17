@@ -100,6 +100,33 @@ const JUNK = /\b[A-Za-z][A-Za-z0-9]*(?:_[A-Za-z0-9]+)+\b|\b[A-Za-z_][\w-]*\s*=\s
 
 function zone(cx, cy, W, H) { return `${Math.min(2, Math.floor((cx / W) * 3))}${Math.min(2, Math.floor((cy / H) * 3))}`; }
 
+// (e) calm — ONE MAIN mover at a time. Ambient drift and keep-alive micro-motion
+// (float ±8, breathe 3%, glow cycles, counter ticks) ARE the doctrine and never count;
+// a MAIN mover is an entrance/exit-scale movement: ≥160 px/s translation, ≥100%/s scale
+// change, or ≥2/s opacity change (over the 0.15 s pair window). Calibrated so the
+// reference app's own scenes pass.
+function calmCheck(keyTimes, snaps, movePairs) {
+  const movers = [], moverKeys = [];
+  for (const t of keyTimes) {
+    const A = new Map(snaps[t].texts.concat(snaps[t].painted).map((e2) => [e2.key, e2]));
+    const B = snaps[t] === movePairs[t] ? [] : movePairs[t].texts.concat(movePairs[t].painted);
+    const moved = new Set();
+    for (const e2 of B) {
+      const p0 = A.get(e2.key);
+      if (!p0) continue;
+      const dx = Math.abs((e2.x ?? 0) - (p0.x ?? 0)), dy = Math.abs((e2.y ?? 0) - (p0.y ?? 0));
+      const dScale = p0.w > 0 ? Math.abs(e2.w - p0.w) / p0.w : 0;
+      const dO = Math.abs((e2.o ?? 1) - (p0.o ?? 1));
+      if (dx > 24 || dy > 24 || dScale > 0.15 || dO > 0.3) moved.add(e2.grp || e2.key);
+    }
+    movers.push(moved.size);
+    moverKeys.push([...moved].slice(0, 4).join('+'));
+  }
+  const sortedM = [...movers].sort((x, y) => x - y);
+  const medianM = sortedM[Math.floor(sortedM.length / 2)];
+  return { pass: medianM <= 2 && Math.max(...movers) <= 3, detail: `movers=${movers.join(',')} [${moverKeys.filter(Boolean).join(' | ')}]` };
+}
+
 /**
  * Audit one live page. seek(t) must land the page on absolute scene-time t.
  * beats may be [] (reference pages) — then d/f are reported as null (not scored).
@@ -187,30 +214,7 @@ export async function auditScene({ page, seek, duration, beats = [], hasBeats = 
     d = { pass: checked >= 2 ? responded >= Math.ceil(checked * 0.8) : null, detail: `${responded}/${checked} beats answered`, entrances };
   }
 
-  // (e) calm — ONE MAIN mover at a time. Ambient drift and keep-alive micro-motion
-  // (float ±8, breathe 3%, glow cycles, counter ticks) ARE the doctrine and never count;
-  // a MAIN mover is an entrance/exit-scale movement: ≥160 px/s translation, ≥100%/s scale
-  // change, or ≥2/s opacity change (over the 0.15 s pair window). Calibrated so the
-  // reference app's own scenes pass.
-  const movers = [], moverKeys = [];
-  for (const t of keyTimes) {
-    const A = new Map(snaps[t].texts.concat(snaps[t].painted).map((e2) => [e2.key, e2]));
-    const B = snaps[t] === movePairs[t] ? [] : movePairs[t].texts.concat(movePairs[t].painted);
-    const moved = new Set();
-    for (const e2 of B) {
-      const p0 = A.get(e2.key);
-      if (!p0) continue;
-      const dx = Math.abs((e2.x ?? 0) - (p0.x ?? 0)), dy = Math.abs((e2.y ?? 0) - (p0.y ?? 0));
-      const dScale = p0.w > 0 ? Math.abs(e2.w - p0.w) / p0.w : 0;
-      const dO = Math.abs((e2.o ?? 1) - (p0.o ?? 1));
-      if (dx > 24 || dy > 24 || dScale > 0.15 || dO > 0.3) moved.add(e2.grp || e2.key);
-    }
-    movers.push(moved.size);
-    moverKeys.push([...moved].slice(0, 4).join('+'));
-  }
-  const sortedM = [...movers].sort((x, y) => x - y);
-  const medianM = sortedM[Math.floor(sortedM.length / 2)];
-  const e = { pass: medianM <= 2 && Math.max(...movers) <= 3, detail: `movers=${movers.join(',')} [${moverKeys.filter(Boolean).join(' | ')}]` };
+  const e = calmCheck(keyTimes, snaps, movePairs);
 
   // (f) position rotation between consecutive beat entrances (ours only)
   let f = { pass: null, detail: 'no beats (ref)' };
