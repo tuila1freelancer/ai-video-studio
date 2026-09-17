@@ -14,6 +14,7 @@ import {
 } from './assistant-sheet.js';
 import { initHistoryTab, renderHistory } from './assistant-history.js';
 import { m, tp } from '../i18n.js';
+import { fmtDate } from '../ui/format.js';
 
 // Built per call, never at module load: the catalogue arrives after these modules are imported.
 const packLabels = () => ({ 'vn-news': m('📰 Tin tức VN'), 'vn-tech': m('💻 Công nghệ VN'), 'vn-business': m('📈 Kinh doanh VN') });
@@ -275,7 +276,7 @@ async function renderRecs() {
   box.innerHTML = recs.map((r) => `
     <div class="ap-slot" data-id="${esc(r.id)}">
       <span class="when">${weekday(r.weekday)} · ${esc(r.time)}</span>
-      <span class="t hint" style="flex:1">${tp`kế tiếp: ${new Date(nextOccurrence(r)).toLocaleString('vi-VN')}`}</span>
+      <span class="t hint" style="flex:1">${tp`kế tiếp: ${fmtDate(nextOccurrence(r))}`}</span>
       <button class="btn sm" data-rec="fill">${m('＋ Chọn chủ đề')}</button>
       <button class="btn sm" data-rec="del" title="${esc(m('Xoá khung giờ'))}">✕</button>
     </div>`).join('');
@@ -329,7 +330,7 @@ function renderCalendar({ slots }) {
   if (!slots?.length) { box.innerHTML = `<div class="hint">${m('Chưa có lịch nào — hẹn từ một gợi ý ở tab 💡.')}</div>`; return; }
   box.innerHTML = slots.slice(-20).map((s) => `
     <div class="ap-slot" data-id="${esc(s.id)}">
-      <span class="when">${new Date(s.due_at).toLocaleString('vi-VN')}</span>
+      <span class="when">${fmtDate(s.due_at)}</span>
       <span class="t" style="flex:1">${esc(s.topic)}</span>
       <span class="badge ${s.status === 'created' ? 'done' : s.status === 'cancelled' ? 'error' : 'paused'}">${s.status === 'queued' ? m('Chờ đến hạn') : s.status === 'created' ? m('Đã tạo video') : m('Đã huỷ')}</span>
       ${s.status === 'queued' ? `

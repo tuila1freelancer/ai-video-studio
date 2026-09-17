@@ -89,7 +89,7 @@ function renderVpList() {
       <button class="btn sm ghost vp-fav" data-k="${esc(key)}" title="${esc(m('Ghim'))}">${favs.has(key) ? '⭐' : '☆'}</button>
       <button class="btn sm primary vp-pick" data-p="${v.provider}" data-v="${esc(v.id)}" data-l="${v.lang}">${esc(m('Chọn'))}</button>
     </div>`;
-  }).join('') + (list.length > 150 ? `<div class="hint" style="padding:10px">${esc(tp`…còn ${list.length - 150} giọng — thu hẹp bộ lọc để xem.`)}</div>` : '');
+  }).join('') + (list.length > CAP ? `<div class="hint" style="padding:10px">${esc(tp`…còn ${list.length - CAP} giọng — thu hẹp bộ lọc để xem.`)}</div>` : '');
 }
 // play-state change touches only the two affected buttons — no list re-render mid-audio
 function syncPlayGlyphs() {

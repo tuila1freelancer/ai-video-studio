@@ -4,14 +4,13 @@ import { $ } from '../../ui/dom.js';
 import { state } from '../../state.js';
 import { m } from '../../i18n.js';
 import { gatherConfig } from './form.js';
+import { fmtT } from '../../ui/format.js';
 
 // ---------------- real-frame preview ----------------
 // The style preview above is CSS pretending to be the renderer. This one IS the renderer: the
 // server pulls a frame out of the finished video and runs it through resolveConcatLogo/logoRect
 // and libass — the same code the concat calls. About a second, against the fifteen minutes of
 // re-concatenating it replaces.
-export const fmtT = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
-
 export function syncFramePreviewAvailability() {
   const box = $('#framePreviewBox');
   if (!box) return;
@@ -38,6 +37,7 @@ export async function refreshFramePreview() {
     const res = await fetch(url);
     if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `HTTP ${res.status}`);
     const warn = res.headers.get('X-Preview-Note');
+    if (img.src.startsWith('blob:')) URL.revokeObjectURL(img.src); // each frame is a new blob; the old one was never freed
     img.src = URL.createObjectURL(await res.blob());
     img.classList.remove('hidden');
     note.textContent = warn ? `⚠ ${decodeURIComponent(warn)}` : m('Khung thật của video — logo và phụ đề đi qua đúng đường ghép cuối.');

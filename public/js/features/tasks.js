@@ -4,7 +4,7 @@
 import { $, el, esc } from '../ui/dom.js';
 import { api } from '../api.js';
 import { closeModal } from '../ui/modals.js';
-import { fmtMs } from './journal.js';
+import { fmtMs, fmtDate } from '../ui/format.js';
 import { m } from '../i18n.js';
 
 // Built on call, not at import: the catalogue is fetched after this module is evaluated.
@@ -40,7 +40,7 @@ export async function refreshTasks() {
       row.innerHTML = `<span class="tk">${kinds[j.kind] || esc(j.kind)}</span>
         <span class="tt">${esc(j.projectTitle || j.project_id || '—')}</span>
         <span class="badge ${esc(cls)}">${status[j.status] || esc(j.status)}</span>
-        <span class="td">${j.attempts > 1 ? `↻${j.attempts} · ` : ''}${new Date(j.created_at).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })}${dur ? ' · ' + dur : ''}</span>`;
+        <span class="td">${j.attempts > 1 ? `↻${j.attempts} · ` : ''}${fmtDate(j.created_at, 'short')}${dur ? ' · ' + dur : ''}</span>`;
       if (j.project_id) {
         row.classList.add('click');
         row.title = m('Mở dự án + nhật ký của lần chạy này');
@@ -53,7 +53,7 @@ export async function refreshTasks() {
       sysBox.appendChild(el('div', 'tasks-sec', m('⚙️ Hệ thống')));
       for (const e of sys.slice(-10)) {
         sysBox.appendChild(el('div', 'jr-l lg-' + (e.level || 'info'),
-          `<span class="jr-t">[${new Date(e.ts).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })}]</span> <span class="jr-m">${esc(e.msg)}</span>`));
+          `<span class="jr-t">[${fmtDate(e.ts, 'short')}]</span> <span class="jr-m">${esc(e.msg)}</span>`));
       }
     }
   } catch { /* best-effort */ }

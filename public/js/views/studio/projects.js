@@ -6,6 +6,7 @@ import { state } from '../../state.js';
 import { confirmDialog, promptDialog } from '../../ui/dialog.js';
 import { m, tp } from '../../i18n.js';
 import { startNewProject, openProject } from './project-view.js';
+import { fmtBytes } from '../../ui/format.js';
 
 // ---------------- projects ----------------
 export async function loadProjects(prefetched = null) {
@@ -33,7 +34,6 @@ export function renderProjectList() {
   });
 }
 
-export const mb = (n) => (n >= 1073741824 ? `${(n / 1073741824).toFixed(2)} GB` : `${Math.round(n / 1048576)} MB`);
 
 /**
  * Delete ONE project, files and all.
@@ -54,7 +54,7 @@ async function deleteProject(p) {
     tp`Trạng thái: ${badgeText(fp.status)} · ${fp.scenes} cảnh`,
     tp`${fp.clips} clip cảnh` + (fp.hasVideo ? m(' · video hoàn chỉnh') : '') + (fp.covers ? tp` · ${fp.covers} ảnh bìa` : ''),
     '',
-    tp`SẼ XOÁ VĨNH VIỄN ${fp.files} file (${mb(fp.bytes)}) khỏi ổ đĩa.`,
+    tp`SẼ XOÁ VĨNH VIỄN ${fp.files} file (${fmtBytes(fp.bytes)}) khỏi ổ đĩa.`,
     m('Không khôi phục được. Kịch bản, giọng đọc, clip và video hoàn chỉnh đều mất.'),
   ] : [m('Không đọc được dung lượng — vẫn sẽ xoá dự án và toàn bộ file của nó.')];
   const ok = await confirmDialog({
@@ -67,7 +67,7 @@ async function deleteProject(p) {
   if (!ok) return;
   try {
     const r = await api.del(`/projects/${p.id}`);
-    toast(tp`🗑 Đã xoá — ${r.files || 0} file (${mb(r.bytes || 0)})`, 'success');
+    toast(tp`🗑 Đã xoá — ${r.files || 0} file (${fmtBytes(r.bytes || 0)})`, 'success');
     // The open project just ceased to exist; leaving its panel on screen would offer buttons
     // that now act on nothing.
     if (state.current?.id === p.id) startNewProject();

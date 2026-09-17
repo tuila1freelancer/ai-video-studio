@@ -26,15 +26,10 @@ import { m, tp } from '../i18n.js';
 import { gatherConfig } from '../views/config.js';
 import { openChangePlan } from './changeplan.js';
 import { showJournal } from './journal.js';
+import { fmtApprox } from '../ui/format.js';
 
 const SETTLE_MS = 550; // long enough that dragging a slider is one question, not forty
 
-const fmt = (s) => {
-  const n = Math.max(1, Math.round(s));
-  if (n < 60) return tp`~${n} giây`;
-  if (n < 3600) return tp`~${Math.round(n / 60)} phút`;
-  return tp`~${(n / 3600).toFixed(1)} giờ`;
-};
 
 let timer = 0;
 let seq = 0;         // a slow answer to an old question must never overwrite a fresh one
@@ -59,11 +54,11 @@ function paint(plan) {
   // The summary names the WORK, not the settings: "render lại 46 cảnh" is the number that decides
   // whether the owner presses the button.
   bar.querySelector('[data-pc-text]').innerHTML =
-    `<b>${tp`${n} thay đổi chưa áp dụng`}</b> · ${fmt(plan.totalSec)}`
+    `<b>${tp`${n} thay đổi chưa áp dụng`}</b> · ${fmtApprox(plan.totalSec)}`
     + `<span class="pc-why">${plan.items.map((i) => i.label).join(' · ')}</span>`
     + (costly ? `<span class="pc-warn">${m('⚠ có bước lồng tiếng lại — tốn tiền API')}</span>` : '');
   const go = bar.querySelector('[data-pc-go]');
-  go.textContent = plan.concatOnly ? tp`🔗 Ghép lại (${fmt(plan.totalSec)})` : m('Xem chi phí…');
+  go.textContent = plan.concatOnly ? tp`🔗 Ghép lại (${fmtApprox(plan.totalSec)})` : m('Xem chi phí…');
   go.classList.toggle('primary', plan.concatOnly);
   go.disabled = busy;
   bar.dataset.mode = plan.concatOnly ? 'join' : 'plan';
@@ -116,6 +111,10 @@ export function initPendingChanges() {
   // later — reports through this, which is the difference between a feature and a list of hooks
   // somebody has to remember to extend.
   for (const ev of ['change', 'input']) col.addEventListener(ev, () => schedulePendingCheck(), true);
+  // The group being edited is MOVED into #cfgModal, outside the column, so its edits never reached
+  // the listener above and the bar only caught up on the next status event.
+  const modal = $('#cfgModal');
+  if (modal) for (const ev of ['change', 'input']) modal.addEventListener(ev, () => schedulePendingCheck(), true);
 
   bar.querySelector('[data-pc-go]').addEventListener('click', async () => {
     if (bar.dataset.mode !== 'join') { openChangePlan(); return; }

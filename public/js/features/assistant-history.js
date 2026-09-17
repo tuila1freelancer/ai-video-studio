@@ -8,6 +8,7 @@ import { closeModal } from '../ui/modals.js';
 import { openProject } from '../views/studio.js';
 import { runSuggestionAction } from './assistant-sheet.js';
 import { m, tp } from '../i18n.js';
+import { fmtDate } from '../ui/format.js';
 
 // [css class, label] — built per call, never at module load: the catalogue arrives after import.
 const statusBadge = (status) => ({
@@ -46,7 +47,7 @@ export async function renderHistory() {
   if (!rows.length) { box.innerHTML = `<div class="hint">${m('Chưa có mục nào khớp bộ lọc.')}</div>`; return; }
   box.innerHTML = rows.map((r) => {
     const [cls, label] = statusBadge(r.status) || ['paused', r.status];
-    const when = new Date(r.created_at).toLocaleDateString('vi-VN');
+    const when = fmtDate(r.created_at, 'date');
     const score = r.score ? `<span class="as-score" title="${esc(r.score.why || '')}">🔥${r.score.viral ?? '–'} 🌲${r.score.evergreen ?? '–'} ⚙${r.score.difficulty ?? '–'}</span>` : '';
     const acts = [];
     if (r.status === 'suggested') acts.push(btn(r.id, 'now', '▶'), btn(r.id, 'plan', '🗓'), btn(r.id, 'dismiss', '✕'));

@@ -6,6 +6,7 @@ import { loadPickerFonts } from './fonts.js';
 import { RES_LABEL } from './subtitle-studio.js';
 import { syncFramePreviewAvailability } from './frame-preview.js';
 import { hfCurrentStyle } from './hf-style.js';
+import { rafThrottle } from '../../ui/timing.js';
 
 // ================= config groups: summary cards + edit modal =================
 // Each .cfg-group is a read-only summary card; clicking it MOVES the group's live
@@ -51,7 +52,8 @@ export function wireConfigGroups() {
   });
   // any edit inside the modal refreshes the summary cards live
   $('#cfgModal').addEventListener('change', updateCfgChips);
-  $('#cfgModal').addEventListener('input', updateCfgChips);
+  // ~25 reads and 5 writes behind the modal's backdrop blur — once per frame during a drag, not per tick
+  $('#cfgModal').addEventListener('input', rafThrottle(updateCfgChips));
   const vb = $('#btnCfgVoice');
   if (vb) vb.addEventListener('click', () => import('../../features/voicepicker.js').then((m) => m.openVoicePicker()));
   updateCfgChips();

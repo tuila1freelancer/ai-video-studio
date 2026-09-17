@@ -8,21 +8,16 @@ import { uiLang, setUiLanguage, m, tp } from '../../i18n.js';
 import { loadFbPages, loadPublishStatus } from './publish.js';
 import { loadLlmPresets, inferPresetId, stashLlmAccount, renderLlmPreset, llmAccountsForSave, fetchLlmModels, forgetShownPreset } from './llm.js';
 import { renderProviderFields, testProvider, renderLangVoiceList, removeLangVoice, collectProviderFields } from './tts.js';
+import { LANGS } from '../../ui/langs.js';
 
 // The languages the app can be shown in, named in themselves — a picker that says "Japanese" to
 // someone who cannot read English is a picker they cannot use.
 // i18n-exempt: endonyms — a language names itself, so the picker stays usable in any interface.
-const UI_LANGS = [
-  ['vi', '🇻🇳 Tiếng Việt'], ['en', '🇺🇸 English'], ['ja', '🇯🇵 日本語'], ['ko', '🇰🇷 한국어'],
-  ['zh', '🇨🇳 中文'], ['es', '🇪🇸 Español'], ['fr', '🇫🇷 Français'], ['de', '🇩🇪 Deutsch'],
-  ['pt', '🇧🇷 Português'], ['id', '🇮🇩 Indonesia'], ['th', '🇹🇭 ไทย'], ['hi', '🇮🇳 हिन्दी'],
-  ['ru', '🇷🇺 Русский'],
-];
 
 function initUiLangPicker() {
   const sel = $('#setUiLang');
   if (!sel) return;
-  sel.innerHTML = UI_LANGS.map(([c, label]) => `<option value="${c}">${esc(label)}</option>`).join('');
+  sel.innerHTML = LANGS.map(([c, label]) => `<option value="${c}">${esc(label)}</option>`).join('');
   sel.value = uiLang();
   sel.addEventListener('change', () => { if (sel.value !== uiLang()) setUiLanguage(sel.value, api); });
 }

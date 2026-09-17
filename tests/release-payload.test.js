@@ -42,8 +42,8 @@ test('the UI ships as one file, with no preload hints pointing at files that are
     // 23 of the 24 hints named modules that no longer exist; each one left in would be a 404 on
     // first paint. main.js keeps its hint because it is still the entry.
     const preloads = html.match(/rel="modulepreload" href="([^"]+)"/g) || [];
-    assert.deepEqual(preloads, ['rel="modulepreload" href="js/main.js"']);
-    assert.match(html, /<script type="module" src="js\/main\.js"><\/script>/);
+    assert.deepEqual(preloads, ['rel="modulepreload" href="/js/main.js"']);
+    assert.match(html, /<script type="module" src="\/js\/main\.js"><\/script>/);
     const bundled = readFileSync(join(out, 'js', 'main.js'), 'utf8');
     assert.doesNotMatch(bundled, /^\s*\/\//m, 'minified: no comments survive');
     assert.equal(bundled.includes('renderFingerprint and ttsFingerprint know'), false,
