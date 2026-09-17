@@ -1,5 +1,8 @@
 // Assistant, topic suggestions, series, the content calendar and the ops dashboard.
 import * as DB from '../../db/index.js';
+import { suggestTopics } from '../services/topic-autopilot.js';
+import { aiSettingsFor } from '../../core/config.js';
+import { acceptSuggestion, scheduleSuggestion, buildSeries, planWeek } from '../services/assistant.js';
 
 /** @param {import('express').Router} r */
 export function mount(r) {
@@ -23,9 +26,7 @@ export function mount(r) {
   });
   r.post('/topics/suggest', async (req, res) => {
     try {
-      const { suggestTopics } = await import('../../services/topic-autopilot.js');
       const channel = DB.getChannel(DB.activeChannelId());
-      const { aiSettingsFor } = await import('../../core/config.js');
       // trend sources: global assistant settings, overridable per channel (config.assistant)
       const globalSrc = DB.getSetting('assistant', {}) || {};
       const chSrc = channel?.config?.assistant || {};
@@ -47,13 +48,11 @@ export function mount(r) {
   });
   r.post('/topics/:id/accept', async (req, res) => {
     try {
-      const { acceptSuggestion } = await import('../../services/assistant.js');
       res.json({ ok: true, ...acceptSuggestion(req.params.id, { config: req.body?.config || {}, title: req.body?.title || null }) });
     } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
   });
   r.post('/topics/:id/schedule', async (req, res) => {
     try {
-      const { scheduleSuggestion } = await import('../../services/assistant.js');
       res.json({ ok: true, ...scheduleSuggestion(req.params.id, { dueAt: +req.body?.dueAt, config: req.body?.config || {}, title: req.body?.title || null }) });
     } catch (e) { res.status(e.status || 400).json({ error: e.message }); }
   });
@@ -62,9 +61,7 @@ export function mount(r) {
   // mini-series: LLM designs N connected episodes → persisted as pending suggestions (data only)
   r.post('/topics/series', async (req, res) => {
     try {
-      const { buildSeries } = await import('../../services/assistant.js');
       const channel = DB.getChannel(DB.activeChannelId());
-      const { aiSettingsFor } = await import('../../core/config.js');
       res.json({ ok: true, ...(await buildSeries({
         suggestionId: req.body?.suggestionId || null,
         seed: req.body?.seed || '',
@@ -109,7 +106,6 @@ export function mount(r) {
   // plan-my-week: fill the coming days with pending suggestions — SLOTS only, owner-confirmed
   r.post('/calendar/plan', async (req, res) => {
     try {
-      const { planWeek } = await import('../../services/assistant.js');
       const b = req.body || {};
       res.json({ ok: true, ...planWeek({
         days: Math.min(31, parseInt(b.days, 10) || 7),

@@ -10,6 +10,15 @@ import { resolveLang } from '../../util/lang.js';
 import { m, tp } from '../../i18n/t.js';
 import { fileUrlOf, thumbLlmFor } from '../helpers.js';
 import { pickFolder } from '../services/folder-picker.js';
+import { EXPORT_PRESETS, exportForPlatform } from '../../pipeline/export-presets.js';
+import { generateThumbnailImage, renderThumbnailFragment, editThumbnailFragment, generateCoverSet } from '../../pipeline/thumbnail-codegen.js';
+import { resolveGuide } from '../../styleguide/index.js';
+import { resolveOutputDir } from '../../pipeline/helpers.js';
+import { normalizeAssets } from '../../pipeline/brand-assets.js';
+import { heroMediaUri } from '../../util/asset-uri.js';
+import { COVER_SIZES, orientationOf } from '../../publish/platforms.js';
+import { repurposeProject } from '../../pipeline/repurpose.js';
+import { dubProject } from '../../pipeline/dub.js';
 
 /** @param {import('express').Router} r */
 export function mount(r) {
@@ -17,7 +26,6 @@ export function mount(r) {
   // one-click platform exports (fast remux / confirmed fade-trim; aspect mismatch →
   // the caller runs the existing repurpose flow)
   r.get('/export/presets', async (req, res) => {
-    const { EXPORT_PRESETS } = await import('../../pipeline/export-presets.js');
     res.json({ presets: Object.entries(EXPORT_PRESETS).map(([id, p]) => ({ id, ...p })) });
   });
 
@@ -39,17 +47,12 @@ export function mount(r) {
     try {
       const p = DB.getProject(req.params.id);
       if (!p) return res.status(404).json({ error: 'not found' });
-      const { generateThumbnailImage, renderThumbnailFragment } = await import('../../pipeline/thumbnail-codegen.js');
-      const { resolveGuide } = await import('../../styleguide/index.js');
-      const { resolveOutputDir } = await import('../../pipeline/helpers.js');
       const guide = resolveGuide(p.config || {});
       const size = { w: 1280, h: 720 };
       const outDir = resolveOutputDir(p.id, p.config || {}, DB.projectDirFor(p.id));
       mkdirSync(outDir, { recursive: true });
       const outPath = join(outDir, `thumb_${Date.now()}.jpg`);
       const md = p.metadata || {};
-      const { normalizeAssets } = await import('../../pipeline/brand-assets.js');
-      const { heroMediaUri } = await import('../../util/asset-uri.js');
       const media = normalizeAssets(p.config?.assets).slice(0, 4)
         .map((a) => ({ name: a.name, uri: heroMediaUri(a.path) })).filter((m) => m.uri);
       let path = null, html = String(req.body?.html || '').trim() || null;
@@ -89,11 +92,6 @@ export function mount(r) {
       if (!current) return res.status(400).json({ error: 'chưa có thiết kế thumbnail để sửa — tạo bằng AI trước' });
       const prompt = String(req.body?.prompt || '').trim();
       if (!prompt) return res.status(400).json({ error: 'cần mô tả thay đổi' });
-      const { editThumbnailFragment, renderThumbnailFragment } = await import('../../pipeline/thumbnail-codegen.js');
-      const { resolveGuide } = await import('../../styleguide/index.js');
-      const { resolveOutputDir } = await import('../../pipeline/helpers.js');
-      const { normalizeAssets } = await import('../../pipeline/brand-assets.js');
-      const { heroMediaUri } = await import('../../util/asset-uri.js');
       const guide = resolveGuide(p.config || {});
       const edited = await editThumbnailFragment(current, prompt, { guide, llm: thumbLlmFor(p), language: resolveLang(p.config, DB.getScenes(p.id)) });
       if (!edited) return res.status(422).json({ error: 'AI chưa sửa được — thử mô tả cụ thể hơn' });
@@ -121,12 +119,6 @@ export function mount(r) {
       if (!p) return res.status(404).json({ error: 'not found' });
       const llm = thumbLlmFor(p);
       if (!llm) return res.status(400).json({ error: 'chưa cấu hình LLM trong AI Setting' });
-      const { generateCoverSet } = await import('../../pipeline/thumbnail-codegen.js');
-      const { COVER_SIZES, orientationOf } = await import('../../publish/platforms.js');
-      const { resolveGuide } = await import('../../styleguide/index.js');
-      const { resolveOutputDir } = await import('../../pipeline/helpers.js');
-      const { normalizeAssets } = await import('../../pipeline/brand-assets.js');
-      const { heroMediaUri } = await import('../../util/asset-uri.js');
       const md = p.metadata || {};
       const outDir = resolveOutputDir(p.id, p.config || {}, DB.projectDirFor(p.id));
       mkdirSync(outDir, { recursive: true });
@@ -240,7 +232,6 @@ export function mount(r) {
     try {
       const p = DB.getProject(req.params.id);
       if (!p) return res.status(404).json({ error: 'not found' });
-      const { resolveOutputDir } = await import('../../pipeline/helpers.js');
       const dir = resolveOutputDir(p.id, p.config || {}, DB.projectDirFor(p.id));
       if (!existsSync(dir)) return res.status(400).json({ error: 'chưa có thư mục xuất — render xong đã' });
       // Reveal the finished file when there is one, otherwise just open the folder.
@@ -251,14 +242,12 @@ export function mount(r) {
   });
   r.post('/projects/:id/export', async (req, res) => {
     try {
-      const { exportForPlatform } = await import('../../pipeline/export-presets.js');
       res.json(await exportForPlatform(req.params.id, req.body?.preset, { allowTrim: !!req.body?.allowTrim }));
     } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
   });
 
   r.post('/projects/:id/repurpose', async (req, res) => {
     try {
-      const { repurposeProject } = await import('../../pipeline/repurpose.js');
       const out = await repurposeProject(req.params.id, { aspectRatio: req.body?.aspectRatio });
       // start the derived render as a resume run: voice/captions are already attached,
       // so only visuals-for-dropped-scenes + the full re-render actually execute
@@ -271,7 +260,6 @@ export function mount(r) {
   // owner's own click, like every other paid path (P16).
   r.post('/projects/:id/dub', async (req, res) => {
     try {
-      const { dubProject } = await import('../../pipeline/dub.js');
       const out = await dubProject(req.params.id, {
         language: String(req.body?.language || ''),
         llm: DB.aiSettings().llm,

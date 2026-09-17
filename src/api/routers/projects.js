@@ -7,6 +7,11 @@ import * as Pipeline from '../../pipeline/queue.js';
 import { resolveProjectConfig } from '../../core/config.js';
 import { tp } from '../../i18n/t.js';
 import { projectOwnedFiles, purgeProjectFiles } from '../services/project-files.js';
+import { qcScan } from '../services/qc-scan.js';
+import { planChanges } from '../services/change-plan.js';
+import { framePreview } from '../services/frame-preview.js';
+import { normalizeAssets } from '../../pipeline/brand-assets.js';
+import { atRiskScenes } from '../../pipeline/typeset-scan.js';
 
 /** @param {import('express').Router} r */
 export function mount(r) {
@@ -91,7 +96,6 @@ export function mount(r) {
   // the clip on disk still matches the design in the database. It reports; it never edits.
   r.get('/projects/:id/qc-scan', async (req, res) => {
     try {
-      const { qcScan } = await import('../../services/qc-scan.js');
       res.json(qcScan(req.params.id));
     } catch (e) { res.status(400).json({ error: e.message }); }
   });
@@ -101,7 +105,6 @@ export function mount(r) {
   // took a minute or an hour and the only way to find out was to start it.
   r.post('/projects/:id/plan-changes', async (req, res) => {
     try {
-      const { planChanges } = await import('../../services/change-plan.js');
       res.json(planChanges(req.params.id, req.body?.config || {}));
     } catch (e) { res.status(400).json({ error: e.message }); }
   });
@@ -111,7 +114,6 @@ export function mount(r) {
     try {
       const p = DB.getProject(req.params.id);
       if (!p) return res.status(404).json({ error: 'not found' });
-      const { planChanges } = await import('../../services/change-plan.js');
       const plan = planChanges(p.id, req.body?.config || {});
       if (!plan.items.length) return res.json({ ok: true, plan, started: false });
       DB.updateProject(p.id, { config: { ...(p.config || {}), ...(req.body?.config || {}) } });
@@ -128,7 +130,6 @@ export function mount(r) {
   // was four pixels too high.
   r.get('/projects/:id/frame-preview', async (req, res) => {
     try {
-      const { framePreview } = await import('../../services/frame-preview.js');
       let overrides = {};
       if (req.query.cfg) {
         try { overrides = JSON.parse(String(req.query.cfg)); } catch { overrides = {}; }
@@ -149,7 +150,6 @@ export function mount(r) {
     try {
       const p = DB.getProject(req.params.id), src = DB.getProject(req.params.sourceId);
       if (!p || !src) return res.status(404).json({ error: 'not found' });
-      const { normalizeAssets } = await import('../../pipeline/brand-assets.js');
       const from = normalizeAssets(src.config?.assets).filter((a) => existsSync(a.path));
       if (!from.length) return res.status(400).json({ error: 'dự án nguồn không có asset nào còn trên đĩa' });
       const have = new Set(normalizeAssets(p.config?.assets).map((a) => a.path));
@@ -207,7 +207,6 @@ export function mount(r) {
   r.get('/projects/:id/typeset-scan', async (req, res) => {
     const p = DB.getProject(req.params.id);
     if (!p) return res.status(404).json({ error: 'not found' });
-    const { atRiskScenes } = await import('../../pipeline/typeset-scan.js');
     const scenes = DB.getScenes(p.id);
     const at = atRiskScenes(scenes);
     res.json({ title: p.title, scenes: scenes.length, atRisk: at.length, items: at });
@@ -219,7 +218,6 @@ export function mount(r) {
     const p = DB.getProject(req.params.id);
     if (!p) return res.status(404).json({ error: 'not found' });
     if (['running', 'queued'].includes(p.status)) return res.status(409).json({ error: 'đang chạy' });
-    const { atRiskScenes } = await import('../../pipeline/typeset-scan.js');
     const at = atRiskScenes(DB.getScenes(p.id));
     if (!at.length) return res.json({ ok: true, atRisk: 0, started: false });
     // `thumbnailAi: false` for THIS run only (configOverrides is never written back): finalize

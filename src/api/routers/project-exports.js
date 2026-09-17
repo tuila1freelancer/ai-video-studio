@@ -4,6 +4,11 @@ import * as DB from '../../db/index.js';
 import { resolveLang } from '../../util/lang.js';
 import { isSupported } from '../../i18n/languages.js';
 import { tp } from '../../i18n/t.js';
+import { scenesJsonFromRows } from '../../content/master-script.js';
+import { buildSrt, shiftCues } from '../../pipeline/srt.js';
+import { planOffsets } from '../../subtitles/timeline.js';
+import { planTransitions } from '../../pipeline/render.js';
+import { translateCues, buildVtt } from '../../subtitles/translate.js';
 
 /** @param {import('express').Router} r */
 export function mount(r) {
@@ -11,7 +16,6 @@ export function mount(r) {
   r.get('/projects/:id/scenes-json', async (req, res) => {
     const p = DB.getProject(req.params.id);
     if (!p) return res.status(404).json({ error: 'not found' });
-    const { scenesJsonFromRows } = await import('../../content/master-script.js');
     const json = scenesJsonFromRows(p, DB.getScenes(p.id));
     const name = String(p.title || 'video').normalize('NFD').replace(/[̀-ͯ]/g, '')
       .replace(/[^\w.-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'video';
@@ -28,7 +32,6 @@ export function mount(r) {
   r.get('/projects/:id/scenes-srt', async (req, res) => {
     const p = DB.getProject(req.params.id);
     if (!p) return res.status(404).json({ error: 'not found' });
-    const { buildSrt } = await import('../../pipeline/srt.js');
     const scenes = DB.getScenes(p.id).sort((a, b) => a.idx - b.idx)
       .map((sc) => ({ idx: sc.idx, duration: sc.duration || 0, srt: buildSrt(sc.srt_json || []) }));
     if (req.query.download) {
@@ -42,7 +45,6 @@ export function mount(r) {
   r.get('/projects/:id/srt', async (req, res) => {
     const p = DB.getProject(req.params.id);
     if (!p) return res.status(404).json({ error: 'not found' });
-    const { buildSrt, shiftCues } = await import('../../pipeline/srt.js');
     const cfg = p.config || {};
     const scenes = DB.getScenes(p.id);
     // Where each scene starts in the FINISHED file.
@@ -58,8 +60,6 @@ export function mount(r) {
     if (Array.isArray(stored) && stored.length === scenes.length) {
       starts = scenes.map((sc, i) => stored.find((w) => w.sceneId === sc.id)?.start ?? stored[i].start);
     } else {
-      const { planOffsets } = await import('../../subtitles/timeline.js');
-      const { planTransitions } = await import('../../pipeline/render.js');
       const durs = scenes.map((sc) => Math.max(1.5, sc.duration || (cfg.sceneDuration || 6)));
       const plan = cfg.transitions === true && scenes.length > 1
         ? planTransitions({ scenes, clipCount: scenes.length, nIntro: 0, nOutro: 0, style: cfg.transitionStyle || 'auto' })
@@ -79,12 +79,10 @@ export function mount(r) {
     if (want && want !== from) {
       if (!isSupported(want)) return res.status(400).json({ error: 'ngôn ngữ không được hỗ trợ' });
       try {
-        const { translateCues } = await import('../../subtitles/translate.js');
         cues = await translateCues(all, { from, to: want, llm: DB.aiSettings().llm });
       } catch (e) { return res.status(400).json({ error: e.message }); }
     }
     const vtt = String(req.query.format || '').toLowerCase() === 'vtt';
-    const { buildVtt } = await import('../../subtitles/translate.js');
     const code = want || from;
     res.setHeader('Content-Type', vtt ? 'text/vtt; charset=utf-8' : 'text/plain; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="subtitles.${code}.${vtt ? 'vtt' : 'srt'}"`);

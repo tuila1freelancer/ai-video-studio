@@ -7,6 +7,9 @@ import { applyMaskedUpdate } from '../../core/config.js';
 import { WEB_SAFE, toPng } from '../services/image-convert.js';
 
 import { maskChannel, upload } from '../helpers.js';
+import { saveSubtitleDefaults } from '../services/subtitle-defaults.js';
+import { normalizeGuide } from '../../styleguide/index.js';
+import { execFile } from 'node:child_process';
 
 /** @param {import('express').Router} r */
 export function mount(r) {
@@ -39,7 +42,6 @@ export function mount(r) {
   // keys with usable values get through (services/subtitle-defaults.js).
   r.put('/channels/:id/subtitle-defaults', async (req, res) => {
     try {
-      const { saveSubtitleDefaults } = await import('../../services/subtitle-defaults.js');
       const { channel, preset, saved } = saveSubtitleDefaults(req.params.id, req.body?.config || {});
       res.json({ channel: maskChannel(channel), presetUpdated: !!preset, saved });
     } catch (e) { res.status(400).json({ error: e.message }); }
@@ -50,7 +52,6 @@ export function mount(r) {
   r.post('/channels/:id/style-guide', async (req, res) => {
     const ch = DB.getChannel(req.params.id);
     if (!ch) return res.status(404).json({ error: 'not found' });
-    const { normalizeGuide } = await import('../../styleguide/index.js');
     const guide = normalizeGuide(req.body?.guide || {});
     const config = { ...(ch.config || {}), hyperframe: { ...(ch.config?.hyperframe || {}), guide } };
     DB.updateChannel(ch.id, { config });
@@ -74,7 +75,6 @@ export function mount(r) {
   r.post('/channels/:id/open', async (req, res) => {
     const ch = DB.getChannel(req.params.id);
     if (!ch) return res.status(404).json({ error: 'not found' });
-    const { execFile } = await import('node:child_process');
     execFile('open', [ch.root_dir], () => {});
     res.json({ ok: true });
   });
