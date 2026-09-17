@@ -4,18 +4,19 @@ import { join } from 'node:path';
 import * as DB from '../../db/index.js';
 import { hub } from '../../ws/hub.js';
 import { buildContactSheet } from '../services/contact-sheet.js';
+import { HF_PRESETS, generateStyleGuide } from '../../styleguide/index.js';
+import { aiSettingsFor } from '../../core/config.js';
+import { buildSceneHtml, previewSceneFrame, sceneTemplateSource } from '../../animation/index.js';
+import { editSceneByPrompt } from '../services/edit-scene.js';
 
 /** @param {import('express').Router} r */
 export function mount(r) {
   // ---- HyperFrame: style presets + AI-designed style guide ----
   r.get('/hyperframe/presets', async (req, res) => {
-    const { HF_PRESETS } = await import('../../styleguide/index.js');
     res.json({ presets: HF_PRESETS });
   });
   r.post('/hyperframe/styleguide', async (req, res) => {
     try {
-      const { generateStyleGuide } = await import('../../styleguide/index.js');
-      const { aiSettingsFor } = await import('../../core/config.js');
       const ai = aiSettingsFor(DB.getChannel(DB.activeChannelId()));
       const out = await generateStyleGuide({
         topic: req.body?.topic || '', describe: req.body?.describe || '', llm: ai?.llm || null,
@@ -29,7 +30,6 @@ export function mount(r) {
       const sc = DB.getScene(req.params.id);
       if (!sc) return res.status(404).send('not found');
       const p = DB.getProject(sc.project_id);
-      const { buildSceneHtml } = await import('../../animation/index.js');
       const audioUrl = sc.audio_path && existsSync(sc.audio_path)
         ? `/api/file?path=${encodeURIComponent(sc.audio_path)}` : null;
       // ?live=0: the rough-cut player drives __init/__seek itself — no tap-to-play overlay
@@ -48,7 +48,6 @@ export function mount(r) {
       const sc = DB.getScene(req.params.id);
       if (!sc) return res.status(404).json({ error: 'not found' });
       const p = DB.getProject(sc.project_id);
-      const { previewSceneFrame } = await import('../../animation/index.js');
       const out = join(DB.projectDirFor(p.id), 'render', `scene_${String(sc.idx).padStart(3, '0')}_preview.jpg`);
       await previewSceneFrame(sc, p, p.config || {}, { outPath: out });
       DB.updateScene(sc.id, { image_path: out });
@@ -76,7 +75,6 @@ export function mount(r) {
       const sc = DB.getScene(req.params.id);
       if (!sc) return res.status(404).json({ error: 'not found' });
       const p = DB.getProject(sc.project_id);
-      const { sceneTemplateSource } = await import('../../animation/index.js');
       res.json(sceneTemplateSource(sc, p, p.config || {}));
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
@@ -97,7 +95,6 @@ export function mount(r) {
         props.__custom = { html, ...(typeof req.body?.css === 'string' && req.body.css.trim() ? { css: req.body.css } : {}) };
       }
       DB.updateScene(sc.id, { props, status: 'html', video_path: null, fp: { ...(sc.fp || {}), render: null } });
-      const { previewSceneFrame } = await import('../../animation/index.js');
       const out = join(DB.projectDirFor(p.id), 'render', `scene_${String(sc.idx).padStart(3, '0')}_preview.jpg`);
       await previewSceneFrame(DB.getScene(sc.id), p, p.config || {}, { outPath: out });
       DB.updateScene(sc.id, { image_path: out });
@@ -112,12 +109,10 @@ export function mount(r) {
   // codegen, snapshots a take, and invalidates the clip. Bad edits are rejected with defects.
   r.post('/scenes/:id/edit-html', async (req, res) => {
     try {
-      const { editSceneByPrompt } = await import('../../services/edit-scene.js');
       const r2 = await editSceneByPrompt(req.params.id, req.body?.prompt);
       if (!r2.ok) return res.status(422).json(r2);
       const sc = DB.getScene(req.params.id);
       const p = DB.getProject(sc.project_id);
-      const { previewSceneFrame } = await import('../../animation/index.js');
       const out = join(DB.projectDirFor(p.id), 'render', `scene_${String(sc.idx).padStart(3, '0')}_preview.jpg`);
       try {
         await previewSceneFrame(sc, p, p.config || {}, { outPath: out });

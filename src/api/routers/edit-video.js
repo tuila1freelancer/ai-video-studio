@@ -8,6 +8,10 @@ import { newId } from '../../util/util.js';
 import * as Pipeline from '../../pipeline/queue.js';
 import { inAllowedRoots } from '../services/file-access.js';
 import { majorityLang, DEFAULT_LANG } from '../../util/lang.js';
+import { ffmpeg } from '../../media/ffmpeg.js';
+import { transcribeWords, whisperAvailable } from '../../media/whisper.js';
+import { repairTranscript, createEditVideoProject, editVideoSrt } from '../../pipeline/edit-video.js';
+import { buildSrt } from '../../pipeline/srt.js';
 
 /** @param {import('express').Router} r */
 export function mount(r) {
@@ -19,7 +23,6 @@ export function mount(r) {
       if (!inAllowedRoots(src) || !existsSync(src)) return res.status(400).json({ error: 'file không hợp lệ' });
       const dur = Math.max(0.5, (+end) - (+start));
       const out = join(DIRS.uploads, `${newId('cut')}.mp4`);
-      const { ffmpeg } = await import('../../media/ffmpeg.js');
       await ffmpeg(['-ss', String(start), '-i', src, '-t', String(dur),
         '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-c:a', 'aac', '-movflags', '+faststart', out]);
       res.json({ path: out });
@@ -33,19 +36,16 @@ export function mount(r) {
     try {
       const src = resolve(String(req.body?.path || ''));
       if (!inAllowedRoots(src) || !existsSync(src)) return res.status(400).json({ error: 'file không hợp lệ' });
-      const { transcribeWords, whisperAvailable } = await import('../../media/whisper.js');
       if (!whisperAvailable()) return res.status(400).json({ error: 'chưa có whisper (kiểm tra Cài đặt → phụ đề)' });
       const language = String(req.body?.language || 'auto');
       const { segments } = await transcribeWords(src, { language, granularity: 'segment' });
       let cues = segments;
       if (req.body?.repair !== false) {
-        const { repairTranscript } = await import('../../pipeline/edit-video.js');
         // 'auto' means the owner did not say; read it off the transcript rather than assuming
         // Vietnamese, which is what silently mangled every non-Vietnamese import.
         const repairLang = language === 'auto' ? majorityLang(segments.map((c) => c.text)) || DEFAULT_LANG : language;
         cues = await repairTranscript(segments, { language: repairLang, llm: DB.aiSettings().llm });
       }
-      const { buildSrt } = await import('../../pipeline/srt.js');
       res.json({ cues, srt: buildSrt(cues.map((c) => ({ start: c.start, end: c.end, text: c.text }))) });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
@@ -58,7 +58,6 @@ export function mount(r) {
       const { path: inPath, title, language, config } = req.body || {};
       const src = resolve(inPath || '');
       if (!inAllowedRoots(src) || !existsSync(src)) return res.status(400).json({ error: 'file không hợp lệ' });
-      const { createEditVideoProject } = await import('../../pipeline/edit-video.js');
       const project = await createEditVideoProject({
         source: src, title, language: language || 'auto', config: config || {},
       });
@@ -69,7 +68,6 @@ export function mount(r) {
   // Full transcript of an edit-video project, as SRT on the finished timeline.
   r.get('/edit-video/:id/srt', async (req, res) => {
     try {
-      const { editVideoSrt } = await import('../../pipeline/edit-video.js');
       res.type('text/plain').send(editVideoSrt(req.params.id));
     } catch (e) { res.status(500).json({ error: e.message }); }
   });

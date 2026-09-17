@@ -5,6 +5,9 @@ import { hub } from '../../ws/hub.js';
 import { logger } from '../../util/log.js';
 import * as Pipeline from '../../pipeline/queue.js';
 import { declaredLang, detectLang, padMsFor } from '../../util/lang.js';
+import { audioPeaks } from '../../media/waveform.js';
+import { buildSubtitles } from '../../providers/subtitle.js';
+import { aiSettingsFor } from '../../core/config.js';
 
 /** @param {import('express').Router} r */
 export function mount(r) {
@@ -52,7 +55,6 @@ export function mount(r) {
       const sc = DB.getScene(req.params.id);
       if (!sc) return res.status(404).json({ error: 'not found' });
       if (!sc.audio_path || !existsSync(sc.audio_path)) return res.json({ peaks: [], duration: sc.duration || 0 });
-      const { audioPeaks } = await import('../../media/waveform.js');
       res.json(await audioPeaks(sc.audio_path, { buckets: Math.min(1000, parseInt(req.query.buckets, 10) || 240) }));
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
@@ -78,9 +80,7 @@ export function mount(r) {
       if (!sc) return res.status(404).json({ error: 'not found' });
       if (!sc.audio_path || !existsSync(sc.audio_path)) return res.status(400).json({ error: 'cảnh chưa có audio' });
       const p = DB.getProject(sc.project_id);
-      const { buildSubtitles } = await import('../../providers/subtitle.js');
       const channel = DB.channelOf(p.id);
-      const { aiSettingsFor } = await import('../../core/config.js');
       // this scene's OWN text decides — resync runs after the owner edited that one line
       const lang = declaredLang(p.config) || detectLang(sc.voice_text || '');
       const padMs = padMsFor(lang);

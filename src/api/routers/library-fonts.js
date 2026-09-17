@@ -5,12 +5,14 @@ import * as DB from '../../db/index.js';
 import { DIRS } from '../../config/paths.js';
 import { tp } from '../../i18n/t.js';
 import { upload } from '../helpers.js';
+import { brandFolders, brandCatalog } from '../../pipeline/brand-assets.js';
+import { fontLibrary, familiesForLanguage } from '../../fonts/registry.js';
+import { downloadFamily, removeFamily } from '../../fonts/store.js';
 
 /** @param {import('express').Router} r */
 export function mount(r) {
   // ---- library ----
   r.get("/library/:kind", async (req, res) => {
-    const { brandFolders, brandCatalog } = await import('../../pipeline/brand-assets.js');
     if (req.params.kind === 'brand') {
       // Union of registered rows and whatever is sitting in the folder, so art dropped in via
       // Finder is visible and castable (P40).
@@ -74,7 +76,6 @@ export function mount(r) {
   // is listed as not-ready rather than silently offered as though it were there.
   r.get('/fonts/families', async (req, res) => {
     try {
-      const { fontLibrary, familiesForLanguage } = await import('../../fonts/registry.js');
       const lang = req.query.lang;
       res.json({ families: lang ? familiesForLanguage(lang) : fontLibrary() });
     } catch (e) { res.status(500).json({ error: e.message }); }
@@ -127,14 +128,12 @@ export function mount(r) {
   // owner is paying for.
   r.post('/fonts/:family/download', async (req, res) => {
     try {
-      const { downloadFamily } = await import('../../fonts/store.js');
       res.json(await downloadFamily(String(req.params.family || '')));
     } catch (e) { res.status(400).json({ error: e.message }); }
   });
 
   r.delete('/fonts/:family', async (req, res) => {
     try {
-      const { removeFamily } = await import('../../fonts/store.js');
       res.json({ ok: true, removed: removeFamily(String(req.params.family || '')) });
     } catch (e) { res.status(400).json({ error: e.message }); }
   });

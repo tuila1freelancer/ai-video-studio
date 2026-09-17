@@ -1,12 +1,12 @@
 // Diagnostics bundle, the persistent per-run journal (P32), the tasks feed and the cost meter.
 import * as DB from '../../db/index.js';
+import { buildDiagnostics } from '../../pipeline/diagnostics.js';
 
 /** @param {import('express').Router} r */
 export function mount(r) {
   // ---- self-serve diagnostics bundle (masked, P14) ----
   r.get('/projects/:id/diagnostics', async (req, res) => {
     try {
-      const { buildDiagnostics } = await import('../../pipeline/diagnostics.js');
       res.json(buildDiagnostics(req.params.id));
     } catch (e) { res.status(e.message === 'project not found' ? 404 : 500).json({ error: e.message }); }
   });

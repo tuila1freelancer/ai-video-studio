@@ -3,24 +3,23 @@ import { existsSync } from 'node:fs';
 import * as DB from '../../db/index.js';
 import { logger } from '../../util/log.js';
 import { m, tp } from '../../i18n/t.js';
+import { publisherStatus, getPublisher } from '../../publish/index.js';
+import { chat, llmEnabled } from '../../providers/llm.js';
 
 /** @param {import('express').Router} r */
 export function mount(r) {
   // ---- publisher (B9 scaffold): OAuth loopback + manual publish (staging default) ----
   r.get('/publish/status', async (req, res) => {
-    const { publisherStatus } = await import('../../publish/index.js');
     res.json({ platforms: publisherStatus() });
   });
   r.post('/publish/youtube/auth-url', async (req, res) => {
     try {
-      const { getPublisher } = await import('../../publish/index.js');
       const redirectUri = `${req.protocol}://${req.get('host')}/api/publish/youtube/callback`;
       res.json({ url: getPublisher('youtube').authUrl({ clientId: req.body?.clientId, clientSecret: req.body?.clientSecret, redirectUri }) });
     } catch (e) { res.status(400).json({ error: e.message }); }
   });
   r.get('/publish/youtube/callback', async (req, res) => {
     try {
-      const { getPublisher } = await import('../../publish/index.js');
       const redirectUri = `${req.protocol}://${req.get('host')}/api/publish/youtube/callback`;
       await getPublisher('youtube').exchangeCode(String(req.query.code || ''), redirectUri);
       res.send('<meta charset="utf-8"><body style="font-family:sans-serif;background:#0b1020;color:#eaf2ff;display:grid;place-items:center;height:100vh"><div>'
@@ -34,7 +33,6 @@ export function mount(r) {
     try {
       const p = DB.getProject(req.body?.projectId || '');
       if (!p) return res.status(404).json({ error: 'not found' });
-      const { chat, llmEnabled } = await import('../../providers/llm.js');
       const ai = DB.aiSettings();
       if (!llmEnabled(ai.llm)) return res.status(400).json({ error: 'chưa bật LLM trong AI Setting' });
       const platform = ['facebook', 'youtube', 'tiktok'].includes(req.body?.platform) ? req.body.platform : 'facebook';
@@ -55,37 +53,31 @@ export function mount(r) {
   // (P40). No OAuth dance: this is a desktop tool and the reference app works the same way.
   r.post('/publish/facebook/connect', async (req, res) => {
     try {
-      const { getPublisher } = await import('../../publish/index.js');
       res.json(await getPublisher('facebook').connect(req.body || {}));
     } catch (e) { res.status(400).json({ error: e.message }); }
   });
   // Facebook Page registry + token health (P42). A Page token expires; without this a silent
   // expiry just looks like "publishing broke".
   r.get('/publish/pages', async (req, res) => {
-    const { getPublisher } = await import('../../publish/index.js');
     res.json({ pages: getPublisher('facebook').listPages() });
   });
   r.post('/publish/pages/:pageId/select', async (req, res) => {
     try {
-      const { getPublisher } = await import('../../publish/index.js');
       res.json(getPublisher('facebook').selectPage(req.params.pageId));
     } catch (e) { res.status(400).json({ error: e.message }); }
   });
   r.delete('/publish/pages/:pageId', async (req, res) => {
     try {
-      const { getPublisher } = await import('../../publish/index.js');
       res.json(getPublisher('facebook').removePage(req.params.pageId));
     } catch (e) { res.status(400).json({ error: e.message }); }
   });
   r.post('/publish/pages/:pageId/check', async (req, res) => {
     try {
-      const { getPublisher } = await import('../../publish/index.js');
       res.json(await getPublisher('facebook').checkToken(req.params.pageId));
     } catch (e) { res.status(400).json({ error: e.message }); }
   });
   r.post('/publish/pages/:pageId/extend', async (req, res) => {
     try {
-      const { getPublisher } = await import('../../publish/index.js');
       res.json(await getPublisher('facebook').extendToken({ ...(req.body || {}), pageId: req.params.pageId }));
     } catch (e) { res.status(400).json({ error: e.message }); }
   });
@@ -94,7 +86,6 @@ export function mount(r) {
 
   r.post('/publish/facebook/disconnect', async (req, res) => {
     try {
-      const { getPublisher } = await import('../../publish/index.js');
       res.json(getPublisher('facebook').disconnect());
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
@@ -105,7 +96,6 @@ export function mount(r) {
       const p = DB.getProject(req.params.id);
       if (!p) return res.status(404).json({ error: 'not found' });
       if (!p.video_path || !existsSync(p.video_path)) return res.status(400).json({ error: 'video chưa render xong' });
-      const { getPublisher } = await import('../../publish/index.js');
       const pub = getPublisher(req.body?.platform || 'youtube');
       if (!pub.connected()) return res.status(400).json({ error: 'chưa kết nối OAuth — vào Cài đặt → Đăng video' });
       const privacy = ['private', 'unlisted', 'public'].includes(req.body?.privacy) ? req.body.privacy : 'private';

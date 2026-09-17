@@ -6,6 +6,15 @@ import { getVoiceCatalog } from '../services/voice-catalog.js';
 import { m, tp, uiLang, setUiLang } from '../../i18n/t.js';
 import { localize } from '../helpers.js';
 import { syncLlmAccounts } from '../../core/llm-accounts.js';
+import { chat } from '../../providers/llm.js';
+import { withPreset, publicCatalog } from '../../providers/llm-presets.js';
+import { priceFor, PRICING_VERSION } from '../../core/pricing.js';
+import { ttsServerStatus, ensureSupertonic, supertonicLauncher, stopSupertonic } from '../../media/tts-server.js';
+import { execFile } from 'node:child_process';
+import { PLATFORMS, COVER_SIZES } from '../../publish/platforms.js';
+import { SUBTITLE_PRESETS } from '../../subtitles/presets.js';
+import { pickSubtitleConfig } from '../services/subtitle-defaults.js';
+import { getProvider, providerConfig } from '../../providers/voice/index.js';
 
 /** @param {import('express').Router} r */
 export function mount(r) {
@@ -48,8 +57,6 @@ export function mount(r) {
   // so a wrong base URL or a dead key surfaces here instead of mid-render.
   r.post('/llm/test', async (req, res) => {
     try {
-      const { chat } = await import('../../providers/llm.js');
-      const { withPreset } = await import('../../providers/llm-presets.js');
       const b = req.body || {};
       const saved = DB.aiSettings().llm || {};
       // Resolved through the preset BEFORE the guard: a local server ignores its key, so
@@ -76,8 +83,6 @@ export function mount(r) {
   // catalogue, so the number in the picker and the number in the cost meter are one table.
   r.get('/llm/providers', async (req, res) => {
     try {
-      const { publicCatalog } = await import('../../providers/llm-presets.js');
-      const { priceFor, PRICING_VERSION } = await import('../../core/pricing.js');
       res.json(localize({ presets: publicCatalog(priceFor), pricingVersion: PRICING_VERSION }));
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
@@ -89,7 +94,6 @@ export function mount(r) {
   // back to the suggested list instead of showing an error.
   r.post('/llm/models', async (req, res) => {
     try {
-      const { withPreset } = await import('../../providers/llm-presets.js');
       const b = req.body || {};
       const saved = DB.aiSettings().llm || {};
       const llm = withPreset({
@@ -118,14 +122,12 @@ export function mount(r) {
   // let the owner start or stop it from the same panel that configures the provider.
   r.get('/tts/server/status', async (req, res) => {
     try {
-      const { ttsServerStatus } = await import('../../media/tts-server.js');
       const cfg = (DB.aiSettings().tts?.providers?.supertonic) || {};
       res.json(await ttsServerStatus(cfg));
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
   r.post('/tts/server/start', async (req, res) => {
     try {
-      const { ensureSupertonic, ttsServerStatus } = await import('../../media/tts-server.js');
       const cfg = { ...(DB.aiSettings().tts?.providers?.supertonic || {}), ...(req.body || {}) };
       const ok = await ensureSupertonic(cfg, { restart: req.body?.restart === true });
       res.json({ ok, ...(await ttsServerStatus(cfg)) });
@@ -136,10 +138,8 @@ export function mount(r) {
   // full output comes back so a failure is readable instead of mysterious.
   r.post('/tts/server/install', async (req, res) => {
     try {
-      const { execFile } = await import('node:child_process');
       const py = ['python3', 'python'].find(Boolean) || 'python3';
       execFile(py, ['-m', 'pip', 'install', '--upgrade', 'supertonic'], { timeout: 600000, maxBuffer: 4 * 1024 * 1024 }, async (err, stdout, stderr) => {
-        const { supertonicLauncher } = await import('../../media/tts-server.js');
         const installed = !!supertonicLauncher({ fresh: true });
         res.json({
           ok: installed && !err, installed,
@@ -151,14 +151,12 @@ export function mount(r) {
   });
   r.post('/tts/server/stop', async (req, res) => {
     try {
-      const { stopSupertonic } = await import('../../media/tts-server.js');
       res.json({ stopped: stopSupertonic(DB.aiSettings().tts?.providers?.supertonic || {}) });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
   // ---- the platform table (limits + cover sizes), so the panel and the writer agree ----
   r.get('/platforms', async (req, res) => {
-    const { PLATFORMS, COVER_SIZES } = await import('../../publish/platforms.js');
     res.json(localize({ platforms: PLATFORMS, coverSizes: COVER_SIZES }));
   });
 
@@ -167,7 +165,6 @@ export function mount(r) {
   // an id the resolver knows, so it travels with its config and the panel applies it on click —
   // which is also why it works on every channel rather than belonging to one.
   r.get('/subtitle-presets', async (req, res) => {
-    const { SUBTITLE_PRESETS } = await import('../../subtitles/presets.js');
     const mine = DB.listStyles('subtitle').map((s) => {
       let config = {};
       try { config = JSON.parse(s.prompt || '{}'); } catch { /* a corrupt row must not empty the gallery */ }
@@ -190,7 +187,6 @@ export function mount(r) {
     try {
       const name = String(req.body?.name || '').trim();
       if (!name) return res.status(400).json({ error: 'thiếu tên bộ mẫu' });
-      const { pickSubtitleConfig } = await import('../../services/subtitle-defaults.js');
       // through the same door channel defaults go through: a preset must not be able to carry a
       // setting the renderer would refuse, or it would look saved and then not apply
       const config = pickSubtitleConfig(req.body?.config || {});
@@ -207,7 +203,6 @@ export function mount(r) {
   r.post('/voices/test', async (req, res) => {
     try {
       const { provider: pid, cfg = {} } = req.body || {};
-      const { getProvider, providerConfig } = await import('../../providers/voice/index.js');
       const prov = getProvider(pid);
       // merge masked/unchanged fields from saved settings (same contract as PUT /settings)
       const saved = providerConfig(DB.aiSettings().tts, pid);
