@@ -1,14 +1,17 @@
 #!/usr/bin/env node
 // Boot audit: what the first paint of the UI costs, measured — not guessed.
 //
-//   node scripts/perf/boot-audit.mjs [--lang vi|en] [--runs 3] [--json out.json]
+//   node scripts/perf/boot-audit.mjs [--lang vi|en] [--runs 3] [--json out.json] [--dist]
+//
+// --dist measures the release payload: the frontend is built into a temp dir first and the
+// server is pointed at it, so the numbers are what a customer's WKWebView sees.
 //
 // Boots a throwaway server on a SNAPSHOT of the live database (VACUUM INTO a temp dir, every
 // queued job cancelled so nothing starts rendering), loads the UI in headless Chrome with the
 // network log attached, and reports requests, bytes, serial API hops and the boot marks that
 // main.js sets. The same script runs before and after a change, so the numbers compare.
-import { spawn } from 'node:child_process';
-import { copyFileSync, existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { execFileSync, spawn } from 'node:child_process';
+import { copyFileSync, cpSync, existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -25,6 +28,7 @@ function arg(name, fallback) {
 const LANG = arg('lang', 'vi');
 const RUNS = Math.max(1, parseInt(arg('runs', '3'), 10) || 3);
 const JSON_OUT = arg('json', '');
+const DIST = process.argv.includes('--dist');
 
 if (!PATHS.chrome) { console.error('boot-audit: no Chrome resolved (PATHS.chrome)'); process.exit(2); }
 
@@ -49,14 +53,24 @@ function snapshotDataDir() {
     const src = join(ROOT, 'data', f);
     if (existsSync(src)) copyFileSync(src, join(dir, f));
   }
+  // The owner's thumbnail cache comes along, warm: a cold cache would charge every run twenty
+  // ffmpeg encodes that a real boot only pays once.
+  const thumbs = join(ROOT, 'data', 'tmp', 'thumbs');
+  if (existsSync(thumbs)) cpSync(thumbs, join(dir, 'tmp', 'thumbs'), { recursive: true });
   return dir;
 }
 
-function startServer(dataDir) {
+function buildDist() {
+  const dir = join(mkdtempSync(join(tmpdir(), 'avs-perf-dist-')), 'public');
+  execFileSync(process.execPath, [join(ROOT, 'scripts', 'build-frontend.mjs'), '--out', dir], { stdio: 'pipe' });
+  return dir;
+}
+
+function startServer(dataDir, publicDir) {
   return new Promise((resolveUrl, reject) => {
     const child = spawn(process.execPath, [join(ROOT, 'src', 'server.js')], {
       cwd: ROOT,
-      env: { ...process.env, AVS_DATA_DIR: dataDir, AVS_PORT: '0', TOOLS_LICENSE_BYPASS: '1', AVS_DEBUG: '' },
+      env: { ...process.env, AVS_DATA_DIR: dataDir, AVS_PORT: '0', TOOLS_LICENSE_BYPASS: '1', AVS_DEBUG: '', ...(publicDir ? { AVS_PUBLIC_DIR: publicDir } : {}) },
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     let out = '';
@@ -137,8 +151,13 @@ async function measure(url) {
     for (const r of api) { if (r.t0 >= lastEnd) { depth += 1; lastEnd = r.t1; } else if (r.t1 > lastEnd) lastEnd = r.t1; }
     const compressed = rows.filter((r) => r.encoding).length;
     const top = [...rows].sort((a, b) => (b.bytes || 0) - (a.bytes || 0)).slice(0, 12)
-      .map((r) => ({ url: new URL(r.url).pathname + (new URL(r.url).search ? '?…' : ''), bytes: r.bytes || 0 }));
-    return { requests: rows.length, bytes, byKind, apiCalls, serialApiDepth: depth, compressed, top, marks, nav, wall };
+      .map((r) => ({ url: new URL(r.url).pathname + (new URL(r.url).search ? '?…' : ''), bytes: r.bytes || 0, mime: r.mime || '',
+        // a file response is named by its path so the report says WHICH file was heavy
+        file: /\/api\/(?:file|thumb)/.test(r.url) ? (new URL(r.url).searchParams.get('path') || '').split('/').slice(-2).join('/') : undefined }));
+    // The slowest responses by wall time: what the idle phase is actually waiting on.
+    const slowest = [...rows].filter((r) => r.t1).sort((a, b) => (b.t1 - b.t0) - (a.t1 - a.t0)).slice(0, 8)
+      .map((r) => ({ url: new URL(r.url).pathname, ms: Math.round((r.t1 - r.t0) * 1000) }));
+    return { requests: rows.length, bytes, byKind, apiCalls, serialApiDepth: depth, compressed, top, slowest, marks, nav, wall };
   } finally {
     await browser.close();
   }
@@ -148,7 +167,8 @@ function fmtKB(b) { return `${(b / 1024).toFixed(0)} KB`; }
 
 async function main() {
   const dataDir = snapshotDataDir();
-  const { child, url } = await startServer(dataDir);
+  const publicDir = DIST ? buildDist() : null;
+  const { child, url } = await startServer(dataDir, publicDir);
   const runs = [];
   try {
     for (let i = 0; i < RUNS; i += 1) runs.push(await measure(url));
@@ -156,17 +176,18 @@ async function main() {
     child.kill('SIGTERM');
     await new Promise((r) => setTimeout(r, 500));
     rmSync(dataDir, { recursive: true, force: true });
+    if (publicDir) rmSync(dirname(publicDir), { recursive: true, force: true });
   }
   const med = (sel) => { const v = runs.map(sel).sort((a, b) => a - b); return v[Math.floor(v.length / 2)]; };
   const r0 = runs[0];
   const summary = {
-    lang: LANG, runs: RUNS, url,
+    lang: LANG, runs: RUNS, url, tree: DIST ? 'release' : 'dev',
     requests: r0.requests, bytes: r0.bytes, compressed: r0.compressed, byKind: r0.byKind, apiCalls: r0.apiCalls,
     serialApiDepth: r0.serialApiDepth,
     bootDoneMs: med((r) => r.marks.boot), idleDoneMs: med((r) => r.marks.idle),
     dclMs: med((r) => r.nav.dcl), loadMs: med((r) => r.nav.load), wallMs: med((r) => r.wall),
   };
-  console.log(`\nBoot audit (lang=${LANG}, ${RUNS} run${RUNS > 1 ? 's, medians' : ''})`);
+  console.log(`\nBoot audit (lang=${LANG}, ${DIST ? 'release payload' : 'dev tree'}, ${RUNS} run${RUNS > 1 ? 's, medians' : ''})`);
   console.log(`  requests        ${summary.requests}  (${summary.compressed} compressed)`);
   console.log(`  bytes on wire   ${fmtKB(summary.bytes)}`);
   for (const [k, v] of Object.entries(summary.byKind).sort((a, b) => b[1].bytes - a[1].bytes)) {
@@ -176,7 +197,9 @@ async function main() {
   console.log(`  API calls       ${Object.values(summary.apiCalls).reduce((a, b) => a + b, 0)}`);
   for (const [p, n] of Object.entries(summary.apiCalls).sort((a, b) => b[1] - a[1])) console.log(`    ${String(n).padStart(2)}× ${p}`);
   console.log('  heaviest responses');
-  for (const t of r0.top) console.log(`    ${fmtKB(t.bytes).padStart(8)}  ${t.url}`);
+  for (const t of r0.top) console.log(`    ${fmtKB(t.bytes).padStart(8)}  ${t.url}${t.file ? `  (${t.file}, ${t.mime})` : ''}`);
+  console.log('  slowest responses');
+  for (const t of r0.slowest) console.log(`    ${String(t.ms).padStart(6)} ms  ${t.url}`);
   console.log(`  DOMContentLoaded ${summary.dclMs.toFixed(0)} ms · boot-done ${summary.bootDoneMs.toFixed(0)} ms · idle-done ${summary.idleDoneMs.toFixed(0)} ms · load ${summary.loadMs.toFixed(0)} ms`);
   if (JSON_OUT) { writeFileSync(JSON_OUT, `${JSON.stringify({ summary, runs }, null, 2)}\n`); console.log(`  → ${JSON_OUT}`); }
 }

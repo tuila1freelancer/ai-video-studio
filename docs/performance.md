@@ -5,8 +5,9 @@ How the interface boot is measured, and what it measured before and after the 20
 ## Measuring
 
 ```bash
-npm run perf:boot                # Vietnamese interface, 3 runs, medians
+npm run perf:boot                # Vietnamese interface, dev tree, 3 runs, medians
 npm run perf:boot -- --lang en   # a translated interface pays for its catalogue too
+npm run perf:boot -- --dist      # the release payload: built into a temp dir, served by the same server
 ```
 
 `scripts/perf/boot-audit.mjs` boots a throwaway server on a **snapshot** of the live database
@@ -16,7 +17,8 @@ loads the UI in headless Chrome with the network log attached, and reports:
 - requests and bytes on the wire, split by kind, plus the heaviest responses;
 - `serial API hops` — the longest chain of API calls that each waited for the previous one;
 - `boot-done` — `performance.mark('avs:boot-done')`, set by `main.js` when the shell is painted
-  with real data; `idle-done` — after the idle-time catalogues (voices, presets, fonts) landed.
+  with real data; `idle-done` — after the idle-time catalogues (voices, presets, fonts) landed;
+- the heaviest responses (a file response names its file) and the slowest ones by wall time.
 
 The database snapshot is the owner's real one (105 projects, 3,877 scenes at the time of writing),
 so the numbers describe the app as it is actually used, not an empty install.
@@ -41,3 +43,42 @@ resizing, no lazy loading) — ~10 MB for a page that shows a dozen 300-px cards
 adds eight `/api/fonts/:family/css` stylesheets carrying base64 font data (≈250 KB) so that the
 subtitle font `<select>` can preview each family, and `/api/settings` is fetched three times and
 `/api/brands` twice by modules that do not share state.
+
+## After — 2026-09-17, branch `refactor/perf-code-quality`
+
+Same database snapshot, same machine, same harness. The dev tree is what `npm start` serves; the
+release payload is what the shipped app serves (`--dist`).
+
+| | before (dev) | after, dev tree | after, release payload |
+|---|---|---|---|
+| requests | 106 | 105 | **58** |
+| bytes on wire | 11,765 KB | 1,023 KB | **939 KB** |
+| serial API hops | 10 | 5–7 | 5–7 |
+| `boot-done` | 274 ms | 231 ms | **201 ms** |
+| `idle-done` | 1,781 ms | **549 ms** | 745 ms |
+| DOMContentLoaded | — | 154 ms | 115 ms |
+
+English interface, release payload: 59 requests, 990 KB (one 52 KB catalogue more), `boot-done`
+188 ms, `idle-done` 795 ms.
+
+By kind (release, vi): API 33 req / 725 KB · fonts 4 req / 99 KB · JS 16 req / 69 KB · HTML 30 KB ·
+CSS 2 req / 14 KB. Of the API bytes, 20 requests are the gallery's thumbnails, now 34–41 KB each
+(`/api/thumb`, 320 px, cached per file+mtime) instead of 450–580 KB; `/api/boot` is one 60 KB reply
+where six sequential calls used to be, and a project row in it carries the head of its topic, not
+the whole pasted script.
+
+What made the difference, in order of bytes: thumbnails downscaled server-side (−9.5 MB); the
+project list without `config`/`metadata` (−1.9 MB); no font stylesheets at idle — only the
+selected family's, when the subtitle panel needs it (−250 KB); gzip on every text response; one
+`/api/boot` instead of six round trips; the six pages and fifteen modals that are not on screen at
+boot loaded on first click (in the release payload: 16 preloaded files, 17 lazy chunks); the `say
+-v ?` process that every `/api/voices` reply waited ~0.9 s on, serving a field nothing read.
+
+Not in the numbers: every script and stylesheet in the release payload is named by its content
+hash and served `immutable`, so a second launch of the same build fetches only the document
+(revalidated by ETag) and the API. The harness always measures a cold cache.
+
+Where the remaining bytes are: 20 thumbnails (~750 KB) are the page — the gallery shows them —
+and the four Lexend subsets (99 KB) are the typeface. The next step, if one is ever needed, is
+WebP thumbnails at ~60 % of the JPEG size.
+

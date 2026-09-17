@@ -32,11 +32,9 @@ export function listProjects(channelId) {
   }
   return _listProjects.all().map(rowToProject);
 }
-/**
- * The list the interface renders: everything but `config` and `metadata`. Measured on the live
- * DB, those two columns were 1.9 MB of a 1.95 MB /projects reply; nothing in a list reads them.
- */
-const SUMMARY_COLS = 'id,title,topic,input_type,aspect_ratio,status,current_step,video_path,thumb_path,error,channel_id,created_at,updated_at,scenes_approved_at';
+// The list the interface renders: everything but `config` and `metadata` (1.9 MB of a 1.95 MB
+// reply on the live DB) and only the head of `topic`, which is often a whole pasted script.
+const SUMMARY_COLS = 'id,title,substr(topic,1,200) AS topic,input_type,aspect_ratio,status,current_step,video_path,thumb_path,error,channel_id,created_at,updated_at,scenes_approved_at';
 export function listProjectSummaries(channelId) {
   if (channelId && channelId !== 'all') {
     return stmt(`SELECT ${SUMMARY_COLS} FROM projects WHERE channel_id=? ORDER BY updated_at DESC`).all(channelId);

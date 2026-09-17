@@ -1,7 +1,7 @@
 // Brand Kit constants, the summary chip in the config panel, and the draft the editor works on.
 import { $, esc } from '../../ui/dom.js';
 import { toast } from '../../ui/toast.js';
-import { api, fileUrl } from '../../api.js';
+import { api, thumbUrl } from '../../api.js';
 import { state, activeChannelBrand } from '../../state.js';
 import { updateCfgChips } from '../../views/config.js';
 import { m, tp } from '../../i18n.js';
@@ -20,7 +20,7 @@ export function refreshBrandSummary() {
   const th = $('#bsThumb'), nm = $('#bsName'), mt = $('#bsMeta');
   if (!th) return;
   if (bk) {
-    th.innerHTML = bk.logo?.assetPath ? `<img src="${fileUrl(bk.logo.assetPath)}">` : '🏷';
+    th.innerHTML = bk.logo?.assetPath ? `<img src="${thumbUrl(bk.logo.assetPath, 160)}" loading="lazy" alt="">` : '🏷';
     nm.textContent = bk.channelName || m('Brand kit (chỉ logo)');
     const bits = [];
     if (bk.finalOverlay?.enabled && bk.logo?.assetPath) bits.push(m('đóng dấu logo'));
@@ -102,7 +102,8 @@ export function openBrandEditor() {
   stage.style.maxHeight = ({ '16:9': '42vh', '1:1': '52vh', '4:5': '58vh' })[ar] || '66vh';
   const proj = state.projects.find((p) => p.thumb_path) || null;
   const scenePrev = state.scenes.find((s) => s.image_path)?.image_path;
-  const bg = scenePrev ? `url('${fileUrl(scenePrev)}')` : (proj ? `url('${fileUrl(proj.thumb_path)}')` : '');
+  // The stage is at most ~66vh tall; a 640-px copy of the frame is plenty and a tenth of the file.
+  const bg = scenePrev ? `url('${thumbUrl(scenePrev, 640)}')` : (proj ? `url('${thumbUrl(proj.thumb_path, 640)}')` : '');
   stage.style.backgroundImage = bg;
   stage.classList.toggle('checker', !bg);
   $('#bstStageMeta').textContent = tp`Khung xem trước đúng tỉ lệ render: ${W}×${H} (${ar})`;
