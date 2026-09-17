@@ -3,7 +3,7 @@
 // Written ONLY via src/pipeline/journal.js's jlog(); read by GET /projects/:id/journal
 // and the global tasks feed. Retention is RUN-aware: the last KEEP_RUNS runs of a project
 // stay complete — a flat row cap would silently eat the oldest run's story mid-history.
-import db from '../connection.js';
+import db, { stmt } from '../connection.js';
 import { safeJson } from '../../util/util.js';
 
 const KEEP_RUNS = 10;    // most-recent runs kept complete per project
@@ -19,16 +19,16 @@ export function insertJournal(row) {
 /** Keep the newest KEEP_RUNS runs complete; prune older runs wholesale, then the hard cap. */
 export function pruneJournal(projectId) {
   if (!projectId) return;
-  const runs = db.prepare(`SELECT job_id, MAX(id) AS last FROM journal_events
+  const runs = stmt(`SELECT job_id, MAX(id) AS last FROM journal_events
     WHERE project_id=? AND job_id IS NOT NULL GROUP BY job_id ORDER BY last DESC`).all(projectId);
   if (runs.length > KEEP_RUNS) {
     const old = runs.slice(KEEP_RUNS).map((r) => r.job_id);
     const marks = old.map(() => '?').join(',');
-    db.prepare(`DELETE FROM journal_events WHERE project_id=? AND job_id IN (${marks})`).run(projectId, ...old);
+    stmt(`DELETE FROM journal_events WHERE project_id=? AND job_id IN (${marks})`).run(projectId, ...old);
   }
-  const n = db.prepare('SELECT COUNT(*) AS c FROM journal_events WHERE project_id=?').get(projectId).c;
+  const n = stmt('SELECT COUNT(*) AS c FROM journal_events WHERE project_id=?').get(projectId).c;
   if (n > HARD_CAP) {
-    db.prepare(`DELETE FROM journal_events WHERE id IN (
+    stmt(`DELETE FROM journal_events WHERE id IN (
       SELECT id FROM journal_events WHERE project_id=? ORDER BY id ASC LIMIT ?)`).run(projectId, n - HARD_CAP);
   }
 }
@@ -46,7 +46,7 @@ export function listJournal({ projectId = null, jobId = null, level = null, q = 
   else if (level) { where.push('level=?'); args.push(level); }
   if (q) { where.push('msg LIKE ?'); args.push(`%${q}%`); }
   if (before) { where.push('id < ?'); args.push(before); }
-  const rows = db.prepare(`SELECT * FROM journal_events ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
+  const rows = stmt(`SELECT * FROM journal_events ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
     ORDER BY id DESC LIMIT ?`).all(...args, Math.min(parseInt(limit, 10) || 500, 2000));
   rows.reverse();
   return rows.map((r) => ({ ...r, data: safeJson(r.data, null) }));

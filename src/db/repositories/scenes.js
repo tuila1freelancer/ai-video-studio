@@ -1,5 +1,5 @@
 // Scene rows — one narrated beat of a project (voice, visual spec, timing, clip path).
-import db from '../connection.js';
+import db, { stmt } from '../connection.js';
 import { newId, safeJson } from '../../util/util.js';
 
 const _insScene = db.prepare(`INSERT INTO scenes
@@ -43,6 +43,6 @@ export function updateScene(id, fields) {
   }
   if (!sets.length) return getScene(id);
   vals.id = id;
-  db.prepare(`UPDATE scenes SET ${sets.join(',')} WHERE id=@id`).run(vals);
+  stmt(`UPDATE scenes SET ${sets.join(',')} WHERE id=@id`).run(vals);
   return getScene(id);
 }

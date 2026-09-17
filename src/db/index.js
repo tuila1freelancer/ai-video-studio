@@ -23,9 +23,8 @@ export * from './repositories/journal.js';
 
 // ---- one-time bootstrap (runs on first import) ----
 // existing projects belong to Default
-{
-  const def = defaultChannel();
-  db.prepare('UPDATE projects SET channel_id=? WHERE channel_id IS NULL').run(def.id);
+if (db.prepare('SELECT 1 FROM projects WHERE channel_id IS NULL LIMIT 1').get()) {
+  db.prepare('UPDATE projects SET channel_id=? WHERE channel_id IS NULL').run(defaultChannel().id);
 }
 
 // seed default styles once
