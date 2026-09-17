@@ -121,36 +121,46 @@ fallback chain, and a post-render pass that re-renders any clip whose audio and 
 
 ## Architecture
 
-183 backend modules, 39 frontend modules, 34,042 lines. The frontend is native ES modules — no
-framework, no runtime dependency — bundled only for release: 6 pages, 15 modals, 8,218 lines.
+261 backend modules, 65 frontend modules, 35,227 lines — no module over 400 lines (a ratchet in
+`tests/code-health.test.js` keeps it that way). The frontend is native ES modules — no framework,
+no runtime dependency — bundled only for release: 6 pages and 15 modals as `public/partials/`
+assembled into one document at boot, 12 per-area stylesheets, and screens that load on first click.
 
 | Directory | Owns | Start here |
 |---|---|---|
-| `pipeline/` | orchestration, 9 stages, queue, governor, resume, concat | `runner.js`, `stages/`, `render.js`, `fingerprint.js` |
-| `hyperframe/` | scene codegen: prompt, conversation, lint, render validation | `prompt.js`, `codegen.js`, `validate.js`, `beats.js` |
-| `animation/` | the scene page, the deterministic runtime, the frame loop | `harness.js`, `renderer.js`, `templates/` |
-| `content/` | the script engine and deterministic script quality | `master-script.js`, `scorer.js`, `cta-audit.js` |
-| `providers/` | every external service | `llm.js`, `tts.js`, `voice/`, `subtitle.js` |
-| `media/` | FFmpeg, Chrome, mastering, overlays, ASR | `ffmpeg.js`, `puppeteer.js`, `master.js`, `whisper.js` |
+| `pipeline/` | orchestration, 9 stages, queue, governor, resume, concat | `runner.js`, `stages/`, `finalize/`, `render/`, `fingerprint.js` |
+| `hyperframe/` | scene codegen: prompt, conversation, lint, render validation | `prompt/`, `codegen.js`, `validate.js`, `beats.js` |
+| `animation/` | the scene page, the deterministic runtime, the frame loop | `harness/`, `renderer.js`, `templates/` |
+| `content/` | the script engine and deterministic script quality | `master-script/`, `scorer.js`, `cta-audit.js` |
+| `providers/` | every external service | `llm/`, `tts.js`, `voice/`, `fetchlink/` |
+| `media/` | FFmpeg, Chrome, mastering, overlays, ASR | `ffmpeg/`, `puppeteer.js`, `master.js`, `whisper.js` |
 | `subtitles/` | cue timing, styling, the burned ASS file | `presets.js`, `ass.js`, `timeline.js`, `chunk.js` |
 | `styleguide/` | the visual-identity contract shared by animation and codegen | `guide.js`, `presets.js`, `script-fonts.js` |
 | `i18n/` | the language table and everything derived from it | `languages.js`, `segment.js`, `t.js` |
 | `db/` | SQLite handle, DDL, migrations, repositories | `connection.js`, `migrate.js`, `repositories/` |
-| `api/` | 173 REST routes | `routes.js`, `services/` |
+| `api/` | 178 REST routes, one router per domain | `routes.js` (mount order), `routers/`, `services/`, `http.js` |
 | `fonts/` | which typeface exists, and which file libass gets | `registry.js`, `files.js`, `coverage.js` |
 | `license/` | offline verdict, activation, refresh, API gate | `state.js`, `index.js`, `gate.js` |
 | `core/` | config layering, cost, error taxonomy, budget | `config.js`, `pricing.js`, `errors.js` |
 | `publish/` | per-platform upload + the limits table | `youtube.js`, `facebook.js`, `platforms.js` |
-| `config/` `util/` `ws/` `audio/` | paths, primitives, live progress, sound design | `paths.js`, `lang.js`, `hub.js`, `sound-design.js` |
+| `config/` `util/` `ws/` `audio/` | paths, primitives, live progress, sound design | `paths.js`, `util.js`, `html-include.js`, `hub.js`, `sound-design.js` |
+
+A module that grew past 400 lines was split into a directory of the same name with a facade at the
+old path (`providers/llm.js` re-exports `providers/llm/*`), so every import and every test anchor
+kept working; `tests/_source.mjs` maps each old path onto its parts for the tests that assert on
+source text. `public/js` follows the same rule: `views/config/`, `views/studio/`,
+`features/settings/`, `features/brandkit/`.
 
 ### Want to change X? Go to file Y
 
 | Want to change | Go to |
 |---|---|
 | the script engine (modes, gates, batching, the master prompt) | `content/master-script.js` · routing in `pipeline/stages/script.js` |
-| the offline / no-LLM script path | `providers/llm.js` — `offlineScript`, `twoStageScript`, `verbatimScript` |
-| the LLM retry / backoff / multi-key chain | `providers/llm.js` — `chat`, `chatOnce`, `chatJson` |
-| the scene codegen prompt | `hyperframe/prompt.js` |
+| the offline / no-LLM script path | `providers/llm/script.js` — `offlineScript`, `twoStageScript`, `verbatimScript` |
+| the LLM retry / backoff / multi-key chain | `providers/llm/transport.js` — `chat`, `chatOnce`; `llm/json.js` — `chatJson` |
+| the scene codegen prompt | `hyperframe/prompt/` (`system`, `blocks`, `layout`, `animation`, `build`) |
+| a REST route | `api/routers/<domain>.js`; a new router is one `mount()` line in `api/routes.js` |
+| an HTTP error or a request-body limit | `api/http.js` (`wrap`, `errorHandler`) · body limits in `server.js` |
 | scene validation rules and thresholds | `hyperframe/validate.js` |
 | what an animation lands on, and when | `hyperframe/beats.js` |
 | **add a TTS provider** | `providers/voice/<name>.js` + one line in `voice/index.js`, then a rate in `core/pricing.js` |
@@ -158,14 +168,17 @@ framework, no runtime dependency — bundled only for release: 6 pages, 15 modal
 | how a language's words are counted or its lines broken | `i18n/segment.js` |
 | what a voice says for `85 %`, `16:9`, `15/3/2025` | `i18n/tts-rules.js` |
 | narration the app writes itself (chapter cards, the offline CTA) | `i18n/script-phrases.js` |
-| a string in the interface | edit `public/index.html`, then `i18n-extract.mjs --write` + `build-locales.mjs` |
-| the in-app manual | `SECTIONS` in `public/js/views/guide.js`, then `i18n-extract-guide.mjs` + `build-locales.mjs --guide` |
+| a string in the interface | edit the page or modal under `public/partials/`, then `i18n-extract.mjs --write` + `build-locales.mjs` |
+| a page or modal's markup | `public/partials/<page-x|modal-x>.html` — included by `public/index.html`, assembled at boot |
+| the look of one area | `public/css/<area>.css` — linked in cascade order, joined into one file by the release build |
+| the in-app manual | `public/guide/sections.json`, then `i18n-extract-guide.mjs` + `build-locales.mjs --guide` |
+| what the first paint fetches | `GET /api/boot` (`api/routes.js`) and `public/js/main.js`; measure with `npm run perf:boot` |
 | a server message, a toast or a dialog | write it in Vietnamese; `i18n-extract-server.mjs` / `i18n-extract-ui-msgs.mjs` key it by its own text |
 | how a failure is classified | `failed('<code>', …)` from `core/errors.js` — never the wording |
 | subtitle look, timing or the burn | `subtitles/presets.js` · `subtitles/chunk.js` · `subtitles/ass.js` |
 | a video rendering in the wrong font for its script | `styleguide/script-fonts.js` · `subtitles/presets.js` `perLangDefaults` · `scripts/build-fonts.mjs` |
-| transitions between scenes | `pipeline/render.js` — `planTransitions` |
-| the audio mix, ducking or mastering | `pipeline/render.js` · `media/master.js` |
+| transitions between scenes | `pipeline/render/transitions.js` — `planTransitions` |
+| the audio mix, ducking or mastering | `pipeline/render/encode.js` · `pipeline/finalize/sound.js` · `media/master.js` |
 | dub a finished video into another language | `pipeline/dub.js` |
 | export a subtitle track in another language | `subtitles/translate.js` · `GET /projects/:id/srt?lang=xx&format=vtt` |
 | cost rates or the budget guardrail | `core/pricing.js` · `core/budget.js` |
@@ -183,7 +196,7 @@ pin them are listed in [`ENGINEERING.md`](ENGINEERING.md).
   → `hyperframe/codegen.js`, `pipeline/stages/visuals.js`
 - **A frame is a pure function of time.** Scenes are paused GSAP timelines seeked by `__seek(t)`;
   Chrome screenshots each frame into an FFmpeg pipe, so memory is flat at any length.
-  → `animation/harness.js`, verified by `scripts/determinism.mjs`
+  → `animation/harness/runtime-seek.js`, verified by `scripts/determinism.mjs`
 - **Nothing is rebuilt that has not changed.** A content hash per artifact means editing one scene
   re-records and re-renders only that scene; a second hash picks one of four concat tiers
   (`skip` / `audio` / `copy` / `encode`). API keys are excluded from both.
@@ -318,10 +331,16 @@ defaults.
 ## Development
 
 ```bash
-npm test              # 99 files, 825 tests, hermetic
+npm test              # 104 files, 855 tests, hermetic, 120 s per-test timeout
+npm run lint          # ESLint 9 flat config — errors block CI, warnings are a to-do list
 npm run test:smoke    # every template built in 16:9 and 9:16, GSAP compiled
 npm run test:e2e      # boot, make a real short video, verify the MP4
+npm run perf:boot     # what the first paint costs, measured (see docs/performance.md)
 ```
+
+Two tests guard the shape of the tree rather than a behaviour: `tests/code-health.test.js` (no
+module over 400 lines, no `console.*` outside the logger, no duplicated helpers, every test on a
+hermetic database) and the route-table test in `tests/api-routes.test.js` (178 routes, pinned).
 
 | Harness | Checks |
 |---|---|
@@ -332,8 +351,9 @@ npm run test:e2e      # boot, make a real short video, verify the MP4
 | `scripts/cta-audit.mjs` | a script's CTA map; non-zero exit on a discipline defect |
 | `scripts/audit-release.mjs` | the built `.app` contains no readable source |
 
-CI (`.github/workflows/ci.yml`) runs on every push to `main` and every PR: Ubuntu, Node 22, FFmpeg,
-`npm ci`, `npm test`. Network providers and the Chrome render smoke are local-only.
+CI (`.github/workflows/ci.yml`) runs on every push to `main` and every PR: three jobs — `lint`,
+`test` (Ubuntu, Node 22, FFmpeg, coverage summary in the log) and a reporting-only `npm audit`.
+Network providers and the Chrome render smoke are local-only.
 
 Regression tests are named after the behaviour they protect — see
 [`ENGINEERING.md`](ENGINEERING.md).
@@ -358,6 +378,11 @@ cached data, AES-256-GCM encrypted, and loaded by `loader.cjs`, which verifies t
 flags and a SHA-256 before V8 sees the bytes and refuses rather than falling back. The key is
 generated per build and passed over stdin. Windows ships `src/**` inside an asar with no bytecode
 step.
+
+The interface ships as `js/main-[hash].js` plus `js/chunks/*-[hash].js` (code-split, so lazy
+screens stay lazy), one minified `css/app-[hash].css`, and the document assembled from its partials
+with preload hints for the entry's static graph. Every hashed file is served `immutable`; the
+document is revalidated by ETag. `AVS_PUBLIC_DIR` points the dev server at a built payload.
 
 Supporting scripts: `fetch-node.mjs` (checksum-verified runtime) · `build-fonts.mjs` (font pipelines
 under a byte budget) · `build-libs.mjs` · `build-whisper-model.mjs` · `build-icon.mjs` ·
