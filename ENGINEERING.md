@@ -25,11 +25,11 @@ the original guarantee still holds and the addition sits beside it.
 
 | # | Behavior | Where it lives |
 |---|---|---|
-| P1 | `chatOnce` floors `max_tokens = 16000` (reasoning models burn tokens on hidden thinking) | `providers/llm.js:57` |
-| P2 | `chatJson` enables `response_format:json_object` only on the first attempt (the gemini proxy returns garbage otherwise) | `providers/llm.js:121,124` |
-| P3 | Catch **429/rate-limit BEFORE dead-key**, backoff [8s,20s,45s]×4 | `providers/llm.js:26,38–42` |
-| P4 | `minScenes ≥70%` (single) / `≥60%` (per-chapter) to guard against the model returning too few scenes | `providers/llm.js:281,331` |
-| P5 | `LANG_WPS` (vi 4.4…) — word count based on real reading speed | `i18n/languages.js` (`wps` column) · re-exported from `providers/llm.js` |
+| P1 | `chatOnce` floors `max_tokens = 16000` (reasoning models burn tokens on hidden thinking) | `providers/llm/transport.js` |
+| P2 | `chatJson` enables `response_format:json_object` only on the first attempt (the gemini proxy returns garbage otherwise) | `providers/llm/json.js` |
+| P3 | Catch **429/rate-limit BEFORE dead-key**, backoff [8s,20s,45s]×4 | `providers/llm/transport.js` |
+| P4 | `minScenes ≥70%` (single) / `≥60%` (per-chapter) to guard against the model returning too few scenes | `providers/llm/generate.js` |
+| P5 | `LANG_WPS` (vi 4.4…) — word count based on real reading speed | `i18n/languages.js` (`wps` column) · re-exported from `providers/llm/budget.js` |
 | P6 | `qc.probeStreams` strips the trailing comma from ffprobe csv; `pix_th=0.04`; `tailAllowance`; defect mapping prioritizes exact-containment; **+v3:** `qcSceneClip` `expectVoice` flags near-silent narrated clips (mean < −50dB) | `pipeline/qc.js` |
 | P7 | TTS: an explicit `ttsOverride.provider` beats `langVoices`; voice-lock retries 3× with the same voice; **+v3:** the edge fallback lane picks `nearestCachedVoice` (timbre-preserving) | `providers/tts.js` |
 | P8 | B5 hyperframe **skips a `chapter-break` scene with props** (keeps the anchor SFX); on successful codegen it sets `video_path:null` (so resume re-renders) — take activation & repurpose do the same | `pipeline/stages/visuals.js` · `db/repositories/takes.js` · `pipeline/repurpose.js` |
