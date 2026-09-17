@@ -1,0 +1,62 @@
+/* AI Video Studio — modal sheets, dialogs, command palette, toasts. One of the per-area sheets index.html links in cascade order; the release build joins them. */
+/* ---- 8. MODALS & DIALOGS ---- */
+.modal-bg{position:fixed;inset:0;background:rgba(2,2,6,.6);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:100;display:none;align-items:center;justify-content:center;padding:24px}
+.modal-bg.open{display:flex;animation:bgIn .18s var(--spring)}
+@keyframes bgIn{from{opacity:0}}
+.modal{background:var(--glass-heavy);border:1px solid var(--hairline-2);border-radius:var(--r-lg);max-width:560px;width:100%;max-height:86vh;overflow:auto;padding:24px;box-shadow:var(--shadow-3)}
+.modal-bg.open .modal{animation:dlgIn .22s var(--spring)}
+@keyframes dlgIn{from{opacity:0;transform:scale(.96) translateY(8px)}}
+.modal-bg.closing{animation:bgOut .16s var(--spring) forwards}
+.modal-bg.closing .modal{animation:dlgOut .16s var(--spring) forwards}
+@keyframes bgOut{to{opacity:0}}
+@keyframes dlgOut{to{opacity:0;transform:scale(.97) translateY(6px)}}
+.modal h2{font-size:17px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;font-weight:700}
+.modal .x{background:none;border:none;color:var(--text-2);font-size:22px;transition:color var(--t-fast)}
+.modal .x:hover{color:var(--text-1)}
+
+/* dialog (confirm/prompt/menu replacements) */
+.dlg{max-width:400px}
+.dlg .dlg-title{font-size:15.5px;font-weight:700;margin-bottom:8px}
+.dlg .dlg-body{font-size:13px;color:var(--text-2);margin-bottom:18px;line-height:1.6;white-space:pre-line}
+.dlg .dlg-actions{display:flex;gap:8px;justify-content:flex-end}
+.dlg .dlg-menu{display:flex;flex-direction:column;gap:4px;margin:4px 0 6px}
+.dlg .dlg-menu button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:10px 12px;border:1px solid transparent;background:transparent;color:var(--text-1);border-radius:10px;font-size:13px;font-weight:600;transition:background var(--t-fast)}
+.dlg .dlg-menu button:hover{background:var(--surface-2)}
+.dlg .dlg-menu button.danger{color:#fca5a5}
+.dlg .dlg-menu button.danger:hover{background:rgba(248,113,113,.1)}
+
+/* color palette + sub preview */
+.color-palette{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.sw{width:26px;height:26px;border-radius:8px;border:2px solid transparent;transition:transform var(--t-fast),border-color var(--t-fast)}
+.sw:hover{transform:scale(1.12)}
+.sw.active{border-color:#fff;box-shadow:0 0 0 2px rgba(255,255,255,.25)}
+.sub-preview{margin-top:8px;background:#000;border-radius:8px;padding:14px;text-align:center;font-weight:800;font-size:20px}
+
+/* command palette (⌘K) */
+.palette-bg{position:fixed;inset:0;background:rgba(2,2,6,.55);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);z-index:300;display:flex;align-items:flex-start;justify-content:center;padding-top:14vh;animation:bgIn .15s var(--spring)}
+.palette-bg.closing{animation:bgOut .14s var(--spring) forwards}
+.palette{width:min(560px,92vw);background:var(--glass-heavy);border:1px solid var(--hairline-2);border-radius:16px;box-shadow:var(--shadow-3);overflow:hidden;animation:dlgIn .18s var(--spring)}
+.palette-bg.closing .palette{animation:dlgOut .14s var(--spring) forwards}
+.pal-input{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--hairline);color:var(--text-2)}
+.pal-input input{flex:1;background:none;border:none;outline:none;font-size:15px;color:var(--text-1);font-family:var(--font-ui)}
+.pal-input kbd{font-size:10px;color:var(--text-3);border:1px solid var(--hairline);border-radius:5px;padding:2px 6px;font-family:var(--font-mono)}
+.pal-list{max-height:46vh;overflow:auto;padding:6px}
+.pal-item{display:flex;align-items:center;gap:11px;width:100%;text-align:left;padding:9px 12px;border:none;background:transparent;color:var(--text-1);border-radius:9px;font-size:13.5px;font-weight:500;cursor:pointer}
+.pal-item svg{color:var(--text-3);flex-shrink:0}
+.pal-item span{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pal-item small{color:var(--text-3);font-size:11px}
+.pal-item.sel{background:rgba(109,92,255,.16);box-shadow:inset 0 0 0 1px rgba(109,92,255,.3)}
+.pal-item.sel svg{color:var(--accent-hi)}
+.pal-empty{padding:22px;text-align:center;color:var(--text-3);font-size:13px}
+
+/* voice picker rows */
+.vp-row{display:flex;gap:8px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--hairline)}
+.vp-row:hover{background:var(--surface-1)}
+.vp-row .vp-meta{flex:1;min-width:0}
+
+/* ---- 9. TOASTS ---- */
+.toasts{position:fixed;bottom:20px;right:20px;z-index:200;display:flex;flex-direction:column;gap:8px}
+.toast{background:var(--glass);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid var(--hairline-2);border-left:3px solid var(--accent);padding:11px 16px;border-radius:12px;font-size:13px;max-width:340px;box-shadow:var(--shadow-2);animation:slidein .22s var(--spring);display:flex;align-items:center;gap:9px}
+.toast.error{border-left-color:var(--err)} .toast.success{border-left-color:var(--ok)}
+.toast .t-act{margin-left:auto;background:none;border:none;color:var(--accent-hi);font-weight:700;font-size:12px;padding:2px 6px}
+@keyframes slidein{from{transform:translateX(40px);opacity:0}}

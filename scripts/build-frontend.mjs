@@ -31,7 +31,17 @@ mkdirSync(out, { recursive: true });
 // its partials, which stay behind.
 cpSync(PUBLIC, out, { recursive: true, filter: (src) => !src.startsWith(join(PUBLIC, 'js')) && !src.startsWith(join(PUBLIC, 'partials')) && !src.endsWith('.DS_Store') });
 rmSync(join(out, 'js'), { recursive: true, force: true });
-writeFileSync(join(out, 'index.html'), assembleIndex(PUBLIC));
+let indexHtml = assembleIndex(PUBLIC);
+
+// The per-area stylesheets become one file, joined in the order the shell links them (that order
+// is the cascade). fonts.css stays apart: it is large, rarely changes, and caches on its own.
+const sheets = [...indexHtml.matchAll(/^[ \t]*<link rel="stylesheet" href="\/css\/(?!fonts\.css")([^"]+)">\n/gm)];
+const joined = sheets.map((m) => readFileSync(join(PUBLIC, 'css', m[1]), 'utf8')).join('\n');
+writeFileSync(join(out, 'css', 'app.css'), joined);
+for (const m of sheets) rmSync(join(out, 'css', m[1]));
+indexHtml = indexHtml.replace(sheets[0][0], '<link rel="stylesheet" href="/css/app.css">\n');
+for (const m of sheets.slice(1)) indexHtml = indexHtml.replace(m[0], '');
+writeFileSync(join(out, 'index.html'), indexHtml);
 
 await build({
   entryPoints: [join(PUBLIC, 'js', 'main.js')],

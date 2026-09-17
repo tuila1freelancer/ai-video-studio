@@ -84,6 +84,11 @@ export const RELOCATED = {
     'public/js/features/brandkit.js', 'public/js/features/brandkit/draft.js', 'public/js/features/brandkit/stage.js',
     'public/js/features/brandkit/index.js',
   ],
+  'public/css/app.css': [
+    'public/css/base.css', 'public/css/primitives.css', 'public/css/shell.css', 'public/css/studio.css',
+    'public/css/home.css', 'public/css/modals.css', 'public/css/config.css', 'public/css/brand.css',
+    'public/css/scene-tools.css', 'public/css/license.css', 'public/css/studio-panels.css', 'public/css/guide.css',
+  ],
 };
 
 /** `m('x')` → `'x'`, `tp\`x\`` → `` `x` ``. Nothing else is touched. */

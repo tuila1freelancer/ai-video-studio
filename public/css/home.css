@@ -1,0 +1,64 @@
+/* AI Video Studio — home hero, gradient mesh, gallery cards, library page. One of the per-area sheets index.html links in cascade order; the release build joins them. */
+/* ---- 6. GALLERY (home) ---- */
+.gallery{padding:26px 44px 64px;max-width:1240px;margin:0 auto}
+.gallery h1{font-size:26px;margin-bottom:4px;font-weight:700;letter-spacing:-.02em}
+.gallery .sub{color:var(--text-2);margin-bottom:20px}
+/* hero block centered, generous vertical rhythm — the page owns the full viewport */
+.home-hero{text-align:center;padding:clamp(20px,6vh,72px) 0 34px}
+.home-hero .sub{max-width:600px;margin:0 auto 28px}
+.home-hero .cmdbar{margin:0 auto;max-width:820px;text-align:left}
+.home-sec-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:6px 0 16px;flex-wrap:wrap}
+.home-sec-title{font-size:16px;font-weight:700;letter-spacing:-.01em}
+.home-sec-head .gtabs{margin:0}
+.ggrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px}
+.ggrid .empty{grid-column:1/-1}
+.gcard{background:var(--surface-1);border:1px solid var(--hairline);border-radius:var(--r-md);overflow:hidden;cursor:pointer;transition:border-color var(--t-fast),transform var(--t-med),box-shadow var(--t-med)}
+.gcard:hover{border-color:rgba(109,92,255,.5);transform:translateY(-3px);box-shadow:var(--shadow-2)}
+.gcard .gt{aspect-ratio:9/16;background:#000;position:relative}
+.gcard .gt img{width:100%;height:100%;object-fit:cover}
+.gcard .gt .ph{position:absolute;inset:0;display:grid;place-items:center;font-size:34px;color:var(--text-3)}
+.gcard .gi{padding:10px}
+.gcard .gi .t{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gcard .gi .s{font-size:11px;color:var(--text-3)}
+
+/* hero (one-click) */
+.hero{background:var(--surface-1);border:1px solid var(--hairline);border-radius:var(--r-lg);padding:18px;margin-bottom:8px;max-width:760px;box-shadow:var(--shadow-1)}
+.hero textarea{font-size:15px;line-height:1.55}
+.hero .btn.big{padding:12px 22px}
+
+/* home: animated gradient mesh (GPU-only transforms) + headline + command bar */
+/* The mesh anchors to `.page`, which is already `position:absolute` — an `#page-home{position:
+   relative}` here would win on specificity and cost the page its `inset:0` height, leaving it to
+   grow to its content while `.content{overflow:hidden}` clips the gallery with nothing to scroll. */
+.home-mesh{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.home-mesh i{position:absolute;width:560px;height:560px;border-radius:50%;filter:blur(95px);opacity:.15;will-change:transform}
+.home-mesh .m1{background:#6d5cff;top:-240px;left:14%;animation:meshA 26s ease-in-out infinite alternate}
+.home-mesh .m2{background:#a855f7;top:-170px;right:10%;animation:meshB 32s ease-in-out infinite alternate}
+.home-mesh .m3{background:#22d3ee;top:280px;left:50%;width:420px;height:420px;opacity:.06;animation:meshA 38s ease-in-out infinite alternate-reverse}
+@keyframes meshA{to{transform:translate(120px,90px) scale(1.15)}}
+@keyframes meshB{to{transform:translate(-140px,70px) scale(.9)}}
+@media (prefers-reduced-motion:reduce){.home-mesh i{animation:none}}
+.gallery{position:relative}
+.home-title{font-size:clamp(30px,3.6vw,46px);font-weight:800;letter-spacing:-.02em;line-height:1.2;margin-bottom:10px}
+.grad-text{background:var(--grad-brand);-webkit-background-clip:text;background-clip:text;color:transparent}
+.cmdbar{padding:14px 16px;border-radius:18px;border:1px solid var(--hairline-2);background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.02));box-shadow:var(--shadow-2);transition:border-color var(--t-med),box-shadow var(--t-med)}
+.cmdbar:focus-within{border-color:rgba(109,92,255,.55);box-shadow:0 0 0 3px rgba(109,92,255,.14),var(--shadow-2)}
+.cmdbar textarea.input{border:none;background:transparent;padding:4px 2px;font-size:15.5px;box-shadow:none}
+.cmdbar textarea.input:focus{border:none;background:transparent;box-shadow:none}
+.cmdbar-row{display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap}
+.cmdbar-row .input{max-width:220px}
+.flex-spacer{flex:1}
+.gstat{position:absolute;top:8px;left:8px;z-index:2;background:rgba(12,12,20,.86)}
+.gcard .gt::after{content:'';position:absolute;left:0;right:0;bottom:0;height:44%;background:linear-gradient(180deg,transparent,rgba(0,0,0,.55));opacity:0;transition:opacity var(--t-med)}
+.gcard:hover .gt::after{opacity:1}
+.gskel{aspect-ratio:9/16;border-radius:var(--r-md)}
+
+/* ---- 7. LIBRARY & misc pages ---- */
+.lib{padding:24px 30px}
+.libgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px;margin-top:16px}
+.libitem{background:var(--surface-1);border:1px solid var(--hairline);border-radius:10px;padding:10px;font-size:12px;transition:border-color var(--t-fast)}
+.libitem:hover{border-color:var(--hairline-2)}
+.libitem .lp{aspect-ratio:1;background:rgba(0,0,0,.3);border-radius:8px;display:grid;place-items:center;overflow:hidden;margin-bottom:8px;font-size:24px;color:var(--text-3)}
+.libitem .lp img{width:100%;height:100%;object-fit:cover}
+.libitem .ln{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.center-narrow{max-width:680px;margin:0 auto;padding:30px}
