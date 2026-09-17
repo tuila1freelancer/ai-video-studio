@@ -8,7 +8,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { sourceOf } from './_source.mjs';
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { detachFilterGraph } from '../src/media/ffmpeg.js';
@@ -31,7 +31,7 @@ test('the dist payload ships bytecode, and the launcher can start it', () => {
   assert.match(build, /payload vẫn còn mã nguồn trong src\//);
 });
 
-test('the UI ships as one file, with no preload hints pointing at files that are gone', async () => {
+test('the UI ships hashed and split: one entry, preloaded static graph, lazy chunks, no dead hints', async () => {
   const { mkdtempSync: mk } = await import('node:fs');
   const out = join(mk(join(tmpdir(), 'avs-fe-')), 'public');
   try {
@@ -43,12 +43,24 @@ test('the UI ships as one file, with no preload hints pointing at files that are
     assert.doesNotMatch(html, /<!--#include/);
     assert.match(html, /id="settingsModal"/);
     assert.equal(existsSync(join(out, 'partials')), false, 'partials/ is not part of the payload');
-    // 23 of the 24 hints named modules that no longer exist; each one left in would be a 404 on
-    // first paint. main.js keeps its hint because it is still the entry.
-    const preloads = html.match(/rel="modulepreload" href="([^"]+)"/g) || [];
-    assert.deepEqual(preloads, ['rel="modulepreload" href="/js/main.js"']);
-    assert.match(html, /<script type="module" src="\/js\/main\.js"><\/script>/);
-    const bundled = readFileSync(join(out, 'js', 'main.js'), 'utf8');
+    // Every script and stylesheet the document names carries a content hash and exists on disk —
+    // a hint to a missing file is a 404 on first paint, and an unhashed name can be served stale.
+    const entry = html.match(/<script type="module" src="([^"]+)"><\/script>/)[1];
+    assert.match(entry, /^\/js\/main-[A-Z0-9]{8}\.js$/);
+    const preloads = [...html.matchAll(/rel="modulepreload" href="([^"]+)"/g)].map((m) => m[1]);
+    const sheets = [...html.matchAll(/rel="stylesheet" href="([^"]+)"/g)].map((m) => m[1]);
+    assert.equal(preloads[0], entry, 'the entry is the first hint');
+    assert.ok(preloads.length > 3, 'the static import graph is hinted, not just the entry');
+    assert.deepEqual(sheets.map((s) => s.replace(/-[A-Z0-9]{8}\.css$/, '.css')), ['/css/fonts.css', '/css/app.css']);
+    for (const ref of [...preloads, ...sheets]) {
+      assert.match(ref, /-[A-Z0-9]{8}\.(?:js|css)$/, `${ref} is not content-hashed`);
+      assert.ok(existsSync(join(out, ref)), `${ref} is referenced but not in the payload`);
+    }
+    // Lazy screens are chunks the entry does not preload: they load when a click asks for them.
+    const chunks = readdirSync(join(out, 'js', 'chunks'));
+    const lazy = chunks.filter((f) => !preloads.some((p) => p.endsWith(f)));
+    assert.ok(lazy.some((f) => /^guide-/.test(f)) && lazy.some((f) => /^voicepicker-/.test(f)), `lazy chunks: ${lazy.join(', ')}`);
+    const bundled = readFileSync(join(out, entry), 'utf8');
     assert.doesNotMatch(bundled, /^\s*\/\//m, 'minified: no comments survive');
     assert.equal(bundled.includes('renderFingerprint and ttsFingerprint know'), false,
       'the one engine comment that leaked into the frontend goes with them');

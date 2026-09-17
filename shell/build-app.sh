@@ -123,8 +123,9 @@ if [ "$MODE" = "dist" ]; then
          "$APP/Contents/Resources/node/bin/corepack" "$APP/Contents/Resources/node/include"
   cp package.json package-lock.json "$APPDIR/"
 
-  # The UI ships as one minified file rather than 36 browsable modules. WKWebView must be handed
-  # runnable JavaScript, so this is opacity, not secrecy — and the UI is not where the value is.
+  # The UI ships as a minified, hashed bundle (entry + lazy chunks) rather than a browsable module
+  # tree. WKWebView must be handed runnable JavaScript, so this is opacity, not secrecy — and the
+  # UI is not where the value is.
   node scripts/build-frontend.mjs --out "$APPDIR/public"
 
   # src/ does NOT travel. It is bundled to one file, compiled to V8 bytecode, and encrypted; the
