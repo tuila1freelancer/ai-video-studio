@@ -13,6 +13,13 @@ const db = new Database(join(DIRS.data, 'studio.sqlite'));
 db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
 db.pragma('busy_timeout = 5000'); // multiple processes (app + background renders) share this DB
+// NORMAL is the documented safe level under WAL: a crash can lose the last transactions, never
+// corrupt the file, and every journal line stops paying for an fsync.
+db.pragma('synchronous = NORMAL');
+db.pragma('journal_size_limit = 67108864'); // a 200-scene render otherwise leaves a WAL in the hundreds of MB
+db.pragma('cache_size = -32000'); // 32 MB — the scenes table alone is 46 MB, the default 2 MB thrashes
+db.pragma('temp_store = MEMORY');
+db.pragma('mmap_size = 268435456');
 
 db.exec(`
 CREATE TABLE IF NOT EXISTS settings (
@@ -275,5 +282,29 @@ CREATE INDEX IF NOT EXISTS idx_journal_job ON journal_events(job_id);
 // Versioned migrations run AFTER every CREATE TABLE block (so migrations may reference any
 // table) and BEFORE db/index.js's bootstrap issues its first query.
 migrate(db);
+
+// Indexes for the queries the repositories actually issue. After migrate(): projects.channel_id
+// only exists once migration 1 has run on an old file.
+db.exec(`
+CREATE INDEX IF NOT EXISTS idx_projects_channel ON projects(channel_id);
+CREATE INDEX IF NOT EXISTS idx_projects_updated ON projects(updated_at);
+CREATE INDEX IF NOT EXISTS idx_jobs_batch ON jobs(batch_id);
+CREATE INDEX IF NOT EXISTS idx_calendar_project ON calendar_slots(project_id);
+CREATE INDEX IF NOT EXISTS idx_library_kind_folder ON library(kind, brand_folder);
+CREATE INDEX IF NOT EXISTS idx_sugg_slot ON topic_suggestions(slot_id);
+`);
+
+const statements = new Map();
+/**
+ * A prepared statement per SQL string, compiled once per process. better-sqlite3's prepare() is a
+ * real SQLite compile; the repositories call it on hot paths (every scheduler tick, every /api/file).
+ * @param {string} sql
+ * @returns {import('better-sqlite3').Statement}
+ */
+export function stmt(sql) {
+  let s = statements.get(sql);
+  if (!s) { s = db.prepare(sql); statements.set(sql, s); }
+  return s;
+}
 
 export default db;
