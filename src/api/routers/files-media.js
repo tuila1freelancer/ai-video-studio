@@ -9,8 +9,7 @@ import { newId } from '../../util/util.js';
 import { m, tp } from '../../i18n/t.js';
 import { inAllowedRoots } from '../services/file-access.js';
 import { thumbFor, thumbWidth } from '../services/thumb-cache.js';
-
-const MAX_DOWNLOAD = 512 * 1024 * 1024;
+import { DOWNLOAD_MAX_BYTES } from '../../core/constants.js';
 
 /** @param {import('express').Router} r */
 export function mount(r) {
@@ -48,14 +47,14 @@ export function mount(r) {
         return res.status(400).json({ error: tp`không phải ảnh/video (${type || m('không rõ')})` });
       }
       const declared = Number(resp.headers.get('content-length') || 0);
-      if (declared > MAX_DOWNLOAD) return res.status(400).json({ error: tp`file quá lớn (${Math.round(declared / 1048576)} MB)` });
+      if (declared > DOWNLOAD_MAX_BYTES) return res.status(400).json({ error: tp`file quá lớn (${Math.round(declared / 1048576)} MB)` });
       const EXT = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp', 'image/gif': '.gif', 'video/mp4': '.mp4', 'video/quicktime': '.mov' };
       const ext = EXT[type.split(';')[0]] || extname(new URL(url).pathname) || '.bin';
       const out = join(DIRS.uploads, `${newId('dl')}${ext}`);
       // Streamed to disk with a running total: a lying Content-Length cannot fill memory or the disk.
       let size = 0;
       const reader = Readable.fromWeb(resp.body);
-      reader.on('data', (chunk) => { size += chunk.length; if (size > MAX_DOWNLOAD) reader.destroy(new Error('file quá lớn')); });
+      reader.on('data', (chunk) => { size += chunk.length; if (size > DOWNLOAD_MAX_BYTES) reader.destroy(new Error('file quá lớn')); });
       try { await pipeline(reader, createWriteStream(out)); } catch (e) { try { unlinkSync(out); } catch { /* not created */ } throw e; }
       if (!size) { unlinkSync(out); return res.status(400).json({ error: 'file rỗng' }); }
       res.json({ path: out, name: basename(out), size, type });

@@ -4,8 +4,9 @@ import { DIRS } from '../config/paths.js';
 import * as DB from '../db/index.js';
 import { maskSecrets } from '../core/config.js';
 import { t } from '../i18n/t.js';
+import { UPLOAD_MAX_BYTES } from '../core/constants.js';
 
-export const upload = multer({ dest: DIRS.uploads, limits: { fileSize: 512 * 1024 * 1024 } });
+export const upload = multer({ dest: DIRS.uploads, limits: { fileSize: UPLOAD_MAX_BYTES } });
 
 /**
  * Translate the human words in a CATALOGUE payload — a provider's config form, an LLM preset's

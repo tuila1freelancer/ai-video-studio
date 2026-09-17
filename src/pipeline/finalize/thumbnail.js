@@ -12,6 +12,7 @@ import { op } from '../progress.js';
 import { resolveLang } from '../../util/lang.js';
 import { orientationOf } from '../../publish/platforms.js';
 import { m, tp } from '../../i18n/t.js';
+import { THUMB_SIZE } from '../../core/constants.js';
 
 /**
  * @param {{projectId:string, project:object, config:object, size:{w:number,h:number}, scenes:object[], res:object, firstImg:string|undefined, visualMode:string}} args
@@ -60,14 +61,14 @@ export async function packageCovers({ projectId, project, config, size, scenes, 
       const outPath = pathFor(v);
       const ai = aiOn ? await generateThumbnailImage({
         title: project.title, hook: thumbTitle, prompt: project.metadata?.thumbnail?.prompt || '',
-        guide, size: nVar > 1 ? { w: 1280, h: 720 } : size, outPath,
+        guide, size: nVar > 1 ? THUMB_SIZE : size, outPath,
         language: resolveLang(config, scenes),
         variant: v, media: thumbMedia, llm: thumbLlm, onLog: (m) => logger.info(m, { projectId, stage: 'b7' }),
       }) : null;
       // Keep the markup of the FIRST design: the owner can edit and re-render it later without
       // paying for another generation (POST /projects/:id/thumbnail/regen with { html }).
       if (v === 0 && ai?.fragment) thumbHtml = ai.fragment;
-      const p = ai?.path || await buildThumbnail(thumbTitle, firstImg, nVar > 1 ? { w: 1280, h: 720 } : size, outPath, { guide, variant: v });
+      const p = ai?.path || await buildThumbnail(thumbTitle, firstImg, nVar > 1 ? THUMB_SIZE : size, outPath, { guide, variant: v });
       if (p) {
         made.push(p);
         // Each variant is a version the owner can come back to. Without this row the other two

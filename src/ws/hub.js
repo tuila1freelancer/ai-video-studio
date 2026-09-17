@@ -5,11 +5,11 @@
 // losing it; a ping/pong heartbeat reaps half-open sockets; a bufferedAmount guard sheds
 // slow clients instead of ballooning memory during 200+ scene renders.
 import { WebSocketServer } from 'ws';
+import { WS_MAX_BUFFERED } from '../core/constants.js';
 
 const REPLAY_MAX = 200;               // events kept per project
 const REPLAY_PROJECTS = 12;           // most-recent projects buffered
 const HEARTBEAT_MS = 30000;
-const MAX_BUFFERED = 4 * 1024 * 1024; // 4MB of unsent frames → client is not draining
 
 export class Hub {
   constructor() {
@@ -60,7 +60,7 @@ export class Hub {
 
   send(ws, obj) {
     if (ws.readyState !== 1) return;
-    if (ws.bufferedAmount > MAX_BUFFERED) return; // slow client: drop frames, keep the server healthy
+    if (ws.bufferedAmount > WS_MAX_BUFFERED) return; // slow client: drop frames, keep the server healthy
     try { ws.send(JSON.stringify(obj)); } catch { /* ignore */ }
   }
 

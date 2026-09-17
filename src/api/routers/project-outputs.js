@@ -10,6 +10,7 @@ import { resolveLang } from '../../util/lang.js';
 import { m, tp } from '../../i18n/t.js';
 import { fileUrlOf, thumbLlmFor } from '../helpers.js';
 import { pickFolder } from '../services/folder-picker.js';
+import { THUMB_SIZE } from '../../core/constants.js';
 import { EXPORT_PRESETS, exportForPlatform } from '../../pipeline/export-presets.js';
 import { generateThumbnailImage, renderThumbnailFragment, editThumbnailFragment, generateCoverSet } from '../../pipeline/thumbnail-codegen.js';
 import { resolveGuide } from '../../styleguide/index.js';
@@ -48,7 +49,7 @@ export function mount(r) {
       const p = DB.getProject(req.params.id);
       if (!p) return res.status(404).json({ error: 'not found' });
       const guide = resolveGuide(p.config || {});
-      const size = { w: 1280, h: 720 };
+      const size = THUMB_SIZE;
       const outDir = resolveOutputDir(p.id, p.config || {}, DB.projectDirFor(p.id));
       mkdirSync(outDir, { recursive: true });
       const outPath = join(outDir, `thumb_${Date.now()}.jpg`);
@@ -100,7 +101,7 @@ export function mount(r) {
       const outDir = resolveOutputDir(p.id, p.config || {}, DB.projectDirFor(p.id));
       mkdirSync(outDir, { recursive: true });
       const outPath = join(outDir, `thumb_${Date.now()}.jpg`);
-      const path = await renderThumbnailFragment(edited, { guide, size: { w: 1280, h: 720 }, outPath, media });
+      const path = await renderThumbnailFragment(edited, { guide, size: THUMB_SIZE, outPath, media });
       if (!path) return res.status(422).json({ error: 'bản sửa không dựng được' });
       const md = p.metadata || {};
       DB.updateProject(p.id, { thumb_path: path, metadata: { ...md, thumbnail: { ...(md.thumbnail || {}), html: edited } } });
