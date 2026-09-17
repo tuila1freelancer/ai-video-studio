@@ -5,10 +5,9 @@
 import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { sourceOf, indexHtml } from './_source.mjs';
 import { silenceKeepRanges, zoomFilter, zoomFocus } from '../src/media/ffmpeg.js';
 
-const src = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const span = (r) => r.reduce((s, x) => s + (x.end - x.start), 0);
 
 test('P44: a gap is cut out of the middle and the rest of the take is kept intact', () => {
@@ -59,7 +58,7 @@ test('P44: nothing detected, or nothing detectable, is never a destructive edit'
 });
 
 test('P44: removeSilence trims picture and sound with ONE range list, so they cannot drift', () => {
-  const ff = src('../src/media/ffmpeg.js');
+  const ff = sourceOf('src/media/ffmpeg.js');
   // the same r.start/r.end feeds trim= and atrim= in the same iteration — the reference wrote
   // N intermediate clips and concat-demuxed them, which re-encodes every segment twice
   assert.match(ff, /\[0:v\]trim=start=\$\{r\.start\}:end=\$\{r\.end\}/);
@@ -106,7 +105,7 @@ test('P44: zoom intensity is clamped, so no setting can produce a grotesque crop
 });
 
 test('P44: zoom rides the footage only — the keyed graphics on top stay still', () => {
-  const ff = src('../src/media/ffmpeg.js');
+  const ff = sourceOf('src/media/ffmpeg.js');
   // the expression is spliced into the [0:v] (footage) chain, ahead of tpad; [1:v] is the
   // rendered scene and must be untouched, or the whole overlay would swim
   assert.match(ff, /const zoomExpr = zoom \? `\$\{zoomFilter\(/);
@@ -117,7 +116,7 @@ test('P44: zoom rides the footage only — the keyed graphics on top stay still'
 });
 
 test('P44: silence is cut BEFORE the transcript, and the whole project follows the new file', () => {
-  const ev = src('../src/pipeline/edit-video.js');
+  const ev = sourceOf('src/pipeline/edit-video.js');
   // ORDER IS THE POINT. The reference splits scenes from the transcript first and removes
   // silence after, so each scene then reads the shortened footage at its old timestamp.
   const cut = ev.indexOf('await maybeRemoveSilence(ctx, src)');
@@ -134,14 +133,14 @@ test('P44: silence is cut BEFORE the transcript, and the whole project follows t
 });
 
 test('P44: both switches reach the engine from the panel', () => {
-  const html = src('../public/index.html');
+  const html = indexHtml();
   assert.ok(html.includes('id="evCutSilence"'));
   assert.ok(html.includes('id="evZoom"'));
-  assert.match(src('../public/js/views/editvideo.js'), /removeSilence: !!\$\('#evCutSilence'\)\?\.checked/);
-  assert.match(src('../public/js/views/editvideo.js'), /autoZoom: !!\$\('#evZoom'\)\?\.checked/);
-  const ev = src('../src/pipeline/edit-video.js');
+  assert.match(sourceOf('public/js/views/editvideo.js'), /removeSilence: !!\$\('#evCutSilence'\)\?\.checked/);
+  assert.match(sourceOf('public/js/views/editvideo.js'), /autoZoom: !!\$\('#evZoom'\)\?\.checked/);
+  const ev = sourceOf('src/pipeline/edit-video.js');
   assert.match(ev, /zoom: config\.autoZoom \? \{ intensity: \+config\.autoZoomIntensity \|\| 0\.5 \} : null/);
-  assert.match(src('../src/animation/index.js'), /zoom: config\.overlay\.zoom \? \{ \.\.\.config\.overlay\.zoom, index: scene\.idx \} : null/);
+  assert.match(sourceOf('src/animation/index.js'), /zoom: config\.overlay\.zoom \? \{ \.\.\.config\.overlay\.zoom, index: scene\.idx \} : null/);
   // and neither is on by default — an owner who does not tick them gets the old render exactly
   assert.match(ev, /if \(!config\.removeSilence\) return src;/);
 });

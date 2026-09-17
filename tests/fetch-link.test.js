@@ -6,7 +6,7 @@
 import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { sourceOf } from './_source.mjs';
 import {
   decodeEntities, metaContent, articleBlocks, pickMain, extractBlocks, joinCapped, extractImages,
   charsetOf, widestSrc, parseRanges, refineArticle, imageCandidates, stripChrome,
@@ -180,7 +180,7 @@ test('a model that deletes the article is treated as wrong, not as decisive', as
   const share = (idx) => idx.reduce((a, i) => a + blocks[i].length, 0) / blocks.reduce((a, b) => a + b.length, 0);
   assert.ok(share([0]) < 0.25, 'one block of ten is under the floor');
   assert.ok(share([0, 1, 2, 3]) > 0.25, 'four of ten is a plausible edit');
-  const src = readFileSync(new URL('../src/providers/fetchlink.js', import.meta.url), 'utf8');
+  const src = sourceOf('src/providers/fetchlink.js');
   assert.match(src, /if \(share < 0\.25\) \{/);
   assert.match(src, /nghi lọc sai, giữ bản theo cấu trúc/);
   // and the model is never asked to REWRITE — only to choose, so the shipped text is the original
@@ -234,13 +234,13 @@ test('the model pass is bounded, because a human is waiting on this button', () 
   // Measured on base.vn against a rate-limited proxy: chat()'s 429 ladder backs off 8s + 20s + 45s
   // per key and chatJson runs it twice — 163 SECONDS, which reads as the feature being broken. The
   // budget brings the same failure back in 33s with the reason on screen.
-  const src = readFileSync(new URL('../src/providers/fetchlink.js', import.meta.url), 'utf8');
+  const src = sourceOf('src/providers/fetchlink.js');
   assert.match(src, /const AI_BUDGET_MS = 40000;/);
   assert.match(src, /budgetMs: AI_BUDGET_MS,/);
   assert.match(src, /AI đang bị giới hạn truy cập \(429\)/, 'a rate limit is named as a rate limit');
   assert.match(src, /sau \$\{secs\}s/, 'and the wait is reported, not hidden');
   // the ceiling covers the whole ladder, and one request may not outlive it
-  const llm = readFileSync(new URL('../src/providers/llm.js', import.meta.url), 'utf8');
+  const llm = sourceOf('src/providers/llm.js');
   assert.match(llm, /budgetMs = Infinity/, 'every existing caller is unchanged by default');
   assert.match(llm, /timeoutMs: Math\.min\(timeoutMs, Math\.max\(1000, left\(\)\)\)/);
   assert.match(llm, /const wait = \(ms\) => \(ms < left\(\) \? new Promise/);

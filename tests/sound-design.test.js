@@ -1,8 +1,9 @@
 // P21 — LLM sound design lane: one plan (BGM + SFX by cue sheet) validated and clamped
 // deterministically; offline or an unusable plan degrades to the legacy deterministic audio.
+import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { sourceOf } from './_source.mjs';
 import { buildCueSheet, sanitizePlan, planSoundDesign, BGM_VOL_MIN, BGM_VOL_MAX, SFX_MIN_GAP_S } from '../src/audio/sound-design.js';
 
 const LIB = {
@@ -57,11 +58,11 @@ test('a flaky sound-design plan is re-asked, and the fallback is real music not 
   // One call in three came back with names matching nothing in the library. There was no retry
   // and no loud failure: two finished videos shipped with an inaudible synthetic bed and zero
   // SFX while their config said autoBgm/autoSfx were on.
-  const sd = readFileSync(new URL('../src/audio/sound-design.js', import.meta.url), 'utf8');
+  const sd = sourceOf('src/audio/sound-design.js');
   assert.match(sd, /const PLAN_TRIES = 3;/);
   assert.match(sd, /for \(let attempt = 1; attempt <= PLAN_TRIES; attempt\+\+\)/);
 
-  const fin = readFileSync(new URL('../src/pipeline/stages/finalize.js', import.meta.url), 'utf8');
+  const fin = sourceOf('src/pipeline/stages/finalize.js');
   assert.match(fin, /const lib = usableLibrary\(DB\.listLibrary\('bgm'\)\);/);
   assert.match(fin, /pickLibraryBgm\(projectId, lib\.length\)/);
   // deterministic, because bgmPath feeds the concat fingerprint
@@ -73,7 +74,7 @@ test('a flaky sound-design plan is re-asked, and the fallback is real music not 
 test('an audio-only re-join keeps the cover the owner chose', () => {
   // Re-mixing music re-designed the thumbnail and all six platform covers, replacing a clean
   // hand-picked design with a worse one. Packaging follows the picture, not the soundtrack.
-  const fin = readFileSync(new URL('../src/pipeline/stages/finalize.js', import.meta.url), 'utf8');
+  const fin = sourceOf('src/pipeline/stages/finalize.js');
   assert.match(fin, /const keepCover = \(res\.tier === 'audio' \|\| res\.tier === 'skip'\)/);
   assert.match(fin, /const nVar = keepCover \? 0 :/, 'no variant is designed');
   assert.match(fin, /if \(aiOn && !keepCover && config\.platformCovers !== false\)/, 'no cover set is re-shot');
@@ -85,7 +86,7 @@ test('the music and SFX levels are the raised ones, and the SFX bed cannot clip 
   // which reads as present on a meter and as nothing to the ear. Owner asked for more, 2026-08-26.
   assert.equal(BGM_VOL_MIN, 0.14);
   assert.equal(BGM_VOL_MAX, 0.28);
-  const r = readFileSync(new URL('../src/pipeline/render.js', import.meta.url), 'utf8');
+  const r = sourceOf('src/pipeline/render.js');
   assert.match(r, /\+bgmVol > 0 \? \+bgmVol : 0\.24\)/, 'no-plan default sits inside the plan range');
   assert.match(r, /volume=0\.9\[sfx\]/);
   // the SFX bed peaks near 0 dBFS by construction, so its post-gain must stay under unity

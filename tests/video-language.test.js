@@ -9,10 +9,9 @@
 import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { sourceOf, indexHtml } from './_source.mjs';
 import { detectLang, declaredLang, majorityLang, resolveLang, langName, DEFAULT_LANG } from '../src/util/lang.js';
 
-const src = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const EN = 'Most advice tells you to skip the coffee and wait.';
 const VI = 'Phần lớn lời khuyên bảo các bạn nhịn cà phê rồi chờ.';
 
@@ -62,26 +61,26 @@ test('lang: scene rows work as well as bare strings, and names are human', () =>
 test('lang: no stage invents its own Vietnamese default any more', () => {
   // Every one of these used to answer "Vietnamese" whenever config.language was unset — which was
   // always, because nothing wrote it. They must now go through the resolver.
-  for (const f of ['../src/pipeline/stages/editorial.js', '../src/pipeline/stages/budget.js',
-    '../src/pipeline/stages/finalize.js', '../src/pipeline/direction.js', '../src/audio/sound-design.js',
-    '../src/api/services/topic-autopilot.js', '../src/pipeline/estimate.js']) {
-    const code = src(f).split('\n').filter((l) => !l.trim().startsWith('//')).join('\n');
+  for (const f of ['src/pipeline/stages/editorial.js', 'src/pipeline/stages/budget.js',
+    'src/pipeline/stages/finalize.js', 'src/pipeline/direction.js', 'src/audio/sound-design.js',
+    'src/api/services/topic-autopilot.js', 'src/pipeline/estimate.js']) {
+    const code = sourceOf(f).split('\n').filter((l) => !l.trim().startsWith('//')).join('\n');
     assert.ok(!/\|\| *'vi'/.test(code), `${f} still falls back to 'vi'`);
     assert.ok(!/\|\| *'Vietnamese'/.test(code), `${f} still falls back to 'Vietnamese'`);
     assert.ok(!/!== *'auto'\)? *\? *[\w.?]+\.language *: *'vi'/.test(code), `${f} still has the ternary default`);
   }
   // and the art-direction brief — which travels into the codegen prompt and so decides the
   // ON-SCREEN language scene after scene — names a real language
-  assert.match(src('../src/pipeline/direction.js'), /narration in \$\{langName\(/);
+  assert.match(sourceOf('src/pipeline/direction.js'), /narration in \$\{langName\(/);
   // the two pass-through sites: fixing direction.js alone would do nothing without these.
   // Both resolve ONCE per run and hand the same answer to the brief and to codegen — see the
   // "reaches codegen from BOTH lanes" test for the codegen half.
-  assert.match(src('../src/pipeline/stages/visuals.js'), /ai: hfAi, language: videoLang,/);
-  assert.match(src('../src/pipeline/regen.js'), /guide, ai: hfAi, language: sceneLang \}\)/);
+  assert.match(sourceOf('src/pipeline/stages/visuals.js'), /ai: hfAi, language: videoLang,/);
+  assert.match(sourceOf('src/pipeline/regen.js'), /guide, ai: hfAi, language: sceneLang \}\)/);
 });
 
 test('lang: the editorial rewrite can no longer translate an English video into Vietnamese', () => {
-  const ed = src('../src/pipeline/stages/editorial.js');
+  const ed = sourceOf('src/pipeline/stages/editorial.js');
   // the scenes are the authority on their own language
   assert.match(ed, /const lang = resolveLang\(config, scenes\);/);
   // FIX_RULES names the language instead of hardcoding the word "Vietnamese"
@@ -168,14 +167,14 @@ test('lang: the one worked example carries no words in any language', async () =
 
 test('lang: the resolved language reaches codegen from BOTH lanes', () => {
   // fixing normalizeSpec is worthless if the batch and regen lanes do not tell it the language
-  assert.match(src('../src/pipeline/stages/visuals.js'), /const videoLang = resolveLang\(config, scenes\)/);
-  assert.match(src('../src/pipeline/stages/visuals.js'), /language: videoLang,/);
-  assert.match(src('../src/pipeline/regen.js'), /const sceneLang = resolveLang\(config, allScenes\)/);
-  assert.match(src('../src/pipeline/regen.js'), /ai: hfAi, language: sceneLang,/);
+  assert.match(sourceOf('src/pipeline/stages/visuals.js'), /const videoLang = resolveLang\(config, scenes\)/);
+  assert.match(sourceOf('src/pipeline/stages/visuals.js'), /language: videoLang,/);
+  assert.match(sourceOf('src/pipeline/regen.js'), /const sceneLang = resolveLang\(config, allScenes\)/);
+  assert.match(sourceOf('src/pipeline/regen.js'), /ai: hfAi, language: sceneLang,/);
   // the manual scene-edit lane too
-  assert.match(src('../src/api/services/edit-scene.js'), /normalizeSpec\(spec, \{ guide, duration, language[,}]/);
+  assert.match(sourceOf('src/api/services/edit-scene.js'), /normalizeSpec\(spec, \{ guide, duration, language[,}]/);
   // and a caller that forgets falls back to the scene's own text, never to a blanket assumption
-  assert.match(src('../src/hyperframe/codegen.js'), /const lang = language \|\| detectLang\(scene\.voice_text \|\| ''\)/);
+  assert.match(sourceOf('src/hyperframe/codegen.js'), /const lang = language \|\| detectLang\(scene\.voice_text \|\| ''\)/);
 });
 
 test('lang: the leak detector is MIRRORED, not symmetric — one word means different things', async () => {
@@ -206,12 +205,12 @@ test('lang: the leak detector is MIRRORED, not symmetric — one word means diff
 });
 
 test('lang: the validator judges against the DECLARED language, not the narration it is given', () => {
-  const v = src('../src/hyperframe/validate.js');
+  const v = sourceOf('src/hyperframe/validate.js');
   // detecting from the narration was circular: a scene whose narration had itself been rewritten
   // into the wrong language would then validate its on-screen text against the corruption.
   assert.match(v, /const narrLang = language \|\| detectLang\(narration \|\| ''\)/);
   assert.match(v, /language = '' \}\) \{/, 'renderValidate accepts it');
-  assert.match(src('../src/hyperframe/codegen.js'), /captionsOn, overlay, language: lang \}\)/, 'and codegen passes it');
+  assert.match(sourceOf('src/hyperframe/codegen.js'), /captionsOn, overlay, language: lang \}\)/, 'and codegen passes it');
   // the finding is persistence-tiered like every other one — a label flashing through a 0.3s
   // entrance must not burn an attempt
   assert.match(v, /textLanguageLeak\(e\.txt, narrWords, narrLang\)\) bump\(bad, e\.txt/);
@@ -221,12 +220,12 @@ test('lang: the validator judges against the DECLARED language, not the narratio
 });
 
 test('lang: the picker exists, and it cannot clobber a channel that declared its language', () => {
-  const html = src('../public/index.html');
+  const html = indexHtml();
   assert.ok(html.includes('id="cfgLang"'), 'the control exists');
   for (const code of ['auto', 'vi', 'en', 'ja', 'es']) {
     assert.ok(html.includes(`<option value="${code}"`), `${code} is offered`);
   }
-  const cfg = src('../public/js/views/config.js');
+  const cfg = sourceOf('public/js/views/config.js');
   // 'auto' MUST become undefined. mergeConfigLayers skips only undefined and the merge order is
   // defaults → channel → preset → request, so emitting the string 'auto' would overwrite a
   // channel that declared its language and the channel default could never win. null is worse:
@@ -234,7 +233,7 @@ test('lang: the picker exists, and it cannot clobber a channel that declared its
   assert.match(cfg, /language: \$\('#cfgLang'\)\?\.value === 'auto' \? undefined : \(\$\('#cfgLang'\)\?\.value \|\| undefined\)/);
   assert.ok(!/language: \$\('#cfgLang'\)\?\.value \|\| 'auto'/.test(cfg), 'never emits the literal auto');
   // and the merge really does skip only undefined — the property this depends on
-  assert.match(src('../src/core/config.js'), /if \(v === undefined\) continue;/);
+  assert.match(sourceOf('src/core/config.js'), /if \(v === undefined\) continue;/);
   // applyConfig must assign UNCONDITIONALLY: it runs on every channel switch, and a guarded
   // `if (cfg.language)` would leave the previous channel's language in the picker — which
   // gatherConfig would then pin onto a project that should have been auto.
@@ -242,7 +241,7 @@ test('lang: the picker exists, and it cannot clobber a channel that declared its
 });
 
 test('lang: a language with no pinned voice warns instead of silently using another', () => {
-  const tts = src('../src/pipeline/stages/tts.js');
+  const tts = sourceOf('src/pipeline/stages/tts.js');
   // this is how three English scenes got read by a Vietnamese voice: resolveTarget falls through
   // to the default provider when langVoices has no entry for the video's language
   assert.match(tts, /const lv = ai\.tts\?\.langVoices\?\.\[videoLang\];/);
@@ -252,7 +251,7 @@ test('lang: a language with no pinned voice warns instead of silently using anot
 });
 
 test('lang: "ghép lại" concatenates instead of re-rendering the whole video', () => {
-  const ro = src('../src/pipeline/render-only.js');
+  const ro = sourceOf('src/pipeline/render-only.js');
   // the subset filter only ever applied to mode 'scenes', so 'concat' fell through to the full
   // mapPool — on a 95-scene video that is ~95 needless renders to join clips already on disk
   assert.match(ro, /const renderPass = mode !== 'concat';/);
@@ -271,11 +270,11 @@ test('lang: "ghép lại" concatenates instead of re-rendering the whole video',
   assert.match(ro, /const doJoin = mode !== 'scenes' \|\| alsoJoin;/);
   assert.match(ro, /if \(doJoin && stillUnvoiced\)/);
   // and finalize still repairs any scene missing a clip, so nothing is skipped by rendering less
-  assert.match(src('../src/pipeline/stages/finalize.js'), /missing-clip repair|thiếu clip|!existsSync\(s\.video_path/);
+  assert.match(sourceOf('src/pipeline/stages/finalize.js'), /missing-clip repair|thiếu clip|!existsSync\(s\.video_path/);
 });
 
 test('lang: a busy port is fatal and loud, and the listener order that makes it work', () => {
-  const s = src('../src/server.js');
+  const s = sourceOf('src/server.js');
   assert.match(s, /server\.on\('error', \(e\) => \{/);
   assert.match(s, /e\?\.code === 'EADDRINUSE'/);
   assert.match(s, /AVS_PORT_IN_USE/);
@@ -293,7 +292,7 @@ test('lang: a busy port is fatal and loud, and the listener order that makes it 
 test('lang: scriptLang still falls back to the SOURCE text, not the narration', () => {
   // At script time no scenes exist yet, so the topic/pasted document is the only signal — a
   // different question from resolveLang's, and it must keep its own semantics.
-  const llm = src('../src/providers/llm.js');
+  const llm = sourceOf('src/providers/llm.js');
   assert.match(llm, /export function scriptLang\(config, sourceText\)/);
   assert.match(llm, /declaredLang\(config\) \|\| detectLang\(String\(sourceText \|\| ''\)\.slice\(0, 400\)\)/);
   // LANG_NAME moved to util/lang.js so validate.js can name a language without importing the
@@ -318,7 +317,7 @@ test('lang: a short English decor word and a giant ghost glyph are both leaks', 
   assert.equal(textLanguageLeak('END', words('this is the end of the show'), 'en'), false);
 
   // the other half: a ghost glyph is huge and faint, so the opacity gate excused it from the check
-  const src = readFileSync(new URL('../src/hyperframe/validate.js', import.meta.url), 'utf8');
+  const src = sourceOf('src/hyperframe/validate.js');
   assert.match(src, /\(e\.h >= 80 && e\.o > 0\.15\)/);
 });
 

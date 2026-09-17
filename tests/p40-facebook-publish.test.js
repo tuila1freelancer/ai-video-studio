@@ -4,14 +4,14 @@
 import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, writeFileSync, mkdtempSync } from 'node:fs';
+import { sourceOf } from './_source.mjs';
+import { writeFileSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import facebook from '../src/publish/facebook.js';
 import { PUBLISHERS, getPublisher, publisherStatus } from '../src/publish/index.js';
 import { setSetting } from '../src/db/index.js';
 
-const src = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const VIDEO = join(mkdtempSync(join(tmpdir(), 'p40fb-')), 'v.mp4');
 writeFileSync(VIDEO, Buffer.alloc(4096, 1));
 
@@ -100,12 +100,12 @@ test('P40: publishing without a connected Page fails loudly, and a failed first 
 });
 
 test('P40: the audit holes are closed — the folder button works and publishing is reachable', () => {
-  const studio = src('../public/js/views/studio.js');
+  const studio = sourceOf('public/js/views/studio.js');
   assert.match(studio, /\$\('#btnOpenFolder'\)\?\.addEventListener\('click'/, 'the toolbar button finally does something');
   assert.match(studio, /publishToFacebook/, 'a second destination is offered');
-  assert.match(src('../src/api/routes.js'), /'\/projects\/:id\/open'/, 'reveal-in-Finder route');
-  assert.match(src('../src/api/routes.js'), /'\/publish\/facebook\/connect'/);
-  const settings = src('../public/js/features/settings.js');
+  assert.match(sourceOf('src/api/routes.js'), /'\/projects\/:id\/open'/, 'reveal-in-Finder route');
+  assert.match(sourceOf('src/api/routes.js'), /'\/publish\/facebook\/connect'/);
+  const settings = sourceOf('public/js/features/settings.js');
   assert.match(settings, /pubFbConnect/, 'the publish section is wired');
   assert.match(settings, /loadPublishStatus/, 'and reports what is connected');
 });

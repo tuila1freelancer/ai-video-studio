@@ -4,12 +4,10 @@
 import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import { planTransitions, TRANSITION_STYLES } from '../src/pipeline/render.js';
 import { classifyDrop } from '../public/js/features/dragdrop.js';
-import { unwrapI18n } from './_source.mjs';
+import { sourceOf, indexHtml } from './_source.mjs';
 
-const src = (p) => unwrapI18n(readFileSync(new URL(p, import.meta.url), 'utf8'));
 const SCENES = [{ visual_prompt: '[ROLE] hook' }, { visual_prompt: '[ROLE] proof' }, { visual_prompt: '[ROLE] payoff' }, { visual_prompt: '[ROLE] cta' }];
 const plan = (style) => planTransitions({ scenes: SCENES, clipCount: 4, style }).map((t) => t.type);
 
@@ -36,14 +34,14 @@ test('P43: every offered style is a real xfade transition the render can execute
     assert.ok(FFMPEG_XFADE.has(s), `${s} must be a real xfade transition`);
   }
   // the UI only offers what the planner accepts
-  const html = src('../public/index.html');
+  const html = indexHtml();
   // attribute-tolerant: options carry a data-i18n key now, and the guarantee here is about the
   // VALUES the picker offers, never about what else is on the tag.
   const offered = [...html.matchAll(/<option value="([a-z]+)"[^>]*>(?:[^<]*)<\/option>/g)]
     .map((m) => m[1]).filter((v) => TRANSITION_STYLES.includes(v));
   assert.ok(offered.length >= 8, `the picker offers a real choice, got ${offered.length}`);
-  assert.match(src('../public/js/views/config.js'), /transitionStyle: \$\('#cfgTransStyle'\)\?\.value \|\| 'auto'/);
-  assert.match(src('../src/pipeline/stages/finalize.js'), /style: config\.transitionStyle \|\| 'auto'/);
+  assert.match(sourceOf('public/js/views/config.js'), /transitionStyle: \$\('#cfgTransStyle'\)\?\.value \|\| 'auto'/);
+  assert.match(sourceOf('src/pipeline/stages/finalize.js'), /style: config\.transitionStyle \|\| 'auto'/);
 });
 
 test('P43: a dropped file is routed by WHAT IT IS, and nothing vanishes silently', () => {
@@ -53,30 +51,30 @@ test('P43: a dropped file is routed by WHAT IT IS, and nothing vanishes silently
   assert.deepEqual(k.audio, ['song.mp3']);
   assert.deepEqual(k.fonts, ['brand.otf']);
   assert.deepEqual(k.unknown, ['notes.txt'], 'an unsupported file is reported, not dropped on the floor');
-  const dd = src('../public/js/features/dragdrop.js');
+  const dd = sourceOf('public/js/features/dragdrop.js');
   assert.match(dd, /bỏ qua \$\{kinds\.unknown\.length\} file không hỗ trợ/, 'and the owner is told');
   // dragenter/leave fire per element — without depth counting the overlay flickers across the page
   assert.match(dd, /depth = Math\.max\(0, depth - 1\)/);
-  assert.match(src('../public/js/main.js'), /initDragDrop\(\)/, 'wired into the app');
+  assert.match(sourceOf('public/js/main.js'), /initDragDrop\(\)/, 'wired into the app');
 });
 
 test('P43: capabilities that existed only as routes are now reachable in the UI', () => {
   // "Sửa HTML với AI" — POST /scenes/:id/edit-html shipped long ago and nothing ever called it
-  const ss = src('../public/js/features/scene-studio.js');
+  const ss = sourceOf('public/js/features/scene-studio.js');
   assert.match(ss, /api\.post\(`\/scenes\/\$\{cur\.id\}\/edit-html`, \{ prompt \}\)/, 'the AI edit lane is wired');
   assert.match(ss, /htmlLoaded = false;/, 'and the editor reloads so the owner sees the result');
-  assert.ok(src('../public/index.html').includes('id="ssEditPrompt"'));
+  assert.ok(indexHtml().includes('id="ssEditPrompt"'));
 
   // the Facebook Page registry (P42) had no UI at all
-  const set = src('../public/js/features/settings.js');
+  const set = sourceOf('public/js/features/settings.js');
   assert.match(set, /export async function loadFbPages/);
   assert.match(set, /\/publish\/pages\/\$\{b\.dataset\.fbchk\}\/check/, 'token health is checkable per Page');
   assert.match(set, /r\.neverExpires \? '✅ token không hết hạn'/, 'and "never expires" is not shown as expired');
 
   // named SEO styles could be created but never removed
-  assert.match(src('../public/js/views/config.js'), /api\.del\(`\/styles\/\$\{id\}`\)/);
+  assert.match(sourceOf('public/js/views/config.js'), /api\.del\(`\/styles\/\$\{id\}`\)/);
   // brand folders: rename/delete reachable, and the delete states the count it is about to destroy
-  const lib = src('../public/js/views/library.js');
+  const lib = sourceOf('public/js/views/library.js');
   assert.match(lib, /libBrandRename/);
   assert.match(lib, /file trong thư mục này sẽ bị xoá vĩnh viễn/, 'the dialog says what is destroyed');
   assert.match(lib, /confirm=\$\{n\}/, 'and echoes the count the server demands');
@@ -84,7 +82,7 @@ test('P43: capabilities that existed only as routes are now reachable in the UI'
 });
 
 test('P43: subtitle colour is no longer limited to the nine swatches', () => {
-  const cfg = src('../public/js/views/config.js');
+  const cfg = sourceOf('public/js/views/config.js');
   assert.match(cfg, /const custom = \$\('#cfgSubColorCustom'\);/);
   assert.match(cfg, /custom\.oninput = \(\) => \{ state\.subColor = custom\.value;/, 'any colour applies live');
   assert.match(cfg, /\/\^#\[0-9a-f\]\{6\}\$\/i\.test\(state\.subColor\)/, 'a non-hex saved value cannot break the input');
@@ -111,7 +109,7 @@ test('P43: the voice catalog no longer renders chips that filter to nothing', as
   got = catalogProviders({}, listProviders, cfgOf({ vbee: { token: 't' } }));
   assert.ok(got.includes('vbee'));
   // and the picker greys out what the catalog cannot show, instead of a chip that finds nothing
-  const vp = src('../public/js/features/voicepicker.js');
+  const vp = sourceOf('public/js/features/voicepicker.js');
   assert.match(vp, /const present = new Set\(\(state\.voiceCatalog \|\| \[\]\)\.map\(\(v\) => v\.provider\)\)/);
   assert.match(vp, /Chưa có API key cho/, 'the reason is shown, not hidden');
 });
@@ -128,12 +126,12 @@ test('P43: publishing shows the exact post text, lets it be edited, and can be s
   const t9 = quickToUnix('tmr9', now), t20 = quickToUnix('tmr20', now);
   assert.ok(t9 > Math.floor(now.getTime() / 1000), 'tomorrow 9h is in the future');
   assert.ok(t20 - t9 === 11 * 3600, 'tomorrow 20h is eleven hours after tomorrow 9h');
-  const studio = src('../public/js/views/studio.js');
+  const studio = sourceOf('public/js/views/studio.js');
   assert.match(studio, /publishDialog\(\{/, 'the composer replaces the privacy menu');
   assert.match(studio, /scheduledAt: form\.when \|\| undefined/);
   assert.match(studio, /caption: form\.caption, title: form\.title/);
   // and the server treats the typed text as final
-  assert.match(src('../src/api/routes.js'), /String\(req\.body\?\.caption \|\| ''\)\.trim\(\) \|\| md\.captions/);
+  assert.match(sourceOf('src/api/routes.js'), /String\(req\.body\?\.caption \|\| ''\)\.trim\(\) \|\| md\.captions/);
 });
 
 test('P43: the reframe crop can be biased, and centre stays byte-identical', async () => {
@@ -149,7 +147,7 @@ test('P43: the reframe crop can be biased, and centre stays byte-identical', asy
   assert.equal(reframeOffsetX('auto', 1920, 1080, null), 420, 'detection failed → centre, never a guess');
   assert.equal(reframeOffsetX('right', 1080, 1080), 0, 'no slack → no offset');
 
-  const ff = src('../src/media/ffmpeg.js');
+  const ff = sourceOf('src/media/ffmpeg.js');
   // 'center' must not even build a different filter string — old renders stay byte-identical
   assert.match(ff, /let cropExpr = `crop=\$\{w\}:\$\{h\}`;/);
   assert.match(ff, /if \(position && position !== 'center'\)/);
@@ -157,7 +155,7 @@ test('P43: the reframe crop can be biased, and centre stays byte-identical', asy
   assert.match(ff, /const k = Math\.max\(w \/ size\.w, h \/ size\.h\);/);
   assert.match(ff, /export async function detectSubjectX/);
   // and the choice reaches ffmpeg from the UI
-  assert.match(src('../src/animation/index.js'), /position: config\.overlay\.position \|\| 'center'/);
-  assert.match(src('../src/pipeline/edit-video.js'), /config\.reframePosition \|\| config\.overlay\?\.position \|\| 'center'/);
-  assert.match(src('../public/js/views/editvideo.js'), /reframePosition: \$\('#evReframe'\)\?\.value/);
+  assert.match(sourceOf('src/animation/index.js'), /position: config\.overlay\.position \|\| 'center'/);
+  assert.match(sourceOf('src/pipeline/edit-video.js'), /config\.reframePosition \|\| config\.overlay\?\.position \|\| 'center'/);
+  assert.match(sourceOf('public/js/views/editvideo.js'), /reframePosition: \$\('#evReframe'\)\?\.value/);
 });

@@ -5,6 +5,7 @@
 import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { sourceOf, indexHtml } from './_source.mjs';
 import {
   LLM_PRESETS, presetById, inferPreset, withPreset, codegenModelFor, presetsForLane, publicCatalog,
 } from '../src/providers/llm-presets.js';
@@ -173,8 +174,7 @@ test('an unknown preset id is safe', () => {
 // above and below this block.
 
 test('the app can list providers and ask one what models it serves', async () => {
-  const { readFileSync } = await import('node:fs');
-  const routes = readFileSync(new URL('../src/api/routes.js', import.meta.url), 'utf8');
+  const routes = sourceOf('src/api/routes.js');
   assert.match(routes, /r\.get\('\/llm\/providers'/);
   assert.match(routes, /r\.post\('\/llm\/models'/);
   assert.match(routes, /publicCatalog\(priceFor\)/, 'one rate table, or the picker and the meter drift');
@@ -190,9 +190,7 @@ test('the app can list providers and ask one what models it serves', async () =>
 });
 
 test('the settings panel offers the picker without losing what it already had', async () => {
-  const { readFileSync } = await import('node:fs');
-  const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
-  const html = read('../public/index.html');
+  const html = indexHtml();
   const modal = html.slice(html.indexOf('id="settingsModal"'), html.indexOf('id="srtModal"'));
   for (const id of ['setLlmOn', 'setLlmUrl', 'setLlmKey', 'setLlmModel', 'btnTestLlm', 'llmTestResult']) {
     assert.ok(modal.includes(`id="${id}"`), `the panel still needs #${id}`);
@@ -203,7 +201,7 @@ test('the settings panel offers the picker without losing what it already had', 
   // a datalist, not a select: a select silently blanks a saved model it has no option for,
   // which would downgrade an owner on a custom model the next time they pressed Save
   assert.match(modal, /id="setLlmModel" list="llmModelList"/);
-  const js = read('../public/js/features/settings.js');
+  const js = sourceOf('public/js/features/settings.js');
   assert.match(js, /btnTestLlm/);                      // p42 depends on this
   assert.match(js, /preset: \$\('#setLlmPreset'\)\.value/, 'the chosen provider must be saved');
   assert.match(js, /inferPresetId\(settings\.llm\?\.baseUrl\)/, 'an existing install must be recognised');

@@ -5,8 +5,8 @@
 // de-snake_cases surviving labels (DỮ_LIỆU_DƯ_THỪA → DỮ LIỆU DƯ THỪA).
 import './_env.mjs';
 import test from 'node:test';
-import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
+import { sourceOf } from './_source.mjs';
 import { normalizeSpec } from '../src/hyperframe/codegen.js';
 
 const guide = { fonts: { body: 'Be Vietnam Pro' } };
@@ -77,7 +77,7 @@ test('a bare English word the narration never says is decor, and is stripped', a
 test('source code is never on-screen copy, and a half-stripped code panel is the worse outcome', () => {
   // A mock code panel kept `return true;` and a bare `}` after its first line was stripped, which
   // reads as broken rather than as decoration. Keywords and lone braces go with the rest.
-  const src = readFileSync(new URL('../src/hyperframe/codegen.js', import.meta.url), 'utf8');
+  const src = sourceOf('src/hyperframe/codegen.js');
   assert.match(src, /const CODEISH = /);
   assert.match(src, /if \(CODEISH\.test\(t\)\) return true;/);
   for (const kw of ['return', 'const', 'function', 'import', 'undefined']) {

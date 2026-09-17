@@ -5,12 +5,11 @@
 import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { sourceOf } from './_source.mjs';
 import { LIBS, detectLibs, availableLibs, advertisedLibs, libsBundle } from '../src/animation/libs.js';
 import { creativeLibsBlock } from '../src/hyperframe/prompt.js';
 import { lintSpec } from '../src/hyperframe/lint.js';
 
-const src = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 
 test('P40-A: libraries are detected from real usage only — prose never pulls in a 600 KB bundle', () => {
   assert.deepEqual(detectLibs({ script: 'var r = new THREE.WebGLRenderer({});' }), ['three']);
@@ -54,11 +53,11 @@ test('P40-A: window.__onSeek is the ONE public harness entry point', () => {
 });
 
 test('P40-A: the harness injects only referenced libraries, and Chrome runs software WebGL', () => {
-  const harness = src('../src/animation/harness.js');
+  const harness = sourceOf('src/animation/harness.js');
   assert.match(harness, /const libIds = Array\.isArray\(opts\.libs\) \? opts\.libs : detectLibs\(template\)/, 'per-scene detection');
   assert.match(harness, /window\.__onSeek = /, 'the hook is defined before the template script builds');
   assert.match(harness, /window\.__runSeekHooks\(t, st\)/, 'hooks run on every seek');
-  const pptr = src('../src/media/puppeteer.js');
+  const pptr = sourceOf('src/media/puppeteer.js');
   assert.match(pptr, /--use-angle=swiftshader/, 'software WebGL so a three.js layer can render headless');
   assert.match(pptr, /--enable-unsafe-swiftshader/);
 });

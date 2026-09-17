@@ -4,10 +4,9 @@
 import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { sourceOf } from './_source.mjs';
 import { sanitizeThumbFragment, generateThumbnailImage, renderThumbnailFragment } from '../src/pipeline/thumbnail-codegen.js';
 
-const src = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 
 test('P40-D: a full document reply is reduced to a fragment', () => {
   const out = sanitizeThumbFragment('```html\n<!DOCTYPE html><html><head><style>.a{color:red}</style></head><body><div class="a">Xin chào</div></body></html>\n```');
@@ -37,7 +36,7 @@ test('P40-D: an empty or unusable reply yields nothing rather than a broken imag
 });
 
 test('P40-D: finalize tries the AI design first and always has a deterministic backup', () => {
-  const f = src('../src/pipeline/stages/finalize.js');
+  const f = sourceOf('src/pipeline/stages/finalize.js');
   assert.match(f, /generateThumbnailImage\(/, 'AI lane wired in');
   assert.match(f, /const p = ai\?\.path \|\| await buildThumbnail\(/, 'deterministic builder is the fallback');
   assert.match(f, /if \(v === 0 && ai\?\.fragment\) thumbHtml = ai\.fragment/, 'the design markup is kept so it can be edited later');
@@ -48,7 +47,7 @@ test('P40-D: an edited design re-renders without paying for another generation',
   // renderThumbnailFragment is the split-out rasterizer behind /thumbnail/regen { html }
   assert.equal(await renderThumbnailFragment('', {}), null, 'empty markup renders nothing');
   assert.equal(await renderThumbnailFragment('<div>x</div>', {}), null, 'a scrap is not a design');
-  const routes = src('../src/api/routes.js');
+  const routes = sourceOf('src/api/routes.js');
   assert.match(routes, /'\/projects\/:id\/thumbnail'/, 'the current thumbnail is inspectable');
   assert.match(routes, /'\/projects\/:id\/thumbnail\/regen'/, 'and can be re-designed or re-rendered');
   assert.match(routes, /renderThumbnailFragment\(html/, 'a hand-edited fragment skips the model');
@@ -59,7 +58,7 @@ test('P40-D: the canvas geometry is INLINE, so a model restyling #content cannot
   // Regression: a real design wrote `#content { position: relative }`. The fragment's <style> is
   // parsed after the head stylesheet, so it won so the box lost its absolute inset, every
   // absolutely-positioned child stopped contributing height, and the render came out solid black.
-  const s = src('../src/pipeline/thumbnail-codegen.js');
+  const s = sourceOf('src/pipeline/thumbnail-codegen.js');
   assert.match(s, /const box = `position:absolute;top:\$\{inset\}px/, 'geometry is built as an inline style');
   assert.match(s, /<div id="content" style="\$\{box\}">/, 'and applied inline, where no author rule can beat it');
   assert.match(s, /<div id="stage" style="position:relative;width:\$\{w\}px/, 'the stage is pinned the same way');
@@ -100,7 +99,7 @@ test('the thumbnail gives each script the vertical room its marks need', async (
 });
 
 test('the thumbnail layout doctrine is language-neutral', async () => {
-  const src = readFileSync(new URL('../src/pipeline/thumbnail-codegen.js', import.meta.url), 'utf8');
+  const src = sourceOf('src/pipeline/thumbnail-codegen.js');
   // The pixel budgets were always language-neutral; the prose wrapped around them was not, and a
   // Vietnamese art-direction brief demanding German on-screen text is the same mixed signal.
   const start = src.indexOf('const THUMB_LAYOUT');

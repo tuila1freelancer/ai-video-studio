@@ -11,7 +11,7 @@
 import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { sourceOf } from './_source.mjs';
 import { resolveGuide } from '../src/styleguide/index.js';
 import { withScriptFallback, scriptFallback } from '../src/styleguide/script-fonts.js';
 import { assStyleFrom } from '../src/subtitles/presets.js';
@@ -68,7 +68,7 @@ test('fonts: the subtitle burn names a face for every script it can be asked to 
 });
 
 test('fonts: the app shell carries the subsets its own translations need', () => {
-  const build = readFileSync(new URL('../scripts/build-fonts.mjs', import.meta.url), 'utf8');
+  const build = sourceOf('scripts/build-fonts.mjs');
   const manifest = build.slice(build.indexOf('const UI_SUBSETS'), build.indexOf('function cssUrl'));
   for (const subset of ['cyrillic', 'greek', 'thai', 'devanagari']) {
     assert.ok(manifest.includes(subset), `the interface font has no ${subset} subset`);

@@ -8,7 +8,7 @@
 import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { sourceOf } from './_source.mjs';
 import { hash32 } from '../src/util/util.js';
 import { sceneSeed, buildSceneHtml } from '../src/animation/index.js';
 import { motionSignature } from '../src/hyperframe/signatures.js';
@@ -51,7 +51,7 @@ test('P31 page seed: two projects render the same scene with different seeds; no
 });
 
 test('P31 no synthetic cards: finalize concats the scenes and nothing else', () => {
-  const src = readFileSync(new URL('../src/pipeline/stages/finalize.js', import.meta.url), 'utf8');
+  const src = sourceOf('src/pipeline/stages/finalize.js');
   assert.ok(!src.includes('renderOutroScene'), 'outro clip lane removed');
   assert.ok(!src.includes('renderCard'), 'intro/outro card lane removed');
   assert.ok(!/Cảm ơn đã xem/.test(src), 'no hardcoded farewell text anywhere in finalize');

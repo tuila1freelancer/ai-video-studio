@@ -6,11 +6,10 @@
 import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { sourceOf } from './_source.mjs';
 import { isNewer } from '../src/license/update.js';
 import { configured, isDist, publicKeyPem, storeUrl } from '../src/license/config.js';
 
-const src = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 
 test('a shipped build cannot be repointed at another store by an environment variable', (t) => {
   t.after(() => {
@@ -32,7 +31,7 @@ test('a shipped build cannot be repointed at another store by an environment var
 });
 
 test('the release bakes the trust anchor and never leaves the key in the tree', () => {
-  const rel = src('../scripts/release.mjs');
+  const rel = sourceOf('scripts/release.mjs');
   assert.match(rel, /BEGIN BAKED CONFIG/, 'it rewrites the marked block');
   assert.match(rel, /\/api\/v1\/public-key/, 'fetched from the same store the build will talk to');
   // The baked file holds a live API key for the length of one build. Restoring it in `finally`
@@ -40,12 +39,12 @@ test('the release bakes the trust anchor and never leaves the key in the tree', 
   assert.match(rel, /let restoreConfig = \(\) => writeFileSync\(configPath, config\);/);
   assert.match(rel, /} finally \{\s*\n\s*\/\/[^\n]*\n\s*restoreConfig\(\);/);
   assert.match(rel, /process\.on\('exit', \(\) => restoreConfig\(\)\);/, 'and on a hard exit too');
-  assert.match(src('../src/license/config.js'), /storeUrl: '',\n\s*clientApiKey: '',\n\s*publicKeyPem: '',/,
+  assert.match(sourceOf('src/license/config.js'), /storeUrl: '',\n\s*clientApiKey: '',\n\s*publicKeyPem: '',/,
     'the committed file carries no secrets');
 });
 
 test('the publisher key uploads and is never the one baked into the app', () => {
-  const rel = src('../scripts/release.mjs');
+  const rel = sourceOf('scripts/release.mjs');
   // Two different keys with two different powers. Baking the publisher key would let any customer
   // replace the binary every other customer downloads.
   assert.match(rel, /clientApiKey: \$\{JSON\.stringify\(clientKey\)\}/);
@@ -55,18 +54,18 @@ test('the publisher key uploads and is never the one baked into the app', () => 
 });
 
 test('the distributable bundle carries its own runtime, and refuses to build without one', () => {
-  const build = src('../shell/build-app.sh');
+  const build = sourceOf('shell/build-app.sh');
   // The Homebrew `node` is an 84 KB stub linked against a dozen dylibs under /opt/homebrew: a
   // bundle carrying it runs on the build machine and crashes on every customer's Mac.
   assert.match(build, /vendor\/node\/bin\/node/);
   assert.match(build, /npm run node:fetch/);
   assert.match(build, /exit 1/);
-  assert.match(src('../scripts/fetch-node.mjs'), /SHASUMS256/, 'and the runtime is checksummed');
-  assert.match(src('../scripts/fetch-node.mjs'), /actual !== expected/);
+  assert.match(sourceOf('scripts/fetch-node.mjs'), /SHASUMS256/, 'and the runtime is checksummed');
+  assert.match(sourceOf('scripts/fetch-node.mjs'), /actual !== expected/);
 });
 
 test('the bundle ships what the app needs and leaves out what it does not', () => {
-  const build = src('../shell/build-app.sh');
+  const build = sourceOf('shell/build-app.sh');
   // Neither src/ nor public/ travels as a source tree any more: the server is bundled, compiled
   // to bytecode and encrypted into app.jsc; the UI is bundled into one minified js/main.js.
   assert.match(build, /cp package\.json package-lock\.json "\$APPDIR\/"/);
@@ -81,17 +80,17 @@ test('the bundle ships what the app needs and leaves out what it does not', () =
 });
 
 test('a distributed app keeps its data where macOS expects, not inside the bundle', () => {
-  const build = src('../shell/build-app.sh');
+  const build = sourceOf('shell/build-app.sh');
   assert.match(build, /"AVS_DATA_DIR": \(NSHomeDirectory\(\) as NSString\)\.appendingPathComponent\("Library\/Application Support\/AI Video Studio"\)/);
   assert.match(build, /let PROJECT_ROOT = RES \+ "\/app"/, 'and runs its own copy of the code');
   assert.match(build, /"AVS_DIST": "1"/);
   // Set inside the app before node starts, so nothing in the customer's shell can change what the
   // bundle thinks it is — which is what makes the bypass check meaningful.
-  assert.match(src('../shell/main.swift'), /for \(k, v\) in EXTRA_ENV \{ env\[k\] = v \}/);
+  assert.match(sourceOf('shell/main.swift'), /for \(k, v\) in EXTRA_ENV \{ env\[k\] = v \}/);
 });
 
 test('an unsigned release says so instead of quietly shipping a build Gatekeeper blocks', () => {
-  const rel = src('../scripts/release.mjs');
+  const rel = sourceOf('scripts/release.mjs');
   assert.match(rel, /BẢN NÀY CHƯA ĐƯỢC NOTARIZE/);
   assert.match(rel, /chuột phải/, 'with the workaround the customer will need');
   assert.match(rel, /notarytool', 'submit'/);

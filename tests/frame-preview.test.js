@@ -10,10 +10,9 @@
 import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { sourceOf } from './_source.mjs';
 
-const src = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
-const service = src('../src/api/services/frame-preview.js');
+const service = sourceOf('src/api/services/frame-preview.js');
 
 test('the stamp is placed by the concat\'s own arithmetic, not a lookalike', () => {
   assert.match(service, /import \{ resolveConcatLogo, logoRect \}/);
@@ -84,19 +83,19 @@ test('a missing font degrades to a note, never to a quiet substitution', () => {
   // lie the feature exists to prevent — so it says so
   assert.match(service, /note = e\.message/);
   assert.match(service, /if \(!note \|\| isSystemFamily\(style\.font\)\)/);
-  const routes = src('../src/api/routes.js');
+  const routes = sourceOf('src/api/routes.js');
   assert.match(routes, /X-Preview-Note/);
-  assert.match(src('../public/js/views/config.js'), /X-Preview-Note/);
+  assert.match(sourceOf('public/js/views/config.js'), /X-Preview-Note/);
 });
 
 test('the preview reflects what the panel shows RIGHT NOW, not what was saved', () => {
-  const cfg = src('../public/js/views/config.js');
+  const cfg = sourceOf('public/js/views/config.js');
   assert.match(cfg, /JSON\.stringify\(gatherConfig\(\)\)/, 'live panel values');
   assert.match(service, /const config = \{ \.\.\.\(project\.config \|\| \{\}\), \.\.\.overrides \}/);
 });
 
 test('it is offered only when there is a frame to preview', () => {
-  const cfg = src('../public/js/views/config.js');
+  const cfg = sourceOf('public/js/views/config.js');
   assert.match(cfg, /state\.current\?\.video_path/);
   assert.match(cfg, /box\.classList\.toggle\('hidden', !ok\)/);
 });
