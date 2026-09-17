@@ -6,10 +6,15 @@ import { icon } from '../../ui/icons.js';
 import { m, tp } from '../../i18n.js';
 import { ensureFontLoaded, downloadFont } from './fonts.js';
 import { resRung, SUB_FIELDS, writeSubField, syncSubWeights, syncSubStudio, resetSubStudio, syncSubOut, buildSubColors, updateSubLaneHint, saveSubtitleDefaults, updateSubPreview, gatherSubFields } from './subtitle-studio.js';
-import { fmtT, refreshFramePreview } from './frame-preview.js';
+import { refreshFramePreview } from './frame-preview.js';
+import { fmtT } from '../../ui/format.js';
 import { renderHfStyleButton, wireHfStyle } from './hf-style.js';
 import { wireConfigGroups, updateCfgChips } from './groups.js';
 import { wirePresetBar, renderSubPresetGrid, saveSubPreset } from './presets.js';
+import { rafThrottle } from '../../ui/timing.js';
+
+// The preview rebuilds its markup; while a slider drags that is once per frame, not per event.
+const previewSoon = rafThrottle(updateSubPreview);
 
 export function initConfig() {
   // SVG icons on group heads + preset bar (markup keeps emoji as no-JS fallback)
@@ -252,7 +257,7 @@ function wireConfig() {
   SUB_FIELDS.forEach((f) => {
     const el = $(f.el);
     if (!el) return;
-    const live = () => { syncSubOut(f); syncSubStudio(); updateSubPreview(); };
+    const live = () => { syncSubOut(f); syncSubStudio(); previewSoon(); };
     el.addEventListener('input', live);
     el.addEventListener('change', () => { live(); saveSubtitleDefaults(); });
     // A colour input has no "unset" state of its own, so touching it is what marks it chosen —

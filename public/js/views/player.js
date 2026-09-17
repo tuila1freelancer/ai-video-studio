@@ -9,6 +9,8 @@ import { state } from '../state.js';
 import { api, fileUrl } from '../api.js';
 import { toast } from '../ui/toast.js';
 import { m, tp } from '../i18n.js';
+import { fmtT } from '../ui/format.js';
+import { rafThrottle } from '../ui/timing.js';
 
 let scenes = [], starts = [], total = 0;
 let t = 0, playing = false, raf = 0, lastTs = 0, activeIdx = -1;
@@ -19,7 +21,6 @@ const peaks = new Map(); // idx -> number[] (waveform buckets, lazy-loaded aroun
 const peaksLoading = new Set();
 
 const dur = (i) => Math.max(1.5, scenes[i]?.duration || 6);
-const fmt = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
 let wired = false;
 export function initPlayer() {
@@ -41,7 +42,7 @@ export function initPlayer() {
     else if (e.key === 'ArrowLeft') seekTo(t - 5);
     else if (e.key.toLowerCase() === 'f') toggleFullscreen();
   });
-  window.addEventListener('resize', fitStage);
+  window.addEventListener('resize', rafThrottle(fitStage));
   document.addEventListener('fullscreenchange', fitStage); // re-fit the stage entering/leaving fullscreen
   // timeline lane: click/drag = scrub (read-only — reorder needs immutable-id path keying)
   const tl = $('#rcTl');
@@ -242,7 +243,7 @@ function render() {
     else if (!playing && !f.audio.paused) f.audio.pause();
   }
   $('#rcSeek').value = t.toFixed(2);
-  $('#rcTime').textContent = `${fmt(t)} / ${fmt(total)}`;
+  $('#rcTime').textContent = `${fmtT(t)} / ${fmtT(total)}`;
   renderReviewState();
   drawTimeline();
 }

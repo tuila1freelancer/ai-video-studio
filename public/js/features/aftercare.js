@@ -17,6 +17,7 @@ import { toast } from '../ui/toast.js';
 import { state } from '../state.js';
 import { m, tp } from '../i18n.js';
 import { confirmDialog, menuDialog } from '../ui/dialog.js';
+import { fmtT, fmtDate } from '../ui/format.js';
 
 /** Scene Studio takes the row, not the id — the list the view already holds has it. */
 function openSceneFromId(sceneId) {
@@ -25,8 +26,6 @@ function openSceneFromId(sceneId) {
   else toast('Không tìm thấy cảnh này trong danh sách đang mở', 'error');
 }
 
-const fmtT = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
-const when = (ms) => new Date(ms).toLocaleString('vi-VN');
 
 // Cuts worth having that cost nothing but a join, because every one of them is a concat setting.
 // `name` is the variant's IDENTITY, not a label: the server dedupes metadata.variants by it and
@@ -53,7 +52,7 @@ export async function openVersions() {
   const items = versions.map((v, i) => ({
     id: v.id,
     icon: v.variant ? '📦' : (i === 0 ? '●' : '🎞'),
-    label: `${v.variant || m('Bản chính')} · ${when(v.created_at)} · ${fmtT(v.duration || 0)}`
+    label: `${v.variant || m('Bản chính')} · ${fmtDate(v.created_at)} · ${fmtT(v.duration || 0)}`
       + `${v.changes?.length ? tp` · đổi: ${v.changes.slice(0, 3).join(', ')}` : ''}`,
   }));
   const pick = await menuDialog({ title: 'Phiên bản đã xuất', items });
@@ -62,7 +61,7 @@ export async function openVersions() {
   if (!v) return;
   const ok = await confirmDialog({
     title: 'Quay về phiên bản này?',
-    body: tp`Video chính sẽ trỏ lại file của bản ${when(v.created_at)} và cấu hình được khôi phục theo bản đó.`
+    body: tp`Video chính sẽ trỏ lại file của bản ${fmtDate(v.created_at)} và cấu hình được khôi phục theo bản đó.`
       + ` ${m('Bản mới hơn KHÔNG bị xoá — nó vẫn nằm trong danh sách này.')}`,
     okText: 'Quay về bản này',
   });

@@ -77,8 +77,12 @@ export const SUB_FIELDS = [
 ];
 
 /** What a field's control currently says, or `undefined` for "the owner has not set this". */
+// Resolved once: every slider tick reads all 33 fields, and the group body is moved between the
+// column and the modal, never cloned, so the node stays the right node.
+const node = (f) => (f.node ||= $(f.el));
+const outNode = (f) => (f.outNode ||= $(f.out));
 function readSubField(f) {
-  const el = $(f.el);
+  const el = node(f);
   if (!el) return undefined;
   if (f.t === 'bool') return el.checked ? true : undefined;
   // A colour input and an `off: null` slider both sit on a value that is not a decision, so what
@@ -98,7 +102,7 @@ function readSubField(f) {
 }
 
 export function writeSubField(f, cfg) {
-  const el = $(f.el);
+  const el = node(f);
   if (!el) return;
   const v = cfg[f.k];
   // UNCONDITIONAL, like every other subtitle restore: applyConfig runs on every channel switch,
@@ -184,7 +188,7 @@ export function gatherSubFields() {
 /** Keep a slider's number readout honest — including "theo bộ mẫu" for the ones that can be unset. */
 export function syncSubOut(f) {
   if (!f.out) return;
-  const out = $(f.out); const el = $(f.el);
+  const out = outNode(f); const el = node(f);
   if (!out || !el) return;
   const off = f.t === 'pct' ? f.off : f.off;
   out.textContent = f.auto && +el.value === (off ?? 0) ? f.auto() : el.value;

@@ -8,6 +8,7 @@ import { toast } from '../ui/toast.js';
 import { state } from '../state.js';
 import { esc } from '../ui/dom.js';
 import { m, tp } from '../i18n.js';
+import { fmtDate } from '../ui/format.js';
 
 let cur = null;          // scene currently open in the studio
 let htmlLoaded = false;  // template-source fetched for this open
@@ -264,7 +265,7 @@ async function loadTakes() {
     if (!takes.length) { box.innerHTML = `<div class="hint">${m('Chưa có take nào — mỗi lần tạo lại giọng/visual sẽ lưu một take.')}</div>`; return; }
     box.innerHTML = takes.map((t) => `
       <div class="ss-take" data-id="${esc(t.id)}">
-        <span>${t.kind === 'voice' ? '🎙' : '🎨'} ${new Date(t.created_at).toLocaleString('vi-VN')}</span>
+        <span>${t.kind === 'voice' ? '🎙' : '🎨'} ${fmtDate(t.created_at)}</span>
         <span class="badge ${t.is_active ? 'done' : 'paused'}">${t.is_active ? m('Đang dùng') : m('Bản cũ')}</span>
         ${t.is_active ? '' : `<button class="btn sm" data-take="activate">${m('↩ Dùng bản này')}</button>`}
       </div>`).join('');

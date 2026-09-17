@@ -7,36 +7,36 @@
 <title>AI Video Studio</title>
 <link rel="preload" href="/fonts/Lexend-400-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/Lexend-400-vietnamese.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="css/fonts.css">
-<link rel="stylesheet" href="css/app.css">
-<link rel="modulepreload" href="js/main.js">
-<link rel="modulepreload" href="js/i18n.js">
-<link rel="modulepreload" href="js/api.js">
-<link rel="modulepreload" href="js/state.js">
-<link rel="modulepreload" href="js/ui/dom.js">
-<link rel="modulepreload" href="js/ui/modals.js">
-<link rel="modulepreload" href="js/ui/icons.js">
-<link rel="modulepreload" href="js/ui/toast.js">
-<link rel="modulepreload" href="js/features/settings.js">
-<link rel="modulepreload" href="js/views/nav.js">
-<link rel="modulepreload" href="js/ui/lazy.js">
-<link rel="modulepreload" href="js/views/progress.js">
-<link rel="modulepreload" href="js/features/journal.js">
-<link rel="modulepreload" href="js/views/scenes.js">
-<link rel="modulepreload" href="js/ui/dialog.js">
-<link rel="modulepreload" href="js/views/config/fonts.js">
-<link rel="modulepreload" href="js/views/config.js">
-<link rel="modulepreload" href="js/features/changeplan.js">
-<link rel="modulepreload" href="js/features/pending-changes.js">
-<link rel="modulepreload" href="js/views/studio.js">
-<link rel="modulepreload" href="js/views/home.js">
-<link rel="modulepreload" href="js/views/library.js">
-<link rel="modulepreload" href="js/features/dragdrop.js">
-<link rel="modulepreload" href="js/features/brandkit.js">
-<link rel="modulepreload" href="js/features/channels.js">
-<link rel="modulepreload" href="js/features/batch.js">
-<link rel="modulepreload" href="js/ui/palette.js">
-<link rel="modulepreload" href="js/features/license.js">
+<link rel="stylesheet" href="/css/fonts.css">
+<link rel="stylesheet" href="/css/app.css">
+<link rel="modulepreload" href="/js/main.js">
+<link rel="modulepreload" href="/js/i18n.js">
+<link rel="modulepreload" href="/js/api.js">
+<link rel="modulepreload" href="/js/state.js">
+<link rel="modulepreload" href="/js/ui/dom.js">
+<link rel="modulepreload" href="/js/ui/modals.js">
+<link rel="modulepreload" href="/js/ui/icons.js">
+<link rel="modulepreload" href="/js/ui/toast.js">
+<link rel="modulepreload" href="/js/features/settings.js">
+<link rel="modulepreload" href="/js/views/nav.js">
+<link rel="modulepreload" href="/js/ui/lazy.js">
+<link rel="modulepreload" href="/js/views/progress.js">
+<link rel="modulepreload" href="/js/features/journal.js">
+<link rel="modulepreload" href="/js/views/scenes.js">
+<link rel="modulepreload" href="/js/ui/dialog.js">
+<link rel="modulepreload" href="/js/views/config/fonts.js">
+<link rel="modulepreload" href="/js/views/config.js">
+<link rel="modulepreload" href="/js/features/changeplan.js">
+<link rel="modulepreload" href="/js/features/pending-changes.js">
+<link rel="modulepreload" href="/js/views/studio.js">
+<link rel="modulepreload" href="/js/views/home.js">
+<link rel="modulepreload" href="/js/views/library.js">
+<link rel="modulepreload" href="/js/features/dragdrop.js">
+<link rel="modulepreload" href="/js/features/brandkit.js">
+<link rel="modulepreload" href="/js/features/channels.js">
+<link rel="modulepreload" href="/js/features/batch.js">
+<link rel="modulepreload" href="/js/ui/palette.js">
+<link rel="modulepreload" href="/js/features/license.js">
 </head>
 <body>
 <div class="app">
@@ -116,7 +116,7 @@
         <aside class="s-side">
           <div class="scroll">
             <div class="field">
-              <label class="label" data-i18n="ui.page-studio.chu-de-json-kich-ban">Chủ đề / JSON kịch bản / Link</label>
+              <label class="label" for="topic" data-i18n="ui.page-studio.chu-de-json-kich-ban">Chủ đề / JSON kịch bản / Link</label>
               <textarea class="input" id="topic" rows="7" placeholder="Nhập chủ đề video, dán JSON kịch bản, hoặc dán link bài viết (https://...)" data-i18n-placeholder="ui.page-studio.nhap-chu-de-video-dan"></textarea>
               <div class="hint" id="inputTypeHint" data-i18n="ui.page-studio.tu-nhan-dien-van-ban">Tự nhận diện: văn bản / JSON / link.</div>
               <div class="row wrap" style="margin-top:8px">
@@ -300,18 +300,18 @@
                   <span class="hfsb-hint" data-i18n="ui.btnHfStyle.doi">đổi ▸</span>
                 </button>
                 <div class="hint" data-i18n="ui.hfOpts.ai-viet-do-hoa-hoat">AI viết đồ hoạ + hoạt ảnh riêng cho từng cảnh, keyword hiện đúng lúc voice nhắc tới.</div>
-                <label class="label" style="margin-top:10px" data-i18n="ui.hfOpts.mat-do-chuyen-dong">Mật độ chuyển động</label>
+                <label class="label" for="cfgHfDensity" style="margin-top:10px" data-i18n="ui.hfOpts.mat-do-chuyen-dong">Mật độ chuyển động</label>
                 <select class="input hidden" id="cfgHfDensity"><option value="minimal" data-i18n="ui.cfgHfDensity.toi-gian">Tối giản</option><option value="balanced" selected data-i18n="ui.cfgHfDensity.can-bang">Cân bằng</option><option value="rich" data-i18n="ui.cfgHfDensity.day-dac">Dày đặc</option></select>
                 <div class="seg block" data-target="cfgHfDensity"><button type="button" data-v="minimal" data-i18n="ui.hfOpts.toi-gian">Tối giản</button><button type="button" data-v="balanced" data-i18n="ui.hfOpts.can-bang">Cân bằng</button><button type="button" data-v="rich" data-i18n="ui.hfOpts.day-dac">Dày đặc</button></div>
-                <label class="label" style="margin-top:10px" data-i18n="ui.hfOpts.dinh-huong-sang-tao-tuy">Định hướng sáng tạo (tuỳ chọn)</label>
+                <label class="label" for="cfgHfDirection" style="margin-top:10px" data-i18n="ui.hfOpts.dinh-huong-sang-tao-tuy">Định hướng sáng tạo (tuỳ chọn)</label>
                 <input class="input" id="cfgHfDirection" placeholder="vd: trẻ trung năng động · nghiêm túc tối giản · nhiều icon minh hoạ…" data-i18n-placeholder="ui.hfOpts.vd-tre-trung-nang-dong">
                 <div class="hint" data-i18n="ui.hfOpts.ghi-chu-ap-cho-moi">Ghi chú áp cho MỌI cảnh — AI sẽ theo tinh thần này khi dàn dựng.</div>
-                <label class="label" style="margin-top:10px" data-i18n="ui.hfOpts.model-ai-rieng-cho-hyperframe">Model AI riêng cho HyperFrame (tuỳ chọn)</label>
+                <label class="label" for="cfgHfModel" style="margin-top:10px" data-i18n="ui.hfOpts.model-ai-rieng-cho-hyperframe">Model AI riêng cho HyperFrame (tuỳ chọn)</label>
                 <input class="input" id="cfgHfModel" placeholder="để trống = dùng model chung ở AI Setting" data-i18n-placeholder="ui.hfOpts.de-trong-dung-model-chung">
                 <div class="hint" data-i18n="ui.hfOpts.hyperframe-dep-amp-on-dinh">💡 HyperFrame đẹp &amp; ổn định nhất với model mạnh (vd gpt-4o, claude, gemini-pro). Nhập tên model để dùng riêng cho khâu AI dựng cảnh.</div>
                 <label class="switch-row" style="margin-top:10px"><span class="switch"><input type="checkbox" id="cfgHfConsistent"><span class="sl"></span></span> <span data-i18n="ui.hfOpts.scene-nhat-quan-khoa-nen">🎨 Scene nhất quán (khoá nền + màu chữ chính mọi cảnh)</span></label>
                 <label class="switch-row"><span class="switch"><input type="checkbox" id="cfgHfImageFull" checked><span class="sl"></span></span> <span data-i18n="ui.hfOpts.image-full-asset-anh-cua">🖼️ Image-full (asset ảnh của dự án làm hero giữa khung 75% + Ken Burns)</span></label>
-                <label class="label" style="margin-top:10px" data-i18n="ui.hfOpts.asset-thuong-hieu-tu-dong">🎭 Asset thương hiệu tự động</label>
+                <label class="label" for="cfgBrandAssets" style="margin-top:10px" data-i18n="ui.hfOpts.asset-thuong-hieu-tu-dong">🎭 Asset thương hiệu tự động</label>
                 <select class="input" id="cfgBrandAssets">
                   <option value="auto" data-i18n="ui.cfgBrandAssets.tu-dong-thu-muc-default">Tự động — thư mục Default</option>
                   <option value="none" data-i18n="ui.cfgBrandAssets.tat">Tắt</option>
@@ -319,23 +319,23 @@
                 <div class="hint" data-i18n="ui.hfOpts.ai-tu-chon-nhan-vat">💡 AI tự chọn nhân vật/concept art từ Thư viện → Brand cho từng cảnh hợp nội dung (nhân vật đứng cạnh chữ, giữ nền trong suốt). Cảnh nào không hợp thì để trống.</div>
                 <label class="switch-row"><span class="switch"><input type="checkbox" id="cfgOverlay"><span class="sl"></span></span> <span data-i18n="ui.hfOpts.overlay-mode-do-hoa-trong">🎥 Overlay mode (đồ hoạ trong suốt ghép lên video nền)</span></label>
                 <div class="field" id="overlayOpts" style="display:none;margin-top:6px">
-                  <label class="label" data-i18n="ui.overlayOpts.video-nen-duong-dan-file">Video nền (đường dẫn file)</label>
+                  <label class="label" for="cfgOverlaySrc" data-i18n="ui.overlayOpts.video-nen-duong-dan-file">Video nền (đường dẫn file)</label>
                   <input class="input" id="cfgOverlaySrc" placeholder="/đường/dẫn/video-nền.mp4" data-i18n-placeholder="ui.overlayOpts.duong-dan-video-nen-mp4">
                   <div class="hint" data-i18n="ui.overlayOpts.canh-render-tren-nen-key">Cảnh render trên nền key #050510 → colorkey trong suốt → ghép lên video này (slice liên tục theo timeline).</div>
                 </div>
               </div>
               <div class="field">
                 <div class="grid2">
-                  <div><label class="label" data-i18n="ui.grpFormat.fps">FPS</label>
+                  <div><label class="label" for="cfgFps" data-i18n="ui.grpFormat.fps">FPS</label>
                     <select class="input hidden" id="cfgFps"><option value="30" selected>30</option><option value="60">60</option></select>
                     <div class="seg block" data-target="cfgFps"><button type="button" data-v="30">30</button><button type="button" data-v="60">60</button></div></div>
-                  <div><label class="label" data-i18n="ui.grpFormat.chat-luong">Chất lượng</label>
+                  <div><label class="label" for="cfgRes" data-i18n="ui.grpFormat.chat-luong">Chất lượng</label>
                     <select class="input hidden" id="cfgRes"><option value="1" selected>1080p</option><option value="1.3333">2K</option><option value="2">4K</option></select>
                     <div class="seg block" data-target="cfgRes"><button type="button" data-v="1">1080p</button><button type="button" data-v="1.3333">2K</button><button type="button" data-v="2">4K</button></div></div>
                 </div>
               </div>
               <div class="field">
-                <label class="label" data-i18n="ui.grpFormat.ngon-ngu-video">Ngôn ngữ video</label>
+                <label class="label" for="cfgLang" data-i18n="ui.grpFormat.ngon-ngu-video">Ngôn ngữ video</label>
                 <select class="input" id="cfgLang">
                   <option value="auto" data-i18n="ui.cfgLang.tu-nhan-theo-chu-de">🌐 Tự nhận theo chủ đề</option>
                   <option value="vi" data-i18n="ui.cfgLang.tieng-viet">🇻🇳 Tiếng Việt</option>
@@ -355,7 +355,7 @@
                 <div class="hint" data-i18n="ui.grpFormat.quyet-dinh-loi-thoai-chu">Quyết định lời thoại, chữ trên màn hình và giọng đọc. Lưu vào kênh thì mọi video sau của kênh dùng luôn ngôn ngữ này.</div>
               </div>
               <div class="field">
-                <label class="label" data-i18n="ui.grpFormat.ti-le-khung-hinh">Tỉ lệ khung hình</label>
+                <label class="label" for="cfgAr" data-i18n="ui.grpFormat.ti-le-khung-hinh">Tỉ lệ khung hình</label>
                 <select class="input hidden" id="cfgAr">
                   <option value="9:16">9:16 — TikTok / Reels</option>
                   <option value="16:9">16:9 — YouTube</option>
@@ -365,7 +365,7 @@
                 <div class="seg block" data-target="cfgAr"><button type="button" data-v="9:16">9:16</button><button type="button" data-v="16:9">16:9</button><button type="button" data-v="1:1">1:1</button><button type="button" data-v="4:5">4:5</button></div>
               </div>
               <div class="field">
-                <label class="label" data-i18n="ui.grpFormat.che-do-thoi-luong">Chế độ thời lượng</label>
+                <label class="label" for="cfgDurMode" data-i18n="ui.grpFormat.che-do-thoi-luong">Chế độ thời lượng</label>
                 <select class="input hidden" id="cfgDurMode"><option value="target" selected data-i18n="ui.cfgDurMode.theo-muc-tieu">Theo mục tiêu</option><option value="auto" data-i18n="ui.cfgDurMode.tu-dong-theo-kich-ban">Tự động theo kịch bản</option></select>
                 <div class="seg block" data-target="cfgDurMode"><button type="button" data-v="target" title="Kịch bản được viết vừa khít thời lượng bạn chọn (±12%)" data-i18n="ui.grpFormat.muc-tieu" data-i18n-title="ui.grpFormat.kich-ban-duoc-viet-vua">🎯 Mục tiêu</button><button type="button" data-v="auto" title="Dán kịch bản chi tiết — giữ NGUYÊN VĂN lời thoại, thời lượng video theo nội dung" data-i18n="ui.grpFormat.tu-dong-theo-kich-ban" data-i18n-title="ui.grpFormat.dan-kich-ban-chi-tiet">🪄 Tự động theo kịch bản</button></div>
                 <label class="label" style="margin-top:8px"><span data-i18n="ui.grpFormat.thoi-luong-video">Thời lượng video:</span> <strong id="cfgVdL" data-i18n="ui.grpFormat.1-phut">1 phút</strong></label>
@@ -386,12 +386,12 @@
               </div>
               <button class="btn block" id="btnBrandEditor" data-i18n="ui.grpBrand.chinh-brand-kit-cua-kenh">🎨 Chỉnh Brand Kit của kênh…</button>
               <div class="field" style="margin-top:10px">
-                <label class="label" data-i18n="ui.grpBrand.font-thuong-hieu-cho-video">🔤 Font thương hiệu cho video này</label>
+                <label class="label" for="cfgBrandFont" data-i18n="ui.grpBrand.font-thuong-hieu-cho-video">🔤 Font thương hiệu cho video này</label>
                 <select class="input" id="cfgBrandFont"><option value="" data-i18n="ui.cfgBrandFont.theo-style-guide">— Theo style guide —</option></select>
                 <div class="hint" data-i18n="ui.grpBrand.ap-cho-chu-do-hoa">Áp cho chữ đồ hoạ trong cảnh (headline/số liệu). Tải font riêng ở Thư viện → Font chữ.</div>
               </div>
               <div class="field" id="legacyWatermark" style="margin-top:10px">
-                <label class="label" data-i18n="ui.legacyWatermark.watermark-chu-khi-chua-co">Watermark chữ (khi chưa có Brand Kit)</label>
+                <label class="label" for="cfgWatermark" data-i18n="ui.legacyWatermark.watermark-chu-khi-chua-co">Watermark chữ (khi chưa có Brand Kit)</label>
                 <input class="input" id="cfgWatermark" placeholder="vd: tuila1freelancer" value="" data-i18n-placeholder="ui.legacyWatermark.vd-tuila1freelancer">
               </div>
             </div>
@@ -403,12 +403,12 @@
               <label class="switch-row"><span class="switch"><input type="checkbox" id="cfgSub" checked><span class="sl"></span></span> <span data-i18n="ui.grpSubtitle.hien-phu-de">Hiện phụ đề</span></label>
               <div id="subStyle">
                 <div class="grid2" style="margin-bottom:8px">
-                  <div><label class="label" data-i18n="ui.subStyle.kieu-hien-thi">Kiểu hiển thị</label>
+                  <div><label class="label" for="cfgSubMode" data-i18n="ui.subStyle.kieu-hien-thi">Kiểu hiển thị</label>
                     <select class="input" id="cfgSubMode">
                       <option value="karaoke" data-i18n="ui.cfgSubMode.karaoke-nhan-tung-tu-theo">🎤 Karaoke — nhấn từng từ theo giọng</option>
                       <option value="plain" data-i18n="ui.cfgSubMode.thuong-dong-tinh-khong-nhan">📄 Thường — dòng tĩnh, không nhấn từ</option>
                     </select></div>
-                  <div><label class="label" data-i18n="ui.subStyle.cach-ngat-dong">Cách ngắt dòng</label>
+                  <div><label class="label" for="cfgSubChunk" data-i18n="ui.subStyle.cach-ngat-dong">Cách ngắt dòng</label>
                     <select class="input" id="cfgSubChunk">
                       <option value="auto" data-i18n="ui.cfgSubChunk.tu-nhien-cum-5-7">✨ Tự nhiên — cụm 5–7 từ</option>
                       <option value="sentence" data-i18n="ui.cfgSubChunk.theo-cau-tron-cau-thoai">📝 Theo câu — trọn câu thoại</option>
@@ -450,7 +450,7 @@
                         <span class="hint" id="framePreviewT" style="min-width:52px;text-align:right">0:15</span>
                       </div>
                       <div class="hint" id="framePreviewNote" style="margin-top:4px"></div>
-                      <img id="framePreviewImg" class="hidden" style="width:100%;border-radius:8px;margin-top:6px;display:block">
+                      <img id="framePreviewImg" alt="" class="hidden" style="width:100%;border-radius:8px;margin-top:6px;display:block">
                     </div>
                   </section>
 
@@ -460,13 +460,13 @@
                     <div class="grid2">
                       <div><label class="label"><span data-i18n="ui.subStyle.font">Font</span> <button class="btn sm ghost hidden" id="cfgSubFontGet" title="Tải font này về máy" style="padding:0 6px" data-i18n="ui.subStyle.tai" data-i18n-title="ui.subStyle.tai-font-nay-ve-may">⬇︎ Tải</button></label>
                         <select class="input" id="cfgSubFont"></select></div>
-                      <div><label class="label" data-i18n="ui.subStyle.do-dam">Độ đậm</label>
+                      <div><label class="label" for="cfgSubWeight" data-i18n="ui.subStyle.do-dam">Độ đậm</label>
                         <select class="input" id="cfgSubWeight"></select></div>
                     </div>
                     <label class="label" style="margin-top:8px"><span data-i18n="ui.subStyle.co-chu">Cỡ chữ:</span> <strong id="cfgSubSizeL">80</strong></label>
                     <input type="range" class="range" id="cfgSubSize" min="30" max="160" step="2" value="80">
                     <div class="grid2" style="margin-top:8px">
-                      <div><label class="label" data-i18n="ui.subStyle.kieu-chu">Kiểu chữ</label>
+                      <div><label class="label" for="cfgSubCase" data-i18n="ui.subStyle.kieu-chu">Kiểu chữ</label>
                         <select class="input" id="cfgSubCase"><option value="" data-i18n="ui.cfgSubCase.theo-bo-mau">Theo bộ mẫu</option><option value="original" data-i18n="ui.cfgSubCase.goc">Gốc</option><option value="uppercase" data-i18n="ui.cfgSubCase.hoa">HOA</option><option value="lowercase" data-i18n="ui.cfgSubCase.thuong">thường</option><option value="titlecase" data-i18n="ui.cfgSubCase.hoa-dau">Hoa Đầu</option><option value="sentence" data-i18n="ui.cfgSubCase.hoa-dau-cau">Hoa đầu câu</option></select></div>
                       <div><label class="label"><span data-i18n="ui.subStyle.gian-chu">Giãn chữ:</span> <strong id="cfgSubLsL">0</strong></label>
                         <input type="range" class="range" id="cfgSubLetterSpacing" min="-6" max="30" step="1" value="0"></div>
@@ -491,24 +491,24 @@
                     <label class="hint" style="display:inline-flex;align-items:center;gap:6px;margin-top:6px"><span data-i18n="ui.subStyle.mau-tuy-y">Màu tuỳ ý:</span>
                       <input type="color" id="cfgSubColorCustom" class="cpick"></label>
                     <div class="grid2" style="margin-top:8px">
-                      <div><label class="label" data-i18n="ui.subStyle.tu-chua-doc">Từ chưa đọc</label><input type="color" id="cfgSubBaseColor" class="cpick block"></div>
+                      <div><label class="label" for="cfgSubBaseColor" data-i18n="ui.subStyle.tu-chua-doc">Từ chưa đọc</label><input type="color" id="cfgSubBaseColor" class="cpick block"></div>
                       <div><label class="label"><span data-i18n="ui.subStyle.do-mo-tu-chua-doc">Độ mờ từ chưa đọc:</span> <strong id="cfgSubDimUL">40</strong>%</label>
                         <input type="range" class="range" id="cfgSubDimUnread" min="0" max="100" step="5" value="40"></div>
                     </div>
 
                     <h4 class="sub-h" data-i18n="ui.subStyle.vien-bong-quang-sang">Viền, bóng, quầng sáng</h4>
                     <div class="grid2">
-                      <div><label class="label" data-i18n="ui.subStyle.mau-vien">Màu viền</label><input type="color" id="cfgSubOutlineColor" class="cpick block"></div>
+                      <div><label class="label" for="cfgSubOutlineColor" data-i18n="ui.subStyle.mau-vien">Màu viền</label><input type="color" id="cfgSubOutlineColor" class="cpick block"></div>
                       <div><label class="label"><span data-i18n="ui.subStyle.do-day-vien">Độ dày viền:</span> <strong id="cfgSubOwL">—</strong></label>
                         <input type="range" class="range" id="cfgSubOutlineWidth" min="0" max="24" step="1" value="0"></div>
                     </div>
                     <div class="grid2" style="margin-top:8px">
-                      <div><label class="label" data-i18n="ui.subStyle.mau-bong">Màu bóng</label><input type="color" id="cfgSubShadowColor" class="cpick block"></div>
+                      <div><label class="label" for="cfgSubShadowColor" data-i18n="ui.subStyle.mau-bong">Màu bóng</label><input type="color" id="cfgSubShadowColor" class="cpick block"></div>
                       <div><label class="label"><span data-i18n="ui.subStyle.do-sau-bong">Độ sâu bóng:</span> <strong id="cfgSubSdL">—</strong></label>
                         <input type="range" class="range" id="cfgSubShadowDepth" min="0" max="30" step="1" value="0"></div>
                     </div>
                     <div class="grid2" style="margin-top:8px">
-                      <div><label class="label" data-i18n="ui.subStyle.mau-quang-sang">Màu quầng sáng</label><input type="color" id="cfgSubGlowColor" class="cpick block"></div>
+                      <div><label class="label" for="cfgSubGlowColor" data-i18n="ui.subStyle.mau-quang-sang">Màu quầng sáng</label><input type="color" id="cfgSubGlowColor" class="cpick block"></div>
                       <div><label class="label"><span data-i18n="ui.subStyle.quang-sang">Quầng sáng:</span> <strong id="cfgSubGlowL" data-i18n="ui.subStyle.tat">tắt</strong></label>
                         <input type="range" class="range" id="cfgSubGlow" min="0" max="40" step="2" value="0"></div>
                     </div>
@@ -520,7 +520,7 @@
                     <label class="switch-row"><span class="switch"><input type="checkbox" id="cfgSubBox"><span class="sl"></span></span> <span data-i18n="ui.subStyle.co-khung-nen-sau-chu">Có khung nền sau chữ</span></label>
                     <div id="subBoxOpts" class="hidden">
                       <div class="grid2" style="margin-top:8px">
-                        <div><label class="label" data-i18n="ui.subBoxOpts.mau-nen">Màu nền</label><input type="color" id="cfgSubBoxColor" class="cpick block"></div>
+                        <div><label class="label" for="cfgSubBoxColor" data-i18n="ui.subBoxOpts.mau-nen">Màu nền</label><input type="color" id="cfgSubBoxColor" class="cpick block"></div>
                         <div><label class="label"><span data-i18n="ui.subBoxOpts.do-mo-nen">Độ mờ nền:</span> <strong id="cfgSubBoxOpL">85</strong>%</label>
                           <input type="range" class="range" id="cfgSubBoxOpacity" min="0" max="100" step="5" value="85"></div>
                       </div>
@@ -534,7 +534,7 @@
                         <input type="number" class="input" id="cfgSubPadLeft" min="0" max="200" value="28">
                       </div>
                       <div class="grid2" style="margin-top:8px">
-                        <div><label class="label" data-i18n="ui.subBoxOpts.mau-vien-khung">Màu viền khung</label><input type="color" id="cfgSubBoxBorderColor" class="cpick block"></div>
+                        <div><label class="label" for="cfgSubBoxBorderColor" data-i18n="ui.subBoxOpts.mau-vien-khung">Màu viền khung</label><input type="color" id="cfgSubBoxBorderColor" class="cpick block"></div>
                         <div><label class="label"><span data-i18n="ui.subBoxOpts.do-day-vien-khung">Độ dày viền khung:</span> <strong id="cfgSubBoxBwL">0</strong></label>
                           <input type="range" class="range" id="cfgSubBoxBorderWidth" min="0" max="20" step="1" value="0"></div>
                       </div>
@@ -543,9 +543,9 @@
 
                     <h4 class="sub-h" data-i18n="ui.subStyle.vi-tri">Vị trí</h4>
                     <div class="grid2">
-                      <div><label class="label" data-i18n="ui.subStyle.canh-ngang">Canh ngang</label>
+                      <div><label class="label" for="cfgSubAlignH" data-i18n="ui.subStyle.canh-ngang">Canh ngang</label>
                         <select class="input" id="cfgSubAlignH"><option value="center" data-i18n="ui.cfgSubAlignH.giua">Giữa</option><option value="left" data-i18n="ui.cfgSubAlignH.trai">Trái</option><option value="right" data-i18n="ui.cfgSubAlignH.phai">Phải</option></select></div>
-                      <div><label class="label" data-i18n="ui.subStyle.vi-tri-doc">Vị trí dọc</label>
+                      <div><label class="label" for="cfgSubPos" data-i18n="ui.subStyle.vi-tri-doc">Vị trí dọc</label>
                         <select class="input" id="cfgSubPos"><option value="bot" data-i18n="ui.cfgSubPos.duoi">Dưới</option><option value="mid" data-i18n="ui.cfgSubPos.giua">Giữa</option><option value="top" data-i18n="ui.cfgSubPos.tren">Trên</option></select></div>
                     </div>
                     <label class="label" style="margin-top:8px"><span data-i18n="ui.subStyle.cach-day">Cách đáy:</span> <strong id="cfgSubMvL">—</strong></label>
@@ -553,14 +553,14 @@
                     <label class="label" style="margin-top:8px"><span data-i18n="ui.subStyle.le-hai-ben">Lề hai bên:</span> <strong id="cfgSubMhL">6</strong>%</label>
                     <input type="range" class="range" id="cfgSubMarginH" min="0" max="40" step="1" value="6">
                     <div class="grid2" style="margin-top:8px">
-                      <div><label class="label" data-i18n="ui.subStyle.ky-tu-toi-da-dong">Ký tự tối đa / dòng</label>
+                      <div><label class="label" for="cfgSubMaxChars" data-i18n="ui.subStyle.ky-tu-toi-da-dong">Ký tự tối đa / dòng</label>
                         <input type="number" class="input" id="cfgSubMaxChars" min="0" max="80" placeholder="tự động" data-i18n-placeholder="ui.subStyle.tu-dong"></div>
-                      <div><label class="label" data-i18n="ui.subStyle.so-dong-toi-da">Số dòng tối đa</label>
+                      <div><label class="label" for="cfgSubMaxLines" data-i18n="ui.subStyle.so-dong-toi-da">Số dòng tối đa</label>
                         <select class="input" id="cfgSubMaxLines"><option value="" data-i18n="ui.cfgSubMaxLines.tu-dong">tự động</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select></div>
                     </div>
 
                     <h4 class="sub-h" data-i18n="ui.subStyle.chuyen-dong">Chuyển động</h4>
-                    <label class="label" data-i18n="ui.subStyle.cach-nhan-tu-dang-doc">Cách nhấn từ đang đọc</label>
+                    <label class="label" for="cfgSubKaraokeStyle" data-i18n="ui.subStyle.cach-nhan-tu-dang-doc">Cách nhấn từ đang đọc</label>
                     <select class="input" id="cfgSubKaraokeStyle">
                       <option value="color" data-i18n="ui.cfgSubKaraokeStyle.doi-mau-mac-dinh">Đổi màu (mặc định)</option>
                       <option value="box" data-i18n="ui.cfgSubKaraokeStyle.khoi-mau-chay-theo-tu">Khối màu chạy theo từ</option>
@@ -589,7 +589,7 @@
             <div class="cfg-body">
               <button class="btn block" id="btnCfgVoice" data-i18n="ui.grpAudio.chon-giong-doc-nghe-thu">🎙 Chọn giọng đọc (nghe thử)…</button>
               <div class="field" style="margin-top:10px">
-                <label class="label" data-i18n="ui.grpAudio.nhac-nen-bgm">🎵 Nhạc nền (BGM)</label>
+                <label class="label" for="cfgBgm" data-i18n="ui.grpAudio.nhac-nen-bgm">🎵 Nhạc nền (BGM)</label>
                 <select class="input" id="cfgBgm"><option value="" data-i18n="ui.cfgBgm.khong">— Không —</option></select>
               </div>
               <label class="switch-row"><span class="switch"><input type="checkbox" id="cfgBgmAuto" checked><span class="sl"></span></span> <span data-i18n="ui.grpAudio.nhac-nen-tu-dong">🎵 Nhạc nền tự động</span></label>
@@ -602,7 +602,7 @@
             <button class="cfg-head" type="button"><span class="cfg-ic">⚙</span><span class="cfg-meta"><span class="cfg-title" data-i18n="ui.grpAdvanced.nang-cao">Nâng cao</span><span class="cfg-chip" data-chip="advanced"></span></span><span class="cfg-arr">▾</span></button>
             <div class="cfg-body">
               <label class="switch-row" title="Mọi cảnh nối nhau bằng dissolve mượt ngắn; thêm 1-2 hero transition theo vai trò kể chuyện (zoom vào cảnh chốt, fade đen vào CTA/outro, fade tại ngăn chương). Tắt để dùng cắt cứng." data-i18n-title="ui.grpAdvanced.moi-canh-noi-nhau-bang"><span class="switch"><input type="checkbox" id="cfgTrans" checked><span class="sl"></span></span> <span data-i18n="ui.grpAdvanced.chuyen-canh-dien-anh-muot">🔀 Chuyển cảnh điện ảnh (mượt, theo nhịp kể)</span></label>
-              <div class="field" style="margin-top:6px"><label class="label" data-i18n="ui.grpAdvanced.kieu-chuyen-canh">Kiểu chuyển cảnh</label>
+              <div class="field" style="margin-top:6px"><label class="label" for="cfgTransStyle" data-i18n="ui.grpAdvanced.kieu-chuyen-canh">Kiểu chuyển cảnh</label>
                 <select class="input" id="cfgTransStyle">
                   <option value="auto" data-i18n="ui.cfgTransStyle.tu-dong-theo-nhip-ke">🎬 Tự động theo nhịp kể (khuyên dùng)</option>
                   <option value="varied" data-i18n="ui.cfgTransStyle.da-dang-xoay-vong">🎲 Đa dạng (xoay vòng)</option>
@@ -619,7 +619,7 @@
                   <option value="none" data-i18n="ui.cfgTransStyle.cat-cung">Cắt cứng</option>
                 </select></div>
               <label class="switch-row"><span class="switch"><input type="checkbox" id="cfgMeta" checked><span class="sl"></span></span> <span data-i18n="ui.grpAdvanced.tao-metadata">📊 Tạo Metadata</span></label>
-              <div class="field" style="margin-top:6px"><label class="label" data-i18n="ui.grpAdvanced.phong-cach-seo-metadata-style">Phong cách SEO (metadata style)</label>
+              <div class="field" style="margin-top:6px"><label class="label" for="cfgMetaStyle" data-i18n="ui.grpAdvanced.phong-cach-seo-metadata-style">Phong cách SEO (metadata style)</label>
                 <select class="input" id="cfgMetaStyle"><option value="" data-i18n="ui.cfgMetaStyle.mac-dinh">— Mặc định —</option></select>
                 <textarea class="input" id="cfgMetaPrompt" rows="2" placeholder="Yêu cầu riêng cho tiêu đề/mô tả/tag… (vd: giọng chuyên gia, không giật tít)" style="margin-top:6px" data-i18n-placeholder="ui.grpAdvanced.yeu-cau-rieng-cho-tieu"></textarea>
                 <div class="row" style="margin-top:6px"><button class="btn sm" id="btnSaveMetaStyle" data-i18n="ui.grpAdvanced.luu-thanh-phong-cach-co">💾 Lưu thành phong cách có tên</button>
@@ -706,7 +706,7 @@
           </div>
           <div id="bgModeAuto" style="margin-top:10px">
             <div class="row">
-              <label class="label" style="margin:0" data-i18n="ui.bgModeAuto.so-luong">Số lượng:</label>
+              <label class="label" for="bgCount" style="margin:0" data-i18n="ui.bgModeAuto.so-luong">Số lượng:</label>
               <input class="input" id="bgCount" type="number" min="1" max="50" value="20" style="max-width:80px">
               <button class="btn sm" id="bgGenEmotions" data-i18n="ui.bgModeAuto.sinh-danh-sach">📋 Sinh danh sách</button>
             </div>
@@ -730,7 +730,7 @@
                 <button class="btn sm" id="bgProviderNew" title="Thêm provider" data-i18n-title="ui.page-brandgen.them-provider">＋</button>
                 <button class="btn sm danger" id="bgProviderDel" title="Xoá provider đang chọn" data-i18n-title="ui.page-brandgen.xoa-provider-dang-chon">🗑</button>
               </div></div>
-            <div><label class="label" data-i18n="ui.page-brandgen.model">Model</label>
+            <div><label class="label" for="bgModel" data-i18n="ui.page-brandgen.model">Model</label>
               <input class="input" id="bgModel" list="bgModelList" placeholder="gpt-image-2">
               <datalist id="bgModelList">
                 <option value="gpt-image-2"></option><option value="gpt-image-1"></option>
@@ -739,7 +739,7 @@
               </datalist></div>
           </div>
           <div class="grid2" style="margin-top:8px">
-            <div><label class="label" data-i18n="ui.page-brandgen.kich-thuoc">Kích thước</label>
+            <div><label class="label" for="bgSize" data-i18n="ui.page-brandgen.kich-thuoc">Kích thước</label>
               <select class="input" id="bgSize">
                 <option value="1024x1536" selected data-i18n="ui.bgSize.1024-1536-doc-nhu-app">1024×1536 — dọc (như app tham khảo)</option>
                 <option value="1024x1024" data-i18n="ui.bgSize.1024-1024-vuong">1024×1024 — vuông</option>
@@ -748,14 +748,14 @@
             <div></div>
           </div>
           <div id="bgProviderForm" class="hidden" style="margin-top:10px;border:1px dashed var(--hairline-2);border-radius:8px;padding:10px">
-            <div class="field"><label class="label" data-i18n="ui.bgProviderForm.nha-cung-cap">Nhà cung cấp</label>
+            <div class="field"><label class="label" for="bgPfPreset" data-i18n="ui.bgProviderForm.nha-cung-cap">Nhà cung cấp</label>
               <select class="input" id="bgPfPreset"></select>
               <div class="hint" id="bgPfNote" style="margin-top:5px;line-height:1.7"></div></div>
             <div class="grid2 hidden" id="bgPfCustom">
-              <div><label class="label" data-i18n="ui.bgPfCustom.ten-hien-thi">Tên hiển thị</label><input class="input" id="bgPfLabel" placeholder="vd: Infinity API" data-i18n-placeholder="ui.bgPfCustom.vd-infinity-api"></div>
-              <div><label class="label" data-i18n="ui.bgPfCustom.base-url">Base URL</label><input class="input" id="bgPfUrl" placeholder="https://infinityapis.com/v1"></div>
+              <div><label class="label" for="bgPfLabel" data-i18n="ui.bgPfCustom.ten-hien-thi">Tên hiển thị</label><input class="input" id="bgPfLabel" placeholder="vd: Infinity API" data-i18n-placeholder="ui.bgPfCustom.vd-infinity-api"></div>
+              <div><label class="label" for="bgPfUrl" data-i18n="ui.bgPfCustom.base-url">Base URL</label><input class="input" id="bgPfUrl" placeholder="https://infinityapis.com/v1"></div>
             </div>
-            <div class="field" style="margin-top:8px"><label class="label" data-i18n="ui.bgProviderForm.api-key">API key</label><input class="input" id="bgPfKey" type="password" placeholder="sk-…"></div>
+            <div class="field" style="margin-top:8px"><label class="label" for="bgPfKey" data-i18n="ui.bgProviderForm.api-key">API key</label><input class="input" id="bgPfKey" type="password" placeholder="sk-…"></div>
             <div class="row" style="margin-top:8px">
               <button class="btn sm primary" id="bgPfSave" data-i18n="ui.bgProviderForm.luu-provider">💾 Lưu provider</button>
               <button class="btn sm" id="bgPfCancel" data-i18n="ui.bgProviderForm.huy">Huỷ</button>
@@ -792,20 +792,20 @@
         <p class="sub" style="color:var(--muted);margin:6px 0 18px" data-i18n="ui.page-editvideo.cat-nhanh-doan-video-bang">Cắt nhanh đoạn video bằng ffmpeg.</p>
         <div class="field"><label class="btn sm"><span data-i18n="ui.page-editvideo.chon-video">📁 Chọn video</span><input type="file" id="evFile" accept="video/*" hidden></label> <span id="evName" class="hint" data-i18n="ui.page-editvideo.chua-chon">Chưa chọn</span></div>
         <video id="evPreview" controls class="hidden" style="max-width:340px;border-radius:8px;background:#000"></video>
-        <div class="grid2" style="max-width:300px;margin-top:12px"><div><label class="label" data-i18n="ui.page-editvideo.bat-dau-s">Bắt đầu (s)</label><input class="input" id="evStart" type="number" value="0" min="0"></div><div><label class="label" data-i18n="ui.page-editvideo.ket-thuc-s">Kết thúc (s)</label><input class="input" id="evEnd" type="number" value="10" min="0"></div></div>
+        <div class="grid2" style="max-width:300px;margin-top:12px"><div><label class="label" for="evStart" data-i18n="ui.page-editvideo.bat-dau-s">Bắt đầu (s)</label><input class="input" id="evStart" type="number" value="0" min="0"></div><div><label class="label" for="evEnd" data-i18n="ui.page-editvideo.ket-thuc-s">Kết thúc (s)</label><input class="input" id="evEnd" type="number" value="10" min="0"></div></div>
         <button class="btn primary" id="evCut" style="margin-top:12px" data-i18n="ui.page-editvideo.cat-xuat">✂️ Cắt & xuất</button>
         <div id="evOut" style="margin-top:14px"></div>
         <hr style="margin:20px 0;border:0;border-top:1px solid var(--line,#2a2a35)">
         <h3 style="margin-bottom:6px" data-i18n="ui.page-editvideo.them-do-hoa-ai-len">✨ Thêm đồ hoạ AI lên video có sẵn</h3>
         <div class="hint" data-i18n="ui.page-editvideo.ai-boc-loi-thoai-trong">AI bóc lời thoại trong video, cắt thành cảnh, tự dựng đồ hoạ chuyển động nền trong suốt rồi ghép đè lên chính video của bạn — giữ nguyên hình và tiếng gốc.</div>
         <div class="grid2" style="max-width:420px;margin-top:10px">
-          <div><label class="label" data-i18n="ui.page-editvideo.do-dai-moi-canh-giay">Độ dài mỗi cảnh (giây)</label><input class="input" id="evSceneDur" type="number" value="7" min="3" max="15"></div>
-          <div><label class="label" data-i18n="ui.page-editvideo.ngon-ngu-loi-thoai">Ngôn ngữ lời thoại</label>
+          <div><label class="label" for="evSceneDur" data-i18n="ui.page-editvideo.do-dai-moi-canh-giay">Độ dài mỗi cảnh (giây)</label><input class="input" id="evSceneDur" type="number" value="7" min="3" max="15"></div>
+          <div><label class="label" for="evLang" data-i18n="ui.page-editvideo.ngon-ngu-loi-thoai">Ngôn ngữ lời thoại</label>
             <select class="input" id="evLang"><option value="auto" data-i18n="ui.evLang.tu-nhan">Tự nhận</option><option value="vi" data-i18n="ui.evLang.tieng-viet">Tiếng Việt</option><option value="en" data-i18n="ui.evLang.english">English</option></select>
           </div>
         </div>
         <label class="switch-row" style="margin-top:8px"><span class="switch"><input type="checkbox" id="evSubs"><span class="sl"></span></span> <span data-i18n="ui.page-editvideo.ghi-them-phu-de-karaoke">Ghi thêm phụ đề karaoke lên video</span></label>
-        <div class="field" style="max-width:420px"><label class="label" data-i18n="ui.page-editvideo.vi-tri-nhan-vat-khi">Vị trí nhân vật khi phải cắt khung</label>
+        <div class="field" style="max-width:420px"><label class="label" for="evReframe" data-i18n="ui.page-editvideo.vi-tri-nhan-vat-khi">Vị trí nhân vật khi phải cắt khung</label>
           <select class="input" id="evReframe">
             <option value="center" data-i18n="ui.evReframe.giua-mac-dinh">⬜ Giữa (mặc định)</option>
             <option value="auto" data-i18n="ui.evReframe.tu-do-chu-the">🤖 Tự dò chủ thể</option>
@@ -852,32 +852,32 @@
 </div>
 
 <!-- AI SETTINGS MODAL -->
-<div class="modal-bg" id="settingsModal">
+<div class="modal-bg" id="settingsModal" role="dialog" aria-modal="true">
   <div class="modal">
     <h2><span data-i18n="ui.settingsModal.ai-setting">🤖 AI Setting</span> <button class="x" data-close>×</button></h2>
     <div class="sec-label" data-i18n="ui.settingsModal.giao-dien">Giao diện</div>
-    <div class="field"><label class="label" data-i18n="ui.settingsModal.ngon-ngu-giao-dien">Ngôn ngữ giao diện</label>
+    <div class="field"><label class="label" for="setUiLang" data-i18n="ui.settingsModal.ngon-ngu-giao-dien">Ngôn ngữ giao diện</label>
       <select class="input" id="setUiLang"></select>
       <div class="hint" data-i18n="ui.settingsModal.ngon-ngu-giao-dien-hint">Chỉ đổi ngôn ngữ của app. Ngôn ngữ của video chọn riêng ở phần Cấu hình video. App sẽ tải lại sau khi đổi.</div></div>
     <div class="sec-label" data-i18n="ui.settingsModal.cong-cu-he-thong">Công cụ hệ thống</div>
     <div class="dep-row" id="depFoot"></div>
     <div class="sec-label" data-i18n="ui.settingsModal.llm-kich-ban-metadata">LLM (kịch bản · metadata)</div>
     <label class="switch-row"><span class="switch"><input type="checkbox" id="setLlmOn"><span class="sl"></span></span> <span data-i18n="ui.settingsModal.bat-llm-openai-compatible">Bật LLM (OpenAI-compatible)</span></label>
-    <div class="field"><label class="label" data-i18n="ui.settingsModal.nha-cung-cap">Nhà cung cấp</label>
+    <div class="field"><label class="label" for="setLlmPreset" data-i18n="ui.settingsModal.nha-cung-cap">Nhà cung cấp</label>
       <select class="input" id="setLlmPreset"></select>
       <div class="hint" id="llmPresetNote" style="margin-top:5px;line-height:1.7"></div></div>
-    <div class="field hidden" id="llmUrlField"><label class="label" data-i18n="ui.llmUrlField.base-url">Base URL</label><input class="input" id="setLlmUrl" placeholder="https://api.openai.com/v1"></div>
-    <div class="field" id="llmKeyField"><label class="label" data-i18n="ui.llmKeyField.api-key">API Key</label><input class="input" id="setLlmKey" type="password" placeholder="sk-..."></div>
-    <div class="field"><label class="label" data-i18n="ui.settingsModal.model">Model</label>
+    <div class="field hidden" id="llmUrlField"><label class="label" for="setLlmUrl" data-i18n="ui.llmUrlField.base-url">Base URL</label><input class="input" id="setLlmUrl" placeholder="https://api.openai.com/v1"></div>
+    <div class="field" id="llmKeyField"><label class="label" for="setLlmKey" data-i18n="ui.llmKeyField.api-key">API Key</label><input class="input" id="setLlmKey" type="password" placeholder="sk-..."></div>
+    <div class="field"><label class="label" for="setLlmModel" data-i18n="ui.settingsModal.model">Model</label>
       <input class="input" id="setLlmModel" list="llmModelList" placeholder="gpt-4o-mini">
       <datalist id="llmModelList"></datalist>
       <div class="row" style="margin-top:6px"><button class="btn sm" id="btnFetchModels" data-i18n="ui.settingsModal.lay-danh-sach-model">↻ Lấy danh sách model</button><span class="hint" id="llmModelsOut"></span></div></div>
-    <div class="field"><label class="label" data-i18n="ui.settingsModal.model-dung-do-hoa-hyperframe">Model dựng đồ hoạ (HyperFrame)</label>
+    <div class="field"><label class="label" for="setLlmCodegenModel" data-i18n="ui.settingsModal.model-dung-do-hoa-hyperframe">Model dựng đồ hoạ (HyperFrame)</label>
       <input class="input" id="setLlmCodegenModel" placeholder="để trống = tự chọn theo nhà cung cấp" data-i18n-placeholder="ui.settingsModal.de-trong-tu-chon-theo">
       <div class="hint" id="llmCodegenWarn" style="margin-top:5px;line-height:1.7"></div></div>
     <div class="row" style="margin-bottom:12px"><button class="btn sm" id="btnTestLlm" data-i18n="ui.settingsModal.test-llm">🔌 Test LLM</button><span class="hint" id="llmTestResult"></span></div>
     <div class="sec-label" data-i18n="ui.settingsModal.tts-giong-doc">TTS (giọng đọc)</div>
-    <div class="field"><label class="label" data-i18n="ui.settingsModal.nha-cung-cap-uu-tien">Nhà cung cấp ưu tiên</label>
+    <div class="field"><label class="label" for="setTtsProvider" data-i18n="ui.settingsModal.nha-cung-cap-uu-tien">Nhà cung cấp ưu tiên</label>
       <select class="input" id="setTtsProvider"></select></div>
     <div class="field" id="provFields"><!-- dynamic per-provider config from configSchema --></div>
     <div class="row" style="margin-bottom:12px">
@@ -890,16 +890,16 @@
       <button class="btn sm block" id="btnOpenVoicePicker" style="margin-top:6px" data-i18n="ui.settingsModal.mo-kho-giong-nghe-thu">🎙 Mở kho giọng (nghe thử & chọn)</button>
     </div>
     <div class="sec-label" data-i18n="ui.settingsModal.phu-de">Phụ đề</div>
-    <div class="field"><label class="label" data-i18n="ui.settingsModal.engine">Engine</label>
+    <div class="field"><label class="label" for="setSubEngine" data-i18n="ui.settingsModal.engine">Engine</label>
       <select class="input" id="setSubEngine"><option value="align" data-i18n="ui.setSubEngine.align-chu-dung-kich-ban">Align (chữ đúng kịch bản + timing thật từ audio — khuyên dùng)</option><option value="estimate" data-i18n="ui.setSubEngine.estimate-chu-dung-tu-kich">Estimate (chữ đúng từ kịch bản, chia đều thời gian)</option><option value="whisper" data-i18n="ui.setSubEngine.whisper-transcribe-audio">Whisper (transcribe audio)</option></select>
       <label class="switch-row" style="margin-top:6px"><span class="switch"><input type="checkbox" id="setSubLlmFix" checked><span class="sl"></span></span> <span data-i18n="ui.settingsModal.llm-sua-phu-de-whisper">🤖 LLM sửa phụ đề Whisper (tên riêng/số/từ nước ngoài — giữ nguyên 100% timestamp)</span></label></div>
     <div class="sec-label" data-i18n="ui.settingsModal.dang-video">Đăng video</div>
     <div id="pubStatus" class="hint" style="margin-bottom:8px">…</div>
-    <div class="field"><label class="label" data-i18n="ui.settingsModal.youtube-oauth-client-desktop-app">YouTube — OAuth Client (Desktop app, console.cloud.google.com)</label>
+    <div class="field"><label class="label" for="pubYtId" data-i18n="ui.settingsModal.youtube-oauth-client-desktop-app">YouTube — OAuth Client (Desktop app, console.cloud.google.com)</label>
       <input class="input" id="pubYtId" placeholder="Client ID">
       <input class="input" id="pubYtSecret" type="password" placeholder="Client Secret" style="margin-top:6px">
       <button class="btn sm" id="pubYtConnect" style="margin-top:6px" data-i18n="ui.settingsModal.ket-noi-youtube">🔗 Kết nối YouTube</button></div>
-    <div class="field"><label class="label" data-i18n="ui.settingsModal.facebook-page-page-id-page">Facebook Page — Page ID + Page Access Token</label>
+    <div class="field"><label class="label" for="pubFbPage" data-i18n="ui.settingsModal.facebook-page-page-id-page">Facebook Page — Page ID + Page Access Token</label>
       <input class="input" id="pubFbPage" placeholder="Page ID">
       <input class="input" id="pubFbToken" type="password" placeholder="Page Access Token" style="margin-top:6px">
       <div class="row" style="margin-top:6px">
@@ -914,7 +914,7 @@
 </div>
 
 <!-- SRT EDITOR MODAL -->
-<div class="modal-bg" id="srtModal">
+<div class="modal-bg" id="srtModal" role="dialog" aria-modal="true">
   <div class="modal">
     <h2><span data-i18n="ui.srtModal.srt-timeline">📝 SRT Timeline</span> <button class="x" data-close>×</button></h2>
     <div id="srtList"></div>
@@ -923,7 +923,7 @@
 </div>
 
 <!-- IMAGE VIEWER — look at a result before committing it to a video -->
-<div class="modal-bg" id="imgViewer">
+<div class="modal-bg" id="imgViewer" role="dialog" aria-modal="true">
   <div class="modal iv">
     <h2><span data-i18n="ui.imgViewer.anh">🖼 Ảnh</span> <span class="iv-pos" id="ivPos"></span> <button class="x" data-close>×</button></h2>
     <div class="iv-stage">
@@ -940,16 +940,16 @@
 </div>
 
 <!-- CHANNELS MODAL -->
-<div class="modal-bg" id="channelModal">
+<div class="modal-bg" id="channelModal" role="dialog" aria-modal="true">
   <div class="modal" style="max-width:620px">
     <h2><span data-i18n="ui.channelModal.quan-ly-kenh">📺 Quản lý kênh</span> <button class="x" data-close>×</button></h2>
     <div id="channelList" style="margin-bottom:14px"></div>
     <div class="sec-label" data-i18n="ui.channelModal.them-kenh-moi">➕ Thêm kênh mới</div>
     <div class="grid2">
-      <div class="field"><label class="label" data-i18n="ui.channelModal.ten-kenh">Tên kênh *</label><input class="input" id="chName" placeholder="vd: TuiLa1Freelancer" data-i18n-placeholder="ui.channelModal.vd-tuila1freelancer"></div>
-      <div class="field"><label class="label" data-i18n="ui.channelModal.thu-muc-bo-trong-movies">Thư mục (bỏ trống = ~/Movies/AI Video Studio/…)</label><input class="input" id="chRoot" placeholder="~/Movies/AI Video Studio/ten-kenh" data-i18n-placeholder="ui.channelModal.movies-ai-video-studio-ten"></div>
+      <div class="field"><label class="label" for="chName" data-i18n="ui.channelModal.ten-kenh">Tên kênh *</label><input class="input" id="chName" placeholder="vd: TuiLa1Freelancer" data-i18n-placeholder="ui.channelModal.vd-tuila1freelancer"></div>
+      <div class="field"><label class="label" for="chRoot" data-i18n="ui.channelModal.thu-muc-bo-trong-movies">Thư mục (bỏ trống = ~/Movies/AI Video Studio/…)</label><input class="input" id="chRoot" placeholder="~/Movies/AI Video Studio/ten-kenh" data-i18n-placeholder="ui.channelModal.movies-ai-video-studio-ten"></div>
     </div>
-    <div class="field"><label class="label" data-i18n="ui.channelModal.watermark-cua-kenh">Watermark của kênh</label><input class="input" id="chWatermark" placeholder="vd: tuila1freelancer" data-i18n-placeholder="ui.channelModal.vd-tuila1freelancer-2"></div>
+    <div class="field"><label class="label" for="chWatermark" data-i18n="ui.channelModal.watermark-cua-kenh">Watermark của kênh</label><input class="input" id="chWatermark" placeholder="vd: tuila1freelancer" data-i18n-placeholder="ui.channelModal.vd-tuila1freelancer-2"></div>
     <div class="row">
       <label class="switch-row" style="flex:1"><span class="switch"><input type="checkbox" id="chCopyConfig" checked><span class="sl"></span></span>
         <span style="font-size:12px" data-i18n="ui.channelModal.lay-config-panel-hien-tai">📋 Lấy config panel hiện tại làm mặc định kênh (theme, giọng, tỉ lệ…)</span></label>
@@ -961,14 +961,14 @@
 <!-- BRAND KIT EDITOR -->
 <!-- CONFIG GROUP EDITOR (body node is MOVED in/out — ids & listeners travel with it) -->
 <!-- Chi phí của thay đổi, TRƯỚC khi tiêu. Mọi bước đều nói rõ nó làm gì và mất bao lâu. -->
-<div class="modal-bg" id="changePlanModal">
+<div class="modal-bg" id="changePlanModal" role="dialog" aria-modal="true">
   <div class="modal">
     <h2><span data-i18n="ui.changePlanModal.ap-dung-thay-doi">Áp dụng thay đổi</span> <button class="x" data-close>×</button></h2>
     <div data-body></div>
     <div class="row" style="justify-content:flex-end;gap:8px;margin-top:14px" data-actions></div>
   </div>
 </div>
-<div class="modal-bg" id="cfgModal">
+<div class="modal-bg" id="cfgModal" role="dialog" aria-modal="true">
   <div class="modal cfgm">
     <h2><span id="cfgModalTitle" data-i18n="ui.cfgModal.cau-hinh">Cấu hình</span> <button class="x" data-close>×</button></h2>
     <div id="cfgModalBody"></div>
@@ -976,7 +976,7 @@
   </div>
 </div>
 
-<div class="modal-bg" id="tasksModal">
+<div class="modal-bg" id="tasksModal" role="dialog" aria-modal="true">
   <div class="modal" style="max-width:780px">
     <h2><span style="display:flex;align-items:center;gap:8px;flex:1"><span data-i18n="ui.tasksModal.tac-vu">🗂 Tác vụ</span> <button class="btn sm" id="tasksRefresh" title="Làm mới danh sách" data-i18n-title="ui.tasksModal.lam-moi-danh-sach">↻</button></span><button class="x" data-close>×</button></h2>
     <div class="hint" style="margin-bottom:10px" data-i18n="ui.tasksModal.moi-tac-vu-dang-cho">Mọi tác vụ đang chờ · đang chạy · gần đây trên tất cả dự án. Bấm một dòng để mở dự án và nhật ký của nó.</div>
@@ -985,7 +985,7 @@
   </div>
 </div>
 
-<div class="modal-bg" id="autopilotModal">
+<div class="modal-bg" id="autopilotModal" role="dialog" aria-modal="true">
   <div class="modal" style="max-width:860px">
     <h2><span data-i18n="ui.autopilotModal.tro-ly-noi-dung">🛰 Trợ lý nội dung</span> <button class="x" data-close>×</button></h2>
     <div class="ap-stats row" id="apStats" style="gap:14px;flex-wrap:wrap;margin-bottom:10px"></div>
@@ -1056,7 +1056,7 @@
   </div>
 </div>
 
-<div class="modal-bg" id="sceneStudioModal">
+<div class="modal-bg" id="sceneStudioModal" role="dialog" aria-modal="true">
   <div class="modal" style="max-width:1080px">
     <h2><span data-i18n="ui.sceneStudioModal.scene-studio">🎬 Scene Studio —</span> <span id="ssTitle"></span> <button class="x" data-close>×</button></h2>
     <div class="ss-body">
@@ -1102,7 +1102,7 @@
             <button class="btn" id="ssHtmlReset" data-i18n="ui.ssTabHtml.bo-ban-sua-tay">↩ Bỏ bản sửa tay</button>
           </div>
           <div class="field" style="margin-top:10px">
-            <label class="label" data-i18n="ui.ssTabHtml.sua-bang-loi-ai-chinh">✏️ Sửa bằng lời — AI chỉnh đúng chỗ bạn nói, giữ nguyên phần còn lại</label>
+            <label class="label" for="ssEditPrompt" data-i18n="ui.ssTabHtml.sua-bang-loi-ai-chinh">✏️ Sửa bằng lời — AI chỉnh đúng chỗ bạn nói, giữ nguyên phần còn lại</label>
             <textarea class="input" id="ssEditPrompt" rows="2" placeholder="vd: làm tiêu đề to hơn và đổi sang vàng, thêm một thẻ số liệu bên phải" data-i18n-placeholder="ui.ssTabHtml.vd-lam-tieu-de-to"></textarea>
             <div class="row" style="gap:8px;margin-top:6px"><button class="btn primary" id="ssEditAi" data-i18n="ui.ssTabHtml.sua-html-voi-ai">✏️ Sửa HTML với AI</button>
             <span class="hint" id="ssEditOut"></span></div>
@@ -1110,7 +1110,7 @@
         </div>
         <div id="ssTabAudio" style="display:none">
           <div class="field as-block">
-            <label class="label" data-i18n="ui.ssTabAudio.sfx-cua-canh-nay-tu">SFX của cảnh này (từ Thư viện → SFX)</label>
+            <label class="label" for="ssSfx" data-i18n="ui.ssTabAudio.sfx-cua-canh-nay-tu">SFX của cảnh này (từ Thư viện → SFX)</label>
             <select class="input" id="ssSfx"><option value="" data-i18n="ui.ssSfx.khong-co-sfx-rieng">— Không có SFX riêng —</option></select>
           </div>
           <div class="as-grid" style="margin-bottom:10px">
@@ -1153,7 +1153,7 @@
   </div>
 </div>
 
-<div class="modal-bg" id="hfStyleModal">
+<div class="modal-bg" id="hfStyleModal" role="dialog" aria-modal="true">
   <div class="modal" style="max-width:680px">
     <h2><span data-i18n="ui.hfStyleModal.phong-cach-video-hyperframe">✨ Phong cách video HyperFrame</span> <button class="x" data-close>×</button></h2>
     <div class="hint" style="margin-bottom:10px" data-i18n="ui.hfStyleModal.mot-phong-cach-ap-cho">Một phong cách áp cho cả video: bảng màu, chữ, nền và tính cách chuyển động. AI phải tuân theo ở mọi cảnh.</div>
@@ -1173,7 +1173,7 @@
   </div>
 </div>
 
-<div class="modal-bg" id="brandModal">
+<div class="modal-bg" id="brandModal" role="dialog" aria-modal="true">
   <div class="modal brand-modal">
     <h2><span><span data-i18n="ui.brandModal.brand-kit">🏷 Brand Kit —</span> <span id="brandChName" data-i18n="ui.brandModal.kenh">kênh</span></span> <button class="x" data-close>×</button></h2>
     <div class="brand-editor">
@@ -1192,7 +1192,7 @@
       </div>
       <div class="brand-form">
         <div class="bg-sec" data-i18n="ui.brandModal.kenh-2">Kênh</div>
-        <div class="field"><label class="label" data-i18n="ui.brandModal.ten-kenh-hien-tren-video">Tên kênh (hiện trên video)</label><input class="input" id="brandName" placeholder="vd: TuiLa Dev" data-i18n-placeholder="ui.brandModal.vd-tuila-dev"></div>
+        <div class="field"><label class="label" for="brandName" data-i18n="ui.brandModal.ten-kenh-hien-tren-video">Tên kênh (hiện trên video)</label><input class="input" id="brandName" placeholder="vd: TuiLa Dev" data-i18n-placeholder="ui.brandModal.vd-tuila-dev"></div>
         <div class="grid2">
           <div><label class="switch-row" style="margin-top:4px"><span class="switch"><input type="checkbox" id="brandBadgeOn" checked><span class="sl"></span></span> <span data-i18n="ui.brandModal.hien-ten-kenh">Hiện tên kênh</span></label></div>
           <div><select class="input" id="brandBadgeStyle"><option value="plain" data-i18n="ui.brandBadgeStyle.chu-thuong">Chữ thường</option><option value="pill" data-i18n="ui.brandBadgeStyle.pill-vien-nen">Pill (viên nén)</option><option value="underline" data-i18n="ui.brandBadgeStyle.gach-chan-neon">Gạch chân neon</option></select></div>
@@ -1224,9 +1224,9 @@
         <label class="switch-row"><span class="switch"><input type="checkbox" id="wmOn"><span class="sl"></span></span> <span data-i18n="ui.brandModal.bat-watermark-troi-cham-quanh">Bật watermark trôi chậm quanh viền video (đánh dấu bản quyền)</span></label>
         <div id="wmOpts" class="hidden">
           <div class="grid2" style="margin-top:8px">
-            <div><label class="label" data-i18n="ui.wmOpts.noi-dung">Nội dung</label>
+            <div><label class="label" for="wmSource" data-i18n="ui.wmOpts.noi-dung">Nội dung</label>
               <select class="input" id="wmSource"><option value="logo" data-i18n="ui.wmSource.logo-kenh">Logo kênh</option><option value="name" data-i18n="ui.wmSource.ten-kenh">Tên kênh</option></select></div>
-            <div><label class="label" data-i18n="ui.wmOpts.toc-do">Tốc độ</label>
+            <div><label class="label" for="wmSpeed" data-i18n="ui.wmOpts.toc-do">Tốc độ</label>
               <select class="input" id="wmSpeed"><option value="slow" selected data-i18n="ui.wmSpeed.cham-75s-vong">Chậm — 75s/vòng</option><option value="slower" data-i18n="ui.wmSpeed.rat-cham-120s-vong">Rất chậm — 120s/vòng</option><option value="medium" data-i18n="ui.wmSpeed.vua-45s-vong">Vừa — 45s/vòng</option></select></div>
           </div>
           <div class="grid2" style="margin-top:8px">
@@ -1240,13 +1240,13 @@
 
         <details class="cfg-details" style="margin:14px 0 8px">
           <summary data-i18n="ui.brandModal.ai-rieng-cua-kenh-de">⚙ AI riêng của kênh (đè lên cấu hình chung)</summary>
-          <div class="field" style="margin-top:8px"><label class="label" data-i18n="ui.brandModal.provider-giong-doc">Provider giọng đọc</label>
+          <div class="field" style="margin-top:8px"><label class="label" for="brandAiTts" data-i18n="ui.brandModal.provider-giong-doc">Provider giọng đọc</label>
             <select class="input" id="brandAiTts"><option value="" data-i18n="ui.brandAiTts.dung-cau-hinh-chung">— Dùng cấu hình chung —</option></select></div>
-          <div class="field"><label class="label" data-i18n="ui.brandModal.llm-model-kich-ban">LLM model (kịch bản)</label>
+          <div class="field"><label class="label" for="brandAiLlmModel" data-i18n="ui.brandModal.llm-model-kich-ban">LLM model (kịch bản)</label>
             <input class="input" id="brandAiLlmModel" placeholder="— Dùng cấu hình chung —" data-i18n-placeholder="ui.brandModal.dung-cau-hinh-chung"></div>
-          <div class="field"><label class="label" data-i18n="ui.brandModal.engine-phu-de">Engine phụ đề</label>
+          <div class="field"><label class="label" for="brandAiSub" data-i18n="ui.brandModal.engine-phu-de">Engine phụ đề</label>
             <select class="input" id="brandAiSub"><option value="" data-i18n="ui.brandAiSub.dung-cau-hinh-chung">— Dùng cấu hình chung —</option><option value="align" data-i18n="ui.brandAiSub.align-chu-chuan-timing-that">align (chữ chuẩn + timing thật)</option><option value="estimate" data-i18n="ui.brandAiSub.estimate-chu-chuan">estimate (chữ chuẩn)</option><option value="whisper" data-i18n-exempt>whisper</option></select></div>
-          <div class="field"><label class="label" data-i18n="ui.brandModal.font-thuong-hieu-cua-kenh">🔤 Font thương hiệu của kênh</label>
+          <div class="field"><label class="label" for="brandFont" data-i18n="ui.brandModal.font-thuong-hieu-cua-kenh">🔤 Font thương hiệu của kênh</label>
             <select class="input" id="brandFont"><option value="" data-i18n="ui.brandFont.theo-style-guide">— Theo style guide —</option></select></div>
         </details>
         <button class="btn primary block" id="brandSave" data-i18n="ui.brandModal.luu-brand-kit-vao-kenh">💾 Lưu Brand Kit vào kênh</button>
@@ -1257,7 +1257,7 @@
 </div>
 
 <!-- VOICE PICKER MODAL -->
-<div class="modal-bg" id="voicePickerModal">
+<div class="modal-bg" id="voicePickerModal" role="dialog" aria-modal="true">
   <div class="modal" style="max-width:640px">
     <h2><span data-i18n="ui.voicePickerModal.kho-giong-doc">🎙 Kho giọng đọc</span> <button class="x" data-close>×</button></h2>
     <div class="row" style="margin-bottom:8px">
@@ -1281,7 +1281,7 @@
 </div>
 
 <!-- BATCH MODAL -->
-<div class="modal-bg" id="batchModal">
+<div class="modal-bg" id="batchModal" role="dialog" aria-modal="true">
   <div class="modal">
     <h2><span data-i18n="ui.batchModal.tao-video-hang-loat">📦 Tạo video hàng loạt</span> <button class="x" data-close>×</button></h2>
     <p class="hint" style="margin-bottom:10px" data-i18n="ui.batchModal.moi-dong-1-chu-de">Mỗi dòng = 1 chủ đề video. App sẽ tự tạo lần lượt từng video với config hiện tại — cứ để máy chạy.</p>
@@ -1291,12 +1291,12 @@
 </div>
 
 <!-- SCENE PROPS EDITOR MODAL -->
-<div class="modal-bg" id="propsModal">
+<div class="modal-bg" id="propsModal" role="dialog" aria-modal="true">
   <div class="modal">
     <h2><span data-i18n="ui.propsModal.sua-noi-dung-canh">✏️ Sửa nội dung cảnh</span> <button class="x" data-close>×</button></h2>
-    <div class="field"><label class="label" data-i18n="ui.propsModal.heading-chu-lon">Heading (chữ lớn)</label><input class="input" id="propHeading"></div>
-    <div class="field"><label class="label" data-i18n="ui.propsModal.sub-mo-ta">Sub / mô tả</label><input class="input" id="propSub"></div>
-    <div class="field"><label class="label" data-i18n="ui.propsModal.label-nho-hud">Label nhỏ (HUD)</label><input class="input" id="propLabel"></div>
+    <div class="field"><label class="label" for="propHeading" data-i18n="ui.propsModal.heading-chu-lon">Heading (chữ lớn)</label><input class="input" id="propHeading"></div>
+    <div class="field"><label class="label" for="propSub" data-i18n="ui.propsModal.sub-mo-ta">Sub / mô tả</label><input class="input" id="propSub"></div>
+    <div class="field"><label class="label" for="propLabel" data-i18n="ui.propsModal.label-nho-hud">Label nhỏ (HUD)</label><input class="input" id="propLabel"></div>
     <details><summary class="hint" style="cursor:pointer" data-i18n="ui.propsModal.props-json-nang-cao">⚙️ Props JSON (nâng cao)</summary>
       <textarea class="input" id="propJson" rows="6" style="margin-top:8px;font-family:ui-monospace,Menlo,monospace;font-size:11px"></textarea>
     </details>
@@ -1305,7 +1305,7 @@
 </div>
 
 <!-- LIVE SCENE PREVIEW MODAL -->
-<div class="modal-bg" id="liveModal">
+<div class="modal-bg" id="liveModal" role="dialog" aria-modal="true">
   <div class="modal" style="width:auto;max-width:none;padding:16px">
     <h2 style="font-size:15px;margin-bottom:10px"><span data-i18n="ui.liveModal.preview-canh-animation-that-tieng">👁 Preview cảnh (animation thật + tiếng)</span> <button class="x" data-close>×</button></h2>
     <div id="liveWrap" style="overflow:hidden;border-radius:10px;background:#000"></div>
@@ -1345,6 +1345,6 @@
 </div>
 
 <div class="toasts" id="toasts"></div>
-<script type="module" src="js/main.js"></script>
+<script type="module" src="/js/main.js"></script>
 </body>
 </html>

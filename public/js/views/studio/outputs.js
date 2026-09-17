@@ -5,15 +5,11 @@ import { api, fileUrl } from '../../api.js';
 import { state } from '../../state.js';
 import { t, m, tp } from '../../i18n.js';
 import { openImageViewer } from './source.js';
+import { fmtBytes, fmtDate } from '../../ui/format.js';
+import { LANGS } from '../../ui/langs.js';
 
 // Caption tracks the owner can export. Named in the language itself, like the interface picker.
 // i18n-exempt: endonyms — a language names itself, so the picker stays usable in any interface.
-export const SRT_LANGS = [
-  ['vi', '🇻🇳 Tiếng Việt'], ['en', '🇺🇸 English'], ['ja', '🇯🇵 日本語'], ['ko', '🇰🇷 한국어'],
-  ['zh', '🇨🇳 中文'], ['es', '🇪🇸 Español'], ['fr', '🇫🇷 Français'], ['de', '🇩🇪 Deutsch'],
-  ['pt', '🇧🇷 Português'], ['id', '🇮🇩 Indonesia'], ['th', '🇹🇭 ไทย'], ['hi', '🇮🇳 हिन्दी'],
-  ['ru', '🇷🇺 Русский'],
-];
 
 // ---------------- final + meta ----------------
 export function renderFinal() {
@@ -31,7 +27,7 @@ export function renderFinal() {
     if (langSel) {
       const own = p.config?.language && p.config.language !== 'auto' ? p.config.language : null;
       langSel.innerHTML = `<option value="">${esc(t('ui.finalView.srt-goc', null, '⬇ Ngôn ngữ gốc'))}</option>`
-        + SRT_LANGS.filter(([c]) => c !== own).map(([c, label]) => `<option value="${c}">${esc(label)}</option>`).join('');
+        + LANGS.filter(([c]) => c !== own).map(([c, label]) => `<option value="${c}">${esc(label)}</option>`).join('');
       langSel.value = '';
       langSel.onchange = () => {
         if (!langSel.value) return;
@@ -55,7 +51,7 @@ export async function renderPublishHistory() {
   if (!rows.length) { box.innerHTML = `<span style="opacity:.6">${m('Chưa đăng ở đâu.')}</span>`; return; }
   const ICON = { youtube: '▶️', facebook: '📘' };
   box.innerHTML = rows.slice(0, 6).map((r) => {
-    const when = r.created_at ? new Date(r.created_at).toLocaleString('vi-VN') : '';
+    const when = r.created_at ? fmtDate(r.created_at) : '';
     const mark = r.status === 'done' ? '✅' : (r.status === 'error' ? '❌' : '⏳');
     const link = r.url ? ` <a href="${esc(r.url)}" target="_blank" rel="noopener">${m('mở')}</a>` : '';
     return `<div>${mark} ${ICON[r.platform] || '📤'} ${esc(r.platform)}${r.privacy ? ` · ${esc(r.privacy)}` : ''} · ${esc(when)}${link}${r.error ? ` <span style="color:var(--bad,#f87171)">${esc(r.error)}</span>` : ''}</div>`;
@@ -97,14 +93,13 @@ export function renderMeta() {
   }).join('');
   // Covers are captured at DOUBLE the platform's pixels, so the chip reports the file's REAL size
   // and what it is 2× of — a number that disagrees with the file is worse than no number.
-  const kb = (n) => (n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${Math.round(n / 1024)} KB`);
   const coverList = md.covers || [];
   const covers = coverList.map((c, i) => {
     const px = c.px || { w: c.w, h: c.h };
     const note = c.scale > 1 ? tp`${px.w}×${px.h} · 2× của ${c.w}×${c.h}` : `${px.w}×${px.h}`;
     return `<button class="cover-chip" type="button" data-cover="${i}" title="${esc(m('Bấm để xem lớn'))}">
       <img src="${fileUrl(c.path)}" loading="lazy" decoding="async">
-      <span>${esc(c.label)}<small>${note}${c.bytes ? ` · ${kb(c.bytes)}` : ''}</small></span></button>`;
+      <span>${esc(c.label)}<small>${note}${c.bytes ? ` · ${fmtBytes(c.bytes)}` : ''}</small></span></button>`;
   }).join('');
   box.innerHTML = (covers
     ? `<div class="sec-label">${m('🖼 Ảnh bìa theo nền tảng')}</div><div class="cover-row">${covers}</div>

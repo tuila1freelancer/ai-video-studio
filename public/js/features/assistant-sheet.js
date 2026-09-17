@@ -12,6 +12,7 @@ import { gatherConfig } from '../views/config.js';
 import { closeModal } from '../ui/modals.js';
 import { openProject } from '../views/studio.js';
 import { m, tp } from '../i18n.js';
+import { fmtNum } from '../ui/format.js';
 
 function toLocalInput(ts) {
   const d = new Date(ts);
@@ -144,7 +145,7 @@ export function configSheet({ row, mode, due = null }) {
           const vd = +(dlg.querySelector('[data-a=vd]')?.value) || ch?.config?.videoDuration || 60;
           const est = await api.post('/estimate-cost', { videoDuration: vd, config: { language: channelLang() } });
           const bits = [tp`~${est.scenes} cảnh`];
-          if (est.credits != null) bits.push(tp`${est.credits.toLocaleString('vi-VN')} credits LarVoice`);
+          if (est.credits != null) bits.push(tp`${fmtNum(est.credits)} credits LarVoice`);
           else if (est.ttsUsd) bits.push(tp`TTS ≈ $${est.ttsUsd.toFixed(2)}`);
           if (est.llmUsd != null) bits.push(tp`LLM ≈ $${est.llmUsd.toFixed(2)} (${est.basis})`);
           costLine.textContent = tp`💸 Ước tính: ${bits.join(' · ')}`;

@@ -7,6 +7,8 @@ import { api } from '../api.js';
 import { state } from '../state.js';
 import { toast } from '../ui/toast.js';
 import { m, tp } from '../i18n.js';
+import { fmtMs, fmtDate } from '../ui/format.js';
+import { debounce } from '../ui/timing.js';
 
 // Both built on call, not at import: the catalogue is fetched after this module is evaluated.
 const stageMeta = () => ({
@@ -20,10 +22,8 @@ const J = {
   lastId: 0, timer: null, userToggled: new Map(), // group index -> user-chosen open state
 };
 
-export function fmtMs(ms) {
-  const s = Math.round(ms / 1000);
-  return s >= 60 ? `${Math.floor(s / 60)}p${String(s % 60).padStart(2, '0')}s` : `${s}s`;
-}
+
+const MAX_LIVE_EVENTS = 2000;
 
 export function initJournal() {
   $('#logToggle')?.addEventListener('click', () => {
@@ -38,7 +38,7 @@ export function initJournal() {
     J.level = c.dataset.lv || '';
     render();
   }));
-  $('#jrSearch')?.addEventListener('input', () => { J.q = $('#jrSearch').value.trim().toLowerCase(); render(); });
+  $('#jrSearch')?.addEventListener('input', debounce(() => { J.q = $('#jrSearch').value.trim().toLowerCase(); render(); }, 150));
   $('#jrCopy')?.addEventListener('click', async () => {
     try { await navigator.clipboard.writeText(exportText()); toast('Đã sao chép nhật ký ✓', 'success'); }
     catch { toast('Không sao chép được', 'error'); }
@@ -116,7 +116,7 @@ function renderRunPicker() {
   const status = runStatus();
   J.runs.forEach((r, i) => {
     const n = J.runs.length - i;
-    const t = new Date(r.created_at).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' });
+    const t = fmtDate(r.created_at, 'short');
     const dur = r.durMs ? ` · ${fmtMs(r.durMs)}` : '';
     const o = el('option', null, tp`Lần chạy #${n} · ${t} · ${status[r.status] || r.status}${dur}`);
     o.value = r.id;
@@ -183,7 +183,7 @@ function render(fresh = false, liveAppend = false) {
 }
 
 function line(e) {
-  const t = new Date(e.ts).toLocaleTimeString('vi-VN');
+  const t = fmtDate(e.ts, 'time');
   const d = el('div', 'jr-l lg-' + (e.level || 'info'));
   d.appendChild(el('span', 'jr-t', `[${t}]`));
   if (e.scene_idx != null) {
@@ -213,6 +213,8 @@ export function onJournalEvent(e) {
   if (J.run === 'latest' && e.job_id && J.runs[0] && e.job_id !== J.runs[0].id) { reload(); return; }
   if (J.run !== 'latest' && J.run !== 'all' && e.job_id !== J.run) return;
   J.events.push(e);
+  // A 200-scene run writes thousands of lines; keep the panel's memory bounded (the DB keeps all).
+  if (J.events.length > MAX_LIVE_EVENTS) J.events.splice(0, J.events.length - MAX_LIVE_EVENTS);
   if (J.timer) return;
   J.timer = setTimeout(() => { J.timer = null; render(false, true); }, 150);
 }
@@ -224,7 +226,7 @@ function nearBottom() {
 
 function exportText() {
   return J.events.filter(passes).map((e) => {
-    const t = new Date(e.ts).toLocaleString('vi-VN');
+    const t = fmtDate(e.ts);
     const sc = e.scene_idx != null ? ` [${tp`Cảnh ${e.scene_idx + 1}`}]` : '';
     return `[${t}] [${(e.level || 'info').toUpperCase()}]${sc} ${e.msg}`;
   }).join('\n');

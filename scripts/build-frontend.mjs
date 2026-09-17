@@ -45,7 +45,7 @@ await build({
 // first paint. main.js keeps its hint because it is still the entry.
 const htmlPath = join(out, 'index.html');
 const html = readFileSync(htmlPath, 'utf8');
-const stripped = html.replace(/^[ \t]*<link rel="modulepreload" href="js\/(?!main\.js")[^"]*">\n/gm, '');
+const stripped = html.replace(/^[ \t]*<link rel="modulepreload" href="\/?js\/(?!main\.js")[^"]*">\n/gm, '');
 const removed = (html.match(/rel="modulepreload"/g) || []).length
   - (stripped.match(/rel="modulepreload"/g) || []).length;
 writeFileSync(htmlPath, stripped);

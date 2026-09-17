@@ -16,6 +16,7 @@ import { subscribeWs } from './ws.js';
 import { loadProjects, renderProjectList } from './projects.js';
 import { renderFinal, renderPublishHistory, renderMeta } from './outputs.js';
 import { setSourceDoc } from './source.js';
+import { fmtDate, fmtNum } from '../../ui/format.js';
 
 export function startNewProject() {
   state.current = null; state.scenes = []; state.assets = [];
@@ -123,7 +124,7 @@ export function renderProjectView() {
   $('#pvStatus').textContent = badgeText(p.status);
   $('#pvStatus').className = 'badge ' + p.status;
   $('#pvAr').textContent = p.aspect_ratio;
-  $('#pvDate').textContent = new Date(p.updated_at).toLocaleString('vi-VN');
+  $('#pvDate').textContent = fmtDate(p.updated_at);
   $('#btnStop').classList.toggle('hidden', p.status !== 'running');
   // 'done' included: a finished video is a VERSION, not a terminal state. The fingerprint-aware
   // resume is the fastest correct path for a mixed edit and it was simply unreachable here.
@@ -170,8 +171,8 @@ export async function renderSceneGate(p) {
   }
   try {
     const est = await api.get(`/projects/${p.id}/voice-estimate`);
-    const cost = est.credits != null ? tp`≈ ${est.credits.toLocaleString('vi-VN')} credits LarVoice`
+    const cost = est.credits != null ? tp`≈ ${fmtNum(est.credits)} credits LarVoice`
       : est.usd ? `≈ $${est.usd.toFixed(3)} (${est.provider})` : tp`${est.provider} (miễn phí)`;
-    $('#sceneGateCost').textContent = tp`Lồng tiếng ${est.scenes} cảnh · ${est.chars.toLocaleString('vi-VN')} ký tự · ${cost}`;
+    $('#sceneGateCost').textContent = tp`Lồng tiếng ${est.scenes} cảnh · ${fmtNum(est.chars)} ký tự · ${cost}`;
   } catch { $('#sceneGateCost').textContent = ''; }
 }

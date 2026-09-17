@@ -9,6 +9,7 @@ import { api } from '../api.js';
 import { state } from '../state.js';
 import { renderScenes } from '../views/scenes.js';
 import { m, tp } from '../i18n.js';
+import { fmtDate } from '../ui/format.js';
 
 let wired = false;
 export function initSrt() {
@@ -117,7 +118,7 @@ async function toggleTakes(sid) {
     if (!takes.length) { wrap.innerHTML = `<div class="hint">${m('Chưa có bản thu nào khác (tạo bằng “Voice đã chọn”).')}</div>`; return; }
     wrap.innerHTML = takes.map((t) => `
       <div class="row" style="gap:8px;align-items:center;margin-top:4px">
-        <span class="hint" style="flex:1">${t.is_active ? m('● đang dùng') + ' · ' : ''}${new Date(t.created_at).toLocaleTimeString('vi-VN')} · ${(t.payload.duration || 0).toFixed(1)}s</span>
+        <span class="hint" style="flex:1">${t.is_active ? m('● đang dùng') + ' · ' : ''}${fmtDate(t.created_at, 'time')} · ${(t.payload.duration || 0).toFixed(1)}s</span>
         ${t.payload.audio_path ? `<audio controls preload="none" src="/api/file?path=${encodeURIComponent(t.payload.audio_path)}" style="height:26px"></audio>` : ''}
         ${t.is_active ? '' : `<button class="btn sm" data-take="${t.id}">${m('Dùng bản này')}</button>`}
       </div>`).join('');

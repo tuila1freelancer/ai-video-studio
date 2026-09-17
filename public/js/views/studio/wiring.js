@@ -9,10 +9,11 @@ import { openChangePlan } from '../../features/changeplan.js';
 import { initPendingChanges } from '../../features/pending-changes.js';
 import { confirmDialog } from '../../ui/dialog.js';
 import { t, m, tp, setLabel } from '../../i18n.js';
-import { loadProjects, mb } from './projects.js';
+import { loadProjects } from './projects.js';
 import { repurposeCurrent, dubCurrent, exportCurrent, publishCurrent, restartCurrent, copyAssetsFrom, genMeta } from './actions.js';
 import { startNewProject, createAndStart, repairTypeset } from './project-view.js';
 import { detectType, setSourceDoc, fetchLink, imageSearch, initImageViewer, uploadAssets } from './source.js';
+import { fmtBytes } from '../../ui/format.js';
 
 export function initStudio() {
   // SVG icon labels (markup keeps plain text for graceful no-JS degradation)
@@ -52,7 +53,7 @@ export function initStudio() {
     });
     if (ok) {
       const r = await api.del('/projects');
-      toast(tp`🗑 Đã xoá ${r.files || 0} file (${mb(r.bytes || 0)})`, 'success');
+      toast(tp`🗑 Đã xoá ${r.files || 0} file (${fmtBytes(r.bytes || 0)})`, 'success');
       startNewProject(); loadProjects();
     }
   });

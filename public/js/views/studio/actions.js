@@ -6,7 +6,8 @@ import { confirmDialog, menuDialog, publishDialog } from '../../ui/dialog.js';
 import { t, m, tp } from '../../i18n.js';
 import { loadProjects } from './projects.js';
 import { openProject } from './project-view.js';
-import { SRT_LANGS, renderPublishHistory, renderMeta } from './outputs.js';
+import { renderPublishHistory, renderMeta } from './outputs.js';
+import { LANGS } from '../../ui/langs.js';
 
 // Clone the current project into another aspect ratio: voice + captions are reused
 // verbatim, layouts reflow, every scene re-renders. Opens the derived project.
@@ -32,7 +33,7 @@ export async function dubCurrent() {
   if (!state.current) { toast(t('ui.toast.mo-du-an-truoc', null, 'Mở một dự án trước đã.'), 'error'); return; }
   const own = state.current.config?.language && state.current.config.language !== 'auto'
     ? state.current.config.language : null;
-  const items = SRT_LANGS.filter(([c]) => c !== own).map(([c, label]) => ({ id: c, label }));
+  const items = LANGS.filter(([c]) => c !== own).map(([c, label]) => ({ id: c, label }));
   const pick = await menuDialog({ title: t('ui.dialog.long-tieng-sang', null, 'Lồng tiếng sang ngôn ngữ nào?'), items });
   if (!pick) return;
   try {

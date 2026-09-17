@@ -33,7 +33,7 @@ test('the confirmation names what disappears, measured rather than guessed', () 
   assert.match(routes, /r\.get\('\/projects\/:id\/footprint'/);
   assert.match(routes, /bytes \+= statSync\(f\)\.size/);
   assert.match(studio, /await api\.get\(`\/projects\/\$\{p\.id\}\/footprint`\)/);
-  assert.match(studio, /SẼ XOÁ VĨNH VIỄN \$\{fp\.files\} file \(\$\{mb\(fp\.bytes\)\}\) khỏi ổ đĩa/);
+  assert.match(studio, /SẼ XOÁ VĨNH VIỄN \$\{fp\.files\} file \(\$\{fmtBytes\(fp\.bytes\)\}\) khỏi ổ đĩa/);
   assert.match(studio, /Không khôi phục được/);
   assert.match(studio, /danger: true/);
   // a multi-line body only reads as lines if the dialog renders them as lines
