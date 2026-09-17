@@ -13,6 +13,7 @@
 import { createVerify, randomBytes } from 'node:crypto';
 
 import { m } from '../i18n/t.js';
+import { safeJson } from '../util/util.js';
 const REQUEST_TIMEOUT_MS = 10_000;
 
 /** Thrown for anything the store answered. `.status` is the HTTP code. */
@@ -59,7 +60,7 @@ export class LicenseClient {
       throw new OfflineError(e?.message || m('không kết nối được tới cửa hàng'));
     }
     const text = await res.text().catch(() => '');
-    const json = text ? safeJson(text) : null;
+    const json = text ? safeJson(text, null) : null;
     if (!res.ok) {
       throw new StoreError(res.status, json?.message || text || `HTTP ${res.status}`, json);
     }
@@ -94,9 +95,6 @@ export class LicenseClient {
   }
 }
 
-function safeJson(text) {
-  try { return JSON.parse(text); } catch { return null; }
-}
 
 /**
  * Verify an RS256 licence token against a public key — no network involved.
@@ -177,7 +175,7 @@ async function desktopRequest(baseUrl, path, body) {
     throw new OfflineError(e?.message || m('không kết nối được tới cửa hàng'));
   }
   const text = await res.text().catch(() => '');
-  const json = text ? safeJson(text) : null;
+  const json = text ? safeJson(text, null) : null;
   if (!res.ok) {
     throw new StoreError(res.status, json?.message || text || `HTTP ${res.status}`, json);
   }
@@ -212,7 +210,7 @@ export async function listMyLicenses(baseUrl, accessToken) {
     throw new OfflineError(e?.message || m('không kết nối được tới cửa hàng'));
   }
   const text = await res.text().catch(() => '');
-  const json = text ? safeJson(text) : null;
+  const json = text ? safeJson(text, null) : null;
   if (!res.ok) {
     throw new StoreError(res.status, json?.message || text || `HTTP ${res.status}`, json);
   }

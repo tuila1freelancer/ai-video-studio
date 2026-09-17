@@ -13,13 +13,11 @@
 import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import * as DB from '../src/db/index.js';
 import { ffProgress } from '../src/pipeline/render.js';
 import { planChanges } from '../src/api/services/change-plan.js';
-import { unwrapI18n } from './_source.mjs';
+import { sourceOf, indexHtml } from './_source.mjs';
 
-const src = (p) => unwrapI18n(readFileSync(new URL(p, import.meta.url), 'utf8'));
 
 test('the encode reports how far it has got', () => {
   const seen = [];
@@ -41,7 +39,7 @@ test('the encode reports how far it has got', () => {
 });
 
 test('the percentages reach the ticker and stay out of the journal', () => {
-  const render = src('../src/pipeline/render.js');
+  const render = sourceOf('src/pipeline/render.js');
   assert.match(render, /args\.unshift\('-progress', 'pipe:1', '-nostats'\);/);
   assert.match(render, /onLog: ffProgress\(cut, \(pct\) => note\?\.\(`\$\{label\} · \$\{pct\}%`\), onLog\),/);
   // …and the two lines that bracket it carry no percentage, so they DO reach the journal: the
@@ -52,7 +50,7 @@ test('the percentages reach the ticker and stay out of the journal', () => {
   // op() drops `· NN%` lines from the persistent journal on purpose — a fifteen-minute join would
   // otherwise write a hundred rows into it. The message format has to keep matching that filter.
   assert.match('🎞 Mã hoá video hoàn chỉnh · 42%', /·\s*\d{1,3}%\s*$/);
-  assert.match(src('../src/pipeline/progress.js'), /if \(!\/·\\s\*\\d\{1,3\}%\\s\*\$\/\.test\(text\)\) jlog/);
+  assert.match(sourceOf('src/pipeline/progress.js'), /if \(!\/·\\s\*\\d\{1,3\}%\\s\*\$\/\.test\(text\)\) jlog/);
 });
 
 test('a logo edited on the channel is work the plan can see', () => {
@@ -96,12 +94,12 @@ test('the plan compares against the file it actually made, not a variant of it',
 });
 
 test('every place the owner edits a logo or a subtitle offers the re-render', () => {
-  assert.match(src('../public/js/features/brandkit.js'),
+  assert.match(sourceOf('public/js/features/brandkit.js'),
     /await offerRerender\('Đã đổi nhận diện thương hiệu của kênh'\);/);
-  assert.match(src('../public/index.html'), /id="btnSubApply"/);
-  assert.match(src('../public/js/views/config.js'), /\$\('#btnSubApply'\)\?\.addEventListener/);
+  assert.match(indexHtml(), /id="btnSubApply"/);
+  assert.match(sourceOf('public/js/views/config.js'), /\$\('#btnSubApply'\)\?\.addEventListener/);
   // both doors lead to the SAME place — the cost table — so nothing starts without a price on it
-  const cp = src('../public/js/features/changeplan.js');
+  const cp = sourceOf('public/js/features/changeplan.js');
   assert.match(cp, /export async function offerRerender\(reason\)/);
   assert.match(cp, /if \(!p\?\.id \|\| !p\.video_path\) return false;/, 'nothing finished, nothing to offer');
   assert.match(cp, /if \(\['running', 'queued'\]\.includes\(p\.status\)\) return false;/);
@@ -109,9 +107,9 @@ test('every place the owner edits a logo or a subtitle offers the re-render', ()
 });
 
 test('starting the work puts the live log in front of the owner', () => {
-  const cp = src('../public/js/features/changeplan.js');
+  const cp = sourceOf('public/js/features/changeplan.js');
   assert.match(cp, /switchPage\('studio'\);\s*\n\s*showJournal\(\);/);
-  const jr = src('../public/js/features/journal.js');
+  const jr = sourceOf('public/js/features/journal.js');
   assert.match(jr, /export function showJournal\(\)/);
   assert.match(jr, /p\.classList\.remove\('closed'\);/);
   // the panel was already live — rows arrive as WS 'journal' events, deduped by id

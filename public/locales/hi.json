@@ -38,6 +38,7 @@
   "srv.Bản Tin": "न्यूज़",
   "srv.Bản cài đặt này chưa được cấu hình cửa hàng.": "यह इंस्टॉलेशन स्टोर के लिए कॉन्फ़िगर नहीं है।",
   "srv.Bản cài đặt này thiếu khoá xác thực license. Hãy tải lại bản mới từ cửa hàng.": "लाइसेंस सत्यापन कुंजी मौजूद नहीं। स्टोर से नया वर्शन डाउनलोड करें।",
+  "srv.Bản cài đặt này đã bị can thiệp nên không thể chạy. Hãy cài lại bản gốc từ cửa hàng.": "इस प्रति के साथ छेड़छाड़ की गई है और यह नहीं चल सकती। कृपया स्टोर से मूल संस्करण फिर से इंस्टॉल करें।",
   "srv.Cao độ (-20 đến 20)": "पिच (-20 से 20)",
   "srv.Cao độ (-24 đến +24, semitone)": "पिच (-24 से +24, सेमीटोन)",
   "srv.Cao độ (Hz) — vd +20 cho giọng tươi hơn": "पिच (Hz) — उदा. +20 ब्राइट आवाज़ के लिए",
@@ -328,6 +329,7 @@
   "srv.dự án không ở bước duyệt cảnh": "प्रोजेक्ट सीन रिव्यू स्टेज में नहीं है",
   "srv.dự án nguồn chưa có cảnh": "सोर्स प्रोजेक्ट में कोई सीन नहीं",
   "srv.dự án nguồn không có asset nào còn trên đĩa": "सोर्स प्रोजेक्ट एसेट्स डिस्क पर नहीं हैं",
+  "srv.dự án đang chạy — đợi xong rồi tạo lại cảnh": "प्रोजेक्ट चल रहा है — पूरा होने पर सीन फिर बनाएं",
   "srv.edge returned empty audio": "edge ने खाली ऑडियो भेजा",
   "srv.edit rejected by lint": "लिंट ने एडिट अस्वीकार कर दिया",
   "srv.edit rejected by render validation": "रेंडर वैलिडेशन ने एडिट अस्वीकार कर दिया",
@@ -336,6 +338,7 @@
   "srv.file không hợp lệ": "इनवैलिड फ़ाइल",
   "srv.file logo của preset không còn trên đĩa": "प्रीसेट की लोगो फ़ाइल डिस्क पर नहीं है",
   "srv.file logo không hợp lệ": "इनवैलिड लोगो फ़ाइल",
+  "srv.file quá lớn ({0} MB)": "फ़ाइल बहुत बड़ी है ({0} MB)",
   "srv.file rỗng": "खाली फ़ाइल",
   "srv.file thiếu": "फ़ाइल मौजूद नहीं",
   "srv.font \"{0}\" đang ở dạng {1} — libass chỉ đọc được .ttf/.otf. ": "फ़ॉन्ट \"{0}\" {1} फॉर्मेट में है — libass केवल .ttf/.otf पढ़ सकता है। ",
@@ -455,6 +458,7 @@
   "srv.thiếu nội dung HTML": "HTML कंटेंट मौजूद नहीं है",
   "srv.thiếu thời điểm hẹn": "शेड्यूल समय गायब है",
   "srv.thiếu tên bộ mẫu": "प्रीसेट नाम मौजूद नहीं है",
+  "srv.thiếu tên hoặc loại style": "नाम या स्टाइल टाइप मौजूद नहीं",
   "srv.thiếu tên kênh": "चैनल का नाम मौजूद नहीं है",
   "srv.thiếu video stream": "वीडियो स्ट्रीम गायब है",
   "srv.thiếu voiceId": "voiceId गायब है",
@@ -528,6 +532,7 @@
   "srv.đổi phụ đề ({0} thiết lập, in ở bước cuối)": "सबटाइटल बदलें ({0} सेटिंग्स, अंत में बर्न)",
   "srv.đổi watermark": "वॉटरमार्क बदलें",
   "srv.đổi {0}": "{0} बदलें",
+  "srv.Ảnh bìa/thumbnail AI lỗi — giữ bản cơ bản: {0}": "AI thumbnail एरर — बेसिक वर्शन रखा: {0}",
   "srv.ảnh bìa các nền tảng": "सभी प्लेटफ़ॉर्म के थंबनेल",
   "srv.ảnh của phiên bản này không còn trên đĩa": "इस वर्ज़न की इमेज डिस्क पर नहीं है",
   "srv.ảnh trả về rỗng/quá nhỏ": "इमेज खाली या बहुत छोटी है",
@@ -2154,6 +2159,5 @@
   "ui.wmSource.ten-kenh": "चैनल का नाम",
   "ui.wmSpeed.cham-75s-vong": "धीमी — 75s/लूप",
   "ui.wmSpeed.rat-cham-120s-vong": "बहुत धीमी — 120s/लूप",
-  "ui.wmSpeed.vua-45s-vong": "मीडियम — 45s/लूप",
-  "srv.Bản cài đặt này đã bị can thiệp nên không thể chạy. Hãy cài lại bản gốc từ cửa hàng.": "इस प्रति के साथ छेड़छाड़ की गई है और यह नहीं चल सकती। कृपया स्टोर से मूल संस्करण फिर से इंस्टॉल करें।"
+  "ui.wmSpeed.vua-45s-vong": "मीडियम — 45s/लूप"
 }

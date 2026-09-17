@@ -24,15 +24,13 @@ const licensed = () => isRunnable(licenseStatus());
 const LANES = { pipeline: 2, render: 2 };
 
 const running = new Map();   // jobId -> Promise (in-process view of the running set)
+const runningKind = new Map(); // jobId -> lane, so capacity is counted without a DB read per tick
 const settlers = new Map();  // jobId -> {resolve} — lets enqueue() hand back a completion promise
 let timer = null;
 
 function laneCapacity() {
   const used = { pipeline: 0, render: 0 };
-  for (const id of running.keys()) {
-    const j = DB.getJob(id);
-    if (j) used[j.kind] = (used[j.kind] || 0) + 1;
-  }
+  for (const kind of runningKind.values()) used[kind] = (used[kind] || 0) + 1;
   return Object.keys(LANES).filter((k) => (used[k] || 0) < LANES[k]);
 }
 
@@ -88,8 +86,7 @@ function settle(job, { status, error = null }) {
   settlers.delete(job.id);
   // last job of a batch settled → the batch is done (parity with the old batch IIFE)
   if (job.batch_id && DB.batchFinished(job.batch_id)) {
-    const total = DB.listJobs({ limit: 500 }).filter((j) => j.batch_id === job.batch_id).length;
-    hub.broadcast({ type: 'batch-done', count: total });
+    hub.broadcast({ type: 'batch-done', count: DB.countBatchJobs(job.batch_id) });
   }
 }
 
@@ -139,11 +136,14 @@ export function tick() {
       const job = DB.claimNextJob(kinds);
       if (!job) break;
       hub.broadcast({ type: 'job', id: job.id, kind: job.kind, projectId: job.project_id, status: 'running' });
+      // One settle per job: `.then(settle).catch(settle)` settled twice when settle() itself threw,
+      // overwriting the real status with 'error'.
       const p = execute(job)
-        .then((r) => settle(job, r))
-        .catch((e) => settle(job, { status: 'error', error: String(e?.message || e) }))
-        .finally(() => { running.delete(job.id); scheduleTick(0); });
+        .then((r) => r, (e) => ({ status: 'error', error: String(e?.message || e) }))
+        .then((r) => { try { settle(job, r); } catch (e) { logger.error(`settle ${job.id}: ${e.message}`); } })
+        .finally(() => { running.delete(job.id); runningKind.delete(job.id); scheduleTick(0); });
       running.set(job.id, p);
+      runningKind.set(job.id, job.kind);
     }
   } catch (e) {
     logger.error(`scheduler tick failed: ${e.message}`);

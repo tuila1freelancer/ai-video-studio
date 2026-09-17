@@ -4,18 +4,16 @@
 import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import { WEB_SAFE, CONVERTIBLE } from '../src/api/services/image-convert.js';
-import { unwrapI18n } from './_source.mjs';
+import { sourceOf, indexHtml } from './_source.mjs';
 
-const src = (p) => unwrapI18n(readFileSync(new URL(p, import.meta.url), 'utf8'));
 
 test('logo: the native shell can actually open a file panel', () => {
   // ROOT CAUSE of "nothing happens when I click". WKWebView does NOT open a file picker on its
   // own — it asks its uiDelegate, and with no delegate the click is silently dropped: no panel,
   // no error, nothing in the console. Every <input type="file"> in the app was dead inside the
   // .app bundle while working fine in a browser, which is what disguised it as a web bug.
-  const sw = src('../shell/main.swift');
+  const sw = sourceOf('shell/main.swift');
   assert.match(sw, /WKUIDelegate/, 'the delegate protocol is adopted');
   assert.match(sw, /webView\.uiDelegate = self/, 'and actually assigned — adopting alone does nothing');
   assert.match(sw, /runOpenPanelWith parameters: WKOpenPanelParameters/);
@@ -29,7 +27,7 @@ test('logo: the native shell can actually open a file panel', () => {
 test('logo: a failed upload is reported, never swallowed', () => {
   // api.upload THROWS on any non-2xx, so the old `if (r.error)` branch was unreachable: a
   // rejected file produced an unhandled rejection and the UI did nothing at all.
-  const bk = src('../public/js/features/brandkit.js');
+  const bk = sourceOf('public/js/features/brandkit.js');
   const handler = bk.slice(bk.indexOf("$('#brandLogoFile').addEventListener"), bk.indexOf("$('#brandSave')"));
   assert.match(handler, /try \{/, 'the upload is guarded');
   assert.match(handler, /catch \(err\) \{\s*toast\(`✖ Không tải được logo: \$\{err\.message\}`/);
@@ -52,7 +50,7 @@ test('logo: the formats a Mac owner actually has are accepted, not refused', () 
     assert.ok(!WEB_SAFE.has(ext), `${ext} must not be stored raw — the renderer cannot read it`);
   }
   // the picker must offer exactly what the server accepts, or the two disagree again
-  const html = src('../public/index.html');
+  const html = indexHtml();
   const accept = /id="brandLogoFile" accept="([^"]+)"/.exec(html)?.[1] || '';
   for (const ext of [...WEB_SAFE, ...CONVERTIBLE]) {
     if (ext === '.ico') continue; // convertible, but not worth offering in the picker
@@ -61,7 +59,7 @@ test('logo: the formats a Mac owner actually has are accepted, not refused', () 
 });
 
 test('logo: conversion never silently produces an empty file', async () => {
-  const conv = src('../src/api/services/image-convert.js');
+  const conv = sourceOf('src/api/services/image-convert.js');
   // two engines because neither covers everything: the vendored ffmpeg has no HEIC decoder,
   // macOS sips does. Whichever runs, the OUTPUT is checked before the temp file is dropped.
   assert.match(conv, /existsSync\(dest\) && statSync\(dest\)\.size > 0/);

@@ -8,6 +8,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { logger } from '../util/log.js';
 
 import { tp } from '../i18n/t.js';
+import { sleep } from '../util/util.js';
 const DEFAULT_URL = 'http://127.0.0.1:7788';
 const procs = new Map();
 
@@ -21,7 +22,6 @@ function portOf(url) {
   return m ? Number.parseInt(m[1], 10) : 7788;
 }
 
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /** Cheap liveness: anything that answers on the port counts (405 on GET is a healthy POST-only route). */
 export async function isAlive(base, timeoutMs = 3000) {
@@ -48,16 +48,25 @@ export async function canSynthesize(base) {
   } catch { return false; }
 }
 
-/** Is the CLI installed? Returns the argv prefix to launch it, or null. */
-export function supertonicLauncher() {
+let launcherCache; // undefined = never probed
+/**
+ * Is the CLI installed? Returns the argv prefix to launch it, or null. Probed once per process —
+ * three blocking spawns (a Python import can take seconds) used to run on every status poll;
+ * `fresh` re-probes after an install.
+ */
+export function supertonicLauncher({ fresh = false } = {}) {
+  if (launcherCache !== undefined && !fresh) return launcherCache;
   const probe = (cmd, args) => {
     try { return spawnSync(cmd, args, { stdio: 'ignore', timeout: 8000 }).status === 0; } catch { return false; }
   };
-  if (probe('supertonic', ['--help'])) return ['supertonic'];
-  for (const py of ['python3', 'python']) {
-    if (probe(py, ['-c', 'import supertonic'])) return [py, '-m', 'supertonic.cli'];
+  launcherCache = null;
+  if (probe('supertonic', ['--help'])) launcherCache = ['supertonic'];
+  else {
+    for (const py of ['python3', 'python']) {
+      if (probe(py, ['-c', 'import supertonic'])) { launcherCache = [py, '-m', 'supertonic.cli']; break; }
+    }
   }
-  return null;
+  return launcherCache;
 }
 
 export function stopSupertonic(cfg = {}) {

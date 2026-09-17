@@ -3,21 +3,25 @@
 // happened in THIS project"; this view answers "what is the app doing right now, anywhere".
 import { $, el, esc } from '../ui/dom.js';
 import { api } from '../api.js';
-import { openProject } from '../views/studio.js';
 import { closeModal } from '../ui/modals.js';
-import { fmtMs } from './journal.js';
+import { fmtMs, fmtDate } from '../ui/format.js';
 import { m } from '../i18n.js';
 
 // Built on call, not at import: the catalogue is fetched after this module is evaluated.
 const kindLabel = () => ({ pipeline: m('🎬 Sản xuất video'), render: m('🎞 Render') });
 const statusLabel = () => ({ queued: m('⏳ đang chờ'), running: m('▶ đang chạy'), done: m('✅ xong'), error: m('⛔ lỗi'), cancelled: m('🚫 huỷ') });
 
+let wired = false;
 export function initTasks() {
+  if (wired) return;
+  wired = true;
   $('#heroTasks')?.addEventListener('click', async () => {
     $('#tasksModal').classList.add('open');
     await refreshTasks();
   });
   $('#tasksRefresh')?.addEventListener('click', refreshTasks);
+  // studio.js announces every WebSocket `job` event here instead of importing this module
+  document.addEventListener('ws:job', () => { refreshTasks(); });
 }
 
 let busy = false;
@@ -36,11 +40,11 @@ export async function refreshTasks() {
       row.innerHTML = `<span class="tk">${kinds[j.kind] || esc(j.kind)}</span>
         <span class="tt">${esc(j.projectTitle || j.project_id || '—')}</span>
         <span class="badge ${esc(cls)}">${status[j.status] || esc(j.status)}</span>
-        <span class="td">${j.attempts > 1 ? `↻${j.attempts} · ` : ''}${new Date(j.created_at).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })}${dur ? ' · ' + dur : ''}</span>`;
+        <span class="td">${j.attempts > 1 ? `↻${j.attempts} · ` : ''}${fmtDate(j.created_at, 'short')}${dur ? ' · ' + dur : ''}</span>`;
       if (j.project_id) {
         row.classList.add('click');
         row.title = m('Mở dự án + nhật ký của lần chạy này');
-        row.addEventListener('click', () => { closeModal('#tasksModal'); openProject(j.project_id); });
+        row.addEventListener('click', () => { closeModal('#tasksModal'); import('../views/studio.js').then((m) => m.openProject(j.project_id)); });
       }
       box.appendChild(row);
     }
@@ -49,7 +53,7 @@ export async function refreshTasks() {
       sysBox.appendChild(el('div', 'tasks-sec', m('⚙️ Hệ thống')));
       for (const e of sys.slice(-10)) {
         sysBox.appendChild(el('div', 'jr-l lg-' + (e.level || 'info'),
-          `<span class="jr-t">[${new Date(e.ts).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })}]</span> <span class="jr-m">${esc(e.msg)}</span>`));
+          `<span class="jr-t">[${fmtDate(e.ts, 'short')}]</span> <span class="jr-m">${esc(e.msg)}</span>`));
       }
     }
   } catch { /* best-effort */ }

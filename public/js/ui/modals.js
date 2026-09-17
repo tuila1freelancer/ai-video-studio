@@ -37,7 +37,8 @@ export function initModals() {
     if (m.querySelector('.dlg')) return; // dynamic dialog.js dialogs run their own key handling
     if (e.key === 'Escape') { e.stopPropagation(); closeModal(m); return; }
     if (e.key === 'Tab') {
-      const f = $$('button,input,textarea,select,[tabindex]', m).filter((n) => !n.disabled && n.offsetParent !== null);
+      // checkVisibility() answers without forcing layout on every control of a 100-field modal
+      const f = $$('button,input,textarea,select,[tabindex]', m).filter((n) => !n.disabled && (n.checkVisibility ? n.checkVisibility() : n.offsetParent !== null));
       if (!f.length) return;
       const i = f.indexOf(document.activeElement);
       if (e.shiftKey && i <= 0) { e.preventDefault(); f[f.length - 1].focus(); }

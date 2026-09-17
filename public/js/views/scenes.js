@@ -5,7 +5,6 @@ import { toast } from '../ui/toast.js';
 import { api, fileUrl } from '../api.js';
 import { state } from '../state.js';
 import { prog, markProgressDirty } from './progress.js';
-import { openSceneStudio } from '../features/scene-studio.js';
 import { m, tp } from '../i18n.js';
 
 // perf instrumentation (asserted by the stress gate: fullRenders must not grow during WS bursts)
@@ -35,7 +34,7 @@ function wireGrid() {
     const [, s] = sceneOf(btn); if (!s) return;
     const act = btn.dataset.act;
     if (act === 'live') openLivePreview(s);
-    else if (act === 'studio') openSceneStudio(s);
+    else if (act === 'studio') import('../features/scene-studio.js').then((m) => m.openSceneStudio(s));
     else if (act === 'edit') openPropsEditor(s);
     else if (act === 'voice') regenScene(s.id, 'voice');
     else if (act === 'html') regenScene(s.id, 'html');

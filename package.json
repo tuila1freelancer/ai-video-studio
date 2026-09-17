@@ -5,14 +5,17 @@
   "type": "module",
   "main": "shell/electron/main.cjs",
   "engines": {
-    "node": ">=20"
+    "node": ">=22 <23"
   },
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
-    "test": "node --test \"tests/*.test.js\"",
+    "test": "node --test --test-timeout=120000 \"tests/*.test.js\"",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "test:smoke": "node scripts/tpl-smoke.mjs",
     "test:e2e": "node scripts/e2e.mjs",
+    "perf:boot": "node scripts/perf/boot-audit.mjs",
     "fonts:build": "node scripts/build-fonts.mjs",
     "fonts:build:ui": "node scripts/build-fonts.mjs --ui",
     "icon:build": "node scripts/build-icon.mjs",
@@ -29,16 +32,21 @@
   },
   "dependencies": {
     "better-sqlite3": "^12.4.1",
+    "compression": "^1.8.2",
     "express": "^4.21.2",
     "msedge-tts": "^2.0.6",
-    "multer": "^1.4.5-lts.1",
+    "multer": "^2.4.0",
     "puppeteer-core": "^23.11.1",
     "ws": "^8.18.0"
   },
   "devDependencies": {
+    "@electron/asar": "^3.4.1",
+    "@eslint/js": "^9.39.5",
     "electron": "^42.9.3",
     "electron-builder": "^26.15.3",
-    "esbuild": "^0.28.2"
+    "esbuild": "^0.28.2",
+    "eslint": "^9.39.5",
+    "globals": "^16.5.0"
   },
   "build": {
     "appId": "com.tuila1freelancer.aivideostudio",

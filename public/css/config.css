@@ -1,0 +1,54 @@
+/* AI Video Studio — config column, subtitle studio, preset gallery. One of the per-area sheets index.html links in cascade order; the release build joins them. */
+/* ---- 10. CONFIG PANEL ---- */
+.cfg-preset-bar{display:flex;gap:6px;margin-bottom:12px}
+.cfg-preset-bar .input{flex:1;font-size:12px}
+/* summary cards — click opens #cfgModal with the group's full editing UI */
+.cfg-group{border:1px solid var(--hairline);border-radius:12px;margin-bottom:10px;background:var(--surface-1);overflow:hidden;transition:border-color var(--t-fast),transform var(--t-fast),box-shadow var(--t-fast)}
+.cfg-group:hover{border-color:rgba(109,92,255,.45);transform:translateY(-1px);box-shadow:var(--shadow-1)}
+.cfg-head{display:flex;align-items:flex-start;gap:10px;width:100%;padding:11px 12px;background:none;border:none;color:var(--text-1);cursor:pointer;font-size:13px;font-weight:600;text-align:left}
+.cfg-ic{width:18px;text-align:center;padding-top:1px}
+.cfg-meta{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.cfg-title{line-height:1.3}
+.cfg-chip{font-size:11px;font-weight:500;color:var(--text-2);line-height:1.45;white-space:normal}
+.cfg-arr{color:var(--text-3);padding-top:1px}
+.cfg-group:hover .cfg-arr{color:var(--accent-hi)}
+.cfg-body{display:none;padding:4px 12px 12px}
+.modal.cfgm{max-width:430px}
+#cfgModalBody .cfg-body{display:block;padding:0} /* body node is parked here while editing */
+.cfg-details summary{font-size:12px;color:var(--text-2);cursor:pointer;margin-top:8px;user-select:none}
+.cfg-details[open] summary{color:var(--accent-hi)}
+
+/* ---- subtitle studio ----
+   Only the Phụ đề group gets the wide modal; the other four config groups keep .cfgm's 430px.
+   The class is put on by openCfgGroupModal, because all five share one #cfgModal shell. */
+.modal.cfgm.sub-wide{max-width:1240px;width:min(97vw,1240px)}
+.sub-studio{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;align-items:start}
+/* one column at a time as the window narrows — three 300px columns are unreadable */
+@media (max-width:1180px){.sub-studio{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:820px){.sub-studio{grid-template-columns:1fr}}
+.sub-col{min-width:0}
+/* Thirty controls do not fit a screen at any column count, so the preview follows the scroll
+   instead of being left behind by it — the whole point is watching the change as it is made. */
+@media (min-width:821px){.sub-col:first-child{position:sticky;top:0}}
+.sub-h{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3);
+  margin:14px 0 8px;padding-bottom:5px;border-bottom:1px solid var(--hairline)}
+.sub-col>.sub-h:first-child{margin-top:0}
+.chk{display:inline-flex;align-items:center;gap:5px;cursor:pointer;user-select:none}
+.cpick{width:34px;height:24px;padding:0;border:none;background:none;cursor:pointer}
+.cpick.block{width:100%;height:30px;border-radius:8px}
+/* trên · phải · dưới · trái, laid out as the box they describe */
+.pad4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-top:4px}
+.pad4 .input{padding:5px 6px;text-align:center}
+
+/* subtitle preset gallery */
+.sub-preset-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.sub-preset-card{border:1px solid var(--hairline);border-radius:10px;background:rgba(0,0,0,.3);padding:10px 8px;cursor:pointer;text-align:center;transition:border-color var(--t-fast),transform var(--t-fast)}
+.sub-preset-card:hover{border-color:var(--accent-hi);transform:translateY(-1px)}
+.sub-preset-card.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.sub-preset-card .spc-demo{font-size:15px;line-height:1.25;margin-bottom:5px;pointer-events:none}
+.sub-preset-card .spc-name{font-size:10.5px;color:var(--text-2);font-weight:600;letter-spacing:.04em}
+.sub-preset-card{position:relative}
+.spc-del{position:absolute;top:3px;right:4px;width:17px;height:17px;line-height:15px;border-radius:50%;
+  border:none;background:rgba(0,0,0,.5);color:var(--text-3);font-size:13px;cursor:pointer;padding:0;opacity:0;transition:opacity var(--t-fast)}
+.sub-preset-card:hover .spc-del{opacity:1}
+.spc-del:hover{background:var(--danger,#e5484d);color:#fff}

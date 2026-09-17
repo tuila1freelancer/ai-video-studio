@@ -6,7 +6,6 @@ import { switchPage } from '../views/nav.js';
 import { openProject } from '../views/studio.js';
 import { applyConfig, updateCfgChips } from '../views/config.js';
 import { openSettings } from '../features/settings.js';
-import { openVoicePicker } from '../features/voicepicker.js';
 import { openBrandEditor } from '../features/brandkit.js';
 import { renderChannelList } from '../features/channels.js';
 import { toast } from './toast.js';
@@ -31,7 +30,7 @@ function commands() {
     { icn: 'scissors', label: m('Edit Video'), run: () => switchPage('editvideo') },
     { icn: 'book', label: m('Hướng dẫn'), run: () => switchPage('tutorials') },
     { icn: 'settings', label: m('AI Setting'), run: openSettings },
-    { icn: 'mic', label: m('Chọn giọng đọc'), run: openVoicePicker },
+    { icn: 'mic', label: m('Chọn giọng đọc'), run: () => import('../features/voicepicker.js').then((v) => v.openVoicePicker()) },
     { icn: 'tv', label: m('Quản lý kênh'), run: () => { renderChannelList(); $('#channelModal').classList.add('open'); } },
     { icn: 'star', label: m('Brand Kit của kênh'), run: openBrandEditor },
   ];

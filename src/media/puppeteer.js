@@ -1,6 +1,5 @@
 // Headless Chrome (Chrome for Testing) via puppeteer-core — rasterizes scene HTML into a
 // poster image. Spun up lazily, reused, warmed up to avoid first-paint races.
-import puppeteer from 'puppeteer-core';
 import { join } from 'node:path';
 import { PATHS, DIRS } from '../config/paths.js';
 import { newId } from '../util/util.js';
@@ -20,6 +19,8 @@ export async function getBrowser() {
   }
   if (!browserPromise) {
     browserPromise = (async () => {
+      // ~2 MB of JS the server never needs until the first render — parsed then, not at boot.
+      const { default: puppeteer } = await import('puppeteer-core');
       const browser = await puppeteer.launch({
         executablePath: PATHS.chrome,
         headless: true,

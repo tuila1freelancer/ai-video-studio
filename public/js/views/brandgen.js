@@ -37,7 +37,7 @@ function setProgress(done, total) {
 
 async function loadBrands(selectValue) {
   try {
-    const { brands } = await api.get('/brands');
+    const { brands } = await api.get('/brands', { ttl: 5000 });
     const list = (brands && brands.length ? brands : ['Default']);
     if (!list.includes('Default')) list.unshift('Default');
     const cur = selectValue || getBrand();
@@ -49,7 +49,7 @@ async function loadBrands(selectValue) {
 let editProviders = [];
 async function loadImageProviders() {
   try {
-    const { settings } = await api.get('/settings');
+    const { settings } = await api.get('/settings', { ttl: 5000 });
     const ig = settings.imageGen || {};
     editProviders = Array.isArray(ig.editProviders) ? ig.editProviders : [];
     const pick = ig.brandEdit || {};
@@ -178,7 +178,7 @@ async function start() {
 
 async function loadCopyTargets() {
   try {
-    const { brands } = await api.get('/brands');
+    const { brands } = await api.get('/brands', { ttl: 5000 });
     const others = (brands || []).filter((b) => b !== getBrand());
     if (!$$('#bgResults .libitem').length) return;
     $('#bgCopySec').classList.remove('hidden');
@@ -201,9 +201,14 @@ async function copyToBrand() {
   } catch (e) { $('#bgCopyStatus').textContent = tp`❌ Lỗi: ${e.message}`; }
 }
 
+let wired = false;
+/** First show of the page: wire the controls once, then (re)load the catalogues every show. */
+export function openBrandGen() {
+  if (!wired) { wired = true; initBrandGen(); }
+  loadBrands(); loadImageProviders();
+}
 export function initBrandGen() {
   if (!$('#bgGo')) return;
-  loadBrands(); loadImageProviders();
   // reference image
   $('#bgRef').addEventListener('change', (e) => {
     refFile = e.target.files[0] || null;

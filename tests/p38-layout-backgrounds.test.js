@@ -3,7 +3,7 @@
 import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { sourceOf } from './_source.mjs';
 import { viewportBlock, ratioRulesBlock, ratioClass } from '../src/hyperframe/prompt.js';
 import { BACKDROP_STYLES, ALL_MOTIFS, backdropForScene } from '../src/animation/backdrop.js';
 
@@ -42,7 +42,7 @@ test('P38 ratioClass + ratioRulesBlock select the right per-ratio rules', () => 
 });
 
 test('P38 buildCodegenPrompt wires the viewport + ratio-rule blocks; composition uses a 3x3 grid', () => {
-  const s = readFileSync(new URL('../src/hyperframe/prompt.js', import.meta.url), 'utf8');
+  const s = sourceOf('src/hyperframe/prompt.js');
   assert.match(s, /\$\{viewportBlock\(w, h, captionsOn\)\}\n\$\{ratioRulesBlock\(w, h\)\}/, 'both layout blocks are injected, in order');
   // P41: the 3x3 grid is now NAMED (TL..BR) with a quota instead of described as a grid
   assert.match(s, /TL TC TR \/ ML MC MR \/ BL BC BR/, 'the composition rule names the nine zones');
@@ -55,6 +55,6 @@ test('P38 backdrop rotation is deterministic, non-repeating, and stays a legal g
   assert.notEqual(backdropForScene({}, 3, 42), backdropForScene({}, 4, 42), 'consecutive scenes differ');
   assert.notEqual(backdropForScene({}, 0, 0), backdropForScene({}, 0, 3), 'the per-video salt shifts the start');
   assert.equal(backdropForScene({ visual_prompt: '[ROLE] cta' }, 5, 7), 'spotlight', 'a calm cta gets a quiet spotlight');
-  const guideSrc = readFileSync(new URL('../src/styleguide/guide.js', import.meta.url), 'utf8');
+  const guideSrc = sourceOf('src/styleguide/guide.js');
   for (const s of ALL_MOTIFS) assert.ok(guideSrc.includes(`'${s}'`), `${s} is whitelisted as a legal guide motif`);
 });

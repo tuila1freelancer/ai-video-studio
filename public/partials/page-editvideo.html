@@ -1,0 +1,35 @@
+    <section class="page" id="page-editvideo">
+      <div class="center-narrow">
+        <h1 data-i18n="ui.page-editvideo.edit-video">✂️ Edit Video</h1>
+        <p class="sub" style="color:var(--muted);margin:6px 0 18px" data-i18n="ui.page-editvideo.cat-nhanh-doan-video-bang">Cắt nhanh đoạn video bằng ffmpeg.</p>
+        <div class="field"><label class="btn sm"><span data-i18n="ui.page-editvideo.chon-video">📁 Chọn video</span><input type="file" id="evFile" accept="video/*" hidden></label> <span id="evName" class="hint" data-i18n="ui.page-editvideo.chua-chon">Chưa chọn</span></div>
+        <video id="evPreview" controls class="hidden" style="max-width:340px;border-radius:8px;background:#000"></video>
+        <div class="grid2 mt-12" style="max-width:300px"><div><label class="label" for="evStart" data-i18n="ui.page-editvideo.bat-dau-s">Bắt đầu (s)</label><input class="input" id="evStart" type="number" value="0" min="0"></div><div><label class="label" for="evEnd" data-i18n="ui.page-editvideo.ket-thuc-s">Kết thúc (s)</label><input class="input" id="evEnd" type="number" value="10" min="0"></div></div>
+        <button class="btn primary mt-12" id="evCut" data-i18n="ui.page-editvideo.cat-xuat">✂️ Cắt & xuất</button>
+        <div class="mt-14" id="evOut"></div>
+        <hr style="margin:20px 0;border:0;border-top:1px solid var(--line,#2a2a35)">
+        <h3 class="mb-6" data-i18n="ui.page-editvideo.them-do-hoa-ai-len">✨ Thêm đồ hoạ AI lên video có sẵn</h3>
+        <div class="hint" data-i18n="ui.page-editvideo.ai-boc-loi-thoai-trong">AI bóc lời thoại trong video, cắt thành cảnh, tự dựng đồ hoạ chuyển động nền trong suốt rồi ghép đè lên chính video của bạn — giữ nguyên hình và tiếng gốc.</div>
+        <div class="grid2 mt-10" style="max-width:420px">
+          <div><label class="label" for="evSceneDur" data-i18n="ui.page-editvideo.do-dai-moi-canh-giay">Độ dài mỗi cảnh (giây)</label><input class="input" id="evSceneDur" type="number" value="7" min="3" max="15"></div>
+          <div><label class="label" for="evLang" data-i18n="ui.page-editvideo.ngon-ngu-loi-thoai">Ngôn ngữ lời thoại</label>
+            <select class="input" id="evLang"><option value="auto" data-i18n="ui.evLang.tu-nhan">Tự nhận</option><option value="vi" data-i18n="ui.evLang.tieng-viet">Tiếng Việt</option><option value="en" data-i18n="ui.evLang.english">English</option></select>
+          </div>
+        </div>
+        <label class="switch-row mt-8"><span class="switch"><input type="checkbox" id="evSubs"><span class="sl"></span></span> <span data-i18n="ui.page-editvideo.ghi-them-phu-de-karaoke">Ghi thêm phụ đề karaoke lên video</span></label>
+        <div class="field" style="max-width:420px"><label class="label" for="evReframe" data-i18n="ui.page-editvideo.vi-tri-nhan-vat-khi">Vị trí nhân vật khi phải cắt khung</label>
+          <select class="input" id="evReframe">
+            <option value="center" data-i18n="ui.evReframe.giua-mac-dinh">⬜ Giữa (mặc định)</option>
+            <option value="auto" data-i18n="ui.evReframe.tu-do-chu-the">🤖 Tự dò chủ thể</option>
+            <option value="left" data-i18n="ui.evReframe.ben-trai">← Bên trái</option>
+            <option value="right" data-i18n="ui.evReframe.ben-phai">→ Bên phải</option>
+          </select>
+          <div class="hint" data-i18n="ui.page-editvideo.chi-co-tac-dung-khi">Chỉ có tác dụng khi tỉ lệ video nguồn khác tỉ lệ xuất — cắt giữa hay cắt mất người đứng lệch.</div></div>
+        <label class="switch-row mt-8"><span class="switch"><input type="checkbox" id="evCutSilence"><span class="sl"></span></span> <span data-i18n="ui.page-editvideo.cat-bo-khoang-lang-im">Cắt bỏ khoảng lặng (im lặng &gt; 0.6s)</span></label>
+        <div class="hint" style="margin:-2px 0 8px 46px" data-i18n="ui.page-editvideo.cat-truoc-khi-boc-loi">Cắt trước khi bóc lời thoại, nên phụ đề và cảnh vẫn khớp tuyệt đối. Video sẽ ngắn lại.</div>
+        <label class="switch-row"><span class="switch"><input type="checkbox" id="evZoom"><span class="sl"></span></span> <span data-i18n="ui.page-editvideo.tu-dong-zoom-nhe-ken">Tự động zoom nhẹ (Ken Burns)</span></label>
+        <div class="hint" style="margin:-2px 0 8px 46px" data-i18n="ui.page-editvideo.canh-chan-zoom-vao-canh">Cảnh chẵn zoom vào, cảnh lẻ zoom ra — chống cảm giác đứng hình khi quay một góc máy cố định.</div>
+        <button class="btn primary mt-12" id="evEnhance" data-i18n="ui.page-editvideo.dung-do-hoa-ghep">✨ Dựng đồ hoạ & ghép</button>
+        <div class="mt-10" id="evEnhanceOut"></div>
+      </div>
+    </section>

@@ -10,6 +10,7 @@ import { api } from '../api.js';
 import { state } from '../state.js';
 import { confirmDialog, openDialog, promptDialog } from '../ui/dialog.js';
 import { m, tp } from '../i18n.js';
+import { fmtDate } from '../ui/format.js';
 
 // Mirrors COMPOSITIONS in src/pipeline/thumbnail-codegen.js — the owner picks a layout brief
 // instead of re-rolling the same idea and hoping for a different one.
@@ -82,7 +83,7 @@ export async function renderThumbPanel() {
 }
 
 function stripItem(v) {
-  const when = v.created_at ? new Date(v.created_at).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
+  const when = v.created_at ? fmtDate(v.created_at, 'short') : '';
   const tag = sourceLabel(v.source);
   return `<figure class="tp-ver${v.current ? ' is-current' : ''}">
     ${v.url ? `<img src="${esc(v.url)}" loading="lazy" alt="">` : `<div class="tp-gone">${m('ảnh không còn')}</div>`}

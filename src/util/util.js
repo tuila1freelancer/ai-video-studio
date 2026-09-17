@@ -48,6 +48,22 @@ export function ratioToSize(aspect) {
   }
 }
 
+/** Resolve after `ms`. */
+export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/** `v` as a number inside [lo, hi], or `dflt` when it is not a number at all. */
+export function clampNum(v, lo, hi, dflt) {
+  const n = Number(v);
+  return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : dflt;
+}
+
+/** Strip combining marks and the Vietnamese đ/Đ, case untouched. */
+export function foldDiacritics(s) {
+  return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D');
+}
+/** foldDiacritics, lower-cased — the shape every keyword matcher compares in. */
+export function foldLower(s) { return foldDiacritics(s).toLowerCase(); }
+
 export function escapeHtml(s) {
   return String(s == null ? '' : s)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')

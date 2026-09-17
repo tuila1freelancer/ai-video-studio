@@ -1,6 +1,7 @@
 // P20 — LLM SRT correction lane: fixes whisper mishears while the contract pins EVERY
 // timestamp and the block count; any violating reply is discarded (originals ship).
 // Offline (no LLM) the lane is a clean no-op.
+import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { cuesToSrt, parseSrtReply, applyCorrection, correctCues } from '../src/subtitles/llm-correct.js';

@@ -8,7 +8,7 @@
 //
 // The browser side already has this discipline (harness `fontChecks` probes document.fonts and
 // reports a miss); this is the same contract for the burn side.
-import { readdirSync, existsSync, mkdirSync, copyFileSync, readFileSync } from 'node:fs';
+import { readdirSync, existsSync, mkdirSync, copyFileSync, readFileSync, statSync } from 'node:fs';
 import { join, extname, basename } from 'node:path';
 import { VENDOR_DIR, DIRS } from '../config/paths.js';
 import { userFontRows, familyOf } from '../animation/userfonts.js';
@@ -91,6 +91,14 @@ export function isDownloaded(family) {
   return !!downloadedCss(family);
 }
 
+/** Changes whenever a fetched family is added, removed or rewritten — without reading any file. */
+export function downloadedStamp() {
+  try {
+    const dir = webFontDir();
+    return readdirSync(dir).filter((f) => f.endsWith('.css')).map((f) => `${f}:${statSync(join(dir, f)).mtimeMs}`).join('|');
+  } catch { return ''; }
+}
+
 /** Display names of every fetched family, read back out of the CSS they were stored with. */
 export function downloadedFamilies() {
   try {
@@ -102,7 +110,7 @@ export function downloadedFamilies() {
 }
 
 /** Static faces fetched alongside the CSS, in the same `<Family>-<weight>.ttf` shape as vendored. */
-export function downloadedFaces() {
+function downloadedFaces() {
   try {
     return readdirSync(webFontDir())
       .filter((f) => f.toLowerCase().endsWith('.ttf'))

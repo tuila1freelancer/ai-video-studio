@@ -1,0 +1,82 @@
+<div class="modal-bg" id="brandModal" role="dialog" aria-modal="true">
+  <div class="modal brand-modal">
+    <h2><span><span data-i18n="ui.brandModal.brand-kit">🏷 Brand Kit —</span> <span id="brandChName" data-i18n="ui.brandModal.kenh">kênh</span></span> <button class="x" data-close>×</button></h2>
+    <div class="brand-editor">
+      <div class="brand-stage-wrap">
+        <div class="brand-stage" id="brandStage">
+          <div class="bst-guide v" id="bstGuideV"></div>
+          <div class="bst-guide h" id="bstGuideH"></div>
+          <div class="bst-ghost bst-logo hidden" id="bstLogo" title="Kéo để đặt vị trí logo — lăn chuột / kéo chấm góc để chỉnh cỡ" tabindex="0" data-i18n-title="ui.brandStage.keo-de-dat-vi-tri"><img id="bstLogoImg" alt=""><div class="bst-rsz" id="bstRsz" title="Kéo để chỉnh cỡ" data-i18n-title="ui.bstLogo.keo-de-chinh-co"></div></div>
+          <div class="bst-ghost bst-badge hidden" id="bstBadge" title="Kéo để đặt vị trí tên kênh" data-i18n="ui.brandStage.ten-kenh" data-i18n-title="ui.brandStage.keo-de-dat-vi-tri-2">TÊN KÊNH</div>
+          <div class="bst-wm hidden" id="bstWm"><img id="bstWmImg" class="hidden" alt=""><span id="bstWmText" class="hidden"></span></div>
+          <div class="bst-capband" title="Vùng phụ đề" data-i18n-title="ui.brandStage.vung-phu-de"></div>
+        </div>
+        <div class="hint mt-6" id="bstStageMeta" style="font-variant-numeric:tabular-nums"></div>
+        <div class="hint mt-4" id="bstReadout" style="font-variant-numeric:tabular-nums"></div>
+        <div class="hint mt-4" data-i18n="ui.brandModal.keo-logo-ten-kenh-tren">Kéo logo / tên kênh trên khung để đặt vị trí. Nền = cảnh thật gần nhất của kênh.</div>
+      </div>
+      <div class="brand-form">
+        <div class="bg-sec" data-i18n="ui.brandModal.kenh-2">Kênh</div>
+        <div class="field"><label class="label" for="brandName" data-i18n="ui.brandModal.ten-kenh-hien-tren-video">Tên kênh (hiện trên video)</label><input class="input" id="brandName" placeholder="vd: TuiLa Dev" data-i18n-placeholder="ui.brandModal.vd-tuila-dev"></div>
+        <div class="grid2">
+          <div><label class="switch-row mt-4"><span class="switch"><input type="checkbox" id="brandBadgeOn" checked><span class="sl"></span></span> <span data-i18n="ui.brandModal.hien-ten-kenh">Hiện tên kênh</span></label></div>
+          <div><select class="input" id="brandBadgeStyle"><option value="plain" data-i18n="ui.brandBadgeStyle.chu-thuong">Chữ thường</option><option value="pill" data-i18n="ui.brandBadgeStyle.pill-vien-nen">Pill (viên nén)</option><option value="underline" data-i18n="ui.brandBadgeStyle.gach-chan-neon">Gạch chân neon</option></select></div>
+        </div>
+
+        <div class="bg-sec" data-i18n="ui.brandModal.logo-dong-dau-co-dinh">Logo — đóng dấu cố định</div>
+        <div class="field">
+          <div class="row"><input class="flex-1" type="file" id="brandLogoFile" accept=".png,.jpg,.jpeg,.webp,.svg,.gif,.heic,.heif,.bmp,.tif,.tiff,.avif" style="font-size:12px"><button class="btn sm danger" id="brandLogoClear" title="Bỏ logo" data-i18n-title="ui.brandModal.bo-logo">🗑</button></div>
+        </div>
+        <label class="switch-row"><span class="switch"><input type="checkbox" id="stampOn"><span class="sl"></span></span> <span data-i18n="ui.brandModal.dong-dau-logo-len-video">Đóng dấu logo lên video hoàn chỉnh (bước ghép cuối — đúng 100% vị trí xem trước)</span></label>
+        <div id="stampOpts">
+          <label class="label mt-8" data-i18n="ui.stampOpts.vi-tri-nhanh-sat-mep">Vị trí nhanh (sát mép, cách một khoảng nhỏ)</label>
+          <div class="corner-grid" id="stampCorners">
+            <button type="button" data-corner="tl" title="Góc trái trên" data-i18n="ui.stampCorners.trai-tren" data-i18n-title="ui.stampCorners.goc-trai-tren">◤ Trái trên</button>
+            <button type="button" data-corner="tr" title="Góc phải trên" data-i18n="ui.stampCorners.phai-tren" data-i18n-title="ui.stampCorners.goc-phai-tren">◥ Phải trên</button>
+            <button type="button" data-corner="bl" title="Góc trái dưới" data-i18n="ui.stampCorners.trai-duoi" data-i18n-title="ui.stampCorners.goc-trai-duoi">◣ Trái dưới</button>
+            <button type="button" data-corner="br" title="Góc phải dưới" data-i18n="ui.stampCorners.phai-duoi" data-i18n-title="ui.stampCorners.goc-phai-duoi">◢ Phải dưới</button>
+            <button type="button" data-corner="free" title="Kéo thả tự do trên khung" data-i18n="ui.stampCorners.tu-do" data-i18n-title="ui.stampCorners.keo-tha-tu-do-tren">🎯 Tự do</button>
+          </div>
+          <div class="grid2">
+            <div><label class="label"><span data-i18n="ui.stampOpts.co-logo">Cỡ logo:</span> <strong id="brandLogoSizeL">8.5%</strong></label>
+              <input type="range" class="range" id="brandLogoSize" min="2" max="40" step="0.5" value="8.5"></div>
+            <div><label class="label"><span data-i18n="ui.stampOpts.do-mo">Độ mờ:</span> <strong id="brandLogoOpacityL">90%</strong></label>
+              <input type="range" class="range" id="brandLogoOpacity" min="20" max="100" step="5" value="90"></div>
+          </div>
+        </div>
+
+        <div class="bg-sec" data-i18n="ui.brandModal.watermark-ban-quyen-chay-quanh">Watermark bản quyền — chạy quanh màn hình</div>
+        <label class="switch-row"><span class="switch"><input type="checkbox" id="wmOn"><span class="sl"></span></span> <span data-i18n="ui.brandModal.bat-watermark-troi-cham-quanh">Bật watermark trôi chậm quanh viền video (đánh dấu bản quyền)</span></label>
+        <div id="wmOpts" class="hidden">
+          <div class="grid2 mt-8">
+            <div><label class="label" for="wmSource" data-i18n="ui.wmOpts.noi-dung">Nội dung</label>
+              <select class="input" id="wmSource"><option value="logo" data-i18n="ui.wmSource.logo-kenh">Logo kênh</option><option value="name" data-i18n="ui.wmSource.ten-kenh">Tên kênh</option></select></div>
+            <div><label class="label" for="wmSpeed" data-i18n="ui.wmOpts.toc-do">Tốc độ</label>
+              <select class="input" id="wmSpeed"><option value="slow" selected data-i18n="ui.wmSpeed.cham-75s-vong">Chậm — 75s/vòng</option><option value="slower" data-i18n="ui.wmSpeed.rat-cham-120s-vong">Rất chậm — 120s/vòng</option><option value="medium" data-i18n="ui.wmSpeed.vua-45s-vong">Vừa — 45s/vòng</option></select></div>
+          </div>
+          <div class="grid2 mt-8">
+            <div><label class="label"><span data-i18n="ui.wmOpts.co">Cỡ:</span> <strong id="wmSizeL">6%</strong></label>
+              <input type="range" class="range" id="wmSize" min="3" max="20" step="0.5" value="6"></div>
+            <div><label class="label"><span data-i18n="ui.wmOpts.do-mo">Độ mờ:</span> <strong id="wmOpacityL">35%</strong></label>
+              <input type="range" class="range" id="wmOpacity" min="10" max="80" step="5" value="35"></div>
+          </div>
+          <div class="hint mt-6" data-i18n="ui.wmOpts.xem-truoc-chay-nhanh-5">Xem trước chạy nhanh ×5 cho dễ thấy — video thật đúng tốc độ đã chọn.</div>
+        </div>
+
+        <details class="cfg-details" style="margin:14px 0 8px">
+          <summary data-i18n="ui.brandModal.ai-rieng-cua-kenh-de">⚙ AI riêng của kênh (đè lên cấu hình chung)</summary>
+          <div class="field mt-8"><label class="label" for="brandAiTts" data-i18n="ui.brandModal.provider-giong-doc">Provider giọng đọc</label>
+            <select class="input" id="brandAiTts"><option value="" data-i18n="ui.brandAiTts.dung-cau-hinh-chung">— Dùng cấu hình chung —</option></select></div>
+          <div class="field"><label class="label" for="brandAiLlmModel" data-i18n="ui.brandModal.llm-model-kich-ban">LLM model (kịch bản)</label>
+            <input class="input" id="brandAiLlmModel" placeholder="— Dùng cấu hình chung —" data-i18n-placeholder="ui.brandModal.dung-cau-hinh-chung"></div>
+          <div class="field"><label class="label" for="brandAiSub" data-i18n="ui.brandModal.engine-phu-de">Engine phụ đề</label>
+            <select class="input" id="brandAiSub"><option value="" data-i18n="ui.brandAiSub.dung-cau-hinh-chung">— Dùng cấu hình chung —</option><option value="align" data-i18n="ui.brandAiSub.align-chu-chuan-timing-that">align (chữ chuẩn + timing thật)</option><option value="estimate" data-i18n="ui.brandAiSub.estimate-chu-chuan">estimate (chữ chuẩn)</option><option value="whisper" data-i18n-exempt>whisper</option></select></div>
+          <div class="field"><label class="label" for="brandFont" data-i18n="ui.brandModal.font-thuong-hieu-cua-kenh">🔤 Font thương hiệu của kênh</label>
+            <select class="input" id="brandFont"><option value="" data-i18n="ui.brandFont.theo-style-guide">— Theo style guide —</option></select></div>
+        </details>
+        <button class="btn primary block" id="brandSave" data-i18n="ui.brandModal.luu-brand-kit-vao-kenh">💾 Lưu Brand Kit vào kênh</button>
+        <div class="hint mt-6" id="brandSaveHint"></div>
+      </div>
+    </div>
+  </div>
+</div>

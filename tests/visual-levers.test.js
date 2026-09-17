@@ -5,7 +5,7 @@
 import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { sourceOf } from './_source.mjs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { mkdtempSync } from 'node:fs';
@@ -14,7 +14,6 @@ import { extractBeats } from '../src/hyperframe/beats.js';
 import { resolveGuide } from '../src/styleguide/index.js';
 import { PATHS } from '../src/config/paths.js';
 
-const src = (f) => readFileSync(new URL(f, import.meta.url), 'utf8');
 
 test('P35 densityForScene: hook/proof/payoff → rich, cta → minimal, else the project baseline', () => {
   assert.equal(densityForScene({ visual_prompt: '[ROLE] hook\n[MAIN FOCUS] x' }, 'balanced'), 'rich');
@@ -52,25 +51,25 @@ test('P35 preset effects/ambient reach the codegen prompt (the wired-but-empty b
 });
 
 test('P38 source pins: the render gate is not-broken + balanced only (caliber/soft/contrast gone)', () => {
-  const v = src('../src/hyperframe/validate.js');
+  const v = sourceOf('src/hyperframe/validate.js');
   assert.match(v, /stacked on the center axis/, 'P38 distribution (center-clump) check exists');
   assert.match(v, /hadCluster && maxSpread < 0\.22/, 'the distribution check measures horizontal spread');
   assert.ok(!/softDefects/.test(v), 'the soft caliber gates are removed');
   assert.ok(!/contrastFix/.test(v), 'the auto-contrast repair target is removed from validate');
   assert.ok(!/the spoken anchor words|hero construction carries only|produce no visual response|the scene reads sparse/.test(v), 'the caliber nudges are gone');
-  const c = src('../src/hyperframe/codegen.js');
+  const c = sourceOf('src/hyperframe/codegen.js');
   assert.ok(!/captionsOn, overlay, density/.test(c), 'renderValidate no longer receives density');
   assert.ok(!/softDefects|contrastRepaired|const tier =/.test(c), 'codegen drops the contrast-repair + tier logic');
 });
 
 test('P35 source pins: regen parity + no-fallback; director sees spoken anchors', () => {
-  const r = src('../src/pipeline/regen.js');
+  const r = sourceOf('src/pipeline/regen.js');
   assert.match(r, /diversitySalt: hash32\(String\(project\.id\)\)/, 'regen salts like the batch lane');
   assert.ok(!/qtier:/.test(r), 'P38: regen no longer persists a quality tier');
   assert.match(r, /captionsOn: config\.enableSubtitles !== false/, 'caption reserve parity');
   assert.match(r, /delete baseLlm\.modelFallback/, 'no-fallback model contract in regen');
   assert.ok(!/catch \{\s*\n?\s*plan = planScene/.test(r), 'the silent heuristic fallback for hyperframe regen is gone');
-  const d = src('../src/pipeline/direction.js');
+  const d = sourceOf('src/pipeline/direction.js');
   assert.match(d, /spoken anchors/, 'briefs carry the beat labels + times');
   assert.match(d, /Anchor the \[CHOREOGRAPHY\] verbs/, 'anchoring rule in the director prompt');
 });

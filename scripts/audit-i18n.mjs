@@ -12,6 +12,7 @@ import { fileURLToPath } from 'node:url';
 import { LANG_CODES } from '../src/i18n/languages.js';
 import { walk, literals, reachable, tpCovered, looksVietnamese, exemptLines, ATTRS } from './lib/i18n-scan.mjs';
 import { stripComments } from './lib/msgid.mjs';
+import { assembleIndex } from '../src/util/html-include.js';
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const VERBOSE = process.argv.includes('--verbose');
@@ -26,6 +27,7 @@ const NEVER_TRANSLATED = [
   /^[\d.,\s]*(?:%|dB|ms|s|px|fps|p|K|MB|GB|×)$/i,
   /^https?:\/\//, /^sk-/, /^~\//, /^[a-z0-9-]+\/[a-z0-9-]+$/i,
   /^(?:Client ID|Client Secret|Page ID|Page Access Token|Base URL|TOOLS-)/,
+  // eslint-disable-next-line no-misleading-character-class -- ZWJ/VS16 belong in the emoji class
   /^[\p{Extended_Pictographic}\p{Emoji_Presentation}\s‍️●○▶◀·—–|]+$/u,
 ];
 // A Vietnamese word outranks every rule above it: `~/Movies/AI Video Studio/ten-kenh` is a path
@@ -47,7 +49,7 @@ const findings = { markup: [], browser: [], server: [], serverAnyLang: [], catal
 
 // ---- 1. public/index.html: a node a person reads, with no key on it ----------------------------
 {
-  const html = readFileSync(join(ROOT, 'public', 'index.html'), 'utf8').replace(/<!--[\s\S]*?-->/g, '');
+  const html = assembleIndex(join(ROOT, 'public')).replace(/<!--[\s\S]*?-->/g, '');
   const body = html.replace(/<script[\s\S]*?<\/script>/g, '').replace(/<style[\s\S]*?<\/style>/g, '');
   const text = /(>)([^<>]+)(<)/g;
   let hit;

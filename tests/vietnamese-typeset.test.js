@@ -15,11 +15,11 @@
 import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { sourceOf } from './_source.mjs';
 import { buildSceneHtml } from '../src/animation/index.js';
 import { scriptTextRule } from '../src/hyperframe/prompt.js';
 
-const harness = readFileSync(new URL('../src/animation/harness.js', import.meta.url), 'utf8');
+const harness = sourceOf('src/animation/harness.js');
 
 test('the repair measures the real font instead of hardcoding a number', () => {
   // The safe line-height runs 1.18 (Anton) to 1.41 (Nunito) — one constant would be wrong for
@@ -119,7 +119,7 @@ test('the zone budget names the failure it actually gets', () => {
   // 48% and 62% — different numbers, same zone. Measured over 1,082 shipped scenes: 31% put two
   // slots in one zone while 43% left a corner empty, so in most of them the SAME slots would have
   // passed if one of the pair had moved to the starved corner.
-  const prompt = readFileSync(new URL('../src/hyperframe/prompt.js', import.meta.url), 'utf8');
+  const prompt = sourceOf('src/hyperframe/prompt.js');
   assert.match(prompt, /TWO SLOTS MAY NEVER BIN INTO THE SAME ZONE/);
   assert.match(prompt, /48% and 62% are different numbers and the SAME zone/);
   assert.match(prompt, /move the slot, do not add one/, 'the rule must never ask for more elements');

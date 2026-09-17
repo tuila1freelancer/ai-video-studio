@@ -19,11 +19,9 @@ import { LANG_WPS, splitSentences } from '../providers/llm.js';
 import { auditCtas } from './cta-audit.js';
 
 import { m, tp } from '../i18n/t.js';
-function fold(s) {
-  return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase();
-}
+import { foldLower } from '../util/util.js';
 function ngrams(text, n = 5) {
-  const toks = fold(text).replace(/[^\p{L}\p{N}\s]/gu, '').split(/\s+/).filter(Boolean);
+  const toks = foldLower(text).replace(/[^\p{L}\p{N}\s]/gu, '').split(/\s+/).filter(Boolean);
   const out = new Set();
   for (let i = 0; i + n <= toks.length; i++) out.add(toks.slice(i, i + n).join(' '));
   return out;
@@ -120,7 +118,7 @@ export function scoreScript(scenes, config = {}) {
 
   // P33 — hook-weak: scene 1 must open cold on the gap, never on a greeting/channel intro.
   if (texts.length) {
-    const h = fold(texts[0]);
+    const h = foldLower(texts[0]);
     if (/(xin chao|chao mung|chao cac ban|chao tat ca|hello everyone|welcome (back |to ))/.test(h)) {
       issues.push({ idx: scenes[0].idx, type: 'hook-weak', detail: m('cảnh mở đầu chào hỏi thay vì vào thẳng vấn đề — hook phải lạnh và cụ thể') });
     }
@@ -129,7 +127,7 @@ export function scoreScript(scenes, config = {}) {
   // P33 — idea-repeat: paraphrased re-teaching (verbatim 5-grams above can't see it).
   // Content-token Jaccard ≥0.6 between NON-adjacent scenes (adjacent scenes legitimately share
   // vocabulary while building on each other).
-  const contentTokens = (t) => new Set(fold(t).replace(/[^\p{L}\p{N}\s]/gu, ' ').split(/\s+/).filter((w) => w.length >= 3));
+  const contentTokens = (t) => new Set(foldLower(t).replace(/[^\p{L}\p{N}\s]/gu, ' ').split(/\s+/).filter((w) => w.length >= 3));
   const csets = texts.map(contentTokens);
   const repFlagged = new Set(issues.filter((x) => x.type === 'repetition').map((x) => x.idx));
   for (let i = 0; i < scenes.length; i++) {

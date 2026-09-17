@@ -1,0 +1,37 @@
+          <div class="cfg-group" id="grpAdvanced">
+            <button class="cfg-head" type="button"><span class="cfg-ic">⚙</span><span class="cfg-meta"><span class="cfg-title" data-i18n="ui.grpAdvanced.nang-cao">Nâng cao</span><span class="cfg-chip" data-chip="advanced"></span></span><span class="cfg-arr">▾</span></button>
+            <div class="cfg-body">
+              <label class="switch-row" title="Mọi cảnh nối nhau bằng dissolve mượt ngắn; thêm 1-2 hero transition theo vai trò kể chuyện (zoom vào cảnh chốt, fade đen vào CTA/outro, fade tại ngăn chương). Tắt để dùng cắt cứng." data-i18n-title="ui.grpAdvanced.moi-canh-noi-nhau-bang"><span class="switch"><input type="checkbox" id="cfgTrans" checked><span class="sl"></span></span> <span data-i18n="ui.grpAdvanced.chuyen-canh-dien-anh-muot">🔀 Chuyển cảnh điện ảnh (mượt, theo nhịp kể)</span></label>
+              <div class="field mt-6"><label class="label" for="cfgTransStyle" data-i18n="ui.grpAdvanced.kieu-chuyen-canh">Kiểu chuyển cảnh</label>
+                <select class="input" id="cfgTransStyle">
+                  <option value="auto" data-i18n="ui.cfgTransStyle.tu-dong-theo-nhip-ke">🎬 Tự động theo nhịp kể (khuyên dùng)</option>
+                  <option value="varied" data-i18n="ui.cfgTransStyle.da-dang-xoay-vong">🎲 Đa dạng (xoay vòng)</option>
+                  <option value="fade" data-i18n="ui.cfgTransStyle.fade">Fade</option>
+                  <option value="dissolve" data-i18n="ui.cfgTransStyle.dissolve">Dissolve</option>
+                  <option value="slideleft" data-i18n="ui.cfgTransStyle.truot-trai">Trượt trái</option>
+                  <option value="smoothleft" data-i18n="ui.cfgTransStyle.truot-muot">Trượt mượt</option>
+                  <option value="circleopen" data-i18n="ui.cfgTransStyle.mo-vong-tron">Mở vòng tròn</option>
+                  <option value="circlecrop" data-i18n="ui.cfgTransStyle.cat-vong-tron">Cắt vòng tròn</option>
+                  <option value="zoomin" data-i18n="ui.cfgTransStyle.zoom-vao">Zoom vào</option>
+                  <option value="radial" data-i18n="ui.cfgTransStyle.quet-radial">Quét radial</option>
+                  <option value="wipeleft" data-i18n="ui.cfgTransStyle.wipe-trai">Wipe trái</option>
+                  <option value="pixelize" data-i18n="ui.cfgTransStyle.pixel-hoa">Pixel hoá</option>
+                  <option value="none" data-i18n="ui.cfgTransStyle.cat-cung">Cắt cứng</option>
+                </select></div>
+              <label class="switch-row"><span class="switch"><input type="checkbox" id="cfgMeta" checked><span class="sl"></span></span> <span data-i18n="ui.grpAdvanced.tao-metadata">📊 Tạo Metadata</span></label>
+              <div class="field mt-6"><label class="label" for="cfgMetaStyle" data-i18n="ui.grpAdvanced.phong-cach-seo-metadata-style">Phong cách SEO (metadata style)</label>
+                <select class="input" id="cfgMetaStyle"><option value="" data-i18n="ui.cfgMetaStyle.mac-dinh">— Mặc định —</option></select>
+                <textarea class="input mt-6" id="cfgMetaPrompt" rows="2" placeholder="Yêu cầu riêng cho tiêu đề/mô tả/tag… (vd: giọng chuyên gia, không giật tít)" data-i18n-placeholder="ui.grpAdvanced.yeu-cau-rieng-cho-tieu"></textarea>
+                <div class="row mt-6"><button class="btn sm" id="btnSaveMetaStyle" data-i18n="ui.grpAdvanced.luu-thanh-phong-cach-co">💾 Lưu thành phong cách có tên</button>
+                <button class="btn sm danger" id="btnDelMetaStyle" data-i18n="ui.grpAdvanced.xoa-phong-cach">🗑 Xoá phong cách</button></div></div>
+              <label class="switch-row"><span class="switch"><input type="checkbox" id="cfgAutoConcat" checked><span class="sl"></span></span> <span data-i18n="ui.grpAdvanced.tu-dong-ghep-b7">Tự động ghép (B7)</span></label>
+              <label class="switch-row" title="Dừng trước khi ghép để bạn duyệt từng cảnh trong Xem nháp" data-i18n-title="ui.grpAdvanced.dung-truoc-khi-ghep-de"><span class="switch"><input type="checkbox" id="cfgReview"><span class="sl"></span></span> <span data-i18n="ui.grpAdvanced.duyet-tung-canh-truoc-khi">🧐 Duyệt từng cảnh trước khi ghép</span></label>
+              <label class="switch-row" title="Dựng toàn bộ cảnh trước rồi DỪNG — bạn duyệt/chỉnh từng cảnh thoải mái, chưa tốn phí lồng tiếng; bấm Lồng tiếng &amp; Render khi ưng ý" data-i18n-title="ui.grpAdvanced.dung-toan-bo-canh-truoc"><span class="switch"><input type="checkbox" id="cfgSceneGate"><span class="sl"></span></span> <span data-i18n="ui.grpAdvanced.dung-canh-truoc-duyet-xong">🎬 Dựng cảnh trước — duyệt xong mới lồng tiếng</span></label>
+              <label class="switch-row mt-6"><span class="switch"><input type="checkbox" id="cfgPTts"><span class="sl"></span></span> <span data-i18n="ui.grpAdvanced.tts-song-song">TTS song song</span></label>
+              <label class="switch-row"><span class="switch"><input type="checkbox" id="cfgPRender"><span class="sl"></span></span> <span data-i18n="ui.grpAdvanced.render-song-song">Render song song</span></label>
+              <div class="grid2 mt-6">
+                <select class="input" id="cfgTtsC"><option>2</option><option selected>4</option><option>6</option><option>8</option></select>
+                <select class="input" id="cfgRenderC"><option selected>2</option><option>3</option><option>4</option></select>
+              </div>
+            </div>
+          </div>

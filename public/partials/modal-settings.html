@@ -1,0 +1,60 @@
+<div class="modal-bg" id="settingsModal" role="dialog" aria-modal="true">
+  <div class="modal">
+    <h2><span data-i18n="ui.settingsModal.ai-setting">🤖 AI Setting</span> <button class="x" data-close>×</button></h2>
+    <div class="sec-label" data-i18n="ui.settingsModal.giao-dien">Giao diện</div>
+    <div class="field"><label class="label" for="setUiLang" data-i18n="ui.settingsModal.ngon-ngu-giao-dien">Ngôn ngữ giao diện</label>
+      <select class="input" id="setUiLang"></select>
+      <div class="hint" data-i18n="ui.settingsModal.ngon-ngu-giao-dien-hint">Chỉ đổi ngôn ngữ của app. Ngôn ngữ của video chọn riêng ở phần Cấu hình video. App sẽ tải lại sau khi đổi.</div></div>
+    <div class="sec-label" data-i18n="ui.settingsModal.cong-cu-he-thong">Công cụ hệ thống</div>
+    <div class="dep-row" id="depFoot"></div>
+    <div class="sec-label" data-i18n="ui.settingsModal.llm-kich-ban-metadata">LLM (kịch bản · metadata)</div>
+    <label class="switch-row"><span class="switch"><input type="checkbox" id="setLlmOn"><span class="sl"></span></span> <span data-i18n="ui.settingsModal.bat-llm-openai-compatible">Bật LLM (OpenAI-compatible)</span></label>
+    <div class="field"><label class="label" for="setLlmPreset" data-i18n="ui.settingsModal.nha-cung-cap">Nhà cung cấp</label>
+      <select class="input" id="setLlmPreset"></select>
+      <div class="hint mt-5" id="llmPresetNote" style="line-height:1.7"></div></div>
+    <div class="field hidden" id="llmUrlField"><label class="label" for="setLlmUrl" data-i18n="ui.llmUrlField.base-url">Base URL</label><input class="input" id="setLlmUrl" placeholder="https://api.openai.com/v1"></div>
+    <div class="field" id="llmKeyField"><label class="label" for="setLlmKey" data-i18n="ui.llmKeyField.api-key">API Key</label><input class="input" id="setLlmKey" type="password" placeholder="sk-..."></div>
+    <div class="field"><label class="label" for="setLlmModel" data-i18n="ui.settingsModal.model">Model</label>
+      <input class="input" id="setLlmModel" list="llmModelList" placeholder="gpt-4o-mini">
+      <datalist id="llmModelList"></datalist>
+      <div class="row mt-6"><button class="btn sm" id="btnFetchModels" data-i18n="ui.settingsModal.lay-danh-sach-model">↻ Lấy danh sách model</button><span class="hint" id="llmModelsOut"></span></div></div>
+    <div class="field"><label class="label" for="setLlmCodegenModel" data-i18n="ui.settingsModal.model-dung-do-hoa-hyperframe">Model dựng đồ hoạ (HyperFrame)</label>
+      <input class="input" id="setLlmCodegenModel" placeholder="để trống = tự chọn theo nhà cung cấp" data-i18n-placeholder="ui.settingsModal.de-trong-tu-chon-theo">
+      <div class="hint mt-5" id="llmCodegenWarn" style="line-height:1.7"></div></div>
+    <div class="row mb-12"><button class="btn sm" id="btnTestLlm" data-i18n="ui.settingsModal.test-llm">🔌 Test LLM</button><span class="hint" id="llmTestResult"></span></div>
+    <div class="sec-label" data-i18n="ui.settingsModal.tts-giong-doc">TTS (giọng đọc)</div>
+    <div class="field"><label class="label" for="setTtsProvider" data-i18n="ui.settingsModal.nha-cung-cap-uu-tien">Nhà cung cấp ưu tiên</label>
+      <select class="input" id="setTtsProvider"></select></div>
+    <div class="field" id="provFields"><!-- dynamic per-provider config from configSchema --></div>
+    <div class="row mb-12">
+      <button class="btn sm" id="btnTestProvider" data-i18n="ui.settingsModal.test-ket-noi">🔌 Test kết nối</button>
+      <span class="hint" id="provTestResult"></span>
+    </div>
+    <div class="field">
+      <label class="label" data-i18n="ui.settingsModal.giong-mac-dinh-theo-ngon">Giọng mặc định theo ngôn ngữ</label>
+      <div id="langVoiceList" class="hint" style="line-height:2"></div>
+      <button class="btn sm block mt-6" id="btnOpenVoicePicker" data-i18n="ui.settingsModal.mo-kho-giong-nghe-thu">🎙 Mở kho giọng (nghe thử & chọn)</button>
+    </div>
+    <div class="sec-label" data-i18n="ui.settingsModal.phu-de">Phụ đề</div>
+    <div class="field"><label class="label" for="setSubEngine" data-i18n="ui.settingsModal.engine">Engine</label>
+      <select class="input" id="setSubEngine"><option value="align" data-i18n="ui.setSubEngine.align-chu-dung-kich-ban">Align (chữ đúng kịch bản + timing thật từ audio — khuyên dùng)</option><option value="estimate" data-i18n="ui.setSubEngine.estimate-chu-dung-tu-kich">Estimate (chữ đúng từ kịch bản, chia đều thời gian)</option><option value="whisper" data-i18n="ui.setSubEngine.whisper-transcribe-audio">Whisper (transcribe audio)</option></select>
+      <label class="switch-row mt-6"><span class="switch"><input type="checkbox" id="setSubLlmFix" checked><span class="sl"></span></span> <span data-i18n="ui.settingsModal.llm-sua-phu-de-whisper">🤖 LLM sửa phụ đề Whisper (tên riêng/số/từ nước ngoài — giữ nguyên 100% timestamp)</span></label></div>
+    <div class="sec-label" data-i18n="ui.settingsModal.dang-video">Đăng video</div>
+    <div id="pubStatus" class="hint mb-8">…</div>
+    <div class="field"><label class="label" for="pubYtId" data-i18n="ui.settingsModal.youtube-oauth-client-desktop-app">YouTube — OAuth Client (Desktop app, console.cloud.google.com)</label>
+      <input class="input" id="pubYtId" placeholder="Client ID">
+      <input class="input mt-6" id="pubYtSecret" type="password" placeholder="Client Secret">
+      <button class="btn sm mt-6" id="pubYtConnect" data-i18n="ui.settingsModal.ket-noi-youtube">🔗 Kết nối YouTube</button></div>
+    <div class="field"><label class="label" for="pubFbPage" data-i18n="ui.settingsModal.facebook-page-page-id-page">Facebook Page — Page ID + Page Access Token</label>
+      <input class="input" id="pubFbPage" placeholder="Page ID">
+      <input class="input mt-6" id="pubFbToken" type="password" placeholder="Page Access Token">
+      <div class="row mt-6">
+        <button class="btn sm" id="pubFbConnect" data-i18n="ui.settingsModal.ket-noi-page">🔗 Kết nối Page</button>
+        <button class="btn sm" id="pubFbDisconnect" data-i18n="ui.settingsModal.ngat">✖ Ngắt</button>
+        <button class="btn sm" id="pubFbRefresh" data-i18n="ui.settingsModal.lam-moi">↻ Làm mới</button>
+      </div>
+      <div id="pubFbPages" class="hint mt-6" style="line-height:1.9"></div>
+      <div class="hint mt-4"><span data-i18n="ui.settingsModal.video-doc-9-16-4">Video dọc (9:16 / 4:5) sẽ đăng dạng</span> <strong data-i18n-exempt>Reel</strong><span data-i18n="ui.settingsModal.con-lai-dang-vao-feed">, còn lại đăng vào feed Trang.</span></div></div>
+    <button class="btn primary block" id="setSave" data-i18n="ui.settingsModal.luu-cau-hinh">💾 Lưu cấu hình</button>
+  </div>
+</div>

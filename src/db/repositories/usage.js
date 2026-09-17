@@ -1,7 +1,7 @@
 // Persisted provider usage — one row per metered call, attributed to project/channel.
 // Written by core/metering.js (the util/usage.js subscriber); read by the usage API,
 // the live $/video stream, and the budget guardrail.
-import db from '../connection.js';
+import db, { stmt } from '../connection.js';
 import { newId } from '../../util/util.js';
 
 const _ins = db.prepare(`INSERT INTO provider_usage
@@ -20,7 +20,7 @@ export function recordUsageRow({ projectId = null, channelId = null, kind, provi
 
 /** Aggregate for one project: totals + estimated USD (the budget guardrail's input). */
 export function usageForProject(projectId) {
-  return db.prepare(`SELECT
+  return stmt(`SELECT
       COUNT(*) calls,
       COALESCE(SUM(prompt_tokens),0) promptTokens,
       COALESCE(SUM(completion_tokens),0) completionTokens,
@@ -32,7 +32,7 @@ export function usageForProject(projectId) {
 
 /** Recent per-project rollup for the usage API/dashboard. */
 export function usageSummary({ limit = 30 } = {}) {
-  return db.prepare(`SELECT project_id projectId, channel_id channelId,
+  return stmt(`SELECT project_id projectId, channel_id channelId,
       COUNT(*) calls,
       COALESCE(SUM(prompt_tokens),0) promptTokens,
       COALESCE(SUM(completion_tokens),0) completionTokens,

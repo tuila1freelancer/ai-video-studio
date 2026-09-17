@@ -8,13 +8,12 @@
 import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { sourceOf, indexHtml } from './_source.mjs';
 import { CATALOGUE, fontLibrary, familiesForLanguage, familyReady, scriptForLanguage, catalogueEntry } from '../src/fonts/registry.js';
 import { fontsCss, familiesIn, vendoredFamilies, buildScenePage } from '../src/animation/harness.js';
 import { buildSceneHtml } from '../src/animation/index.js';
 import { normFamily } from '../src/fonts/files.js';
 
-const src = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 
 // ---------------------------------------------------------------- the registry
 
@@ -120,7 +119,7 @@ test('the whole point: a scene page is no longer half a megabyte of unused fonts
 // ---------------------------------------------------------------- the picker and the preview
 
 test('the subtitle font picker is no longer a hand-written list', () => {
-  const html = src('../public/index.html');
+  const html = indexHtml();
   const sel = /<select class="input" id="cfgSubFont">([\s\S]*?)<\/select>/.exec(html)?.[1] ?? 'MISSING';
   assert.equal(sel.trim(), '', 'options must come from the registry, not from markup');
   // the two that existed nowhere else are gone with it
@@ -128,7 +127,7 @@ test('the subtitle font picker is no longer a hand-written list', () => {
 });
 
 test('the preview loads the real face before claiming to show it', () => {
-  const cfg = src('../public/js/views/config.js');
+  const cfg = sourceOf('public/js/views/config.js');
   assert.match(cfg, /ensureFontLoaded/, 'a family is fetched before it is drawn');
   assert.match(cfg, /\/api\/fonts\/\$\{encodeURIComponent\(family\)\}\/css/);
   assert.match(cfg, /document\.fonts\?\.load/, 'and awaited — a race here paints the fallback');
@@ -144,16 +143,16 @@ test('a preset that declares uppercase can finally apply it', () => {
   // 'original' unconditionally — a truthy string that shadowed the preset every time. Impact
   // Đậm, Thể Thao and Punch all showed uppercase on their preview card and rendered mixed case
   // in the video. The empty option is what lets the preset through.
-  const html = src('../public/index.html');
+  const html = indexHtml();
   assert.match(html, /id="cfgSubCase"[^>]*><option value=""/, 'a "follow the preset" choice exists, and is first');
-  const cfg = src('../public/js/views/config.js');
+  const cfg = sourceOf('public/js/views/config.js');
   assert.match(cfg, /subtitleTextCase: \$\('#cfgSubCase'\)\.value \|\| undefined/);
   assert.match(cfg, /\$\('#cfgSubCase'\)\.value = cfg\.subtitleTextCase \|\| ''/, 'restored unconditionally');
   assert.match(cfg, /\$\('#cfgSubCase'\)\.value \|\| preset\?\.textCase/, 'and the preview follows the same precedence');
 });
 
 test('a family that has not been fetched is offered, not hidden', () => {
-  const cfg = src('../public/js/views/config.js');
+  const cfg = sourceOf('public/js/views/config.js');
   assert.match(cfg, /chưa tải/, 'the picker says so');
   assert.match(cfg, /cfgSubFontGet/, 'and offers to go and get it');
   assert.match(cfg, /downloadFont/);

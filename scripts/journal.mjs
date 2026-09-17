@@ -8,6 +8,7 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import Database from 'better-sqlite3';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const JOURNAL = join(ROOT, 'JOURNAL.md');
@@ -16,8 +17,9 @@ const DRY = process.argv.includes('--dry-run');
 const GIT_NAME = 'tuila1freelancer';
 const GIT_EMAIL = '62372475+tuila1freelancer@users.noreply.github.com';
 
-const DB = await import(join(ROOT, 'src/db/index.js'));
-const db = DB.default;
+// Read-only, straight from the file: importing src/db/index.js would run the DDL and any pending
+// migration against the LIVE database with whatever code is checked out at 21:30.
+const db = new Database(join(process.env.AVS_DATA_DIR || join(ROOT, 'data'), 'studio.sqlite'), { readonly: true });
 
 // local-midnight day window
 const now = new Date();

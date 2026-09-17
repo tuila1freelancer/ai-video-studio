@@ -1,0 +1,191 @@
+    <section class="page" id="page-studio">
+      <div class="studio">
+        <!-- left -->
+        <aside class="s-side">
+          <div class="scroll">
+            <div class="field">
+              <label class="label" for="topic" data-i18n="ui.page-studio.chu-de-json-kich-ban">Chủ đề / JSON kịch bản / Link</label>
+              <textarea class="input" id="topic" rows="7" placeholder="Nhập chủ đề video, dán JSON kịch bản, hoặc dán link bài viết (https://...)" data-i18n-placeholder="ui.page-studio.nhap-chu-de-video-dan"></textarea>
+              <div class="hint" id="inputTypeHint" data-i18n="ui.page-studio.tu-nhan-dien-van-ban">Tự nhận diện: văn bản / JSON / link.</div>
+              <div class="row wrap mt-8">
+                <button class="btn sm" id="btnFetch" data-i18n="ui.page-studio.lay-thong-tin">🔗 Lấy thông tin</button>
+                <button class="btn sm" id="btnImgSearch" data-i18n="ui.page-studio.tim-anh-ai">🖼 Tìm ảnh AI</button>
+              </div>
+              <!-- The fetched article lives HERE, not in #topic. Pasting it back into the topic box
+                   flipped the input type from url to text, and the master engine then treated the
+                   article as the owner's OWN script to preserve word-for-word instead of research
+                   to write a new script from. -->
+              <div id="srcDoc" class="srcdoc hidden">
+                <div class="srcdoc-head">
+                  <span class="srcdoc-title" id="srcTitle"></span>
+                  <button class="btn xs ghost" id="srcToggle" title="Xem / sửa nội dung đã lấy" data-i18n="ui.srcDoc.xem" data-i18n-title="ui.srcDoc.xem-sua-noi-dung-da">Xem</button>
+                  <button class="btn xs ghost danger" id="srcClear" title="Bỏ nội dung này" data-i18n-title="ui.srcDoc.bo-noi-dung-nay">✕</button>
+                </div>
+                <div class="srcdoc-meta" id="srcMeta"></div>
+                <textarea class="input hidden" id="srcText" rows="10" spellcheck="false"></textarea>
+              </div>
+              <div id="imgResults" class="imgres mt-8"></div>
+            </div>
+
+            <div class="field">
+              <label class="label" data-i18n="ui.page-studio.file-anh-video-tuy-chon">File ảnh / video (tuỳ chọn)</label>
+              <div id="assetList" class="row wrap"></div>
+              <label class="btn sm block mt-6"><span data-i18n="ui.page-studio.them-file">+ Thêm file</span>
+                <input type="file" id="assetInput" accept="image/*,video/mp4" multiple hidden>
+              </label>
+            </div>
+
+            <button class="btn primary block big" id="btnStart" data-i18n="ui.page-studio.bat-dau">▶ Bắt đầu</button>
+
+            <div class="sec-label"><span data-i18n="ui.page-studio.du-an">Dự án</span>
+              <button class="btn sm danger" id="btnDelAll" title="Xoá tất cả" data-i18n="ui.page-studio.xoa-tat-ca" data-i18n-title="ui.page-studio.xoa-tat-ca">Xoá tất cả</button>
+            </div>
+            <div class="plist" id="projList"><div class="empty" data-i18n="ui.projList.chua-co-du-an">Chưa có dự án</div></div>
+          </div>
+        </aside>
+
+        <!-- main -->
+        <main class="s-main" id="sMain">
+          <div class="welcome" id="welcome">
+            <div class="big" id="welcomeLogo">🎬</div>
+            <h1 data-i18n="ui.welcome.san-sang-tao-video">SẴN SÀNG TẠO VIDEO</h1>
+            <p><span data-i18n="ui.welcome.dien-chu-de-ben-trai">Điền chủ đề bên trái rồi nhấn</span> <strong data-i18n="ui.welcome.bat-dau">▶ Bắt đầu</strong></p>
+          </div>
+
+          <div id="projView" class="hidden">
+            <div class="proj-head">
+              <div>
+                <h2 id="pvTitle"></h2>
+                <div class="badges">
+                  <span class="badge" id="pvStatus"></span>
+                  <span class="badge ar" id="pvAr"></span>
+                  <!-- No data-i18n: the WS _status handler in studio.js owns this text and
+                       rewrites it via m() the moment the socket reports, at boot. -->
+                  <span class="ws-dot" id="wsDot" data-i18n-exempt>● offline</span>
+                  <span class="ws-dot" id="pvDate"></span>
+                </div>
+              </div>
+              <div class="proj-actions">
+                <button class="btn" id="btnRoughCut" title="Xem nháp cả video từ trang scene live — không tốn thời gian render" data-i18n="ui.projView.xem-nhap" data-i18n-title="ui.projView.xem-nhap-ca-video-tu">▶ Xem nháp</button>
+                <button class="btn" id="btnRepurpose" title="Nhân bản sang tỉ lệ khung khác — giữ nguyên giọng đọc & phụ đề, dàn lại bố cục rồi render" data-i18n="ui.projView.doi-ti-le" data-i18n-title="ui.projView.nhan-ban-sang-ti-le">📱 Đổi tỉ lệ</button>
+                <button class="btn" id="btnDub" title="Nhân bản sang ngôn ngữ khác — giữ nguyên chỉ dẫn mỹ thuật, viết lại lời thoại và chữ trên màn hình" data-i18n="ui.projView.long-tieng" data-i18n-title="ui.projView.nhan-ban-sang-ngon-ngu">🌍 Lồng tiếng</button>
+                <button class="btn" id="btnRestart" title="Làm lại từ đầu với cùng chủ đề &amp; cấu hình — dự án cũ vẫn giữ nguyên để so sánh" data-i18n="ui.projView.lam-lai-tu-dau" data-i18n-title="ui.projView.lam-lai-tu-dau-voi">♻️ Làm lại từ đầu</button>
+                <button class="btn" id="btnCopyAssets" title="Dùng lại ảnh/asset của một dự án khác" data-i18n="ui.projView.lay-asset-tu-du-an" data-i18n-title="ui.projView.dung-lai-anh-asset-cua">🧲 Lấy asset từ dự án khác</button>
+                <button class="btn" id="btnExport" title="Xuất bản sao đúng chuẩn nền tảng (remux nhanh; cắt fade khi vượt trần thời lượng — luôn hỏi trước)" data-i18n="ui.projView.xuat-nen-tang" data-i18n-title="ui.projView.xuat-ban-sao-dung-chuan">📤 Xuất nền tảng</button>
+                <button class="btn" id="btnRender" data-i18n="ui.projView.render-lai">🎬 Render lại</button>
+                <!-- Only shown when the scan finds clips typeset before the Vietnamese repair -->
+                <button class="btn warn hidden" id="btnTypeset" title="Dựng lại đúng những cảnh bị mất dấu / đè dòng tiếng Việt, rồi ghép lại" data-i18n="ui.projView.sua-loi-tieng-viet" data-i18n-title="ui.projView.dung-lai-dung-nhung-canh">🔤 Sửa lỗi tiếng Việt</button>
+                <button class="btn danger hidden" id="btnStop" data-i18n="ui.projView.dung">⏹ Dừng</button>
+                <button class="btn warn hidden" id="btnResume" data-i18n="ui.projView.tiep-tuc">▶ Tiếp tục</button>
+                <button class="btn" id="btnSrt" data-i18n="ui.projView.srt">📝 SRT</button>
+                <button class="btn" id="btnMeta" data-i18n="ui.projView.metadata">📊 Metadata</button>
+              </div>
+            </div>
+
+            <div class="pipe">
+              <div class="prog"><div class="prog-bar" id="progBar"></div><span class="prog-pct" id="progPct">0%</span></div>
+              <div class="pipe-steps" id="pipeSteps"></div>
+              <div class="curop hidden" id="curOp"><span class="spin">⟳</span> <span id="curOpText"></span></div>
+            </div>
+
+            <div class="scene-gate hidden" id="sceneGateBar" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:12px 14px;border:1px solid var(--accent);border-radius:10px;margin:10px 0;background:color-mix(in srgb, var(--accent) 8%, transparent)">
+              <div class="flex-1" style="min-width:240px">
+                <b data-i18n="ui.sceneGateBar.canh-da-dung-xong-chua">🎬 Cảnh đã dựng xong — chưa tốn phí lồng tiếng.</b>
+                <div style="color:var(--muted2);font-size:.9em" data-i18n="ui.sceneGateBar.duyet-chinh-tung-canh-scene">Duyệt / chỉnh từng cảnh (Scene Studio, Xem nháp) thoải mái. Ưng ý rồi bấm nút để lồng tiếng + render.</div>
+                <div id="sceneGateCost" style="color:var(--muted2);font-size:.9em;margin-top:2px"></div>
+              </div>
+              <button class="btn sm" id="btnContactSheet" title="Frame giữa của mọi cảnh ghép thành 1 ảnh — duyệt cả storyboard trong một cái nhìn" data-i18n="ui.sceneGateBar.contact-sheet" data-i18n-title="ui.sceneGateBar.frame-giua-cua-moi-canh">📸 Contact sheet</button>
+              <button class="btn success" id="btnApproveScenes" data-i18n="ui.sceneGateBar.long-tieng-amp-render">🎙 Lồng tiếng &amp; Render</button>
+            </div>
+
+            <div class="logp" id="journalPanel">
+              <div class="logp-h" id="logToggle"><span data-i18n="ui.logToggle.nhat-ky-xu-ly">📋 Nhật ký xử lý</span><span id="logCaret">▾</span></div>
+              <div class="jr-bar" id="jrBar">
+                <select class="input sm" id="jrRun" title="Chọn lần chạy để xem nhật ký" data-i18n-title="ui.jrBar.chon-lan-chay-de-xem"></select>
+                <div class="jr-chips">
+                  <button class="jr-chipf on" data-lv="" data-i18n="ui.jrBar.tat-ca">Tất cả</button>
+                  <button class="jr-chipf" data-lv="warn" data-i18n="ui.jrBar.canh-bao">⚠ Cảnh báo</button>
+                  <button class="jr-chipf" data-lv="error" data-i18n="ui.jrBar.loi">⛔ Lỗi</button>
+                </div>
+                <input class="input sm" id="jrSearch" placeholder="Tìm trong nhật ký…" style="max-width:180px" data-i18n-placeholder="ui.jrBar.tim-trong-nhat-ky">
+                <span class="flex-spacer"></span>
+                <button class="btn sm" id="jrCopy" title="Sao chép nhật ký đang hiển thị" data-i18n-title="ui.jrBar.sao-chep-nhat-ky-dang">📋</button>
+                <button class="btn sm" id="jrDownload" title="Tải nhật ký .txt" data-i18n-title="ui.jrBar.tai-nhat-ky-txt">⬇</button>
+                <button class="btn sm" id="jrExpand" title="Mở rộng / thu gọn khung nhật ký" data-i18n-title="ui.jrBar.mo-rong-thu-gon-khung">⛶</button>
+              </div>
+              <div class="logp-b" id="logBody"></div>
+              <button class="jr-newer hidden" id="jrNewer" data-i18n="ui.journalPanel.dang-giu-vi-tri-bam">⏸ đang giữ vị trí — bấm để theo dõi tiếp</button>
+            </div>
+
+            <div class="scene-toolbar hidden" id="sceneToolbar">
+              <label class="switch-row"><input type="checkbox" id="checkAll"> <span data-i18n="ui.sceneToolbar.chon-tat-ca">Chọn tất cả</span> <span id="selCount" style="color:var(--muted2)"></span></label>
+              <div class="row wrap">
+                <button class="btn sm" id="btnRegenVoiceSel" disabled data-i18n="ui.sceneToolbar.voice-da-chon">🎙 Voice đã chọn</button>
+                <button class="btn sm" id="btnRegenHtmlSel" disabled data-i18n="ui.sceneToolbar.html-da-chon">🔄 HTML đã chọn</button>
+                <button class="btn sm warn" id="btnRenderSel" disabled data-i18n="ui.sceneToolbar.render-da-chon">🎬 Render đã chọn</button>
+                <button class="btn sm success" id="btnRenderAll" data-i18n="ui.sceneToolbar.render-ghep">🎬 Render + Ghép</button>
+                <button class="btn sm" id="btnScenesJson" title="Tải kịch bản dạng scenes JSON chuẩn (stt/voice/visual/assets + thumbnail)" data-i18n-title="ui.sceneToolbar.tai-kich-ban-dang-scenes">⬇ scenes.json</button>
+                <button class="btn sm" id="btnScenesJsonCopy" title="Copy scenes JSON vào clipboard" data-i18n="ui.sceneToolbar.copy-json" data-i18n-title="ui.sceneToolbar.copy-scenes-json-vao-clipboard">📋 Copy JSON</button>
+              </div>
+            </div>
+
+            <div class="scenes" id="sceneGrid"></div>
+
+            <div class="final hidden" id="finalView">
+              <h3 data-i18n="ui.finalView.video-hoan-thanh">✓ Video hoàn thành</h3>
+              <video id="finalVideo" controls playsinline></video>
+              <div class="fa">
+                <a class="btn success" id="btnDownload" download data-i18n="ui.finalView.tai-video">⬇ Tải video</a>
+                <a class="btn" id="btnDownloadSrt" download data-i18n="ui.finalView.tai-srt">📑 Tải .SRT</a>
+                <!-- title BEFORE data-i18n-title: the extractor matches `\btitle="` and would
+                     otherwise harvest the key as its own catalogue value. -->
+                <select class="input" id="btnSrtLang" style="width:auto;display:inline-block;padding:6px 10px" title="Xuất phụ đề sang ngôn ngữ khác — không render lại video" data-i18n-title="ui.finalView.xuat-phu-de-ngon-ngu-khac"></select>
+                <a class="btn" id="btnFinalContactSheet" target="_blank" title="Frame giữa của mọi cảnh trong 1 ảnh" data-i18n="ui.finalView.contact-sheet" data-i18n-title="ui.finalView.frame-giua-cua-moi-canh">📸 Contact sheet</a>
+                <button class="btn" id="btnOpenFolder" data-i18n="ui.finalView.mo-thu-muc">📂 Mở thư mục</button>
+                <button class="btn" id="btnFinalFs" title="Xem video toàn màn hình" data-i18n="ui.finalView.toan-man-hinh" data-i18n-title="ui.finalView.xem-video-toan-man-hinh">⛶ Toàn màn hình</button>
+                <button class="btn" id="btnPublish" title="Đăng lên YouTube / Facebook Page qua tài khoản đã kết nối — mặc định KHÔNG công khai ngay" data-i18n="ui.finalView.dang-video" data-i18n-title="ui.finalView.dang-len-youtube-facebook-page">📤 Đăng video</button>
+                <!-- Sau khi xong: video là một PHIÊN BẢN, không phải dấu chấm hết -->
+                <button class="btn" id="btnVersions" title="Mọi bản đã xuất — xem lại, quay về bản cũ" data-i18n="ui.finalView.phien-ban" data-i18n-title="ui.finalView.moi-ban-da-xuat-xem">🕘 Phiên bản</button>
+                <button class="btn" id="btnVariant" title="Bản khác từ cùng bộ clip: không logo, không nhạc… — chỉ tốn 1 lượt ghép" data-i18n="ui.finalView.ban-khac" data-i18n-title="ui.finalView.ban-khac-tu-cung-bo">📦 Bản khác</button>
+                <button class="btn" id="btnQcScan" title="Quét lại video đã xong: chữ sai ngôn ngữ, quy ước số, clip không khớp thiết kế" data-i18n="ui.finalView.kiem-tra" data-i18n-title="ui.finalView.quet-lai-video-da-xong">🔬 Kiểm tra</button>
+              </div>
+              <div class="hint mt-6" id="jumpHint"></div>
+              <div id="pubHistory" class="hint mt-8"></div>
+              <div id="thumbCard"></div>
+              <div id="metaCard"></div>
+            </div>
+          </div>
+        </main>
+
+        <!-- right config: grouped accordion, preset bar on top -->
+        <aside class="s-config" id="sConfig">
+          <div class="sec-label" data-i18n="ui.sConfig.config-dau-ra">⚙ Config đầu ra</div>
+
+          <!-- The finished video no longer matches its own settings. Sticky, so it stays in view
+               while the owner keeps editing further down the column. -->
+          <div class="pending-bar hidden" id="pendingBar">
+            <div class="pc-body" data-pc-text></div>
+            <div class="pc-acts">
+              <button class="btn xs ghost" data-pc-detail title="Xem chi tiết từng bước và chi phí" data-i18n="ui.pendingBar.chi-tiet" data-i18n-title="ui.pendingBar.xem-chi-tiet-tung-buoc">Chi tiết</button>
+              <button class="btn sm" data-pc-go></button>
+            </div>
+          </div>
+
+          <div class="cfg-preset-bar">
+            <select class="input" id="cfgPresetSelect" title="Preset của kênh" data-i18n-title="ui.sConfig.preset-cua-kenh"><option value="" data-i18n="ui.cfgPresetSelect.config-goc-kenh">— Config gốc kênh —</option></select>
+            <button class="btn sm" id="btnPresetSave" title="Lưu panel hiện tại thành preset" data-i18n-title="ui.sConfig.luu-panel-hien-tai-thanh">💾</button>
+            <button class="btn sm" id="btnPresetMenu" title="Đặt mặc định / xoá preset" data-i18n-title="ui.sConfig.dat-mac-dinh-xoa-preset">⋯</button>
+          </div>
+
+<!--#include "partials/cfg-format.html" -->
+
+<!--#include "partials/cfg-brand.html" -->
+
+<!--#include "partials/cfg-subtitle.html" -->
+
+<!--#include "partials/cfg-audio.html" -->
+
+<!--#include "partials/cfg-advanced.html" -->
+        </aside>
+      </div>
+    </section>

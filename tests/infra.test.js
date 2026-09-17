@@ -78,3 +78,76 @@ test('migrator: second run is a no-op at the same version', async () => {
   const r = migrate(db);
   assert.equal(r.applied, 0, 'no pending migrations on a current DB');
 });
+
+test('sqlite: WAL runs at synchronous=NORMAL with a bounded journal and a real page cache', async () => {
+  const db = (await import('../src/db/connection.js')).default;
+  assert.equal(db.pragma('journal_mode', { simple: true }), 'wal');
+  assert.equal(db.pragma('synchronous', { simple: true }), 1, 'NORMAL — no fsync per journal line');
+  assert.equal(db.pragma('journal_size_limit', { simple: true }), 67108864);
+  assert.equal(db.pragma('cache_size', { simple: true }), -32000);
+  assert.equal(db.pragma('foreign_keys', { simple: true }), 1);
+});
+
+test('sqlite: the queries the repositories issue have an index to use', async () => {
+  const db = (await import('../src/db/connection.js')).default;
+  const names = new Set(db.prepare("SELECT name FROM sqlite_master WHERE type='index'").all().map((r) => r.name));
+  for (const ix of ['idx_projects_channel', 'idx_projects_updated', 'idx_jobs_batch', 'idx_calendar_project', 'idx_library_kind_folder', 'idx_sugg_slot']) {
+    assert.ok(names.has(ix), `${ix} exists`);
+  }
+  const plan = db.prepare('EXPLAIN QUERY PLAN SELECT * FROM projects WHERE channel_id=? ORDER BY updated_at DESC').all('x');
+  assert.ok(plan.some((r) => /idx_projects_channel/.test(r.detail)), `channel listing uses the index: ${plan.map((r) => r.detail).join(' | ')}`);
+});
+
+test('sqlite: stmt() compiles a statement once per SQL string', async () => {
+  const { stmt } = await import('../src/db/connection.js');
+  const a = stmt('SELECT 1 AS one');
+  assert.equal(stmt('SELECT 1 AS one'), a, 'same object for the same SQL');
+  assert.equal(a.get().one, 1);
+});
+
+test('sweepStale removes only entries older than the keep window', async () => {
+  const { mkdtempSync, writeFileSync, utimesSync, existsSync, mkdirSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const { sweepStale } = await import('../src/util/sweep.js');
+  const dir = mkdtempSync(join(tmpdir(), 'avs-sweep-'));
+  const old = join(dir, 'old.bin'); const fresh = join(dir, 'fresh.bin'); const oldDir = join(dir, 'old-dir');
+  writeFileSync(old, 'x'); writeFileSync(fresh, 'y'); mkdirSync(oldDir); writeFileSync(join(oldDir, 'f'), 'z');
+  const past = (Date.now() - 10 * 24 * 3600 * 1000) / 1000;
+  utimesSync(old, past, past); utimesSync(oldDir, past, past);
+  const r = await sweepStale([dir, join(dir, 'missing')]);
+  assert.equal(r.removed, 2);
+  assert.equal(existsSync(old), false);
+  assert.equal(existsSync(oldDir), false);
+  assert.equal(existsSync(fresh), true);
+});
+
+test('the file log sink rotates at its size cap and never throws', async () => {
+  const { mkdtempSync, readdirSync, statSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const { openLogFile, writeLogLine } = await import('../src/util/log-file.js');
+  const dir = mkdtempSync(join(tmpdir(), 'avs-log-'));
+  assert.equal(openLogFile(dir), join(dir, 'app.log'));
+  const big = 'x'.repeat(1024 * 1024);
+  for (let i = 0; i < 12; i += 1) writeLogLine(big);
+  const names = readdirSync(dir).sort();
+  assert.ok(names.includes('app.log') && names.includes('app.log.1'), `rotated: ${names.join(', ')}`);
+  assert.ok(names.length <= 4, 'at most the live file plus three rotations');
+  assert.ok(statSync(join(dir, 'app.log')).size < 6 * 1024 * 1024);
+});
+
+test('mapPool stops pulling new items once one has thrown', async () => {
+  const { mapPool } = await import('../src/pipeline/helpers.js');
+  const started = [];
+  const items = [1, 2, 3, 4, 5, 6];
+  await assert.rejects(mapPool(items, 2, async (n) => {
+    started.push(n);
+    await new Promise((r) => setTimeout(r, 5));
+    if (n === 2) throw new Error('boom');
+    return n;
+  }), /boom/);
+  await new Promise((r) => setTimeout(r, 40));
+  assert.ok(started.length <= 4, `only what was already in flight ran: ${started.join(',')}`);
+  assert.ok(!started.includes(6), 'the tail of the list was never started');
+});

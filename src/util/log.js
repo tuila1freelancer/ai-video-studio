@@ -2,6 +2,7 @@
 // into the persistent journal. Both sinks are late-bound (bindHub/bindJournal) so this
 // util stays import-cycle-free.
 import { currentRun } from './run-context.js';
+import { writeLogLine } from './log-file.js';
 
 let hub = null;
 let journal = null;
@@ -14,6 +15,7 @@ export function log(level, msg, meta = {}) {
   const line = `[${ts()}] ${level.toUpperCase()} ${msg}`;
   if (level === 'error') console.error(line);
   else console.log(line);
+  writeLogLine(`${level.toUpperCase()} ${msg}`);
   // Attribution: explicit meta wins; warn/error inside a run auto-attach the run's project
   // via the ALS context — provider-level failures (TTS/whisper/imagegen fallbacks) explain
   // quality drops and MUST reach that project's journal even without threaded ids.

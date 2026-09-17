@@ -6,6 +6,12 @@
       "runtimeExecutable": "/bin/sh",
       "runtimeArgs": ["-c", "AVS_PORT=5050 exec /opt/homebrew/opt/node@22/bin/node src/server.js"],
       "port": 5050
+    },
+    {
+      "name": "avs-dev",
+      "runtimeExecutable": "/bin/sh",
+      "runtimeArgs": ["-c", "AVS_PORT=5051 TOOLS_LICENSE_BYPASS=1 exec ./vendor/node/bin/node src/server.js"],
+      "port": 5051
     }
   ]
 }

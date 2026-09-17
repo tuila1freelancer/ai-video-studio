@@ -10,15 +10,11 @@
 import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { sourceOf, indexHtml } from './_source.mjs';
 import { LANGUAGES, LANG_CODES, lang, column, isSupported, DEFAULT_LANG } from '../src/i18n/languages.js';
 import { LANG_NAME, padMsFor } from '../src/util/lang.js';
 import { LANG_WPS } from '../src/providers/llm.js';
 
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const src = (rel) => readFileSync(join(ROOT, rel), 'utf8');
 const CODES = new Set(LANG_CODES);
 
 test('every row is complete — a missing column is a silent fallback later', () => {
@@ -63,14 +59,14 @@ test('every consumer of a per-language constant stays inside the table', () => {
 
   // The frontend keeps its own flag map (it cannot import from src/); it may be a subset while
   // the picker fills in, but it must never name a language the table does not support.
-  const flags = src('public/js/ui/dom.js').match(/LANG_FLAGS = \{([^}]*)\}/)[1];
+  const flags = sourceOf('public/js/ui/dom.js').match(/LANG_FLAGS = \{([^}]*)\}/)[1];
   for (const [, , code] of flags.matchAll(/(^|[\s,{])([a-z]{2}):/g)) {
     if (code !== 'multi') assert.ok(CODES.has(code), `LANG_FLAGS knows "${code}", the table does not`);
   }
 });
 
 test('the video-language picker offers exactly the table, plus auto', () => {
-  const html = src('public/index.html');
+  const html = indexHtml();
   const select = html.slice(html.indexOf('id="cfgLang"'));
   const options = [...select.slice(0, select.indexOf('</select>')).matchAll(/value="([a-z-]+)"/g)].map((m) => m[1]);
   assert.equal(options[0], 'auto', 'the first option is auto-detect');

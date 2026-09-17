@@ -38,6 +38,7 @@
   "srv.Bản Tin": "Noticias",
   "srv.Bản cài đặt này chưa được cấu hình cửa hàng.": "Instalación sin tienda configurada.",
   "srv.Bản cài đặt này thiếu khoá xác thực license. Hãy tải lại bản mới từ cửa hàng.": "Falta clave de licencia. Descarga una versión nueva de la tienda.",
+  "srv.Bản cài đặt này đã bị can thiệp nên không thể chạy. Hãy cài lại bản gốc từ cửa hàng.": "Esta copia ha sido manipulada y no puede ejecutarse. Vuelva a instalar el original desde la tienda.",
   "srv.Cao độ (-20 đến 20)": "Tono (-20 a 20)",
   "srv.Cao độ (-24 đến +24, semitone)": "Tono (-24 a +24, semitonos)",
   "srv.Cao độ (Hz) — vd +20 cho giọng tươi hơn": "Tono (Hz) — ej. +20 para voz más viva",
@@ -328,6 +329,7 @@
   "srv.dự án không ở bước duyệt cảnh": "El proyecto no está en revisión de escenas",
   "srv.dự án nguồn chưa có cảnh": "Proyecto de origen sin escenas",
   "srv.dự án nguồn không có asset nào còn trên đĩa": "El proyecto de origen no tiene recursos en disco",
+  "srv.dự án đang chạy — đợi xong rồi tạo lại cảnh": "Proyecto en ejecución — espera a que termine para recrear la escena",
   "srv.edge returned empty audio": "Edge devolvió audio vacío",
   "srv.edit rejected by lint": "Edición rechazada por lint",
   "srv.edit rejected by render validation": "Edición rechazada por validación de render",
@@ -336,6 +338,7 @@
   "srv.file không hợp lệ": "Archivo no válido",
   "srv.file logo của preset không còn trên đĩa": "El logo del preset no está en el disco",
   "srv.file logo không hợp lệ": "Archivo de logo no válido",
+  "srv.file quá lớn ({0} MB)": "Archivo demasiado grande ({0} MB)",
   "srv.file rỗng": "Archivo vacío",
   "srv.file thiếu": "Archivo faltante",
   "srv.font \"{0}\" đang ở dạng {1} — libass chỉ đọc được .ttf/.otf. ": "Fuente \"{0}\" en formato {1} — libass solo admite .ttf/.otf. ",
@@ -455,6 +458,7 @@
   "srv.thiếu nội dung HTML": "Falta contenido HTML",
   "srv.thiếu thời điểm hẹn": "falta hora programada",
   "srv.thiếu tên bộ mẫu": "Falta el nombre de la plantilla",
+  "srv.thiếu tên hoặc loại style": "Falta nombre o tipo de estilo",
   "srv.thiếu tên kênh": "Falta el nombre del canal",
   "srv.thiếu video stream": "falta flujo de video",
   "srv.thiếu voiceId": "falta voiceId",
@@ -528,6 +532,7 @@
   "srv.đổi phụ đề ({0} thiết lập, in ở bước cuối)": "cambiar subtítulos ({0} ajustes, incrustar al final)",
   "srv.đổi watermark": "cambiar marca de agua",
   "srv.đổi {0}": "cambiar {0}",
+  "srv.Ảnh bìa/thumbnail AI lỗi — giữ bản cơ bản: {0}": "Error en miniatura de IA — se conserva la básica: {0}",
   "srv.ảnh bìa các nền tảng": "miniaturas para plataformas",
   "srv.ảnh của phiên bản này không còn trên đĩa": "La imagen de esta versión no está en el disco",
   "srv.ảnh trả về rỗng/quá nhỏ": "imagen vacía o muy pequeña",
@@ -2154,6 +2159,5 @@
   "ui.wmSource.ten-kenh": "Nombre del canal",
   "ui.wmSpeed.cham-75s-vong": "Lento — 75s/vuelta",
   "ui.wmSpeed.rat-cham-120s-vong": "Muy lento — 120s/vuelta",
-  "ui.wmSpeed.vua-45s-vong": "Medio — 45s/vuelta",
-  "srv.Bản cài đặt này đã bị can thiệp nên không thể chạy. Hãy cài lại bản gốc từ cửa hàng.": "Esta copia ha sido manipulada y no puede ejecutarse. Vuelva a instalar el original desde la tienda."
+  "ui.wmSpeed.vua-45s-vong": "Medio — 45s/vuelta"
 }

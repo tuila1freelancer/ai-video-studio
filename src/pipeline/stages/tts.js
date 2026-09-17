@@ -6,10 +6,7 @@ import { join } from 'node:path';
 import * as DB from '../../db/index.js';
 import { hub } from '../../ws/hub.js';
 import { logger } from '../../util/log.js';
-import { synthesizeVoice } from '../../providers/tts.js';
-import { buildSubtitles } from '../../providers/subtitle.js';
-import { normalizeForTts, moodOf } from '../../providers/tts-normalize.js';
-import { normalizeVoice } from '../../media/ffmpeg.js';
+import { voiceScene } from '../voice.js';
 import { resolveLang, langName, padMsFor } from '../../util/lang.js';
 import { buildSrt } from '../srt.js';
 import { withRetry } from '../../util/retry.js';
@@ -65,29 +62,21 @@ export async function runTts(ctx) {
   }
   const ttsC = config.parallelTTS ? parseInt(config.ttsConcurrency || 4, 10) : 1;
   const voiceFallbacks = []; // scenes that had to switch voice — re-tried once below
+  // B3+4 pads by the VIDEO language, never by a per-scene re-detection.
+  const padMs = padMsFor(videoLang);
   const ttsOne = async (sc, { trackFallback = true } = {}) => {
     const audioOut = join(dir, 'audio', `scene_${sc.idx}.m4a`);
     const ttsOverride = ttsOverrideFor(channel, config);
-    // The synthesizer SPEAKS the normalized expansion ('85%' → '85 phần trăm', per-channel
-    // lexicon); captions keep the ORIGINAL script (digits stay on screen — P11 number-beat
-    // detection intact; the align engine spans '85%' over the spoken expansion's time).
-    const speakText = normalizeForTts(sc.voice_text || ' ', { lang: videoLang, lexicon: ttsOverride?.lexicon || ai.tts?.lexicon });
-    const r = await synthesizeVoice(speakText, audioOut, { ttsOverride, style: moodOf(sc, scenes.length), lang: videoLang });
-    if (!r.duration || r.duration <= 0) throw new Error(m('âm thanh rỗng'));
+    const { r, path, duration, cues } = await voiceScene(sc, {
+      lang: videoLang, padMs, ai, ttsOverride, total: scenes.length, audioOut, normOut: join(dir, 'audio', `scene_${sc.idx}_n.m4a`),
+    });
     if (r.fallback && trackFallback) {
       voiceFallbacks.push(sc.id);
       op(projectId, tp`⚠️ Cảnh ${sc.idx + 1}: dùng giọng dự phòng (${r.provider}) — sẽ thử lại giọng chính sau`);
     }
-    // per-scene loudnorm + trailing breath pad → every scene at the same loudness, across all providers
-    const padMs = padMsFor(videoLang);
-    const { path, duration } = await normalizeVoice(r.path, join(dir, 'audio', `scene_${sc.idx}_n.m4a`), { padMs });
-    // captions time against the SPEECH span — the pad is silence, no caption should sit on it
-    const speechDur = Math.max(0.3, duration - padMs / 1000);
-    // provider-native word timestamps (e.g. ElevenLabs with-timestamps) skip transcription
-    const sub = await buildSubtitles(path, sc.voice_text || '', speechDur, { language: videoLang, engine: ai.subtitle?.engine, words: r.words });
     const srtPath = join(dir, 'srt', `scene_${sc.idx}.srt`);
-    writeFileSync(srtPath, buildSrt(sub.cues));
-    DB.updateScene(sc.id, { audio_path: path, duration, srt_path: srtPath, srt_json: sub.cues, status: 'tts',
+    writeFileSync(srtPath, buildSrt(cues));
+    DB.updateScene(sc.id, { audio_path: path, duration, srt_path: srtPath, srt_json: cues, status: 'tts',
       fp: fpStamp(sc, 'tts', ttsFingerprint(sc, ctx)) });
     hub.toProject(projectId, { type: 'scene', sceneId: sc.id, idx: sc.idx, status: 'tts', duration });
     return r;

@@ -6,13 +6,10 @@
 import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { VENDOR_DIR } from '../config/paths.js';
+import { clampNum } from '../util/util.js';
 
 export const WM_SPEEDS = { slower: 120, slow: 75, medium: 45 }; // seconds per full lap
 
-const clamp = (v, lo, hi, dflt) => {
-  const n = Number(v);
-  return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : dflt;
-};
 
 /** Normalize a stored brandKit.watermark block → safe config (null when off). */
 export function resolveWatermark(wm) {
@@ -20,9 +17,9 @@ export function resolveWatermark(wm) {
   return {
     source: wm.source === 'name' ? 'name' : 'logo',
     speed: WM_SPEEDS[wm.speed] ? wm.speed : 'slow',
-    opacity: clamp(wm.opacity, 0.1, 0.8, 0.35),
-    wPct: clamp(wm.wPct, 0.03, 0.2, 0.06),   // logo width as a fraction of frame width
-    hPct: clamp(wm.hPct, 0.018, 0.06, 0.028), // text height as a fraction of frame height
+    opacity: clampNum(wm.opacity, 0.1, 0.8, 0.35),
+    wPct: clampNum(wm.wPct, 0.03, 0.2, 0.06),   // logo width as a fraction of frame width
+    hPct: clampNum(wm.hPct, 0.018, 0.06, 0.028), // text height as a fraction of frame height
     marginPct: 0.02, // edge gap as a fraction of min(W,H)
   };
 }

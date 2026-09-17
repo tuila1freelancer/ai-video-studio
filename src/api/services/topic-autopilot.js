@@ -8,15 +8,14 @@ import { chatJson, llmEnabled } from '../../providers/llm.js';
 import { fetchTrends } from '../../providers/trends.js';
 import { declaredLang, langName, DEFAULT_LANG } from '../../util/lang.js';
 
-const fold = DB.foldTopic;
 
 export async function suggestTopics({ channelId = null, niche = '', count = 8, ai = null, sources = {}, trendsFetcher = fetchTrends } = {}) {
   const channel = channelId ? DB.getChannel(channelId) : DB.getChannel(DB.activeChannelId());
   DB.expireSuggestions({ channelId: channel?.id });
   const memory = channel ? DB.getChannelMemory(channel.id) : { bible: '', topics: [] };
   const past = new Set([
-    ...memory.topics.map((t) => fold(t.t)),
-    ...DB.listProjects().filter((p) => !channelId || p.channel_id === channel?.id).map((p) => fold(p.title)),
+    ...memory.topics.map((t) => DB.foldTopic(t.t)),
+    ...DB.listProjects().filter((p) => !channelId || p.channel_id === channel?.id).map((p) => DB.foldTopic(p.title)),
     ...DB.suggestionBlockSet(channel?.id, { includePending: true }),
   ]);
   // The channel's own language decides which market's trends are research material. Without it,
@@ -33,7 +32,7 @@ export async function suggestTopics({ channelId = null, niche = '', count = 8, a
   };
   if (!llmEnabled(llm)) {
     // offline: surface raw trend titles not already covered — no scores, no fabrication
-    return persist(trends.filter((t) => !past.has(fold(t.title))).slice(0, count)
+    return persist(trends.filter((t) => !past.has(DB.foldTopic(t.title))).slice(0, count)
       .map((t) => ({ topic: t.title, angle: '', source: t.source })), 'trends-only');
   }
   // P34: propose in the CHANNEL's language, not hard-coded Vietnamese
@@ -52,7 +51,7 @@ plus 2 click-worthy title options ≤70 chars (one emotional, one concrete-benef
 JSON: {"topics":[{"topic":"topic title ≤80 chars","angle":"one-sentence angle","source":"the trend it rides, or 'evergreen'","score":{"viral":8,"evergreen":4,"difficulty":3,"why":"..."},"titles":["...","..."]}]}` },
   ], { attempts: 2, llm, validate: (p) => Array.isArray(p.topics) && p.topics.length > 0 });
   const topics = parsed.topics
-    .filter((t) => t?.topic && !past.has(fold(t.topic)))
+    .filter((t) => t?.topic && !past.has(DB.foldTopic(t.topic)))
     .slice(0, count)
     .map((t) => ({
       topic: String(t.topic).slice(0, 100),

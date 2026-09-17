@@ -1,0 +1,18 @@
+<div id="rcOverlay" class="rc-overlay hidden">
+  <div class="rc-top">
+    <span class="rc-title"><span data-i18n="ui.rcOverlay.ban-nhap">▶ Bản nháp</span> <span class="rc-note" data-i18n="ui.rcOverlay.preview-truc-tiep-chua-phai">(preview trực tiếp — chưa phải bản render cuối)</span></span>
+    <span id="rcSceneLabel" class="rc-note"></span>
+    <span id="rcReviewState" class="rc-note"></span>
+    <button class="btn" id="rcApprove" title="Duyệt cảnh đang xem" data-i18n="ui.rcOverlay.duyet" data-i18n-title="ui.rcOverlay.duyet-canh-dang-xem">✓ Duyệt</button>
+    <button class="btn danger" id="rcReject" title="Loại cảnh đang xem (cần làm lại)" data-i18n="ui.rcOverlay.loai" data-i18n-title="ui.rcOverlay.loai-canh-dang-xem-can">✕ Loại</button>
+    <button class="btn" id="rcClose" data-i18n="ui.rcOverlay.dong">✕ Đóng</button>
+  </div>
+  <div class="rc-stagewrap"><div id="rcStage" class="rc-stage"></div></div>
+  <div class="rc-timeline"><canvas id="rcTl" height="86"></canvas></div>
+  <div class="rc-controls">
+    <button class="btn" id="rcPlay">▶</button>
+    <input type="range" id="rcSeek" min="0" max="100" step="0.05" value="0">
+    <span id="rcTime" class="rc-time">0:00 / 0:00</span>
+    <button class="btn" id="rcFs" title="Toàn màn hình (F)" data-i18n-title="ui.rcOverlay.toan-man-hinh-f">⛶</button>
+  </div>
+</div>

@@ -1,0 +1,186 @@
+          <div class="cfg-group" id="grpSubtitle">
+            <button class="cfg-head" type="button"><span class="cfg-ic">💬</span><span class="cfg-meta"><span class="cfg-title" data-i18n="ui.grpSubtitle.phu-de">Phụ đề</span><span class="cfg-chip" data-chip="subtitle"></span></span><span class="cfg-arr">▾</span></button>
+            <div class="cfg-body">
+              <label class="switch-row"><span class="switch"><input type="checkbox" id="cfgSub" checked><span class="sl"></span></span> <span data-i18n="ui.grpSubtitle.hien-phu-de">Hiện phụ đề</span></label>
+              <div id="subStyle">
+                <div class="grid2 mb-8">
+                  <div><label class="label" for="cfgSubMode" data-i18n="ui.subStyle.kieu-hien-thi">Kiểu hiển thị</label>
+                    <select class="input" id="cfgSubMode">
+                      <option value="karaoke" data-i18n="ui.cfgSubMode.karaoke-nhan-tung-tu-theo">🎤 Karaoke — nhấn từng từ theo giọng</option>
+                      <option value="plain" data-i18n="ui.cfgSubMode.thuong-dong-tinh-khong-nhan">📄 Thường — dòng tĩnh, không nhấn từ</option>
+                    </select></div>
+                  <div><label class="label" for="cfgSubChunk" data-i18n="ui.subStyle.cach-ngat-dong">Cách ngắt dòng</label>
+                    <select class="input" id="cfgSubChunk">
+                      <option value="auto" data-i18n="ui.cfgSubChunk.tu-nhien-cum-5-7">✨ Tự nhiên — cụm 5–7 từ</option>
+                      <option value="sentence" data-i18n="ui.cfgSubChunk.theo-cau-tron-cau-thoai">📝 Theo câu — trọn câu thoại</option>
+                      <option value="words" data-i18n="ui.cfgSubChunk.theo-so-tu">🔢 Theo số từ</option>
+                    </select></div>
+                </div>
+                <div class="field hidden mb-8" id="subWordsRow">
+                  <label class="label"><span data-i18n="ui.subWordsRow.so-tu-moi-dong">Số từ mỗi dòng:</span> <strong id="cfgSubWordsL">4</strong></label>
+                  <input type="range" class="range" id="cfgSubWords" min="2" max="10" step="1" value="4">
+                </div>
+                <!-- Phụ đề LUÔN được in sau khi ghép video hoàn chỉnh (lệnh chủ 2026-08-06).
+                     Không còn lựa chọn "vẽ trong từng cảnh": phụ đề nướng vào clip là đầu vào
+                     của clip, sửa font là render lại từng cảnh, và không gỡ ra được nữa. -->
+                <div class="hint mb-8" id="subLaneHint"></div>
+                <div class="hint mb-8" data-i18n="ui.subStyle.moi-cach-ngat-deu-dung">Mọi cách ngắt đều dựng lại từ đúng mốc thời gian từng từ của giọng đọc — phụ đề luôn khớp tiếng.</div>
+                <div class="sub-studio">
+                  <!-- CỘT 1 — chọn nhanh rồi nhìn ngay: bộ mẫu, xem thử CSS, xem thử khung thật -->
+                  <section class="sub-col">
+                    <h4 class="sub-h" data-i18n="ui.subStyle.bo-mau">Bộ mẫu</h4>
+                    <div class="sub-preset-grid" id="subPresetGrid"></div>
+                    <div class="row mt-8" style="gap:6px">
+                      <button class="btn sm flex-1" id="btnSubPresetSave" data-i18n="ui.subStyle.luu-thanh-bo-mau">💾 Lưu thành bộ mẫu…</button>
+                      <button class="btn sm ghost" id="btnSubReset" title="Trả mọi tinh chỉnh về mặc định" data-i18n-title="ui.subStyle.tra-moi-tinh-chinh-ve">↺</button>
+                    </div>
+                    <h4 class="sub-h" data-i18n="ui.subStyle.xem-thu">Xem thử</h4>
+                    <div class="sub-preview" id="subPreview" data-i18n="ui.subStyle.phu-de-mau">Phụ đề mẫu</div>
+                    <!-- Kiểu phụ đề được lưu thẳng vào kênh đang chọn ngay khi chỉnh (lệnh chủ
+                         2026-08-06) — không còn phải nhớ bấm nút lưu config kênh. -->
+                    <div class="hint mt-6" id="subSaveNote"></div>
+                    <!-- Xem thử trên KHUNG THẬT của video: đi qua đúng đường ghép cuối
+                         (logoRect + libass), nên thấy sao thì video ra vậy. -->
+                    <div id="framePreviewBox" class="hidden mt-10">
+                      <!-- Đổi phụ đề của video ĐÃ XUẤT: in lại trên bản ghép, không render lại cảnh.
+                           Bấm để xem bảng chi phí rồi mới chạy. -->
+                      <button class="btn sm block mb-8" id="btnSubApply" data-i18n="ui.framePreviewBox.ap-dung-phu-de-moi">🎬 Áp dụng phụ đề mới vào video này (dựng lại bản hoàn chỉnh)</button>
+                      <div class="row" style="gap:6px;align-items:center">
+                        <button class="btn sm" id="btnFramePreview" data-i18n="ui.framePreviewBox.xem-tren-khung-that">🎞 Xem trên khung thật</button>
+                        <input type="range" class="range flex-1" id="framePreviewAt" min="0" max="100" value="15" title="Vị trí trong video" data-i18n-title="ui.framePreviewBox.vi-tri-trong-video">
+                        <span class="hint ta-right" id="framePreviewT" style="min-width:52px">0:15</span>
+                      </div>
+                      <div class="hint mt-4" id="framePreviewNote"></div>
+                      <img id="framePreviewImg" alt="" class="hidden mt-6" style="width:100%;border-radius:8px;display:block">
+                    </div>
+                  </section>
+
+                  <!-- CỘT 2 — chữ và màu -->
+                  <section class="sub-col">
+                    <h4 class="sub-h" data-i18n="ui.subStyle.chu">Chữ</h4>
+                    <div class="grid2">
+                      <div><label class="label"><span data-i18n="ui.subStyle.font">Font</span> <button class="btn sm ghost hidden" id="cfgSubFontGet" title="Tải font này về máy" style="padding:0 6px" data-i18n="ui.subStyle.tai" data-i18n-title="ui.subStyle.tai-font-nay-ve-may">⬇︎ Tải</button></label>
+                        <select class="input" id="cfgSubFont"></select></div>
+                      <div><label class="label" for="cfgSubWeight" data-i18n="ui.subStyle.do-dam">Độ đậm</label>
+                        <select class="input" id="cfgSubWeight"></select></div>
+                    </div>
+                    <label class="label mt-8"><span data-i18n="ui.subStyle.co-chu">Cỡ chữ:</span> <strong id="cfgSubSizeL">80</strong></label>
+                    <input type="range" class="range" id="cfgSubSize" min="30" max="160" step="2" value="80">
+                    <div class="grid2 mt-8">
+                      <div><label class="label" for="cfgSubCase" data-i18n="ui.subStyle.kieu-chu">Kiểu chữ</label>
+                        <select class="input" id="cfgSubCase"><option value="" data-i18n="ui.cfgSubCase.theo-bo-mau">Theo bộ mẫu</option><option value="original" data-i18n="ui.cfgSubCase.goc">Gốc</option><option value="uppercase" data-i18n="ui.cfgSubCase.hoa">HOA</option><option value="lowercase" data-i18n="ui.cfgSubCase.thuong">thường</option><option value="titlecase" data-i18n="ui.cfgSubCase.hoa-dau">Hoa Đầu</option><option value="sentence" data-i18n="ui.cfgSubCase.hoa-dau-cau">Hoa đầu câu</option></select></div>
+                      <div><label class="label"><span data-i18n="ui.subStyle.gian-chu">Giãn chữ:</span> <strong id="cfgSubLsL">0</strong></label>
+                        <input type="range" class="range" id="cfgSubLetterSpacing" min="-6" max="30" step="1" value="0"></div>
+                    </div>
+                    <div class="grid2 mt-8">
+                      <div><label class="label"><span data-i18n="ui.subStyle.be-ngang">Bề ngang:</span> <strong id="cfgSubSxL">100</strong>%</label>
+                        <input type="range" class="range" id="cfgSubScaleX" min="60" max="180" step="2" value="100"></div>
+                      <div><label class="label"><span data-i18n="ui.subStyle.be-doc">Bề dọc:</span> <strong id="cfgSubSyL">100</strong>%</label>
+                        <input type="range" class="range" id="cfgSubScaleY" min="60" max="180" step="2" value="100"></div>
+                    </div>
+                    <label class="label mt-8"><span data-i18n="ui.subStyle.nghieng-khung-chu">Nghiêng khung chữ:</span> <strong id="cfgSubAngleL">0</strong>°</label>
+                    <input type="range" class="range" id="cfgSubAngle" min="-30" max="30" step="1" value="0">
+                    <div class="row mt-8" style="gap:14px;flex-wrap:wrap">
+                      <label class="hint chk"><input type="checkbox" id="cfgSubItalic"> <i data-i18n="ui.subStyle.nghieng">Nghiêng</i></label>
+                      <label class="hint chk"><input type="checkbox" id="cfgSubUnderline"> <u data-i18n="ui.subStyle.gach-chan">Gạch chân</u></label>
+                      <label class="hint chk"><input type="checkbox" id="cfgSubStrike"> <s data-i18n="ui.subStyle.gach-ngang">Gạch ngang</s></label>
+                    </div>
+
+                    <h4 class="sub-h" data-i18n="ui.subStyle.mau-chu">Màu chữ</h4>
+                    <label class="label" data-i18n="ui.subStyle.tu-dang-doc">Từ đang đọc</label>
+                    <div class="color-palette" id="cfgSubColors"></div>
+                    <label class="hint mt-6" style="display:inline-flex;align-items:center;gap:6px"><span data-i18n="ui.subStyle.mau-tuy-y">Màu tuỳ ý:</span>
+                      <input type="color" id="cfgSubColorCustom" class="cpick"></label>
+                    <div class="grid2 mt-8">
+                      <div><label class="label" for="cfgSubBaseColor" data-i18n="ui.subStyle.tu-chua-doc">Từ chưa đọc</label><input type="color" id="cfgSubBaseColor" class="cpick block"></div>
+                      <div><label class="label"><span data-i18n="ui.subStyle.do-mo-tu-chua-doc">Độ mờ từ chưa đọc:</span> <strong id="cfgSubDimUL">40</strong>%</label>
+                        <input type="range" class="range" id="cfgSubDimUnread" min="0" max="100" step="5" value="40"></div>
+                    </div>
+
+                    <h4 class="sub-h" data-i18n="ui.subStyle.vien-bong-quang-sang">Viền, bóng, quầng sáng</h4>
+                    <div class="grid2">
+                      <div><label class="label" for="cfgSubOutlineColor" data-i18n="ui.subStyle.mau-vien">Màu viền</label><input type="color" id="cfgSubOutlineColor" class="cpick block"></div>
+                      <div><label class="label"><span data-i18n="ui.subStyle.do-day-vien">Độ dày viền:</span> <strong id="cfgSubOwL">—</strong></label>
+                        <input type="range" class="range" id="cfgSubOutlineWidth" min="0" max="24" step="1" value="0"></div>
+                    </div>
+                    <div class="grid2 mt-8">
+                      <div><label class="label" for="cfgSubShadowColor" data-i18n="ui.subStyle.mau-bong">Màu bóng</label><input type="color" id="cfgSubShadowColor" class="cpick block"></div>
+                      <div><label class="label"><span data-i18n="ui.subStyle.do-sau-bong">Độ sâu bóng:</span> <strong id="cfgSubSdL">—</strong></label>
+                        <input type="range" class="range" id="cfgSubShadowDepth" min="0" max="30" step="1" value="0"></div>
+                    </div>
+                    <div class="grid2 mt-8">
+                      <div><label class="label" for="cfgSubGlowColor" data-i18n="ui.subStyle.mau-quang-sang">Màu quầng sáng</label><input type="color" id="cfgSubGlowColor" class="cpick block"></div>
+                      <div><label class="label"><span data-i18n="ui.subStyle.quang-sang">Quầng sáng:</span> <strong id="cfgSubGlowL" data-i18n="ui.subStyle.tat">tắt</strong></label>
+                        <input type="range" class="range" id="cfgSubGlow" min="0" max="40" step="2" value="0"></div>
+                    </div>
+                  </section>
+
+                  <!-- CỘT 3 — khung nền, vị trí, chuyển động -->
+                  <section class="sub-col">
+                    <h4 class="sub-h" data-i18n="ui.subStyle.khung-nen">Khung nền</h4>
+                    <label class="switch-row"><span class="switch"><input type="checkbox" id="cfgSubBox"><span class="sl"></span></span> <span data-i18n="ui.subStyle.co-khung-nen-sau-chu">Có khung nền sau chữ</span></label>
+                    <div id="subBoxOpts" class="hidden">
+                      <div class="grid2 mt-8">
+                        <div><label class="label" for="cfgSubBoxColor" data-i18n="ui.subBoxOpts.mau-nen">Màu nền</label><input type="color" id="cfgSubBoxColor" class="cpick block"></div>
+                        <div><label class="label"><span data-i18n="ui.subBoxOpts.do-mo-nen">Độ mờ nền:</span> <strong id="cfgSubBoxOpL">85</strong>%</label>
+                          <input type="range" class="range" id="cfgSubBoxOpacity" min="0" max="100" step="5" value="85"></div>
+                      </div>
+                      <label class="label mt-8"><span data-i18n="ui.subBoxOpts.bo-goc">Bo góc:</span> <strong id="cfgSubBoxRL">0</strong></label>
+                      <input type="range" class="range" id="cfgSubBoxRadius" min="0" max="120" step="2" value="0">
+                      <label class="label mt-8" data-i18n="ui.subBoxOpts.padding-tren-phai-duoi-trai">Padding (trên · phải · dưới · trái)</label>
+                      <div class="pad4">
+                        <input type="number" class="input" id="cfgSubPadTop" min="0" max="200" value="14">
+                        <input type="number" class="input" id="cfgSubPadRight" min="0" max="200" value="28">
+                        <input type="number" class="input" id="cfgSubPadBottom" min="0" max="200" value="14">
+                        <input type="number" class="input" id="cfgSubPadLeft" min="0" max="200" value="28">
+                      </div>
+                      <div class="grid2 mt-8">
+                        <div><label class="label" for="cfgSubBoxBorderColor" data-i18n="ui.subBoxOpts.mau-vien-khung">Màu viền khung</label><input type="color" id="cfgSubBoxBorderColor" class="cpick block"></div>
+                        <div><label class="label"><span data-i18n="ui.subBoxOpts.do-day-vien-khung">Độ dày viền khung:</span> <strong id="cfgSubBoxBwL">0</strong></label>
+                          <input type="range" class="range" id="cfgSubBoxBorderWidth" min="0" max="20" step="1" value="0"></div>
+                      </div>
+                      <div class="hint mt-6" data-i18n="ui.subBoxOpts.khung-nen-duoc-ve-vua">Khung nền được vẽ vừa khít chữ — cần Chrome để đo bề rộng chữ trước khi in.</div>
+                    </div>
+
+                    <h4 class="sub-h" data-i18n="ui.subStyle.vi-tri">Vị trí</h4>
+                    <div class="grid2">
+                      <div><label class="label" for="cfgSubAlignH" data-i18n="ui.subStyle.canh-ngang">Canh ngang</label>
+                        <select class="input" id="cfgSubAlignH"><option value="center" data-i18n="ui.cfgSubAlignH.giua">Giữa</option><option value="left" data-i18n="ui.cfgSubAlignH.trai">Trái</option><option value="right" data-i18n="ui.cfgSubAlignH.phai">Phải</option></select></div>
+                      <div><label class="label" for="cfgSubPos" data-i18n="ui.subStyle.vi-tri-doc">Vị trí dọc</label>
+                        <select class="input" id="cfgSubPos"><option value="bot" data-i18n="ui.cfgSubPos.duoi">Dưới</option><option value="mid" data-i18n="ui.cfgSubPos.giua">Giữa</option><option value="top" data-i18n="ui.cfgSubPos.tren">Trên</option></select></div>
+                    </div>
+                    <label class="label mt-8"><span data-i18n="ui.subStyle.cach-day">Cách đáy:</span> <strong id="cfgSubMvL">—</strong></label>
+                    <input type="range" class="range" id="cfgSubMarginV" min="0" max="90" step="1" value="12">
+                    <label class="label mt-8"><span data-i18n="ui.subStyle.le-hai-ben">Lề hai bên:</span> <strong id="cfgSubMhL">6</strong>%</label>
+                    <input type="range" class="range" id="cfgSubMarginH" min="0" max="40" step="1" value="6">
+                    <div class="grid2 mt-8">
+                      <div><label class="label" for="cfgSubMaxChars" data-i18n="ui.subStyle.ky-tu-toi-da-dong">Ký tự tối đa / dòng</label>
+                        <input type="number" class="input" id="cfgSubMaxChars" min="0" max="80" placeholder="tự động" data-i18n-placeholder="ui.subStyle.tu-dong"></div>
+                      <div><label class="label" for="cfgSubMaxLines" data-i18n="ui.subStyle.so-dong-toi-da">Số dòng tối đa</label>
+                        <select class="input" id="cfgSubMaxLines"><option value="" data-i18n="ui.cfgSubMaxLines.tu-dong">tự động</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select></div>
+                    </div>
+
+                    <h4 class="sub-h" data-i18n="ui.subStyle.chuyen-dong">Chuyển động</h4>
+                    <label class="label" for="cfgSubKaraokeStyle" data-i18n="ui.subStyle.cach-nhan-tu-dang-doc">Cách nhấn từ đang đọc</label>
+                    <select class="input" id="cfgSubKaraokeStyle">
+                      <option value="color" data-i18n="ui.cfgSubKaraokeStyle.doi-mau-mac-dinh">Đổi màu (mặc định)</option>
+                      <option value="box" data-i18n="ui.cfgSubKaraokeStyle.khoi-mau-chay-theo-tu">Khối màu chạy theo từ</option>
+                      <option value="pop" data-i18n="ui.cfgSubKaraokeStyle.phong-to-tu-dang-doc">Phóng to từ đang đọc</option>
+                    </select>
+                    <div class="field hidden mt-8" id="subPopRow">
+                      <label class="label"><span data-i18n="ui.subPopRow.phong-to">Phóng to:</span> <strong id="cfgSubPopL">112</strong>%</label>
+                      <input type="range" class="range" id="cfgSubPopScale" min="102" max="160" step="2" value="112">
+                      <div class="hint" data-i18n="ui.subPopRow.ass-khong-phong-to-tai">⚠ ASS không phóng to tại chỗ được — từ to lên sẽ đẩy các từ bên cạnh dịch ngang.</div>
+                    </div>
+                    <label class="switch-row mt-8"><span class="switch"><input type="checkbox" id="cfgSubReveal"><span class="sl"></span></span> <span data-i18n="ui.subStyle.hien-dan-tung-tu-doc">Hiện dần từng từ (đọc tới đâu hiện tới đó)</span></label>
+                    <div class="grid2 mt-8">
+                      <div><label class="label"><span data-i18n="ui.subStyle.mo-vao">Mờ vào:</span> <strong id="cfgSubFiL">0</strong>ms</label>
+                        <input type="range" class="range" id="cfgSubFadeIn" min="0" max="600" step="20" value="0"></div>
+                      <div><label class="label"><span data-i18n="ui.subStyle.mo-ra">Mờ ra:</span> <strong id="cfgSubFoL">0</strong>ms</label>
+                        <input type="range" class="range" id="cfgSubFadeOut" min="0" max="600" step="20" value="0"></div>
+                    </div>
+                  </section>
+                </div>
+              </div>
+            </div>
+          </div>

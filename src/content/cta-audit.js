@@ -8,8 +8,7 @@
 import { splitSentences } from '../providers/llm.js';
 
 import { m, tp } from '../i18n/t.js';
-const fold = (s) => String(s || '').toLowerCase()
-  .normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd');
+import { foldLower } from '../util/util.js';
 
 // Channel-CTA verbs demand channel context nearby — "đăng ký khóa học" is content, not CTA.
 const CTA_RES = [
@@ -43,7 +42,7 @@ const FAREWELL_RES = [
 export function classifyCta(voice) {
   const out = { cta: false, farewell: false, phrases: [] };
   for (const sent of splitSentences(String(voice || ''))) {
-    const f = fold(sent);
+    const f = foldLower(sent);
     if (FAREWELL_RES.some((re) => re.test(f))) { out.farewell = true; out.phrases.push(sent.trim()); continue; }
     if (CTA_RES.some((re) => re.test(f))) { out.cta = true; out.phrases.push(sent.trim()); }
   }
@@ -96,7 +95,7 @@ export function stripCtaSentences(voice, { farewellOnly = false } = {}) {
   const sents = splitSentences(String(voice || ''));
   const kept = []; const removed = [];
   for (const sent of sents) {
-    const f = fold(sent);
+    const f = foldLower(sent);
     const isFarewell = FAREWELL_RES.some((re) => re.test(f));
     const isCta = !farewellOnly && CTA_RES.some((re) => re.test(f));
     if (isFarewell || isCta) removed.push(sent.trim());

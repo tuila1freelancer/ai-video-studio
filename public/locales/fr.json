@@ -38,6 +38,7 @@
   "srv.Bản Tin": "Actualités",
   "srv.Bản cài đặt này chưa được cấu hình cửa hàng.": "Cette installation n'est pas configurée pour la boutique.",
   "srv.Bản cài đặt này thiếu khoá xác thực license. Hãy tải lại bản mới từ cửa hàng.": "Clé de licence absente. Téléchargez à nouveau depuis la boutique.",
+  "srv.Bản cài đặt này đã bị can thiệp nên không thể chạy. Hãy cài lại bản gốc từ cửa hàng.": "Cette copie a été altérée et ne peut pas démarrer. Veuillez réinstaller la version originale depuis la boutique.",
   "srv.Cao độ (-20 đến 20)": "Hauteur (-20 à 20)",
   "srv.Cao độ (-24 đến +24, semitone)": "Hauteur (-24 à +24, demi-tons)",
   "srv.Cao độ (Hz) — vd +20 cho giọng tươi hơn": "Hauteur (Hz) — ex. +20 pour voix plus vive",
@@ -328,6 +329,7 @@
   "srv.dự án không ở bước duyệt cảnh": "Projet hors étape de validation de scène",
   "srv.dự án nguồn chưa có cảnh": "projet source sans scène",
   "srv.dự án nguồn không có asset nào còn trên đĩa": "Aucun asset source restant sur le disque",
+  "srv.dự án đang chạy — đợi xong rồi tạo lại cảnh": "Projet en cours — attendez la fin pour régénérer la scène",
   "srv.edge returned empty audio": "Edge a renvoyé un audio vide",
   "srv.edit rejected by lint": "Modification rejetée par le linter",
   "srv.edit rejected by render validation": "Modification rejetée par la validation du rendu",
@@ -336,6 +338,7 @@
   "srv.file không hợp lệ": "Fichier invalide",
   "srv.file logo của preset không còn trên đĩa": "Logo du préréglage absent du disque",
   "srv.file logo không hợp lệ": "Fichier de logo invalide",
+  "srv.file quá lớn ({0} MB)": "Fichier trop volumineux ({0} MB)",
   "srv.file rỗng": "Fichier vide",
   "srv.file thiếu": "fichier manquant",
   "srv.font \"{0}\" đang ở dạng {1} — libass chỉ đọc được .ttf/.otf. ": "police \"{0}\" en format {1} — libass lit uniquement .ttf/.otf. ",
@@ -455,6 +458,7 @@
   "srv.thiếu nội dung HTML": "Contenu HTML manquant",
   "srv.thiếu thời điểm hẹn": "créneau planifié manquant",
   "srv.thiếu tên bộ mẫu": "Nom du préréglage manquant",
+  "srv.thiếu tên hoặc loại style": "Nom ou type de style manquant",
   "srv.thiếu tên kênh": "Nom de chaîne manquant",
   "srv.thiếu video stream": "flux vidéo manquant",
   "srv.thiếu voiceId": "voiceId manquant",
@@ -528,6 +532,7 @@
   "srv.đổi phụ đề ({0} thiết lập, in ở bước cuối)": "modifier sous-titres ({0} réglages, incrustés à la fin)",
   "srv.đổi watermark": "modifier filigrane",
   "srv.đổi {0}": "modifier {0}",
+  "srv.Ảnh bìa/thumbnail AI lỗi — giữ bản cơ bản: {0}": "Erreur miniature IA — version de base conservée : {0}",
   "srv.ảnh bìa các nền tảng": "miniatures multiplateformes",
   "srv.ảnh của phiên bản này không còn trên đĩa": "Image de cette version absente du disque",
   "srv.ảnh trả về rỗng/quá nhỏ": "image retournée vide/trop petite",
@@ -2154,6 +2159,5 @@
   "ui.wmSource.ten-kenh": "Nom de la chaîne",
   "ui.wmSpeed.cham-75s-vong": "Lent — 75s/tour",
   "ui.wmSpeed.rat-cham-120s-vong": "Très lent — 120s/tour",
-  "ui.wmSpeed.vua-45s-vong": "Moyen — 45s/tour",
-  "srv.Bản cài đặt này đã bị can thiệp nên không thể chạy. Hãy cài lại bản gốc từ cửa hàng.": "Cette copie a été altérée et ne peut pas démarrer. Veuillez réinstaller la version originale depuis la boutique."
+  "ui.wmSpeed.vua-45s-vong": "Moyen — 45s/tour"
 }

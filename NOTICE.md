@@ -31,7 +31,7 @@ architectures.
 | `skills/hyperframes-animation/blueprints-index.md` | the 15 time-coded shot templates tied to narrative roles, adopted as `HF_LAYOUTS` in `src/pipeline/direction.js` |
 | `packages/lint/src/rules/` | the static lint rules in `src/hyperframe/lint.js` |
 | `packages/cli/src/utils/layoutAudit.ts` | the runtime layout audit in `src/hyperframe/validate.js` |
-| `packages/core/src/text/fitTextFontSize.ts` | the text-fitting pass in `src/animation/harness.js` |
+| `packages/core/src/text/fitTextFontSize.ts` | the text-fitting pass in `src/animation/harness/runtime-typeset.js` |
 
 **Blueprints** (`skills/hyperframes-animation/blueprints-index.md`) — 15 time-coded shot templates,
 each tied to narrative roles (Hook, Problem, Product_Intro, Key_Feature, Benefits, Social_Proof,
