@@ -174,6 +174,20 @@ function baseCss(guide, ctx) {
   const { u } = ctx;
   const p = guide.palette;
   const [a0, a1, a2] = p.accents;
+  // Light-paper guides: the stage dressing below was tuned for dark stages, where a black
+  // vignette, white-glass cards and a white beam read as depth. On a light background the
+  // same rules paint a black oval around every scene and make cards, chips, beam and underline
+  // vanish — so each one gets an ink-tinted counterpart. Dark guides keep the exact strings.
+  const light = isLightHex(p.bg);
+  const vig = light ? `${p.ink}1F` : 'rgba(0,0,0,.44)';
+  const kw2Shadow = light ? `0 ${u(0.15)}px ${u(0.6)}px rgba(0,0,0,.18)` : `0 ${u(0.3)}px ${u(1.4)}px rgba(0,0,0,.7)`;
+  const cardBg = light ? 'linear-gradient(160deg,rgba(255,255,255,.82),rgba(255,255,255,.6))' : 'linear-gradient(160deg,rgba(255,255,255,.09),rgba(255,255,255,.03))';
+  const cardBorder = light ? `${p.ink}2E` : 'rgba(255,255,255,.12)';
+  const cardShadow = light ? `0 ${u(1.2)}px ${u(3.2)}px ${p.ink}1F,inset 0 1px 0 rgba(255,255,255,.9)` : `0 ${u(1.6)}px ${u(4)}px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.08)`;
+  const chipBg = light ? `${p.ink}0F` : 'rgba(255,255,255,.07)';
+  const statShadow = light ? `0 ${u(0.15)}px ${u(0.6)}px rgba(0,0,0,.15)` : `0 0 ${u(2.4)}px ${a0}66,0 ${u(0.4)}px ${u(1.6)}px rgba(0,0,0,.8)`;
+  const beamMid = light ? `${p.ink}33` : 'rgba(255,255,255,.55)';
+  const underlineMid = light ? `${p.ink}cc` : '#ffffffcc';
   return `
   .hf-cam{position:absolute;inset:0;transform-origin:50% 50%}
   .hf-layer{position:absolute;inset:0}
@@ -185,13 +199,13 @@ function baseCss(guide, ctx) {
   .hf-slot{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:${u(1.4)}px;text-align:center}
   .hf-center{position:absolute;inset:0;display:grid;place-items:center;text-align:center}
   .hf-kw{font-family:${guide.fonts.display};font-weight:800;font-size:${u(11)}px;line-height:1.02;${track(ctx.script, '.005em')}${upper(ctx.script)}white-space:pre-line;text-wrap:balance;${kwTreatment(guide, ctx)}}
-  .hf-kw2{font-family:${guide.fonts.display};font-weight:700;font-size:${u(6.2)}px;line-height:1.08;${upper(ctx.script)}text-wrap:balance;color:${p.ink};text-shadow:0 ${u(0.3)}px ${u(1.4)}px rgba(0,0,0,.7)}
+  .hf-kw2{font-family:${guide.fonts.display};font-weight:700;font-size:${u(6.2)}px;line-height:1.08;${upper(ctx.script)}text-wrap:balance;color:${p.ink};text-shadow:${kw2Shadow}}
   .hf-sub{font-family:${guide.fonts.body};font-weight:500;font-size:${u(2.9)}px;color:${p.muted};line-height:1.4;text-wrap:balance}
   .hf-label{font-family:${guide.fonts.mono};font-weight:700;font-size:${u(2.0)}px;${track(ctx.script, '.3em')}${upper(ctx.script)}color:${a1}}
-  .hf-card{background:linear-gradient(160deg,rgba(255,255,255,.09),rgba(255,255,255,.03));border:1px solid rgba(255,255,255,.12);border-radius:${u(1.8)}px;padding:${u(2.6)}px ${u(3.4)}px;box-shadow:0 ${u(1.6)}px ${u(4)}px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.08);backdrop-filter:blur(6px)}
-  .hf-chip{display:inline-flex;align-items:center;gap:${u(1)}px;font-family:${guide.fonts.body};font-weight:600;font-size:${u(2.3)}px;color:${p.ink};background:rgba(255,255,255,.07);border:1px solid ${a0}55;border-radius:999px;padding:${u(0.9)}px ${u(2.2)}px}
+  .hf-card{background:${cardBg};border:1px solid ${cardBorder};border-radius:${u(1.8)}px;padding:${u(2.6)}px ${u(3.4)}px;box-shadow:${cardShadow};backdrop-filter:blur(6px)}
+  .hf-chip{display:inline-flex;align-items:center;gap:${u(1)}px;font-family:${guide.fonts.body};font-weight:600;font-size:${u(2.3)}px;color:${p.ink};background:${chipBg};border:1px solid ${a0}55;border-radius:999px;padding:${u(0.9)}px ${u(2.2)}px}
   .hf-stat{display:grid;justify-items:center;gap:${u(0.6)}px}
-  .hf-stat-v{font-family:${guide.fonts.display};font-weight:800;font-size:${u(13)}px;line-height:1;font-variant-numeric:tabular-nums;color:${p.ink};text-shadow:0 0 ${u(2.4)}px ${a0}66,0 ${u(0.4)}px ${u(1.6)}px rgba(0,0,0,.8)}
+  .hf-stat-v{font-family:${guide.fonts.display};font-weight:800;font-size:${u(13)}px;line-height:1;font-variant-numeric:tabular-nums;color:${p.ink};text-shadow:${statShadow}}
   .hf-stat-u{font-size:.55em;color:${a1};margin-left:.06em}
   .hf-stat-l{font-family:${guide.fonts.body};font-weight:600;font-size:${u(2.6)}px;${track(ctx.script, '.12em')}${upper(ctx.script)}color:${p.muted}}
   .hf-iconbox{display:grid;place-items:center;font-size:${u(11)}px;color:${a1};filter:drop-shadow(0 0 ${u(2.2)}px ${a1}77)}
@@ -199,10 +213,10 @@ function baseCss(guide, ctx) {
   .hf-lower3{position:absolute;left:7%;right:7%;bottom:20%;display:flex;align-items:center;gap:${u(1.6)}px;justify-content:center}
   .hf-row{display:flex;gap:${u(1.8)}px;align-items:center;justify-content:center}
   .hf-col{display:grid;gap:${u(1.4)}px;justify-items:center}
-  .hf-beam{position:absolute;top:-25%;bottom:-25%;left:-14%;width:${u(9)}px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.55),transparent);transform:rotate(13deg);opacity:0;pointer-events:none}
-  .hf-underline{height:${Math.max(3, u(0.45))}px;border-radius:99px;background:linear-gradient(90deg,${a0},${a1},#ffffffcc,${a0});background-size:240% 100%;box-shadow:0 0 ${u(1.4)}px ${a0}99;animation:hfsheen 3.4s ease-in-out infinite}
+  .hf-beam{position:absolute;top:-25%;bottom:-25%;left:-14%;width:${u(9)}px;background:linear-gradient(90deg,transparent,${beamMid},transparent);transform:rotate(13deg);opacity:0;pointer-events:none}
+  .hf-underline{height:${Math.max(3, u(0.45))}px;border-radius:99px;background:linear-gradient(90deg,${a0},${a1},${underlineMid},${a0});background-size:240% 100%;box-shadow:0 0 ${u(1.4)}px ${a0}99;animation:hfsheen 3.4s ease-in-out infinite}
   @keyframes hfsheen{0%,100%{background-position:0% 0}50%{background-position:100% 0}}
-  .hf-vig{pointer-events:none;box-shadow:inset 0 0 ${u(26)}px rgba(0,0,0,.44)}
+  .hf-vig{pointer-events:none;box-shadow:inset 0 0 ${u(26)}px ${vig}}
   .hf-grain{pointer-events:none;background-image:${GRAIN_URI};background-size:${u(16)}px ${u(16)}px;opacity:${guide.motif === 'grain' ? '.07' : '.05'};mix-blend-mode:overlay}
   .hf-accent{color:${a0}}.hf-accent2{color:${a1}}.hf-accent3{color:${a2}}
   `;
