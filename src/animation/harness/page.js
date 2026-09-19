@@ -117,7 +117,7 @@ export function buildScenePage(opts) {
 html,body{width:${w}px;height:${h}px;overflow:hidden;background:${ov ? KEY : theme.bg}}
 ${Z !== 1 ? `body{zoom:${Z}}` : ''}
 body{font-family:${theme.font};color:${theme.ink};-webkit-font-smoothing:antialiased}
-.stage{position:absolute;inset:0;background:${ov ? KEY : `radial-gradient(ellipse at 50% 30%, ${theme.bg2} 0%, ${theme.bg} 60%, #05050a 100%)`}}
+.stage{position:absolute;inset:0;background:${ov ? KEY : `radial-gradient(ellipse at 50% 30%, ${theme.bg2} 0%, ${theme.bg} 60%, ${theme.edge || '#05050a'} 100%)`}}
 #bgCanvas{position:absolute;inset:0;width:${w}px;height:${h}px}
 ${grid}
 ${vig}
