@@ -40,3 +40,9 @@ test('a late or missing answer and a thin script fail', () => {
   const r = auditScript(thin, { title: 'x' });
   assert.ok(!r.ok && r.fails.some((f) => f.startsWith('words')) && r.fails.some((f) => f.includes('answer')));
 });
+
+test('the word floor follows the voice pace: 8.3 minutes at the given wpm, or an explicit minimum', () => {
+  const short = `${'Divide 65 by two percent. '.repeat(30)}${CLOSING_LINE}`;
+  assert.ok(auditScript(short, { title: 'x', wpm: 171 }).fails.some((f) => f.startsWith('words') && f.includes('1420')));
+  assert.equal(auditScript(short, { title: 'x', minWords: 100 }).fails.some((f) => f.startsWith('words')), false);
+});

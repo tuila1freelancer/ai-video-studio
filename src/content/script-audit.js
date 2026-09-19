@@ -65,11 +65,14 @@ const hits = (text, res) => res.flatMap((re) => { const m = String(text || '').m
 
 /**
  * @param {string} text narration
- * @param {{title?:string, corpus?:string[]}} opts corpus[0] = the previous video's narration
+ * @param {{title?:string, corpus?:string[], wpm?:number, minWords?:number}} opts corpus[0] = the
+ *   previous video's narration; wpm = the pinned voice's measured pace (minutes and the 8-minute
+ *   mid-roll floor follow it); minWords overrides the floor outright.
  */
-export function auditScript(text, { title = '', corpus = [] } = {}) {
+export function auditScript(text, { title = '', corpus = [], wpm = 156, minWords } = {}) {
   const t = String(text || '');
   const words = t.split(/\s+/).filter(Boolean).length;
+  const floor = Number.isFinite(+minWords) && +minWords > 0 ? +minWords : Math.ceil(wpm * 8.3);
   const sents = sentences(t);
   const numbers = (t.match(NUM_RE) || []).length;
   const per100 = words ? +(numbers / words * 100).toFixed(2) : 0;
@@ -94,7 +97,7 @@ export function auditScript(text, { title = '', corpus = [] } = {}) {
   const connectiveFromPrevious = prev ? CONNECTIVES.filter((c) => nt.includes(c) && prev.includes(c)) : [];
   const closingOk = nt.includes(CLOSING_LINE);
   const fails = [];
-  if (words < 1300) fails.push(`words ${words} < 1300`);
+  if (words < floor) fails.push(`words ${words} < ${floor} (8.3 min at ${wpm} wpm)`);
   if (per100 < 1.8) fails.push(`numbers ${per100}/100w < 1.8`);
   if (sourcesSpoken < 3) fails.push(`sources spoken ${sourcesSpoken} < 3`);
   if (workedExample < 1) fails.push('no spoken calculation');
@@ -110,7 +113,7 @@ export function auditScript(text, { title = '', corpus = [] } = {}) {
   if (connectiveFromPrevious.length) fails.push(`connective also in previous video: ${connectiveFromPrevious.join(' | ')}`);
   if (!closingOk) fails.push('fixed closing line missing');
   return {
-    words, minutes: +(words / 156).toFixed(1), numbers, per100, sourcesSpoken, workedExample, checks, mechanismNamed,
+    words, minutes: +(words / wpm).toFixed(1), floor, numbers, per100, sourcesSpoken, workedExample, checks, mechanismNamed,
     answerAt, titleCoverage, persona, advice, fear, filler, crossRepeats, connectiveReuse, connectiveFromPrevious, closingOk,
     fails, ok: fails.length === 0,
   };

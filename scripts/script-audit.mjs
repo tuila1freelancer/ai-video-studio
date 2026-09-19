@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Gate a narration script on the PROMPT MASTER v2 value contract before it goes into the app.
 // Usage:
-//   node scripts/script-audit.mjs <script.md> [--title "…"] [--prev <previous-script.md>] [--corpus <dir-of-video-folders>]
+//   node scripts/script-audit.mjs <script.md> [--title "…"] [--prev <previous-script.md>] [--corpus <dir-of-video-folders>] [--wpm 171] [--min-words 1400]
 // With --corpus, every other */script.md under that dir is compared for shared sentences; the
 // most recently numbered sibling before this one is treated as the previous video when --prev is absent.
 // Exit code: 0 = passes every measurable clause, 2 = defects listed.
@@ -28,8 +28,8 @@ if (existsSync(corpusDir)) {
 }
 if (opt('--prev')) corpus.unshift(readFileSync(opt('--prev'), 'utf8'));
 
-const r = auditScript(text, { title: opt('--title') || basename(dirname(me)).replace(/^\d+ - /, ''), corpus });
-console.log(`# Script audit — ${basename(dirname(me))} (${r.words} words ≈ ${r.minutes} min)`);
+const r = auditScript(text, { title: opt('--title') || basename(dirname(me)).replace(/^\d+ - /, ''), corpus, wpm: +opt('--wpm') || 156, minWords: +opt('--min-words') || undefined });
+console.log(`# Script audit — ${basename(dirname(me))} (${r.words} words ≈ ${r.minutes} min at the given pace · floor ${r.floor})`);
 console.log(`  numbers ${r.numbers} (${r.per100}/100w) · sources spoken ${r.sourcesSpoken} · calc sentences ${r.workedExample} · checks ${r.checks} · mechanism named ${r.mechanismNamed ? 'yes' : 'no'}`);
 console.log(`  answer at ${r.answerAt == null ? '—' : Math.round(r.answerAt * 100) + '%'} · title words in first 25%: ${r.titleCoverage == null ? '—' : Math.round(r.titleCoverage * 100) + '%'} · closing line ${r.closingOk ? 'ok' : 'MISSING'}`);
 console.log(`  persona ${r.persona.length} · advice ${r.advice.length} · fear ${r.fear.length} · filler ${r.filler.length} · shared sentences ${r.crossRepeats.length} · connective reuse ${r.connectiveReuse.length} · from previous ${r.connectiveFromPrevious.length}`);
