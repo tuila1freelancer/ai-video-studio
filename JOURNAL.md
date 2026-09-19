@@ -348,3 +348,8 @@ from the studio's own database — every number is real production data.
 - Scenes with rendered clips (active projects): 0 · Jobs: 0 done / 0 error / 0 cancelled
 - AI usage: 0 calls · 0 tokens in / 0 out · 0 TTS chars · est. $0.00
 - Published: — · Calendar-driven runs: —
+## 2026-09-19
+- Videos: 2 created · 2 completed — “The Invisible Pay Cut: Where Your Money Went” · “Where Did Your Money Go? The Invisible Pay Cut”
+- Scenes with rendered clips (active projects): 42 · Jobs: 4 done / 1 error / 0 cancelled
+- AI usage: 53 calls · 733k tokens in / 300k out · 0 TTS chars · est. $6.22
+- Published: — · Calendar-driven runs: —
