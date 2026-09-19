@@ -28,6 +28,9 @@ export function themeFromGuide(g) {
                    // flourishes come from the on-demand .hf-beam (FX.beamSweep) instead.
     vignette: light ? 0 : 0.5,
     noise: 0,
+    // Outer stop of the stage gradient: on paper the edge darkens to the second paper tone,
+    // not to near-black — that stop alone drew a black oval around every light scene.
+    edge: light ? g.palette.bg2 : '#05050a',
   };
 }
 
