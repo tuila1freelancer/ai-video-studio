@@ -280,6 +280,12 @@ test('P45: the agent lane is opt-in, scoped, channel-explicit and coded', () => 
   assert.match(tokens, /createHash\('sha256'\)/);
   assert.match(tokens, /timingSafeEqual/);
   assert.ok(!/INSERT INTO api_tokens[^)]*secret/i.test(tokens), 'no column ever holds the secret');
+  // ... and minting one is the machine's to do: the window asks, a caller of the API never can.
+  const minting = sourceOf('src/api/routers/tokens.js');
+  assert.match(minting, /if \(isServerMode\(\)\) \{/, 'a server deployment mints with the CLI, not over HTTP');
+  assert.match(minting, /if \(!isLocalRequest\(req\)\)/, 'and never from off this machine');
+  assert.match(minting, /authRequired\(\) && !String\(req\.token\?\.id \|\| ''\)\.startsWith\('sys'\)/,
+    'an agent holding admin is still not the window');
 
   // (3) the channel is what the caller named, and a bound token cannot leave it.
   const scope = sourceOf('src/api/channel-scope.js');

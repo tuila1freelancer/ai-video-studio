@@ -34,6 +34,7 @@ import { mount as mountProjectOutputs } from './routers/project-outputs.js';
 import { mount as mountJobs } from './routers/jobs.js';
 import { mount as mountEvents } from './routers/events.js';
 import { mount as mountOps } from './routers/ops.js';
+import { mount as mountTokens } from './routers/tokens.js';
 import { mount as mountSceneStudio } from './routers/scene-studio.js';
 import { mount as mountScenes } from './routers/scenes.js';
 import { mount as mountResearch } from './routers/research.js';
@@ -120,6 +121,7 @@ export function mountRoutes(app, { version }) {
   mountJobs(r);
   mountEvents(r);
   mountOps(r);
+  mountTokens(r);
   mountSceneStudio(r);
   mountScenes(r);
   mountResearch(r);
