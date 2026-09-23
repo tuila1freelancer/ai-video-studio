@@ -10,11 +10,11 @@ import { coded } from '../../core/errors.js';
 
 import { m, tp } from '../../i18n/t.js';
 /**
- * @param {{topics?:string[], config?:object, channelId?:string}} req
+ * @param {{topics?:string[], config?:object, channelId?:string, actor?:string}} req
  * @returns {{projects:string[], count:number}}
  * @throws {Error} with .status=400 when no valid topic is present
  */
-export function startBatch({ topics = [], config = {}, channelId = null } = {}) {
+export function startBatch({ topics = [], config = {}, channelId = null, actor = null } = {}) {
   const clean = topics.map((t) => String(t || '').trim()).filter((t) => t.length > 3);
   if (!clean.length) { const e = coded(new Error(m('không có chủ đề hợp lệ')), 'config.bad-input'); e.status = 400; throw e; }
   const batchChannel = DB.getChannel(channelId || DB.activeChannelId());
@@ -38,7 +38,7 @@ export function startBatch({ topics = [], config = {}, channelId = null } = {}) 
     // batch (one video at a time, as before) and broadcasts batch-done when the last one
     // settles — and unlike the old fire-and-forget IIFE, a crash no longer strands the rest.
     const batchId = `batch_${Date.now().toString(36)}`;
-    for (const p of created) Pipeline.enqueueBatchItem(p.id, batchId);
+    for (const p of created) Pipeline.enqueueBatchItem(p.id, batchId, { actor });
   } else {
     // legacy fallback: sequential background run — one video at a time
     (async () => {

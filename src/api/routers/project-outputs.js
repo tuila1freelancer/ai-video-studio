@@ -258,7 +258,7 @@ function mountProjectActions(r) {
       const out = await repurposeProject(req.params.id, { aspectRatio: req.body?.aspectRatio });
       // start the derived render as a resume run: voice/captions are already attached,
       // so only visuals-for-dropped-scenes + the full re-render actually execute
-      Pipeline.startProject(out.project.id, { resume: true }).catch((e) => logger.error(e.message, { projectId: out.project.id }));
+      Pipeline.startProject(out.project.id, { resume: true, actor: req.actor }).catch((e) => logger.error(e.message, { projectId: out.project.id }));
       res.json(out);
     } catch (e) { res.status(400).json({ error: e.message }); }
   });

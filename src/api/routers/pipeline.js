@@ -18,7 +18,7 @@ export function mount(r) {
   // ---- batch queue: multiple topics → run sequentially on their own ----
   r.post('/batch', (req, res) => {
     try {
-      const { projects, count } = startBatch({ ...(req.body || {}), channelId: channelIdFor(req) });
+      const { projects, count } = startBatch({ ...(req.body || {}), channelId: channelIdFor(req), actor: req.actor });
       res.json({ ok: true, projects, count });
     } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
   });
@@ -28,12 +28,12 @@ export function mount(r) {
     const p = DB.getProject(req.params.id);
     if (!p) return res.status(404).json({ error: 'not found' });
     if (req.body && req.body.config) DB.updateProject(p.id, { config: { ...p.config, ...req.body.config } });
-    Pipeline.startProject(p.id).catch((e) => logger.error(`start failed: ${e.message}`, { projectId: p.id }));
+    Pipeline.startProject(p.id, { actor: req.actor }).catch((e) => logger.error(`start failed: ${e.message}`, { projectId: p.id }));
     res.json({ ok: true, status: 'running' });
   });
   r.post('/projects/:id/stop', (req, res) => { Pipeline.stopProject(req.params.id); res.json({ ok: true }); });
   r.post('/projects/:id/resume', (req, res) => {
-    Pipeline.startProject(req.params.id, { resume: true }).catch((e) => logger.error(e.message, { projectId: req.params.id }));
+    Pipeline.startProject(req.params.id, { resume: true, actor: req.actor }).catch((e) => logger.error(e.message, { projectId: req.params.id }));
     res.json({ ok: true });
   });
   // Scene gate continue: the owner's EXPLICIT "scenes look good — voice + render" click.
@@ -47,7 +47,7 @@ export function mount(r) {
     // status would permanently disarm a gate the owner never saw.
     if (p.status !== 'scenes') return res.status(409).json({ error: 'dự án không ở bước duyệt cảnh' });
     DB.updateProject(p.id, { scenes_approved_at: Date.now() });
-    Pipeline.startProject(p.id, { resume: true }).catch((e) => logger.error(e.message, { projectId: p.id }));
+    Pipeline.startProject(p.id, { resume: true, actor: req.actor }).catch((e) => logger.error(e.message, { projectId: p.id }));
     res.json({ ok: true });
   });
   // Voice cost preview for the gate CTA: characters still to be synthesized + the resolved
@@ -72,7 +72,7 @@ export function mount(r) {
   });
   r.post('/projects/:id/render', async (req, res) => {
     const { mode = 'all', sceneIds = [] } = req.body || {};
-    Pipeline.renderProject(req.params.id, { mode, sceneIds }).catch((e) => logger.error(e.message, { projectId: req.params.id }));
+    Pipeline.renderProject(req.params.id, { mode, sceneIds }, { actor: req.actor }).catch((e) => logger.error(e.message, { projectId: req.params.id }));
     res.json({ ok: true });
   });
   // P34 — PRE-create cost preview (assistant sheet): TTS chars priced by the pricing table,

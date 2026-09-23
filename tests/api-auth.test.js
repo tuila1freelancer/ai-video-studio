@@ -91,3 +91,16 @@ test('server mode: no token 401, wrong scope 403, right scope through', async ()
     serverMode(false);
   }
 });
+
+test('the journal records who asked, not only what happened', async () => {
+  const { default: DB } = await import('../src/db/index.js');
+  const { jlog } = await import('../src/pipeline/journal.js');
+  const { withRunContext } = await import('../src/util/run-context.js');
+  const p = (await import('../src/db/index.js')).createProject({ title: 'actor', topic: 't', inputType: 'text', aspectRatio: '9:16', config: {} });
+  withRunContext({ projectId: p.id, actor: 'token:tok42' }, () => jlog(p.id, { kind: 'status', msg: 'một việc do agent yêu cầu' }));
+  jlog(p.id, { kind: 'status', msg: 'một việc không có ai đứng tên' });
+  const rows = (await import('../src/db/index.js')).listJournal({ projectId: p.id });
+  assert.equal(rows.find((r) => r.msg.includes('agent')).actor, 'token:tok42');
+  assert.equal(rows.find((r) => r.msg.includes('không có ai')).actor, null);
+  assert.ok(DB);
+});

@@ -52,7 +52,7 @@ function mountAssistant(r) {
   });
   r.post('/topics/:id/accept', async (req, res) => {
     try {
-      res.json({ ok: true, ...acceptSuggestion(req.params.id, { config: req.body?.config || {}, title: req.body?.title || null, channelId: askedChannelOf(req) }) });
+      res.json({ ok: true, ...acceptSuggestion(req.params.id, { config: req.body?.config || {}, title: req.body?.title || null, channelId: askedChannelOf(req), actor: req.actor }) });
     } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
   });
   r.post('/topics/:id/schedule', async (req, res) => {
