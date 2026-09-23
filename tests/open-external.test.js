@@ -1,6 +1,7 @@
 import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { join } from 'node:path';
 import { openCommand, revealCommand } from '../src/util/open-external.js';
 
 test('a URL opens on every platform the app ships to', () => {
@@ -25,4 +26,14 @@ test('the sign-in flow no longer names a macOS binary', async () => {
   const auth = readFileSync(new URL('../src/license/auth.js', import.meta.url), 'utf8');
   assert.ok(!auth.includes('/usr/bin/open'), 'the browser is opened through the portable helper');
   assert.match(auth, /openExternal\(authorizeUrl/);
+});
+
+test('a new channel lands where the operating system keeps videos', async () => {
+  const { defaultChannelsRoot } = await import('../src/db/repositories/channels.js');
+  const { homedir } = await import('node:os');
+  assert.equal(defaultChannelsRoot('darwin', {}), join(homedir(), 'Movies', 'AI Video Studio'));
+  assert.equal(defaultChannelsRoot('win32', {}), join(homedir(), 'Videos', 'AI Video Studio'),
+    'Windows has no Movies folder — the old shared answer made one nobody looks in');
+  assert.equal(defaultChannelsRoot('linux', { AVS_CHANNELS_DIR: '/data/channels' }), '/data/channels',
+    'a server mounts its volume where it means to');
 });
