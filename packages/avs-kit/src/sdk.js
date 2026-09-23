@@ -5,6 +5,7 @@
 // channel and the idempotency key, and it turns a refusal into an AvsError with the engine's code.
 // It holds no opinions about how a video should be made; those live in the engine.
 import { AvsError } from './errors.js';
+import { discoverUrl } from './discover.js';
 
 const JSON_HEADERS = { 'Content-Type': 'application/json' };
 
@@ -13,7 +14,8 @@ export class AvsClient {
    * @param {{url?:string, token?:string, channel?:string, timeoutMs?:number, fetchImpl?:typeof fetch}} opts
    */
   constructor({ url, token, channel, timeoutMs = 120_000, fetchImpl } = {}) {
-    this.base = String(url || process.env.AVS_URL || 'http://127.0.0.1:8123').replace(/\/+$/, '');
+    // Told, configured, or found: the app writes the port it bound, so nothing has to be pinned.
+    this.base = String(url || process.env.AVS_URL || discoverUrl()).replace(/\/+$/, '');
     this.token = token || process.env.AVS_TOKEN || '';
     this.channel = channel || process.env.AVS_CHANNEL || '';
     this.timeoutMs = timeoutMs;

@@ -29,7 +29,8 @@ const USAGE = `avs <command>
   ops status | ops pause [--reason TEXT] | ops drain | ops resume
   file get PATH --out FILE
 
-Everywhere: --json (machine output), --url, --token, --channel (else AVS_URL/AVS_TOKEN/AVS_CHANNEL).`;
+Everywhere: --json (machine output), --url, --token, --channel (else AVS_URL/AVS_TOKEN/AVS_CHANNEL).
+With no --url it finds the running app by itself, whatever port it bound this time.`;
 
 const { values, positionals } = parseArgs({
   allowPositionals: true,
