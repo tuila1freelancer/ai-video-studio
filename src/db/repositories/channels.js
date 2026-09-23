@@ -35,7 +35,9 @@ export function createChannel({ name, rootDir, config = {} }) {
   while (stmt('SELECT 1 FROM channels WHERE slug=?').get(slug)) slug = `${slug0}-${++n}`;
   const root = rootDir && rootDir.trim()
     ? rootDir.trim().replace(/^~(?=\/|$)/, homedir())
-    : join(homedir(), 'Movies', 'AI Video Studio', slug);
+    // AVS_CHANNELS_DIR is where a server keeps its channels; ~/Movies is the macOS answer and
+    // means nothing in a container, where the volume is mounted somewhere deliberate.
+    : join(process.env.AVS_CHANNELS_DIR || join(homedir(), 'Movies', 'AI Video Studio'), slug);
   const id = newId('ch');
   ensureChannelDirs(root);
   stmt('INSERT INTO channels(id,name,slug,root_dir,config,created_at) VALUES(?,?,?,?,?,?)')
