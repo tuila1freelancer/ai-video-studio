@@ -21,7 +21,13 @@ export class AvsClient {
   }
 
   /** Every call goes through here, so the token, the channel and the error shape are in one place. */
-  async request(method, path, { body, query, idempotencyKey, timeoutMs } = {}) {
+  async request(method, path, opts) {
+    const { data } = await this.requestRaw(method, path, opts);
+    return data;
+  }
+
+  /** The same, with the response itself — a few callers need a header the body does not carry. */
+  async requestRaw(method, path, { body, query, idempotencyKey, timeoutMs } = {}) {
     const url = new URL(`${this.base}/api${path}`);
     for (const [k, v] of Object.entries(query || {})) {
       if (v !== undefined && v !== null && v !== '') url.searchParams.set(k, String(v));
@@ -51,7 +57,7 @@ export class AvsClient {
         code: data?.code || 'request_failed', status: res.status, body: data,
       });
     }
-    return data;
+    return { data, res };
   }
 
   get(path, query) { return this.request('GET', path, { query }); }
@@ -69,8 +75,16 @@ export class AvsClient {
   estimateCost(body) { return this.post('/estimate-cost', body); }
   journal(id, query) { return this.get(`/projects/${id}/journal`, query); }
 
-  createProject({ topic, config, channelId, clientRef } = {}) {
-    return this.post('/projects', { topic, config, channelId, clientRef }, { idempotencyKey: clientRef });
+  /**
+   * Create a video. With a clientRef this is safe to send twice: the engine either replays the
+   * first reply (idempotency key) or finds the project by its reference — `reused` says which,
+   * because to a caller both mean the same thing: nothing new was created.
+   */
+  async createProject({ topic, config, channelId, clientRef } = {}) {
+    const { data, res } = await this.requestRaw('POST', '/projects', {
+      body: { topic, config, channelId, clientRef }, idempotencyKey: clientRef,
+    });
+    return { ...data, reused: data?.reused === true || res.headers.get('idempotent-replay') === 'true' };
   }
   startProject(id, body = {}) { return this.post(`/projects/${id}/start`, body); }
   stopProject(id) { return this.post(`/projects/${id}/stop`, {}); }
