@@ -105,3 +105,11 @@ export function requeueZombieJobs() {
   const requeued = stmt(`UPDATE jobs SET status='queued', started_at=NULL WHERE status='running'`).run().changes;
   return { requeued, dead, stopped };
 }
+
+/** How much work is in flight right now — what a drain waits for. */
+export function jobCounts() {
+  const rows = stmt("SELECT status, COUNT(*) n FROM jobs WHERE status IN ('queued','running') GROUP BY status").all();
+  const out = { queued: 0, running: 0 };
+  for (const r of rows) out[r.status] = r.n;
+  return out;
+}

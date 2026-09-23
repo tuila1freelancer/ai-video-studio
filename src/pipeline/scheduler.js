@@ -14,6 +14,7 @@ import { runPipeline, renderOnly } from './runner.js';
 import { jlog } from './journal.js';
 import { status as licenseStatus } from '../license/index.js';
 import { notifyWebhooks } from '../ops/webhooks.js';
+import { acceptingWork, opsState, setOpsState } from '../ops/state.js';
 import { isRunnable } from '../license/state.js';
 
 import { m, tp } from '../i18n/t.js';
@@ -132,6 +133,16 @@ export function tick() {
       scheduleTick(60_000);
       return;
     }
+    // Paused or draining: running work finishes, nothing new is claimed. A drain becomes a pause
+    // the moment the last job settles, so "drained" is a fact rather than a hope.
+    if (!acceptingWork()) {
+      if (opsState().state === 'draining' && running.size === 0) {
+        setOpsState('paused', { by: 'scheduler', reason: 'drained' });
+        logger.info(m('⏸ Đã dừng nhận việc: mọi tác vụ đang chạy đã xong'));
+      }
+      scheduleTick(5_000);
+      return;
+    }
     promoteDueSlots();
     for (;;) {
       const kinds = laneCapacity();
@@ -152,6 +163,9 @@ export function tick() {
   }
   scheduleTick(30000); // safety net — normal wakeups come from enqueue/settle
 }
+
+/** Jobs this process is running right now — the number a drain counts down. */
+export function runningCount() { return running.size; }
 
 export function scheduleTick(delayMs = 0) {
   clearTimeout(timer);
