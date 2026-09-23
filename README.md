@@ -31,9 +31,9 @@ The two gates are optional holds: the run stops at its own status and waits.
 
 ```bash
 npm install
-npm start        # http://127.0.0.1:8123
+npm start        # prints AVS_READY <url>; also written to data/server.url
 npm run dev      # node --watch
-npm test         # 99 files, 825 tests, no network
+npm test         # 126 files, 950 tests, no network
 ```
 
 Without a terminal: double-click `run.command` (macOS) or `run-windows.bat` (Windows).
@@ -337,7 +337,7 @@ defaults.
 ## Development
 
 ```bash
-npm test              # 104 files, 856 tests, hermetic, 120 s per-test timeout
+npm test              # 126 files, 950 tests, hermetic, 120 s per-test timeout
 npm run lint          # ESLint 9 flat config — errors block CI, warnings are a to-do list
 npm run test:smoke    # every template built in 16:9 and 9:16, GSAP compiled
 npm run test:e2e      # boot, make a real short video, verify the MP4
@@ -382,8 +382,10 @@ codesign → zip with checksum → notarise and staple → upload and publish.
 The macOS release contains no readable source: `src/server.js` is bundled by esbuild, compiled to V8
 cached data, AES-256-GCM encrypted, and loaded by `loader.cjs`, which verifies the V8 build, the
 flags and a SHA-256 before V8 sees the bytes and refuses rather than falling back. The key is
-generated per build and passed over stdin. Windows ships `src/**` inside an asar with no bytecode
-step.
+generated per build and passed over stdin. Windows ships the same chain: the payload is encrypted
+bytecode in `resources/app-payload`, and the key lives inside a compiled Go launcher
+(`shell/win-launcher`) that hands it to the vendored `node.exe` over stdin — Electron never sees it.
+Both bundles also carry `packages/avs-kit` as readable source, which is the point of it.
 
 The interface ships as `js/main-[hash].js` plus `js/chunks/*-[hash].js` (code-split, so lazy
 screens stay lazy), one minified `css/app-[hash].css`, and the document assembled from its partials
@@ -419,21 +421,34 @@ repaired with `scripts/repair-language.mjs`.
 
 ### Running it for agents
 
-The app is a desktop app by default and changes nothing about that. `AVS_MODE=server` opens a second
-shape: bearer tokens per caller, an explicit channel on every creation, machine-readable error codes,
-a durable event cursor, a publish verdict and a stop valve — everything an unattended run needs and a
-window does not.
+The app is a desktop app by default and changes nothing about that. There are two ways to let an
+agent in, and the first one needs no terminal at all.
+
+**From the installed app.** AI Setting → **Agent (MCP)** → turn it on → mint a token. From that
+moment every API call needs one, loopback included; the app's own window keeps working because the
+launcher hands it a session of its own. The panel prints the exact `claude mcp add` line for that
+machine — the bundled Node, the bundled kit — and the caps beside it are what stops a bad loop
+spending all night. Both bundles ship `packages/avs-kit`, and the kit finds the running app by
+reading `server.url` from its data directory, so nothing pins a port that changes every launch.
+
+**As a server.** `AVS_MODE=server` opens the other shape: tokens are required from boot, there is no
+window to authenticate, and tokens are minted on the machine — the HTTP route refuses outright.
 
 ```bash
 npm run token -- create --name claude --scopes read,produce,publish   # mint one per agent
 AVS_MODE=server AVS_HOST=127.0.0.1 npm start                          # 0.0.0.0 only behind Tailscale
-claude mcp add avs -- node packages/avs-kit/bin/avs-mcp.mjs --url http://127.0.0.1:8123 --token avs_…
+claude mcp add avs -- node packages/avs-kit/bin/avs-mcp.mjs --token avs_…
 ```
+
+Either way an agent gets the same thing: an explicit channel on every creation, machine-readable
+error codes, a durable event cursor, a publish verdict, spending caps and a stop valve.
 
 - The contract an agent reads: [`docs/agent/README.md`](docs/agent/README.md) and
   `GET /api/openapi.json` · the playbooks are in `docs/agent/playbooks/`.
 - The kit (MCP server, `avs` CLI, SDK — no dependencies): [`packages/avs-kit`](packages/avs-kit/README.md).
 - Deploying it, on a Mac or in a container: [`docs/deploy/README.md`](docs/deploy/README.md).
+- Shipping a build: [`docs/release/checklist.md`](docs/release/checklist.md) — and note that the
+  Windows installer has not yet been run on Windows.
 
 ---
 

@@ -13,11 +13,30 @@ Start here, then read the playbook for the job you are doing.
   [recover a failed run](playbooks/recover-failed-job.md) ·
   [several channels](playbooks/multi-channel-ops.md) · [stay inside the budget](playbooks/budget-guard.md)
 
+## Connecting to a copy somebody installed
+
+Nothing has to be configured. Both the macOS and the Windows bundles carry the kit, and the kit
+finds the running app by reading `server.url` from its data directory — the app binds port 0, so the
+port is different on every launch and anything that pins one will break on the next restart.
+
+```bash
+# the app prints this line for its own machine, with real absolute paths
+claude mcp add avs -- "<node inside the app>" "<kit inside the app>/bin/avs-mcp.mjs" --token avs_…
+```
+
+If several copies have run on the machine, the one that wrote `server.url` most recently is the one
+the kit talks to. `AVS_URL` or `--url` still override everything, for a server reached over the
+network.
+
 ## The five things to know
 
-**1. Authenticate, and say which channel.** In server mode every call carries
-`Authorization: Bearer avs_…` (mint one on the machine: `npm run token -- create --name claude
---scopes read,produce,publish`). Scopes are `read`, `produce`, `publish`, `admin`; `admin` covers
+**1. Authenticate, and say which channel.** Every call carries `Authorization: Bearer avs_…`
+whenever the lane is open — in server mode from boot, and on a desktop installation from the moment
+the owner turns on AI Setting → Agent (MCP). Where the token comes from differs: on a server the
+owner mints it on the machine (`npm run token -- create --name claude --scopes
+read,produce,publish`), and in an installed app the owner mints it in that panel, which also prints
+the exact command to add this server to an agent. You never mint your own — the route that mints
+refuses anyone but the app's own window, and refuses outright on a server. Scopes are `read`, `produce`, `publish`, `admin`; `admin` covers
 settings, licence and channel writes and is not something a producing agent needs.
 
 An installation can produce for several channels. The "active channel" is what the app's own window
