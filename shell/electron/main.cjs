@@ -108,6 +108,19 @@ function createWindow(url) {
   win.on('closed', () => { win = null; });
 }
 
+// One copy per machine: two would mean two servers on one database. A second launch hands its
+// argv to the copy already running, which raises its window — what the person meant by opening it.
+if (!app.requestSingleInstanceLock()) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (!win) return;
+    if (win.isMinimized()) win.restore();
+    win.show();
+    win.focus();
+  });
+}
+
 app.whenReady().then(async () => {
   try {
     const url = await startServer();
