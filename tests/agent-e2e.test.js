@@ -93,8 +93,10 @@ test('the durable feed carries the agent name that asked', async () => {
   const { channels } = await avs.channels();
   const { project } = await avs.createProject({ topic: 'a topic that produces a journal line', channelId: channels[0].id, clientRef: 'e2e-2' });
   await avs.startProject(project.id);
-  // The enqueue line is written by the route that queued it, under this token's name.
-  const deadline = Date.now() + 10_000;
+  // The enqueue line is written by the route that queued it, under this token's name. The budget is
+  // generous because this is a real server process competing with the whole suite for one machine:
+  // ten seconds was enough alone and lost about one run in four under load.
+  const deadline = Date.now() + 45_000;
   let seen = [];
   while (Date.now() < deadline && !seen.length) {
     const feed = await avs.events({ after: head.lastId, project: project.id, wait: 3 });
