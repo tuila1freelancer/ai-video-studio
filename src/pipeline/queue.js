@@ -10,14 +10,14 @@ import { withRunContext } from '../util/run-context.js';
 const active = new Map(); // projectId -> Promise (legacy fallback path)
 
 function durable() { return getSetting('queue', {})?.durable !== false; }
-const attributed = (projectId, fn) =>
-  withRunContext({ projectId, channelId: getProject(projectId)?.channel_id || null }, fn);
+const attributed = (projectId, fn, actor = null) =>
+  withRunContext({ projectId, channelId: getProject(projectId)?.channel_id || null, actor }, fn);
 
-export function startProject(projectId, { resume = false } = {}) {
+export function startProject(projectId, { resume = false, actor = null } = {}) {
   clearStopRequest(projectId); // starting again IS the answer to an earlier stop
-  if (durable()) return submit({ kind: 'pipeline', projectId, payload: { resume } }).done;
+  if (durable()) return submit({ kind: 'pipeline', projectId, payload: { resume }, actor }).done;
   if (active.has(projectId)) return active.get(projectId);
-  const p = attributed(projectId, () => runPipeline(projectId, { resume })).finally(() => active.delete(projectId));
+  const p = attributed(projectId, () => runPipeline(projectId, { resume }), actor).finally(() => active.delete(projectId));
   active.set(projectId, p);
   return p;
 }
@@ -31,22 +31,22 @@ export function stopProject(projectId) {
   requestStop(projectId);
 }
 
-export function renderProject(projectId, opts) {
+export function renderProject(projectId, opts, { actor = null } = {}) {
   clearStopRequest(projectId);
-  if (durable()) return submit({ kind: 'render', projectId, payload: opts || {} }).done;
+  if (durable()) return submit({ kind: 'render', projectId, payload: opts || {}, actor }).done;
   if (active.has(projectId)) return active.get(projectId);
-  const p = attributed(projectId, () => renderOnly(projectId, opts)).finally(() => active.delete(projectId));
+  const p = attributed(projectId, () => renderOnly(projectId, opts), actor).finally(() => active.delete(projectId));
   active.set(projectId, p);
   return p;
 }
 
 // Interactive short-lived actions stay direct — queueing them would only add latency.
-export function regenScene(sceneId, what) {
+export function regenScene(sceneId, what, { actor = null } = {}) {
   const projectId = getScene(sceneId)?.project_id;
-  return projectId ? attributed(projectId, () => regenOne(sceneId, what)) : regenOne(sceneId, what);
+  return projectId ? attributed(projectId, () => regenOne(sceneId, what), actor) : regenOne(sceneId, what);
 }
 
 /** Enqueue one batch item (durable path; the scheduler serializes jobs sharing batchId). */
-export function enqueueBatchItem(projectId, batchId) {
-  return submit({ kind: 'pipeline', projectId, batchId, payload: {}, priority: -1 });
+export function enqueueBatchItem(projectId, batchId, { actor = null } = {}) {
+  return submit({ kind: 'pipeline', projectId, batchId, payload: {}, priority: -1, actor });
 }

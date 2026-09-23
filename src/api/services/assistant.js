@@ -17,14 +17,14 @@ function loadPending(id) {
 /** Owner clicked "make it now": create the project (with reviewed config) and mark the row.
  *  P34: the RESEARCHED topic always feeds B2; a picked click-title is display metadata
  *  (config.titleOverride) — it must never replace the topic the script engine writes from. */
-export function acceptSuggestion(id, { config = {}, title = null, channelId = null } = {}) {
+export function acceptSuggestion(id, { config = {}, title = null, channelId = null, actor = null } = {}) {
   const row = loadPending(id);
   const request = {
     ...config,
     assistantBrief: { suggestionId: row.id, angle: row.angle || '', source: row.source || '' },
     ...(title ? { titleOverride: String(title).trim().slice(0, 100) } : {}),
   };
-  const { projects } = startBatch({ topics: [row.topic.trim()], config: request, channelId: channelId || row.channel_id || null });
+  const { projects } = startBatch({ topics: [row.topic.trim()], config: request, channelId: channelId || row.channel_id || null, actor });
   DB.setSuggestionStatus(id, 'accepted', { projectId: projects[0] });
   return { projectId: projects[0] };
 }

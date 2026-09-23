@@ -95,7 +95,7 @@ function mountProjects(r) {
       DB.updateProject(p.id, { metadata: { ...md, variants } });
       // run it with the overrides layered on, WITHOUT saving them as the project's config —
       // a variant is a second output, not a change of mind
-      Pipeline.renderProject(p.id, { mode: 'concat', configOverrides: overrides, variantName: name })
+      Pipeline.renderProject(p.id, { mode: 'concat', configOverrides: overrides, variantName: name }, { actor: req.actor })
         .catch((e) => logger.error(e.message, { projectId: p.id }));
       res.json({ ok: true, name, variants });
     } catch (e) { res.status(400).json({ error: e.message }); }
@@ -128,7 +128,7 @@ function mountProjects(r) {
       DB.updateProject(p.id, { config: { ...(p.config || {}), ...(req.body?.config || {}) } });
       // 'all' rather than a scene subset when clips are stale: renderOnly's subset mode skips the
       // join, and a half-applied change is worse than a slower one.
-      Pipeline.renderProject(p.id, { mode: plan.mode === 'concat' ? 'concat' : 'all' })
+      Pipeline.renderProject(p.id, { mode: plan.mode === 'concat' ? 'concat' : 'all' }, { actor: req.actor })
         .catch((e) => logger.error(e.message, { projectId: p.id }));
       res.json({ ok: true, plan, started: true });
     } catch (e) { res.status(400).json({ error: e.message }); }
@@ -182,7 +182,7 @@ function mountProjectEdits(r) {
         title: p.title, topic: p.topic, inputType: p.input_type,
         aspectRatio: cfg.aspectRatio || p.aspect_ratio, config: cfg, channelId: p.channel_id,
       });
-      Pipeline.startProject(fresh.id).catch((e) => logger.error(`restart failed: ${e.message}`, { projectId: fresh.id }));
+      Pipeline.startProject(fresh.id, { actor: req.actor }).catch((e) => logger.error(`restart failed: ${e.message}`, { projectId: fresh.id }));
       res.json({ projectId: fresh.id, status: 'running' });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
@@ -243,7 +243,7 @@ function mountProjectMaintenance(r) {
     Pipeline.renderProject(p.id, {
       mode: 'scenes', sceneIds: at.map((x) => x.id), alsoJoin: true,
       configOverrides: { thumbnailAi: false },
-    }).catch((e) => logger.error(e.message, { projectId: p.id }));
+    }, { actor: req.actor }).catch((e) => logger.error(e.message, { projectId: p.id }));
     res.json({ ok: true, atRisk: at.length, started: true });
   });
 

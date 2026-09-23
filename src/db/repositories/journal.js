@@ -9,11 +9,13 @@ import { safeJson } from '../../util/util.js';
 const KEEP_RUNS = 10;    // most-recent runs kept complete per project
 const HARD_CAP = 20000;  // absolute rows/project safety net
 
-const _insert = db.prepare(`INSERT INTO journal_events(project_id,job_id,ts,level,stage,scene_idx,kind,msg,data)
-  VALUES(@project_id,@job_id,@ts,@level,@stage,@scene_idx,@kind,@msg,@data)`);
+const _insert = db.prepare(`INSERT INTO journal_events(project_id,job_id,ts,level,stage,scene_idx,kind,msg,data,actor)
+  VALUES(@project_id,@job_id,@ts,@level,@stage,@scene_idx,@kind,@msg,@data,@actor)`);
 
 export function insertJournal(row) {
-  return _insert.run(row).lastInsertRowid;
+  // `actor` defaulted here rather than demanded of every caller: a row written by a script or an
+  // older call site is still a journal row, and a missing name must never throw inside a run.
+  return _insert.run({ actor: null, ...row }).lastInsertRowid;
 }
 
 /** Keep the newest KEEP_RUNS runs complete; prune older runs wholesale, then the hard cap. */

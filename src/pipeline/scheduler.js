@@ -38,7 +38,7 @@ async function execute(job) {
   const projectId = job.project_id;
   // attribution for the cost meter AND the journal (P32): every llm/tts call in this async
   // chain bills the project, and every journal row in the chain carries this run's job id.
-  return withRunContext({ projectId, channelId: DB.getProject(projectId)?.channel_id || null, jobId: job.id }, () => executeInner(job));
+  return withRunContext({ projectId, channelId: DB.getProject(projectId)?.channel_id || null, jobId: job.id, actor: job.actor || 'scheduler' }, () => executeInner(job));
 }
 
 async function executeInner(job) {
@@ -106,7 +106,7 @@ export function promoteDueSlots() {
       DB.markSlotCreated(slot.id, project.id);
       // linkage is bookkeeping — its failure must never reach the cancelSlot error path
       try { DB.linkSuggestionProject(slot.id, project.id); } catch { /* best-effort */ }
-      const j = DB.enqueueJob({ kind: 'pipeline', projectId: project.id, payload: {}, priority: -1 });
+      const j = DB.enqueueJob({ kind: 'pipeline', projectId: project.id, payload: {}, priority: -1, actor: 'scheduler' });
       hub.broadcast({ type: 'calendar', slotId: slot.id, projectId: project.id, topic: slot.topic });
       jlog(project.id, { kind: 'enqueue', jobId: j.id, msg: m('⏳ Đã xếp vào hàng đợi sản xuất (video hẹn lịch)') });
       logger.info(tp`🗓 Đến hạn lịch — tạo dự án "${slot.topic}"`, { projectId: project.id });
@@ -162,10 +162,10 @@ export function scheduleTick(delayMs = 0) {
  * old in-memory queue gave callers). Deduped: an existing queued/running job for the same
  * project+kind is returned instead of double-enqueueing.
  */
-export function submit({ kind, projectId, batchId = null, payload = {}, priority = 0 }) {
+export function submit({ kind, projectId, batchId = null, payload = {}, priority = 0, actor = null }) {
   const existing = DB.activeJobFor(projectId, kind);
   if (existing) return { job: existing, done: promiseFor(existing.id) };
-  const job = DB.enqueueJob({ kind, projectId, batchId, payload, priority });
+  const job = DB.enqueueJob({ kind, projectId, batchId, payload, priority, actor });
   hub.broadcast({ type: 'job', id: job.id, kind, projectId, status: 'queued' });
   jlog(projectId, { kind: 'enqueue', jobId: job.id,
     msg: kind === 'render' ? m('⏳ Đã xếp render vào hàng đợi') : m('⏳ Đã xếp vào hàng đợi sản xuất') });

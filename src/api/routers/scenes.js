@@ -115,14 +115,14 @@ export function mount(r) {
   r.post('/scenes/:id/regen-voice', async (req, res) => {
     try {
       if (busy(req.params.id)) return res.status(409).json({ error: 'dự án đang chạy — đợi xong rồi tạo lại cảnh' });
-      await Pipeline.regenScene(req.params.id, 'voice');
+      await Pipeline.regenScene(req.params.id, 'voice', { actor: req.actor });
       res.json({ ok: true, scene: DB.getScene(req.params.id) });
     } catch (e) { logger.error(e.message); res.status(500).json({ error: e.message }); }
   });
   r.post('/scenes/:id/regen-html', async (req, res) => {
     try {
       if (busy(req.params.id)) return res.status(409).json({ error: 'dự án đang chạy — đợi xong rồi tạo lại cảnh' });
-      await Pipeline.regenScene(req.params.id, 'html');
+      await Pipeline.regenScene(req.params.id, 'html', { actor: req.actor });
       res.json({ ok: true, scene: DB.getScene(req.params.id) });
     } catch (e) { logger.error(e.message); res.status(500).json({ error: e.message }); }
   });
