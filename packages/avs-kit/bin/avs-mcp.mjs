@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 // The MCP entry point an agent host spawns.
 //
-//   claude mcp add avs -- npx -y avs-mcp --url http://127.0.0.1:8123 --token avs_…
+//   claude mcp add avs -- /path/to/node /path/to/avs-mcp.mjs --token avs_…
 //
-// Configuration comes from flags or the environment (AVS_URL, AVS_TOKEN, AVS_CHANNEL). stdout is
-// the protocol channel and carries nothing else — anything worth saying goes to stderr.
+// The token comes from a flag or AVS_TOKEN; the URL is usually neither, because the app binds a
+// different port every launch and writes the one it got where this finds it (src/discover.js).
+// stdout is the protocol channel and carries nothing else — anything worth saying goes to stderr.
 import { parseArgs } from 'node:util';
 import { AvsClient } from '../src/sdk.js';
 import { createMcpServer } from '../src/mcp-server.js';

@@ -8,6 +8,9 @@ import { mountRoutes } from '../src/api/routes.js';
 import { errorHandler } from '../src/api/http.js';
 import { AvsClient, AvsError } from '../packages/avs-kit/src/sdk.js';
 import { isTemporary } from '../packages/avs-kit/src/errors.js';
+import { mkdtempSync, writeFileSync, rmSync, utimesSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 async function engine() {
   const app = express();
@@ -162,4 +165,44 @@ test('the kit stays dependency-free, which is the promise that makes it installa
   }
   const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
   assert.equal(pkg.dependencies, undefined, 'declared dependencies would break the promise too');
+});
+
+test('the kit finds a running app by itself, on whichever OS it is installed', async () => {
+  const { urlFiles, discoverUrl, DEFAULT_URL } = await import('../packages/avs-kit/src/discover.js');
+  const home = '/Users/someone';
+  const mac = urlFiles('darwin', {}, home);
+  assert.ok(mac.includes(join(home, 'Library', 'Application Support', 'AI Video Studio', 'server.url')),
+    'the macOS app writes it beside its data, not beside the bundle');
+  const win = urlFiles('win32', { APPDATA: 'C:\\Users\\someone\\AppData\\Roaming' }, home);
+  assert.ok(win.some((p) => p.includes('Roaming') && p.endsWith(join('data', 'server.url'))));
+  assert.ok(win.length >= 3, 'both names Electron may have used, plus the payload-relative one');
+  assert.equal(urlFiles('darwin', { AVS_DATA_DIR: '/srv/avs' }, home)[0], join('/srv/avs', 'server.url'),
+    'an explicit data directory is believed before any guess');
+
+  // A real file, written the way the server writes it.
+  const dir = mkdtempSync(join(tmpdir(), 'avs-url-'));
+  writeFileSync(join(dir, 'server.url'), 'http://127.0.0.1:54321');
+  assert.equal(discoverUrl('linux', { AVS_DATA_DIR: dir }), 'http://127.0.0.1:54321');
+  // A damaged file is skipped rather than believed, and the search carries on down the list.
+  writeFileSync(join(dir, 'server.url'), 'not a url at all');
+  const next = discoverUrl('linux', { AVS_DATA_DIR: dir });
+  assert.notEqual(next, 'not a url at all');
+  assert.match(next, /^https?:\/\/\S+$/);
+  rmSync(dir, { recursive: true, force: true });
+  assert.match(DEFAULT_URL, /^http:\/\/127\.0\.0\.1:\d+$/, 'and with nothing to find, the old fixed port');
+
+  // Two copies have run on this machine — an installed app and a checkout. The one that wrote
+  // last is the one that is running; the other is a port nothing has listened on for a week.
+  const older = join(mkdtempSync(join(tmpdir(), 'avs-old-')), 'server.url');
+  const newer = join(mkdtempSync(join(tmpdir(), 'avs-new-')), 'server.url');
+  writeFileSync(older, 'http://127.0.0.1:1111');
+  writeFileSync(newer, 'http://127.0.0.1:2222');
+  utimesSync(older, new Date(), new Date(Date.now() - 86_400_000));
+  assert.equal(discoverUrl('linux', {}, [older, newer]), 'http://127.0.0.1:2222', 'freshest wins, not first');
+  assert.equal(discoverUrl('linux', {}, [newer, older]), 'http://127.0.0.1:2222');
+  rmSync(older, { force: true });
+  rmSync(newer, { force: true });
+
+  const client = new AvsClient({ url: 'http://example.test:9/' });
+  assert.equal(client.base, 'http://example.test:9', 'an explicit url still wins over everything');
 });
