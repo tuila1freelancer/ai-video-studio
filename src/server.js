@@ -13,6 +13,7 @@ import { createHash } from 'node:crypto';
 import { ensureDirs, DIRS, ROOT } from './config/paths.js';
 import { bootRefusal, host, isLoopback, mode } from './core/runtime-mode.js';
 import { mountRoutes } from './api/routes.js';
+import { authRefusal } from './api/middleware/auth.js';
 import { errorHandler, processHealth } from './api/http.js';
 import { setUiLang } from './i18n/t.js';
 import db, { getSetting } from './db/index.js';
@@ -31,7 +32,7 @@ const VERSION = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).ver
 // any run), so they stay exactly where they are; only their container changed.
 async function boot() {
   // Before the port is open and before anything spends: a misconfigured deployment stops here.
-  const refusal = bootRefusal();
+  const refusal = bootRefusal() || authRefusal();
   if (refusal) { logger.error(refusal); process.exit(1); }
   ensureDirs();
   openLogFile(join(DIRS.data, 'logs'));
