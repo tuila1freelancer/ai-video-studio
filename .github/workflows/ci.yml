@@ -52,3 +52,21 @@ jobs:
       - run: npm ci
       # Reported, not enforced: a transitive advisory must not block a fix from landing.
       - run: npm audit --omit=dev || true
+
+  # The kit is what an agent installs, and its promise is that it needs nothing installed. This job
+  # therefore runs it on a bare checkout with NO npm ci — if a dependency ever creeps in, it fails
+  # here rather than on somebody's machine.
+  kit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node packages/avs-kit/bin/avs.mjs --help
+      - name: MCP handshake over stdio, with no engine and no dependencies
+        run: |
+          printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18"}}' \
+            '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
+            | node packages/avs-kit/bin/avs-mcp.mjs 2>/dev/null | grep -q '"avs_video_verdict"'

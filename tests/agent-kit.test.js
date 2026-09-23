@@ -135,3 +135,31 @@ test('the MCP server speaks the protocol, and a refusal is a result rather than 
     assert.equal((await mcp.handle({ jsonrpc: '2.0', id: 8, method: 'ping' })).result && true, true);
   } finally { server.close(); }
 });
+
+test('the kit stays dependency-free, which is the promise that makes it installable anywhere', async () => {
+  const { readdirSync, readFileSync, statSync } = await import('node:fs');
+  const { join } = await import('node:path');
+  const { fileURLToPath } = await import('node:url');
+  const root = fileURLToPath(new URL('../packages/avs-kit/', import.meta.url));
+  const files = [];
+  const walk = (dir) => {
+    for (const name of readdirSync(dir)) {
+      const full = join(dir, name);
+      if (statSync(full).isDirectory()) walk(full);
+      else if (/\.(js|mjs)$/.test(name)) files.push(full);
+    }
+  };
+  walk(root);
+  assert.ok(files.length >= 5, 'it found the kit');
+  for (const file of files) {
+    for (const [, spec] of readFileSync(file, 'utf8').matchAll(/(?:^|\n)\s*(?:import|export)[^'"\n]*from\s+['"]([^'"]+)['"]/g)) {
+      assert.ok(spec.startsWith('node:') || spec.startsWith('./') || spec.startsWith('../'),
+        `${file.slice(root.length)} imports ${spec} — the kit may only use node: builtins and its own files`);
+    }
+    for (const [, spec] of readFileSync(file, 'utf8').matchAll(/await import\(\s*['"]([^'"]+)['"]/g)) {
+      assert.ok(spec.startsWith('node:') || spec.startsWith('./') || spec.startsWith('../'), `${file} dynamically imports ${spec}`);
+    }
+  }
+  const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
+  assert.equal(pkg.dependencies, undefined, 'declared dependencies would break the promise too');
+});
