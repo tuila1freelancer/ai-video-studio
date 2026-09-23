@@ -10,6 +10,7 @@ import { maskSecrets } from '../core/config.js';
 import { licenseGate } from '../license/gate.js';
 import { t, uiLang } from '../i18n/t.js';
 import { processHealth } from './http.js';
+import { mode } from '../core/runtime-mode.js';
 import { maskChannel } from './helpers.js';
 import { mount as mountLicense } from './routers/license.js';
 import { mount as mountSettingsProviders } from './routers/settings-providers.js';
@@ -62,7 +63,7 @@ export function mountRoutes(app, { version }) {
   r.use(licenseGate);
 
   r.get('/health', (req, res) => {
-    res.json({ ok: true, version, degraded: processHealth.degraded, deps: depStatus(), paths: {
+    res.json({ ok: true, version, mode: mode(), degraded: processHealth.degraded, deps: depStatus(), paths: {
       ffmpeg: PATHS.ffmpeg, whisper: !!PATHS.whisperCli, chrome: !!PATHS.chrome, say: !!PATHS.say,
     } });
   });
