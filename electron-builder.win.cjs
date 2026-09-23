@@ -65,6 +65,9 @@ module.exports = {
   win: {
     target: [{ target: 'nsis', arch: ['x64'] }],
     artifactName: '${productName}-${version}-win-${arch}-setup.${ext}',
+    // Without this the executable and the installer wear Electron's own icon, which is what a
+    // customer sees first and the last thing that should say "somebody else's app".
+    icon: 'shell/icon-256.png',
   },
   nsis: {
     oneClick: false,
@@ -77,5 +80,6 @@ module.exports = {
     { from: 'shell/build/win-payload', to: 'app-payload' },
     { from: 'vendor/node-win', to: 'node-win' },
     { from: 'shell/build/avs-launcher.exe', to: 'avs-launcher.exe' },
+    { from: 'shell/tray-32.png', to: 'tray.png' },
   ],
 };

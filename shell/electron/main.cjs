@@ -11,7 +11,7 @@
 // The server runs as a CHILD process rather than inside this one. That keeps the boundary the
 // macOS build already has (a crash in a render cannot take the window down with it), and it means
 // the server code is byte-identical on all three platforms.
-const { app, BrowserWindow, shell, dialog } = require('electron');
+const { app, BrowserWindow, Menu, Tray, shell, dialog, nativeImage } = require('electron');
 const { fork, spawn } = require('node:child_process');
 const { join } = require('node:path');
 const { existsSync, mkdirSync } = require('node:fs');
@@ -21,6 +21,7 @@ const SERVER = join(ROOT, 'src', 'server.js');
 
 let child = null;
 let win = null;
+let tray = null;
 
 /**
  * Writable data lives beside the user's profile, never beside the executable. On Windows a
@@ -105,7 +106,46 @@ function createWindow(url) {
     if (!target.startsWith(url)) shell.openExternal(target);
     return { action: 'deny' };
   });
+  // Closing the window hides it: the server keeps serving agents and finishing renders, and the tray
+  // is what says so. Quitting for real goes through the tray or before-quit.
+  win.on('close', (e) => {
+    if (app.isQuitting) return;
+    e.preventDefault();
+    win.hide();
+  });
   win.on('closed', () => { win = null; });
+}
+
+/** The tray is the only sign the app is still there once its window is hidden. */
+function createTray() {
+  const candidates = [
+    join(process.resourcesPath || '', 'tray.png'),
+    join(ROOT, 'shell', 'tray-32.png'),
+  ];
+  const found = candidates.find((p) => existsSync(p));
+  const image = found ? nativeImage.createFromPath(found) : nativeImage.createEmpty();
+  tray = new Tray(image);
+  tray.setToolTip('AI Video Studio');
+  const menu = Menu.buildFromTemplate([
+    { label: 'Mở cửa sổ', click: () => showWindow() },
+    {
+      label: 'Mở cùng máy',
+      type: 'checkbox',
+      checked: app.getLoginItemSettings().openAtLogin,
+      click: (item) => app.setLoginItemSettings({ openAtLogin: item.checked }),
+    },
+    { type: 'separator' },
+    { label: 'Thoát hẳn', click: () => { app.isQuitting = true; app.quit(); } },
+  ]);
+  tray.setContextMenu(menu);
+  tray.on('double-click', () => showWindow());
+}
+
+function showWindow() {
+  if (!win) return;
+  if (win.isMinimized()) win.restore();
+  win.show();
+  win.focus();
 }
 
 // One copy per machine: two would mean two servers on one database. A second launch hands its
@@ -113,26 +153,24 @@ function createWindow(url) {
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  app.on('second-instance', () => {
-    if (!win) return;
-    if (win.isMinimized()) win.restore();
-    win.show();
-    win.focus();
-  });
+  app.on('second-instance', () => showWindow());
 }
 
 app.whenReady().then(async () => {
   try {
     const url = await startServer();
     createWindow(url);
+    createTray();
   } catch (e) {
     dialog.showErrorBox('AI Video Studio không khởi động được', String(e.message || e));
     app.quit();
   }
-  app.on('activate', () => { if (!BrowserWindow.getAllWindows().length && win === null) app.quit(); });
+  app.on('activate', () => showWindow());
 });
 
 // The server is a child, so it dies with us — but only if we actually ask. Without this it
 // survives the window on Windows and holds the port against the next launch.
 app.on('before-quit', () => { app.isQuitting = true; if (child) { child.kill(); child = null; } });
-app.on('window-all-closed', () => app.quit());
+// Deliberately NOT app.quit(): the window is a view onto a server that agents may still be using.
+// The tray's "Thoát hẳn" is the way out.
+app.on('window-all-closed', () => {});
