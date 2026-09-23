@@ -1,6 +1,6 @@
 // Project outputs: repurposing, thumbnails and covers, thumbnail versions, open/export/dub.
 import { existsSync, statSync, mkdirSync, copyFileSync } from 'node:fs';
-import { execFile } from 'node:child_process';
+import { revealInFileManager } from '../../util/open-external.js';
 import { isHeadless, refuseHeadless } from '../../core/headless.js';
 import { join } from 'node:path';
 import * as DB from '../../db/index.js';
@@ -231,7 +231,7 @@ function mountProjectActions(r) {
         files.push(name);
       }
       // land the owner in the folder they just filled — a server answers with the path instead
-      if (!isHeadless()) execFile('open', [outDir], () => {});
+      if (!isHeadless()) revealInFileManager(outDir);
       res.json({ ok: true, dir: outDir, files });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
@@ -246,7 +246,7 @@ function mountProjectActions(r) {
       // Reveal the finished file when there is one, otherwise just open the folder.
       const target = p.video_path && existsSync(p.video_path) ? p.video_path : dir;
       if (isHeadless()) refuseHeadless(target);
-      execFile('open', target === dir ? [dir] : ['-R', target], () => {});
+      revealInFileManager(target, { reveal: target !== dir });
       res.json({ ok: true, dir });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
