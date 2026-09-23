@@ -30,10 +30,12 @@ const row = (r) => (r ? {
  * Mint a token. The returned `token` is the ONLY time the secret exists outside the holder.
  * @param {{name?: string, scopes?: string[], channelIds?: string[]|null}} input
  */
-export function createApiToken({ name = 'agent', scopes = ['read'], channelIds = null } = {}) {
+export function createApiToken({ name = 'agent', scopes = ['read'], channelIds = null, system = false } = {}) {
   const picked = [...new Set(scopes)].filter((s) => SCOPES.includes(s));
   if (!picked.length) throw new Error(`scopes must be a subset of ${SCOPES.join('|')}`);
-  const id = newId('tok');
+  // The app window's own session is not something a person created, so it carries a different id
+  // prefix and is filtered out of the list people revoke from.
+  const id = newId(system ? 'sys' : 'tok');
   const secret = randomBytes(24).toString('base64url');
   stmt(`INSERT INTO api_tokens(id,name,hash,scopes,channel_ids,created_at)
         VALUES(@id,@name,@hash,@scopes,@channel_ids,@created_at)`).run({
@@ -67,9 +69,10 @@ export function verifyApiToken(raw) {
   return row(found);
 }
 
-export function listApiTokens({ includeRevoked = false } = {}) {
+export function listApiTokens({ includeRevoked = false, includeSystem = true } = {}) {
   const sql = `SELECT * FROM api_tokens ${includeRevoked ? '' : 'WHERE revoked_at IS NULL'} ORDER BY created_at DESC`;
-  return stmt(sql).all().map(row);
+  const rows = stmt(sql).all().map(row);
+  return includeSystem ? rows : rows.filter((t) => !t.id.startsWith('sys'));
 }
 
 export function revokeApiToken(id) {

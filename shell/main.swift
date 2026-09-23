@@ -33,6 +33,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
   var webView: WKWebView!
   var backend: Process?
   var statusItem: NSStatusItem?
+  // One boot, one nonce. The window trades it for a session cookie on its first request, so the
+  // owner never has to paste a token into their own app once agent access is on.
+  let uiKey = UUID().uuidString
   // Learned from the backend's own AVS_READY line rather than assumed. A fixed port meant a second
   // copy of the app silently loaded the FIRST copy's server (its own died with AVS_PORT_IN_USE and
   // nobody read that), and it made the port unknowable to anything else — the agent kit included.
@@ -183,6 +186,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     p.currentDirectoryURL = URL(fileURLWithPath: PROJECT_ROOT)
     var env = ProcessInfo.processInfo.environment
     env["AVS_PORT"] = AVS_PORT
+    env["AVS_UI_KEY"] = uiKey
     // Build-mode settings (AVS_DIST, AVS_DATA_DIR) come from Config.swift, which the build script
     // writes per mode. They are set HERE, inside the app, so nothing a customer puts in their
     // shell can change what the bundle thinks it is.
@@ -232,7 +236,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     URLSession.shared.dataTask(with: req) { data, resp, _ in
       let ok = (resp as? HTTPURLResponse)?.statusCode == 200
       DispatchQueue.main.async {
-        if ok { self.webView.load(URLRequest(url: URL(string: base)!)) }
+        if ok, let url = URL(string: base + "/?uikey=" + self.uiKey) { self.webView.load(URLRequest(url: url)) }
         else { DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { self.waitForHealthThenLoad(attempt: attempt + 1) } }
       }
     }.resume()
