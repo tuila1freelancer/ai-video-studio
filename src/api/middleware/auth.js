@@ -5,6 +5,7 @@
 // the shells and the browser UI keep talking to their own loopback server exactly as before.
 import { countApiTokens, tokenHasScope, verifyApiToken } from '../../db/index.js';
 import { isServerMode } from '../../core/runtime-mode.js';
+import { agentEnabled } from '../../ops/agent-mode.js';
 import { requiredScope } from '../scopes.js';
 import { m, tp } from '../../i18n/t.js';
 
@@ -24,9 +25,20 @@ export function bearerOf(req) {
   return cookie ? decodeURIComponent(cookie[1]) : null;
 }
 
+/**
+ * Is a token required at all?
+ *
+ * Two ways in: the deployment was started as a server, or the owner turned agent access on in the
+ * app. The second is what makes an installed copy safe to hand an agent — without it every process
+ * on the machine is the owner, and nothing is revocable.
+ */
+export function authRequired() {
+  return isServerMode() || agentEnabled();
+}
+
 /** @type {import('express').RequestHandler} */
 export function apiAuth(req, res, next) {
-  if (!isServerMode()) {
+  if (!authRequired()) {
     req.actor = 'ui'; // the desktop app has exactly one caller, and it is sitting at the machine
     return next();
   }

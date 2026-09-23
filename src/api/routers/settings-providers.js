@@ -7,6 +7,7 @@ import { m, tp, uiLang, setUiLang } from '../../i18n/t.js';
 import { localize } from '../helpers.js';
 import { syncLlmAccounts } from '../../core/llm-accounts.js';
 import { resetSpendCache } from '../../core/spend-guard.js';
+import { agentMode, setAgentMode } from '../../ops/agent-mode.js';
 import { chat } from '../../providers/llm.js';
 import { withPreset, publicCatalog } from '../../providers/llm-presets.js';
 import { priceFor, PRICING_VERSION } from '../../core/pricing.js';
@@ -26,6 +27,7 @@ function mountSettings(r) {
     res.json({
       settings: maskSecrets(DB.aiSettings()), uiLang: uiLang(),
       webhooks: maskSecrets(DB.getSetting('webhooks', []) || []), budget: DB.getSetting('budget', {}) || {},
+      agent: agentMode(),
     });
   });
   r.put('/settings', (req, res) => {
@@ -48,6 +50,10 @@ function mountSettings(r) {
           active: h.active !== false,
         })));
       if (Object.keys(req.body).length === 1) return res.json({ ok: true, webhooks: DB.getSetting('webhooks', []) });
+    }
+    if (req.body?.agent && typeof req.body.agent === 'object') {
+      setAgentMode({ enabled: req.body.agent.enabled === true });
+      if (Object.keys(req.body).length === 1) return res.json({ ok: true, agent: agentMode() });
     }
     if (req.body?.budget && typeof req.body.budget === 'object') {
       const b = req.body.budget;

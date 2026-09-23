@@ -269,7 +269,11 @@ test('P45: the agent lane is opt-in, scoped, channel-explicit and coded', () => 
   assert.match(mode, /env\.AVS_MODE === 'server' \? 'server' : 'desktop'/, 'server mode is opt-in, never inferred');
   assert.match(mode, /!isLoopback\(host\(env\)\) && !isServerMode\(env\)/, 'a public host without server mode refuses to boot');
   const auth = sourceOf('src/api/middleware/auth.js');
-  assert.match(auth, /if \(!isServerMode\(\)\) \{[\s\S]{0,120}return next\(\);/, 'desktop keeps passing straight through');
+  // Two doors, both opt-in: started as a server, or agent access turned on in the app. A desktop
+  // app that was asked for neither still passes straight through.
+  assert.match(auth, /return isServerMode\(\) \|\| agentEnabled\(\);/, 'the second door is the setting, nothing inferred');
+  assert.match(auth, /if \(!authRequired\(\)\) \{[\s\S]{0,120}return next\(\);/, 'desktop keeps passing straight through');
+  assert.match(sourceOf('src/ops/agent-mode.js'), /s\.enabled === true/, 'and it is off unless the owner said otherwise');
 
   // (2) the secret is never stored, and the comparison is constant-time.
   const tokens = sourceOf('src/db/repositories/api-tokens.js');
