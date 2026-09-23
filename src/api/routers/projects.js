@@ -1,6 +1,7 @@
 // Projects: CRUD, export history, variants, QC scan, change plans, frame preview, restart, footprint, typeset repair, deletion.
 import { existsSync, statSync } from 'node:fs';
 import * as DB from '../../db/index.js';
+import { wrap } from '../http.js';
 import { logger } from '../../util/log.js';
 import { detectInputType } from '../../util/util.js';
 import * as Pipeline from '../../pipeline/queue.js';
@@ -8,6 +9,7 @@ import { resolveProjectConfig } from '../../core/config.js';
 import { tp } from '../../i18n/t.js';
 import { projectOwnedFiles, purgeProjectFiles } from '../services/project-files.js';
 import { qcScan } from '../services/qc-scan.js';
+import { projectVerdict } from '../services/verdict.js';
 import { planChanges } from '../services/change-plan.js';
 import { framePreview } from '../services/frame-preview.js';
 import { normalizeAssets } from '../../pipeline/brand-assets.js';
@@ -100,6 +102,12 @@ function mountProjects(r) {
       res.json({ ok: true, name, variants });
     } catch (e) { res.status(400).json({ error: e.message }); }
   });
+
+  // Everything the checks above know, read once and turned into a decision: may this be published?
+  // The one call an unattended run makes before it puts something in front of an audience.
+  r.get('/projects/:id/verdict', wrap(async (req, res) => {
+    res.json(await projectVerdict(req.params.id));
+  }));
 
   // Read the finished project back and report what a human would not catch — above all whether
   // the clip on disk still matches the design in the database. It reports; it never edits.

@@ -57,6 +57,7 @@
   "GET /projects/:id/thumbnail",
   "GET /projects/:id/thumbnails",
   "GET /projects/:id/typeset-scan",
+  "GET /projects/:id/verdict",
   "GET /projects/:id/versions",
   "GET /projects/:id/voice-estimate",
   "GET /publish/pages",
