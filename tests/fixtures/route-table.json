@@ -37,6 +37,7 @@
   "GET /license/update",
   "GET /llm/providers",
   "GET /logo-presets",
+  "GET /openapi.json",
   "GET /ops/status",
   "GET /platforms",
   "GET /projects",
