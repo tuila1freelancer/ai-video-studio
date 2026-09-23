@@ -132,6 +132,13 @@ if (existsSync(SQLITE)) {
 }
 note(sqliteOk, 'better_sqlite3.node là binary Windows', sqliteWhat);
 
+// 7b. The Agent Kit travels with the app, readable and keyless — the one part meant to be read.
+const KIT = join(PAYLOAD, 'packages', 'avs-kit');
+const kitFiles = walk(KIT);
+note(existsSync(join(KIT, 'bin', 'avs-mcp.mjs')), 'Agent Kit có mặt trong payload', `${kitFiles.length} file`);
+const kitHex = kitFiles.filter((f) => /[0-9a-f]{64}/i.test(readFileSync(f, 'utf8')));
+note(kitHex.length === 0, 'kit không chứa khoá 64-hex', kitHex.map((f) => f.slice(KIT.length + 1)).join(', '));
+
 // 8. The AES key lives ONLY in the launcher. It must not have leaked into readable JS or the meta.
 //    (app.jsc.json.sha256 is a legitimate 64-hex value, so the meta is checked by field, not by
 //    scanning for hex.)

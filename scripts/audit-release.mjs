@@ -6,7 +6,7 @@
 // Every check is performed on the ASSEMBLED BUNDLE, never on the source that produced it. The
 // point of this file is to catch the build regressing — a `cp -R src` creeping back, a scrub rule
 // that stopped matching, an encryption step quietly skipped — none of which any unit test can see.
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -86,6 +86,14 @@ for (const f of files) {
   }
 }
 note(leaks.length === 0, `không đọc được doctrine trong ${scanned} file`, leaks.join(' | '));
+
+// 6. The Agent Kit travels with the app, readable and keyless — it is the one part that is meant
+//    to be read. Absent, an owner who never cloned the repo has no way to point an agent here.
+const KIT = join(PAYLOAD, 'packages', 'avs-kit');
+const kitFiles = existsSync(KIT) ? walk(KIT) : [];
+note(existsSync(join(KIT, 'bin', 'avs-mcp.mjs')), 'Agent Kit có mặt trong payload', `${kitFiles.length} file`);
+const kitHex = kitFiles.filter((f) => /[0-9a-f]{64}/i.test(readFileSync(f, 'utf8')));
+note(kitHex.length === 0, 'kit không chứa khoá 64-hex', kitHex.map((f) => f.slice(KIT.length + 1)).join(', '));
 
 // 5. The launcher runs bytecode, and the window hands over no inspector.
 const launcher = readFileSync(join(APP, 'Contents', 'MacOS', 'AI Video Studio'));

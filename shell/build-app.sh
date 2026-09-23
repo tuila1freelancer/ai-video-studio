@@ -163,6 +163,11 @@ if [ "$MODE" = "dist" ]; then
     [ -d "vendor/$v" ] && cp -R "vendor/$v" "$APPDIR/vendor/$v"
   done
 
+  # The Agent Kit travels WITH the app: readable, dependency-free, and the only way an owner who
+  # never cloned the repo can point an agent at their own copy. Closed engine, open kit.
+  mkdir -p "$APPDIR/packages"
+  cp -R packages/avs-kit "$APPDIR/packages/avs-kit"
+
   # Everything under Resources, so the vendored runtime is held to the same rule as the payload.
   scrub_payload "$APP/Contents/Resources"
 
