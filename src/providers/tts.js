@@ -15,6 +15,7 @@ import { detectLang } from '../util/lang.js';
 
 import { m, tp } from '../i18n/t.js';
 import { sleep } from '../util/util.js';
+import { assertSpendAllowed } from '../core/spend-guard.js';
 // Re-exported so existing importers of detectLang keep working.
 export { detectLang };
 
@@ -119,6 +120,7 @@ async function synthWith(pid, voice, text, s, outPath, style, lang) {
 // opts.ttsOverride: per-channel/per-project tts settings merged over global (channels feature).
 // opts.lang: the video's declared language — always pass it when the caller knows it.
 export async function synthesizeVoice(text, outPath, opts = {}) {
+  assertSpendAllowed(); // the other place money leaves the building
   const s = { ...aiSettings().tts, ...(opts.ttsOverride || {}) };
   const lang = opts.lang || detectLang(text);
   // An EXPLICIT per-project/per-channel provider pick beats the per-language default —

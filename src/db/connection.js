@@ -309,6 +309,7 @@ CREATE INDEX IF NOT EXISTS idx_jobs_batch ON jobs(batch_id);
 CREATE INDEX IF NOT EXISTS idx_calendar_project ON calendar_slots(project_id);
 CREATE INDEX IF NOT EXISTS idx_library_kind_folder ON library(kind, brand_folder);
 CREATE INDEX IF NOT EXISTS idx_sugg_slot ON topic_suggestions(slot_id);
+CREATE INDEX IF NOT EXISTS idx_usage_channel ON provider_usage(channel_id, at);
 `);
 
 const statements = new Map();
