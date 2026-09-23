@@ -8,6 +8,7 @@ import * as DB from '../db/index.js';
 import { PATHS, depStatus } from '../config/paths.js';
 import { maskSecrets } from '../core/config.js';
 import { licenseGate } from '../license/gate.js';
+import { apiAuth } from './middleware/auth.js';
 import { t, uiLang } from '../i18n/t.js';
 import { processHealth } from './http.js';
 import { mode } from '../core/runtime-mode.js';
@@ -56,6 +57,11 @@ export function mountRoutes(app, { version }) {
     };
     next();
   });
+
+  // WHO is asking (server mode only; a no-op for the desktop app). Registered after the egress
+  // translator so its own refusals are translated too, and before the licence gate so an
+  // unauthenticated caller never learns anything about the licence beyond /license/status.
+  r.use(apiAuth);
 
   // FIRST, before any route: an unlicensed copy answers 403 everywhere except /health and
   // /license/*. Mounting it here rather than decorating routes means a route added tomorrow is

@@ -6,6 +6,8 @@
 // slow clients instead of ballooning memory during 200+ scene renders.
 import { WebSocketServer } from 'ws';
 import { WS_MAX_BUFFERED } from '../core/constants.js';
+import { isServerMode } from '../core/runtime-mode.js';
+import { tokenHasScope, verifyApiToken } from '../db/index.js';
 
 const REPLAY_MAX = 200;               // events kept per project
 const REPLAY_PROJECTS = 12;           // most-recent projects buffered
@@ -19,7 +21,10 @@ export class Hub {
 
   attach(server) {
     this.wss = new WebSocketServer({ server, path: '/ws' });
-    this.wss.on('connection', (ws) => {
+    this.wss.on('connection', (ws, req) => {
+      // The feed carries every project's progress, so it is behind the same token as the API.
+      // A browser cannot set a header on a WebSocket, hence the query parameter.
+      if (isServerMode() && !wsAllowed(req)) { try { ws.close(4401, 'token_required'); } catch { /* already gone */ } return; }
       ws.subscribed = null; // project id this socket cares about
       ws.isAlive = true;
       this.clients.add(ws);
@@ -88,6 +93,12 @@ export class Hub {
       if (!ws.subscribed || ws.subscribed === projectId) this.send(ws, payload);
     }
   }
+}
+
+/** A socket may listen when its token carries `read`. */
+function wsAllowed(req) {
+  const url = new URL(req?.url || '/ws', 'http://ws.local');
+  return tokenHasScope(verifyApiToken(url.searchParams.get('token')), 'read');
 }
 
 export const hub = new Hub();
