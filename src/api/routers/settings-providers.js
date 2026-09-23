@@ -6,6 +6,7 @@ import { getVoiceCatalog } from '../services/voice-catalog.js';
 import { m, tp, uiLang, setUiLang } from '../../i18n/t.js';
 import { localize } from '../helpers.js';
 import { syncLlmAccounts } from '../../core/llm-accounts.js';
+import { resetSpendCache } from '../../core/spend-guard.js';
 import { chat } from '../../providers/llm.js';
 import { withPreset, publicCatalog } from '../../providers/llm-presets.js';
 import { priceFor, PRICING_VERSION } from '../../core/pricing.js';
@@ -22,7 +23,10 @@ function mountSettings(r) {
   // Secrets are masked '••' on EVERY egress (recursive — covers nested tts.providers.*.apiKey)
   // and a masked round-trip on ingest keeps the saved value. Never ship raw keys to the client.
   r.get('/settings', (req, res) => {
-    res.json({ settings: maskSecrets(DB.aiSettings()), uiLang: uiLang(), webhooks: maskSecrets(DB.getSetting('webhooks', []) || []) });
+    res.json({
+      settings: maskSecrets(DB.aiSettings()), uiLang: uiLang(),
+      webhooks: maskSecrets(DB.getSetting('webhooks', []) || []), budget: DB.getSetting('budget', {}) || {},
+    });
   });
   r.put('/settings', (req, res) => {
     // The INTERFACE language is a different axis from the VIDEO language and is stored apart from
@@ -44,6 +48,17 @@ function mountSettings(r) {
           active: h.active !== false,
         })));
       if (Object.keys(req.body).length === 1) return res.json({ ok: true, webhooks: DB.getSetting('webhooks', []) });
+    }
+    if (req.body?.budget && typeof req.body.budget === 'object') {
+      const b = req.body.budget;
+      DB.setSetting('budget', {
+        perVideoUsd: +b.perVideoUsd || 0,
+        perChannelDayUsd: +b.perChannelDayUsd || 0,
+        perChannelDayVideos: +b.perChannelDayVideos || 0,
+        hardStop: b.hardStop === true,
+      });
+      resetSpendCache();
+      if (Object.keys(req.body).length === 1) return res.json({ ok: true, budget: DB.getSetting('budget', {}) });
     }
     const prev = DB.aiSettings();
     const next = applyMaskedUpdate(prev, req.body || {});
