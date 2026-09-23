@@ -27,14 +27,18 @@ function mountProjects(r) {
     res.json({ projects: list });
   });
   r.post('/projects', (req, res) => {
-    const { topic = '', config: reqConfig = {} } = req.body || {};
+    const { topic = '', config: reqConfig = {}, clientRef = null } = req.body || {};
     const inputType = detectInputType(topic);
     // layered config: channel defaults → default preset → request overrides
     const channel = channelFor(req);
+    // The agent's own reference for this request: a retry after a timeout finds the first project
+    // instead of making a second one (and paying for it twice).
+    const already = clientRef ? DB.projectByClientRef(channel?.id, clientRef) : null;
+    if (already) return res.json({ project: already, reused: true });
     const config = resolveProjectConfig({ channel, preset: DB.defaultPresetFor(channel?.id), request: reqConfig });
     const aspectRatio = config.aspectRatio || '9:16';
     const title = (config.title || topic || 'Dự án mới').slice(0, 80) || 'Dự án mới';
-    const p = DB.createProject({ title, topic, inputType, aspectRatio, config, channelId: channel?.id });
+    const p = DB.createProject({ title, topic, inputType, aspectRatio, config, channelId: channel?.id, clientRef });
     DB.projectDirFor(p.id);
     logger.info(tp`🆕 Đã tạo dự án (kênh ${channel?.name || 'Default'})`, { projectId: p.id });
     res.json({ project: p });

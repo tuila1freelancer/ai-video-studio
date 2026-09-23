@@ -8,15 +8,14 @@ import { hub } from './ws/hub.js';
 import { bindHub, logger } from './util/log.js';
 import { openLogFile } from './util/log-file.js';
 import { sweepStale } from './util/sweep.js';
-import { assembleIndex } from './util/html-include.js';
-import { createHash } from 'node:crypto';
 import { ensureDirs, DIRS, ROOT } from './config/paths.js';
 import { bootRefusal, host, isLoopback, mode } from './core/runtime-mode.js';
 import { mountRoutes } from './api/routes.js';
+import { mountStaticSite } from './api/static-site.js';
 import { authRefusal } from './api/middleware/auth.js';
 import { errorHandler, processHealth } from './api/http.js';
 import { setUiLang } from './i18n/t.js';
-import db, { getSetting } from './db/index.js';
+import db, { getSetting, pruneIdempotency } from './db/index.js';
 
 // Both of these hang off ROOT rather than this file's own location: a release bundles the whole
 // server into one file, so "one directory up from here" stops meaning what it means in the repo.
@@ -104,34 +103,7 @@ async function boot() {
   mountRoutes(app, { version: VERSION });
   app.use('/api', errorHandler);
 
-  // SPA static (after API so /api wins). Font filenames encode family+weight+subset,
-  // so /fonts can be cached immutable — a manifest change produces new URLs.
-  app.use('/fonts', express.static(join(PUBLIC_DIR, 'fonts'), { maxAge: '365d', immutable: true, fallthrough: false }));
-  // The document is assembled from its partials once, served from memory, always revalidated
-  // (the release build hashes everything it references). The partials themselves are not a page.
-  const indexHtml = assembleIndex(PUBLIC_DIR);
-  const indexEtag = `"${createHash('sha1').update(indexHtml).digest('hex').slice(0, 16)}"`;
-  const sendIndex = (req, res) => {
-    res.set('Cache-Control', 'no-cache');
-    res.set('ETag', indexEtag);
-    if (req.headers['if-none-match'] === indexEtag) return res.status(304).end();
-    res.type('html').send(indexHtml);
-  };
-  app.get(['/', '/index.html'], sendIndex);
-  app.use('/partials', (req, res) => res.status(404).end());
-  // A release build names every script and stylesheet by its content hash, so those can live in
-  // the cache forever; a dev tree has no hashes and every file is revalidated.
-  const HASHED = /-[A-Z0-9]{8}\.(?:js|css)$/;
-  app.use(express.static(PUBLIC_DIR, {
-    index: false,
-    setHeaders: (res, path) => { if (HASHED.test(path)) res.set('Cache-Control', 'public, max-age=31536000, immutable'); },
-  }));
-  // Deep links get the document; a missing asset gets a 404, not 120 KB of HTML parsed as script.
-  app.get('*', (req, res, next) => {
-    if (req.path.startsWith('/api')) return next();
-    if (/\.[a-z0-9]+$/i.test(req.path)) return res.status(404).end();
-    sendIndex(req, res);
-  });
+  mountStaticSite(app, PUBLIC_DIR);
 
   const server = http.createServer(app);
 
@@ -169,7 +141,10 @@ async function boot() {
     // Sentinel line the Swift/launcher waits for:
     console.log(`AVS_READY ${url}`);
     // Housekeeping after the UI is reachable, never before.
-    setTimeout(() => { sweepStale([DIRS.tmp, DIRS.uploads]).catch((e) => logger.warn(`sweep: ${e.message}`)); }, 15000).unref();
+    setTimeout(() => {
+      sweepStale([DIRS.tmp, DIRS.uploads]).catch((e) => logger.warn(`sweep: ${e.message}`));
+      try { pruneIdempotency(); } catch (e) { logger.warn(`idempotency sweep: ${e.message}`); }
+    }, 15000).unref();
   });
 
   // Everything this process owns goes down with it: spawned TTS servers (an orphan holds its port

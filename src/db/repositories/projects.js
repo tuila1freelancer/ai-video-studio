@@ -4,8 +4,8 @@ import { newId, safeJson } from '../../util/util.js';
 import { activeChannelId } from './channels.js';
 
 const _insProject = db.prepare(`INSERT INTO projects
-  (id,title,topic,input_type,aspect_ratio,status,config,channel_id,created_at,updated_at)
-  VALUES (@id,@title,@topic,@input_type,@aspect_ratio,@status,@config,@channel_id,@created_at,@updated_at)`);
+  (id,title,topic,input_type,aspect_ratio,status,config,channel_id,client_ref,created_at,updated_at)
+  VALUES (@id,@title,@topic,@input_type,@aspect_ratio,@status,@config,@channel_id,@client_ref,@created_at,@updated_at)`);
 const _getProject = db.prepare('SELECT * FROM projects WHERE id=?');
 const _listProjects = db.prepare('SELECT * FROM projects ORDER BY updated_at DESC');
 const _delProject = db.prepare('DELETE FROM projects WHERE id=?');
@@ -15,17 +15,23 @@ function rowToProject(r) {
   return { ...r, config: safeJson(r.config, {}), metadata: safeJson(r.metadata, null) };
 }
 
-export function createProject({ title, topic, inputType, aspectRatio, config, channelId }) {
+export function createProject({ title, topic, inputType, aspectRatio, config, channelId, clientRef = null }) {
   const id = newId('p');
   const now = Date.now();
   _insProject.run({
     id, title: title || 'Dự án mới', topic: topic || '', input_type: inputType || 'text',
     aspect_ratio: aspectRatio || '9:16', status: 'draft',
-    config: JSON.stringify(config || {}), channel_id: channelId || activeChannelId(), created_at: now, updated_at: now,
+    config: JSON.stringify(config || {}), channel_id: channelId || activeChannelId(),
+    client_ref: clientRef ? String(clientRef).slice(0, 120) : null, created_at: now, updated_at: now,
   });
   return rowToProject(_getProject.get(id));
 }
 export function getProject(id) { return rowToProject(_getProject.get(id)); }
+/** The project an agent already created under this reference, or null. */
+export function projectByClientRef(channelId, clientRef) {
+  if (!clientRef) return null;
+  return rowToProject(stmt('SELECT * FROM projects WHERE channel_id=? AND client_ref=?').get(channelId, String(clientRef)));
+}
 export function listProjects(channelId) {
   if (channelId && channelId !== 'all') {
     return stmt('SELECT * FROM projects WHERE channel_id=? ORDER BY updated_at DESC').all(channelId).map(rowToProject);

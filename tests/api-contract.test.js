@@ -52,3 +52,34 @@ test('a live route carries the code, and answers in the language asked for', asy
     assert.equal(ok.body.code, undefined, 'a success carries no code');
   } finally { server.close(); }
 });
+
+test('a retried create is answered once, whichever way the caller asks', async () => {
+  const app = express();
+  app.use('/api', express.json({ limit: '2mb' }));
+  mountRoutes(app, { version: 'test' });
+  app.use('/api', errorHandler);
+  const server = await new Promise((resolve) => { const s = app.listen(0, '127.0.0.1', () => resolve(s)); });
+  const base = `http://127.0.0.1:${server.address().port}/api`;
+  const post = (p, body, headers = {}) => fetch(base + p, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify(body),
+  });
+  try {
+    const key = 'idem-key-1';
+    const first = await post('/projects', { topic: 'an idempotent topic about retries' }, { 'Idempotency-Key': key });
+    const firstBody = await first.json();
+    const again = await post('/projects', { topic: 'an idempotent topic about retries' }, { 'Idempotency-Key': key });
+    const againBody = await again.json();
+    assert.equal(again.headers.get('idempotent-replay'), 'true');
+    assert.equal(againBody.project.id, firstBody.project.id, 'the retry got the first project, not a second one');
+    const elsewhere = await post('/batch', { topics: ['somewhere else entirely'] }, { 'Idempotency-Key': key });
+    assert.equal(elsewhere.status, 409);
+    assert.equal((await elsewhere.json()).code, 'idempotency_key_reused');
+
+    // The agent's own reference does the same job without a header, and survives a restart.
+    const ref = { topic: 'a topic created under a client reference', clientRef: 'agent-run-42' };
+    const a = await (await post('/projects', ref)).json();
+    const b = await (await post('/projects', ref)).json();
+    assert.equal(b.project.id, a.project.id);
+    assert.equal(b.reused, true);
+  } finally { server.close(); }
+});
