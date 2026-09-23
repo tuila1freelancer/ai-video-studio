@@ -93,3 +93,45 @@ test('waitFor returns the moment a project reaches a state it was told to wait f
     assert.equal(timedOut.code, 'wait_timeout');
   } finally { server.close(); }
 });
+
+test('the MCP server speaks the protocol, and a refusal is a result rather than a crash', async () => {
+  const { server, url } = await engine();
+  const { createMcpServer } = await import('../packages/avs-kit/src/mcp-server.js');
+  const mcp = createMcpServer(new AvsClient({ url }), { name: 'avs', version: 'test' });
+  try {
+    const init = await mcp.handle({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18' } });
+    assert.equal(init.result.protocolVersion, '2025-06-18');
+    assert.equal(init.result.serverInfo.name, 'avs');
+    assert.ok(init.result.capabilities.tools, 'it offers tools');
+    assert.match(init.result.instructions, /clientRef/, 'the host is told the rule that prevents double spending');
+
+    assert.equal(await mcp.handle({ jsonrpc: '2.0', method: 'notifications/initialized' }), null, 'a notification gets no answer');
+
+    const listed = await mcp.handle({ jsonrpc: '2.0', id: 2, method: 'tools/list' });
+    const names = listed.result.tools.map((t) => t.name);
+    for (const expected of ['avs_health', 'avs_video_create', 'avs_video_verdict', 'avs_video_publish', 'avs_journal_tail', 'avs_ops']) {
+      assert.ok(names.includes(expected), `missing tool ${expected}`);
+    }
+    for (const tool of listed.result.tools) {
+      assert.ok(tool.description.length > 20, `${tool.name} needs a description an agent can act on`);
+      assert.equal(tool.inputSchema.type, 'object');
+    }
+
+    const health = await mcp.handle({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'avs_health', arguments: {} } });
+    assert.equal(JSON.parse(health.result.content[0].text).ok, true);
+
+    const made = await mcp.handle({ jsonrpc: '2.0', id: 4, method: 'tools/call', params: { name: 'avs_video_create', arguments: { topic: 'a video an agent asked for', clientRef: 'mcp-1', start: false } } });
+    const body = JSON.parse(made.result.content[0].text);
+    assert.ok(body.project.id);
+    const twice = await mcp.handle({ jsonrpc: '2.0', id: 5, method: 'tools/call', params: { name: 'avs_video_create', arguments: { topic: 'a video an agent asked for', clientRef: 'mcp-1', start: false } } });
+    assert.equal(JSON.parse(twice.result.content[0].text).reused, true, 'the same reference cannot make a second video');
+
+    const missing = await mcp.handle({ jsonrpc: '2.0', id: 6, method: 'tools/call', params: { name: 'avs_video_status', arguments: { projectId: 'nope' } } });
+    assert.equal(missing.result.isError, true);
+    assert.equal(JSON.parse(missing.result.content[0].text).code, 'not_found', 'the agent reads a code, not a stack');
+
+    const unknown = await mcp.handle({ jsonrpc: '2.0', id: 7, method: 'tools/call', params: { name: 'avs_nonsense', arguments: {} } });
+    assert.equal(unknown.error.code, -32602);
+    assert.equal((await mcp.handle({ jsonrpc: '2.0', id: 8, method: 'ping' })).result && true, true);
+  } finally { server.close(); }
+});
