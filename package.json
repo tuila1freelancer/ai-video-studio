@@ -17,6 +17,7 @@
     "test:e2e": "node scripts/e2e.mjs",
     "perf:boot": "node scripts/perf/boot-audit.mjs",
     "token": "node scripts/token.mjs",
+    "openapi": "node scripts/gen-openapi.mjs",
     "fonts:build": "node scripts/build-fonts.mjs",
     "fonts:build:ui": "node scripts/build-fonts.mjs --ui",
     "icon:build": "node scripts/build-icon.mjs",

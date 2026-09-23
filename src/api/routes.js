@@ -18,6 +18,7 @@ import { mode } from '../core/runtime-mode.js';
 import { opsState } from '../ops/state.js';
 import { maskChannel } from './helpers.js';
 import { channelIdFor } from './channel-scope.js';
+import { buildOpenApi } from './spec/index.js';
 import { mount as mountLicense } from './routers/license.js';
 import { mount as mountSettingsProviders } from './routers/settings-providers.js';
 import { mount as mountStyles } from './routers/styles.js';
@@ -99,6 +100,9 @@ export function mountRoutes(app, { version }) {
       presets: DB.listPresets(active),
     });
   });
+
+  // The API describing itself, so an agent can be pointed at a URL rather than a paragraph.
+  r.get('/openapi.json', (req, res) => res.json(buildOpenApi({ version })));
 
   mountLicense(r);
   mountSettingsProviders(r);
