@@ -7,6 +7,7 @@ import * as DB from '../../db/index.js';
 import { hub } from '../../ws/hub.js';
 import { logger } from '../../util/log.js';
 import { getPublisher } from '../../publish/index.js';
+import { notifyWebhooks } from '../../ops/webhooks.js';
 import { op } from '../progress.js';
 
 import { tp } from '../../i18n/t.js';
@@ -38,6 +39,7 @@ export async function runPublish(ctx) {
     logger.info(tp`📤 Đã đăng ${platform} (${r.privacy}): ${r.url}`, { projectId, kind: 'publish', jlevel: 'success' });
     op(projectId, tp`📤 Đã đăng (${r.privacy}): ${r.url}`);
     hub.toProject(projectId, { type: 'published', platform, url: r.url, privacy: r.privacy });
+    notifyWebhooks('project.published', { projectId, platform, url: r.url, privacy: r.privacy });
   } catch (e) {
     DB.settlePublish(recId, { status: 'error', error: e.message });
     logger.warn(tp`Đăng ${platform} thất bại: ${e.message}`, { projectId, kind: 'publish' });

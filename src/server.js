@@ -8,6 +8,7 @@ import { hub } from './ws/hub.js';
 import { bindHub, logger } from './util/log.js';
 import { openLogFile } from './util/log-file.js';
 import { sweepStale } from './util/sweep.js';
+import { notifyWebhooks } from './ops/webhooks.js';
 import { ensureDirs, DIRS, ROOT } from './config/paths.js';
 import { bootRefusal, host, isLoopback, mode } from './core/runtime-mode.js';
 import { mountRoutes } from './api/routes.js';
@@ -173,6 +174,7 @@ async function boot() {
   const survived = (kind) => (e) => {
     logger.error(`${kind}: ${e?.stack || e?.message || e}`);
     processHealth.degraded = { kind, message: String(e?.message || e), at: Date.now() };
+    notifyWebhooks('server.degraded', processHealth.degraded);
   };
   process.on('unhandledRejection', survived('unhandledRejection'));
   process.on('uncaughtException', survived('uncaughtException'));

@@ -13,6 +13,7 @@ import { resolveProjectConfig } from '../core/config.js';
 import { runPipeline, renderOnly } from './runner.js';
 import { jlog } from './journal.js';
 import { status as licenseStatus } from '../license/index.js';
+import { notifyWebhooks } from '../ops/webhooks.js';
 import { isRunnable } from '../license/state.js';
 
 import { m, tp } from '../i18n/t.js';
@@ -75,6 +76,7 @@ async function executeInner(job) {
 function settle(job, { status, error = null }) {
   DB.settleJob(job.id, status, error);
   hub.broadcast({ type: 'job', id: job.id, kind: job.kind, projectId: job.project_id, status });
+  notifyWebhooks('job.settled', { jobId: job.id, kind: job.kind, projectId: job.project_id, status, error, actor: job.actor || null });
   // a calendar-born video finished (or failed) — tell the owner which scheduled topic it was
   if (job.kind === 'pipeline') {
     try {

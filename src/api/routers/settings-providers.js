@@ -22,7 +22,7 @@ function mountSettings(r) {
   // Secrets are masked '••' on EVERY egress (recursive — covers nested tts.providers.*.apiKey)
   // and a masked round-trip on ingest keeps the saved value. Never ship raw keys to the client.
   r.get('/settings', (req, res) => {
-    res.json({ settings: maskSecrets(DB.aiSettings()), uiLang: uiLang() });
+    res.json({ settings: maskSecrets(DB.aiSettings()), uiLang: uiLang(), webhooks: maskSecrets(DB.getSetting('webhooks', []) || []) });
   });
   r.put('/settings', (req, res) => {
     // The INTERFACE language is a different axis from the VIDEO language and is stored apart from
@@ -30,6 +30,20 @@ function mountSettings(r) {
     if (req.body?.uiLang !== undefined) {
       DB.setSetting('uiLang', setUiLang(req.body.uiLang));
       if (Object.keys(req.body).length === 1) return res.json({ ok: true, uiLang: uiLang() });
+    }
+    // Operational settings live beside the AI blob, not inside it: a webhook is not a provider,
+    // and mixing them would put a delivery URL through the secret-masking round-trip.
+    if (Array.isArray(req.body?.webhooks)) {
+      DB.setSetting('webhooks', req.body.webhooks
+        .filter((h) => h?.url && /^https?:\/\//i.test(h.url))
+        .slice(0, 10)
+        .map((h) => ({
+          url: String(h.url).slice(0, 500),
+          secret: String(h.secret || '').slice(0, 200),
+          kinds: Array.isArray(h.kinds) ? h.kinds.map(String).slice(0, 20) : [],
+          active: h.active !== false,
+        })));
+      if (Object.keys(req.body).length === 1) return res.json({ ok: true, webhooks: DB.getSetting('webhooks', []) });
     }
     const prev = DB.aiSettings();
     const next = applyMaskedUpdate(prev, req.body || {});
