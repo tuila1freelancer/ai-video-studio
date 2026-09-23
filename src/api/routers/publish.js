@@ -1,6 +1,10 @@
 // Publishing: YouTube OAuth, the Facebook Page registry, captions, per-project publishes.
 import { existsSync } from 'node:fs';
 import * as DB from '../../db/index.js';
+import { assertPublishAllowed, publishPolicy } from '../../publish/policy.js';
+import { recordQuota } from '../../publish/quota.js';
+import { projectVerdict } from '../services/verdict.js';
+import { jlog } from '../../pipeline/journal.js';
 import { logger } from '../../util/log.js';
 import { m, tp } from '../../i18n/t.js';
 import { publisherStatus, getPublisher } from '../../publish/index.js';
@@ -98,7 +102,16 @@ export function mount(r) {
       if (!p.video_path || !existsSync(p.video_path)) return res.status(400).json({ error: 'video chưa render xong' });
       const pub = getPublisher(req.body?.platform || 'youtube');
       if (!pub.connected()) return res.status(400).json({ error: 'chưa kết nối OAuth — vào Cài đặt → Đăng video' });
-      const privacy = ['private', 'unlisted', 'public'].includes(req.body?.privacy) ? req.body.privacy : 'private';
+      // The channel's own rules, checked before anything is uploaded: how public, how many a day,
+      // whether the verdict must pass, and whether the platform still has quota for it.
+      const policy = publishPolicy(DB.channelOf(p.id));
+      const verdict = policy.requireVerdict && !req.body?.force ? await projectVerdict(p.id, { vision: false }) : null;
+      const { privacy } = assertPublishAllowed({
+        projectId: p.id, platform: pub.id, privacy: req.body?.privacy, force: req.body?.force === true, verdict,
+      });
+      if (req.body?.force === true) {
+        jlog(p.id, { kind: 'publish', level: 'warn', msg: m('⚠️ Đăng bỏ qua kiểm định theo yêu cầu (force)') });
+      }
       const md = p.metadata || {};
       const recId = DB.recordPublish({ projectId: p.id, platform: pub.id, privacy });
       const out = await pub.upload({
@@ -117,6 +130,7 @@ export function mount(r) {
         onLog: (m) => logger.info(m, { projectId: p.id }),
       });
       DB.settlePublish(recId, { status: 'done', videoId: out.videoId, url: out.url });
+      recordQuota({ projectId: p.id, channelId: p.channel_id, platform: pub.id, operation: 'videos.insert' });
       res.json({ ok: true, ...out });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
