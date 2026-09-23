@@ -12,6 +12,13 @@ Two shapes, same engine. Pick by where the work should happen, not by which soun
 Both are driven the same way: `AVS_MODE=server`, a bearer token per agent, and the kit
 (`packages/avs-kit`). The contract is in [`docs/agent`](../agent/README.md).
 
+There is a third shape that needs no deployment at all: **the installed app on the owner's own
+machine**. AI Setting → Agent (MCP) turns on the same token check on loopback, mints the token and
+prints the command; the kit travels inside the bundle and finds the app by itself. That is the right
+answer for one person with agents on their own machine, and it is what the customer-facing manual
+describes. Use a server shape when the engine has to outlive a laptop lid or be reached by somebody
+else.
+
 ---
 
 ## A. On a Mac
