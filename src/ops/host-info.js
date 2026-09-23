@@ -7,6 +7,7 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { ROOT, DATA_DIR } from '../config/paths.js';
+import { uiKey } from './ui-session.js';
 
 const first = (...candidates) => candidates.find((p) => p && existsSync(p)) || null;
 
@@ -43,5 +44,8 @@ export function hostInfo() {
     dataDir: DATA_DIR,
     node: nodeExecutable(),
     kit: kitPaths(),
+    // Started by a shell, so a window session exists: turning agent access on will not lock the
+    // owner out. Started by hand, and the page asking this is a browser tab that will need a token.
+    launcher: Boolean(uiKey()),
   };
 }

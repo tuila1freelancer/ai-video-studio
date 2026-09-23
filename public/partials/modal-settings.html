@@ -55,6 +55,23 @@
       </div>
       <div id="pubFbPages" class="hint mt-6" style="line-height:1.9"></div>
       <div class="hint mt-4"><span data-i18n="ui.settingsModal.video-doc-9-16-4">Video dọc (9:16 / 4:5) sẽ đăng dạng</span> <strong data-i18n-exempt>Reel</strong><span data-i18n="ui.settingsModal.con-lai-dang-vao-feed">, còn lại đăng vào feed Trang.</span></div></div>
+    <div class="sec-label" data-i18n="ui.settingsModal.agent-mcp">Agent (MCP)</div>
+    <div class="field">
+      <label class="switch-row"><span class="switch"><input type="checkbox" id="setAgentOn"><span class="sl"></span></span> <span data-i18n="ui.settingsModal.cho-phep-agent-goi-api">🤖 Cho phép Agent gọi API bằng token</span></label>
+      <div class="hint mt-6" data-i18n="ui.settingsModal.bat-len-thi-moi">Bật lên thì mọi lời gọi API đều phải có token — kể cả trên chính máy này. Cửa sổ ứng dụng vẫn vào được như thường; tắt đi là quay lại như cũ.</div>
+      <div class="hint mt-4" id="agentWarn" style="color:var(--warn)"></div>
+    </div>
+    <div class="field" id="agentBox" hidden>
+      <label class="label" data-i18n="ui.settingsModal.token-da-cap">Token đã cấp</label>
+      <div id="agentTokens" class="hint" style="line-height:1.9"></div>
+      <div class="row mt-6">
+        <button class="btn sm" id="btnAgentNew" data-i18n="ui.settingsModal.cap-token-moi">＋ Cấp token mới</button>
+        <button class="btn sm" id="btnAgentGuide" data-i18n="ui.settingsModal.huong-dan-agent">📖 Hướng dẫn</button>
+      </div>
+      <label class="label mt-10" data-i18n="ui.settingsModal.cai-vao-agent-tren-may">Cài vào agent trên máy này</label>
+      <div class="agent-cmd" id="agentCmd"></div>
+      <div class="hint mt-4" data-i18n="ui.settingsModal.thay-token-o-cuoi-lenh">Thay &lt;TOKEN&gt; ở cuối lệnh bằng token vừa cấp — token chỉ hiện đúng một lần lúc cấp.</div>
+    </div>
     <button class="btn primary block" id="setSave" data-i18n="ui.settingsModal.luu-cau-hinh">💾 Lưu cấu hình</button>
   </div>
 </div>

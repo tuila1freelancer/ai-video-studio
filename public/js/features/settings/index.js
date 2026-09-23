@@ -8,6 +8,7 @@ import { uiLang, setUiLanguage, m, tp } from '../../i18n.js';
 import { loadFbPages, loadPublishStatus } from './publish.js';
 import { loadLlmPresets, inferPresetId, stashLlmAccount, renderLlmPreset, llmAccountsForSave, fetchLlmModels, forgetShownPreset } from './llm.js';
 import { renderProviderFields, testProvider, renderLangVoiceList, removeLangVoice, collectProviderFields } from './tts.js';
+import { initAgentPanel, loadAgent } from './agent.js';
 import { LANGS } from '../../ui/langs.js';
 
 // The languages the app can be shown in, named in themselves — a picker that says "Japanese" to
@@ -24,6 +25,7 @@ function initUiLangPicker() {
 
 export function initSettings() {
   initUiLangPicker();
+  initAgentPanel({ onGuide: openAgentChapter });
   $('#setSave').addEventListener('click', saveSettings);
   $('#setTtsProvider').addEventListener('change', renderProviderFields);
   $('#btnTestProvider').addEventListener('click', testProvider);
@@ -76,6 +78,14 @@ export function initSettings() {
 
 export function openSettings() { $('#settingsModal').classList.add('open'); }
 
+/** The manual, at the chapter this panel is about. Built before scrolling, so the anchor exists. */
+async function openAgentChapter() {
+  closeModal('#settingsModal');
+  (await import('../../views/nav.js')).switchPage('tutorials');
+  await (await import('../../views/guide.js')).openGuide();
+  document.getElementById('gd-agent')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 export async function loadVoices() {
   const { voices, providers } = await api.get('/voices');
   state.voiceCatalog = voices || [];
@@ -106,6 +116,7 @@ export async function loadSettings() {
   renderLangVoiceList();
   loadPublishStatus();
   loadFbPages();
+  loadAgent(settings);
 }
 
 async function saveSettings() {
