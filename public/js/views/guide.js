@@ -152,6 +152,7 @@ async function loadChapters() {
 const ACTIONS = {
   page: (arg) => switchPage(arg),
   settings: async () => (await import('../features/settings.js')).openSettings(),
+  agent: async () => (await import('../features/settings.js')).openAgentPanel(),
   voices: async () => (await import('../features/voicepicker.js')).openVoicePicker(),
   brandkit: async () => (await import('../features/brandkit.js')).openBrandEditor(),
   channels: async () => {
