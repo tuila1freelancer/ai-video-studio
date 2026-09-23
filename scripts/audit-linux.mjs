@@ -120,12 +120,15 @@ if (existsSync(SQLITE)) {
 }
 note(sqliteOk, 'better_sqlite3.node là binary Linux', sqliteWhat);
 
-// 7. The runtime that ships is the one the bytecode was compiled for.
+// 7. The runtime that runs the bytecode. A payload for a bare machine carries its own; a container
+//    image uses the one it installed, and then the launcher names an absolute path instead.
 const runtime = join(DIST, 'node-linux', 'bin', 'node');
-note(existsSync(runtime), 'runtime Node đi kèm', runtime.slice(DIST.length + 1));
-if (existsSync(runtime) && meta?.node) {
+if (existsSync(runtime)) {
   const head = readFileSync(runtime).subarray(0, 4);
-  note(head[0] === 0x7f && head[1] === 0x45, 'runtime là ELF/Linux');
+  note(head[0] === 0x7f && head[1] === 0x45, 'runtime Node đi kèm là ELF/Linux');
+} else {
+  note(/\/(usr|opt)\/[\w/.-]*node/.test(launcher.toString('latin1')), 'launcher trỏ tới runtime hệ thống',
+    'payload không kèm node-linux — đúng với bản image');
 }
 
 // 8. The AES key lives ONLY in the launcher. app.jsc.json.sha256 is a legitimate 64-hex value, so
