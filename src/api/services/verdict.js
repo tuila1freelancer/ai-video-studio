@@ -48,7 +48,7 @@ async function videoCheck(project, dir) {
  * @param {string} projectId
  * @returns {Promise<object>} { publishable, score, reasons, checks, cost }
  */
-export async function projectVerdict(projectId, { vision = true } = {}) {
+export async function projectVerdict(projectId, { vision = true, expectDone = true } = {}) {
   const project = DB.getProject(projectId);
   if (!project) throw apiError('not_found', m('not found'), 404);
   const config = project.config || {};
@@ -57,7 +57,9 @@ export async function projectVerdict(projectId, { vision = true } = {}) {
   const reasons = [];
 
   // 1. Is it finished at all? Everything below describes a video; a run still in flight has none.
-  if (project.status !== 'done') {
+  // B9 asks for a verdict while the run is still 'running' — it IS the run, and the file it just
+  // joined is on disk. Everything else that asks wants a finished project.
+  if (expectDone && project.status !== 'done') {
     reasons.push(reason('project.not_done', 'blocker', `status ${project.status}`));
   }
 
