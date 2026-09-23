@@ -14,6 +14,7 @@ import { jlog } from './journal.js';
 import { seedEstimatedTiming } from './estimate.js';
 import { runScript } from './stages/script.js';
 import { runEditorial } from './stages/editorial.js';
+import { runScriptGate } from './stages/script-gate.js';
 import { runBudgetFit } from './stages/budget.js';
 import { runTts } from './stages/tts.js';
 import { runVisuals } from './stages/visuals.js';
@@ -56,6 +57,9 @@ export async function runPipeline(projectId, { resume = false, _auto = 0 } = {})
 
     await runScript(ctx);                                   // B2
     await runEditorial(ctx);                                // b2.5 — quality gate (B2 banner)
+    // b2.6 — the channel's own value/policy contract, opt-in per channel. Runs whatever editorial
+    // did or skipped: a script with no defects to rewrite is exactly the one worth measuring.
+    runScriptGate(ctx);
     await runBudgetFit(ctx);                                // b2.75 — total narration ≈ ordered duration
     // Scenes-first order: visuals are planned/generated BEFORE the paid voice, against an
     // estimated timeline (seedEstimatedTiming); real TTS then overwrites duration + srt_json
