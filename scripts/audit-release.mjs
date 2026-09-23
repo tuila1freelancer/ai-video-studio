@@ -25,12 +25,12 @@ const PAYLOAD = join(APP, 'Contents', 'Resources', 'app');
 // Canaries taken from the highest-value files in the repo. If any of these can be read out of the
 // bundle, so can everything around them.
 const CANARIES = [
-  ['hyperframe/prompt.js', 'SCRIPT RULE (Vietnamese)'],
-  ['hyperframe/prompt.js', 'TWO SLOTS MAY NEVER BIN INTO THE SAME ZONE'],
-  ['animation/harness.js', '__fitVietnamese'],
-  ['hyperframe/validate.js', 'ZONE_BUDGET'],
+  ['hyperframe/prompt/blocks.js', 'SCRIPT RULE (Vietnamese)'],
+  ['hyperframe/prompt/system.js', 'TWO SLOTS MAY NEVER BIN INTO THE SAME ZONE'],
+  ['animation/harness/runtime-typeset.js', '__fitMarks'],
+  ['hyperframe/validate.js', 'SHORT_DECOR'],
   ['pipeline/fingerprint.js', 'RENDER_CFG_KEYS'],
-  ['content/master-script.js', 'MASTER SCRIPT'],
+  ['pipeline/stages/script.js', 'MASTER SCRIPT'],
 ];
 
 const failures = [];
