@@ -15,6 +15,7 @@ import { codeFor } from '../core/api-codes.js';
 import { requestLang } from './request-lang.js';
 import { processHealth } from './http.js';
 import { mode } from '../core/runtime-mode.js';
+import { opsState } from '../ops/state.js';
 import { maskChannel } from './helpers.js';
 import { channelIdFor } from './channel-scope.js';
 import { mount as mountLicense } from './routers/license.js';
@@ -30,6 +31,7 @@ import { mount as mountPublish } from './routers/publish.js';
 import { mount as mountProjectOutputs } from './routers/project-outputs.js';
 import { mount as mountJobs } from './routers/jobs.js';
 import { mount as mountEvents } from './routers/events.js';
+import { mount as mountOps } from './routers/ops.js';
 import { mount as mountSceneStudio } from './routers/scene-studio.js';
 import { mount as mountScenes } from './routers/scenes.js';
 import { mount as mountResearch } from './routers/research.js';
@@ -80,7 +82,7 @@ export function mountRoutes(app, { version }) {
   r.use(idempotency);
 
   r.get('/health', (req, res) => {
-    res.json({ ok: true, version, mode: mode(), degraded: processHealth.degraded, deps: depStatus(), paths: {
+    res.json({ ok: true, version, mode: mode(), ops: opsState().state, degraded: processHealth.degraded, deps: depStatus(), paths: {
       ffmpeg: PATHS.ffmpeg, whisper: !!PATHS.whisperCli, chrome: !!PATHS.chrome, say: !!PATHS.say,
     } });
   });
@@ -111,6 +113,7 @@ export function mountRoutes(app, { version }) {
   mountProjectOutputs(r);
   mountJobs(r);
   mountEvents(r);
+  mountOps(r);
   mountSceneStudio(r);
   mountScenes(r);
   mountResearch(r);
