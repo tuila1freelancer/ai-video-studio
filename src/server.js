@@ -11,6 +11,7 @@ import { sweepStale } from './util/sweep.js';
 import { assembleIndex } from './util/html-include.js';
 import { createHash } from 'node:crypto';
 import { ensureDirs, DIRS, ROOT } from './config/paths.js';
+import { bootRefusal, host, isLoopback, mode } from './core/runtime-mode.js';
 import { mountRoutes } from './api/routes.js';
 import { errorHandler, processHealth } from './api/http.js';
 import { setUiLang } from './i18n/t.js';
@@ -29,6 +30,9 @@ const VERSION = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).ver
 // are load-bearing ordering (journal binds before any logger fanout, metering subscribes before
 // any run), so they stay exactly where they are; only their container changed.
 async function boot() {
+  // Before the port is open and before anything spends: a misconfigured deployment stops here.
+  const refusal = bootRefusal();
+  if (refusal) { logger.error(refusal); process.exit(1); }
   ensureDirs();
   openLogFile(join(DIRS.data, 'logs'));
   bindHub(hub);
@@ -153,12 +157,14 @@ async function boot() {
   hub.attach(server);
   // The owner's interface language, restored before anything can produce a message in it.
   try { setUiLang(getSetting('uiLang')); } catch { /* first boot, no settings row yet */ }
-  server.listen(PORT, '127.0.0.1', () => {
+  const HOST = host();
+  server.listen(PORT, HOST, () => {
     const addr = server.address();
-    const url = `http://127.0.0.1:${addr.port}`;
+    // A bound wildcard is not an address anyone can open; the sentinel keeps naming a reachable one.
+    const url = `http://${isLoopback(HOST) ? '127.0.0.1' : HOST}:${addr.port}`;
     // Write port file so the native shell can discover the URL.
     try { writeFileSync(join(DIRS.data, 'server.url'), url); } catch { /* ignore */ }
-    logger.info(`AI Video Studio v${VERSION} ready`);
+    logger.info(`AI Video Studio v${VERSION} ready (${mode()})`);
     // Sentinel line the Swift/launcher waits for:
     console.log(`AVS_READY ${url}`);
     // Housekeeping after the UI is reachable, never before.
