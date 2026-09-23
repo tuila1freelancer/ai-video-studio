@@ -51,6 +51,11 @@
             "arg": "studio"
           }
         ]
+      },
+      {
+        "t": "note",
+        "kind": "tip",
+        "text": "Đóng cửa sổ **không** thoát app: server vẫn chạy để render nốt và để agent gọi được. Biểu tượng trên thanh menu (macOS) hoặc khay hệ thống (Windows) là chỗ mở lại cửa sổ — và là chỗ **Thoát hẳn**."
       }
     ]
   },
@@ -939,7 +944,7 @@
           {
             "i": "🔬",
             "t": "Kiểm tra",
-            "d": "Quét chữ sai ngôn ngữ, quy ước số, clip không khớp thiết kế. Nó **báo cáo**, không tự sửa."
+            "d": "Quét chữ sai ngôn ngữ, quy ước số, clip không khớp thiết kế. Nó **báo cáo**, không tự sửa. Bản kiểm định đầy đủ (`publishable` + lý do) nằm ở chương *Kiểm định trước khi đăng*."
           },
           {
             "i": "📸",
@@ -949,7 +954,7 @@
           {
             "i": "📤",
             "t": "Đăng video",
-            "d": "Đăng thẳng lên YouTube / Facebook Page. Mặc định **không** công khai ngay."
+            "d": "Đăng thẳng lên YouTube / Facebook Page. Mặc định **không** công khai ngay. Kênh có thể bắt video phải **qua kiểm định** trước khi đăng — xem chương *Kiểm định trước khi đăng*."
           },
           {
             "i": "📂",
@@ -998,6 +1003,10 @@
           [
             "🔇 Không lời",
             "Video chỉ nhạc + phụ đề, bỏ hẳn khâu lồng tiếng."
+          ],
+          [
+            "Trần chi tiêu",
+            "AI Setting → **Trần chi tiêu**: trần USD mỗi video, trần USD và số video mỗi kênh mỗi ngày. Chạm trần thì app **hạ xuống lane miễn phí** (LLM offline + giọng miễn phí), hoặc dừng hẳn nếu bạn bật *Chạm trần thì dừng hẳn*."
           ]
         ]
       },
@@ -1032,7 +1041,7 @@
           ],
           [
             "Thư mục",
-            "Bỏ trống thì app tự đặt trong `~/Movies/AI Video Studio/`."
+            "Bỏ trống thì app tự đặt trong thư mục video của hệ điều hành: macOS `~/Movies/AI Video Studio/`, Windows `C:\\Users\\<user>\\Videos\\AI Video Studio\\`. Chọn ổ ngoài cũng được — app chỉ cần quyền ghi."
           ],
           [
             "Watermark của kênh",
@@ -1152,6 +1161,14 @@
           [
             "Đăng video",
             "Kết nối YouTube (OAuth Client dạng Desktop app) và Facebook Page (Page ID + Page Access Token)."
+          ],
+          [
+            "Agent (MCP)",
+            "Bật quyền cho agent gọi API, cấp/thu hồi token, và dòng lệnh cài sẵn cho máy này. Xem chương **Agent & MCP**."
+          ],
+          [
+            "Trần chi tiêu",
+            "Trần USD mỗi video, trần USD và số video mỗi kênh mỗi ngày. Áp cho cả bạn lẫn agent. Xem chương **Ngân sách & hạn mức**."
           ]
         ]
       },
@@ -1170,6 +1187,10 @@
           {
             "label": "🎙 Mở kho giọng",
             "act": "voices"
+          },
+          {
+            "label": "🤖 Mở panel Agent",
+            "act": "agent"
           }
         ]
       }
@@ -1250,6 +1271,22 @@
           [
             "Không chắc video có lỗi gì không",
             "Bấm **🔬 Kiểm tra** ở video đã xong: quét chữ sai ngôn ngữ, quy ước số và clip lệch thiết kế. Nó chỉ báo cáo, không tự sửa gì."
+          ],
+          [
+            "Đóng cửa sổ rồi mà app vẫn chạy",
+            "Đúng như thiết kế: server vẫn phục vụ agent và chạy nốt render. Biểu tượng trên thanh menu (macOS) hoặc khay hệ thống (Windows) là dấu hiệu. Muốn tắt hẳn thì chọn **Thoát hẳn** trong menu đó."
+          ],
+          [
+            "Agent báo `token_required`",
+            "Quyền cho Agent đang bật nhưng lời gọi không kèm token, hoặc token đã bị thu hồi. Cấp token mới ở AI Setting → Agent (MCP) rồi cập nhật lại cấu hình của agent."
+          ],
+          [
+            "Agent không tìm thấy app",
+            "Kit tìm app qua file `server.url` trong thư mục dữ liệu. App phải đang chạy — mở app rồi thử lại. Cấu hình agent **không** nên ghi cứng `--url`: mỗi lần mở app là một cổng khác."
+          ],
+          [
+            "Agent báo `budget_exceeded`",
+            "Đã chạm trần chi tiêu và bạn đang bật *dừng hẳn*. Nâng trần ở AI Setting → Trần chi tiêu, hoặc chờ sang ngày mới."
           ]
         ]
       },
@@ -1268,7 +1305,7 @@
     "blocks": [
       {
         "t": "p",
-        "text": "Đăng nhập bằng Google hoặc nhập mã kích hoạt. Huy hiệu bản quyền trên thanh trên cùng cho biết trạng thái và thiết bị đang dùng. Khi có bản mới, một dải thông báo hiện ra kèm nút tải — bạn tự chọn lúc cập nhật."
+        "text": "Đăng nhập bằng Google — app mở trình duyệt mặc định của máy (cả macOS lẫn Windows) rồi tự nhận kết quả — hoặc nhập mã kích hoạt. Huy hiệu bản quyền trên thanh trên cùng cho biết trạng thái và thiết bị đang dùng. Khi có bản mới, một dải thông báo hiện ra kèm nút tải — bạn tự chọn lúc cập nhật."
       },
       {
         "t": "note",
@@ -1321,6 +1358,22 @@
           [
             "Overlay mode",
             "Dựng đồ hoạ trên nền trong suốt rồi ghép lên video nền có sẵn."
+          ],
+          [
+            "Agent",
+            "Một chương trình tự chạy (Claude Code, một MCP host bất kỳ) gọi API của app để làm video thay bạn."
+          ],
+          [
+            "MCP",
+            "Model Context Protocol — chuẩn để agent nạp công cụ. App kèm sẵn một MCP server nên agent thấy 17 công cụ mà không cần bạn viết code."
+          ],
+          [
+            "Token",
+            "Chìa khoá API: agent phải kèm nó thì app mới trả lời. Cấp ở AI Setting → Agent, hiện đúng một lần, thu hồi được bất cứ lúc nào."
+          ],
+          [
+            "Verdict / Kiểm định",
+            "Một câu trả lời duy nhất cho câu hỏi *video này đăng được chưa*, kèm danh sách lý do — để một agent không phải tự đoán."
           ]
         ]
       }

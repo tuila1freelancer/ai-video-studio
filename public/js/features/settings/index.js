@@ -78,6 +78,12 @@ export function initSettings() {
 
 export function openSettings() { $('#settingsModal').classList.add('open'); }
 
+/** The manual's own button: open AI Setting with the Agent panel in view rather than at the top. */
+export function openAgentPanel() {
+  openSettings();
+  requestAnimationFrame(() => $('#setAgentOn')?.scrollIntoView({ block: 'center' }));
+}
+
 /** The manual, at the chapter this panel is about. Built before scrolling, so the anchor exists. */
 async function openAgentChapter() {
   closeModal('#settingsModal');
