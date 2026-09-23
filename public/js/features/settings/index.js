@@ -8,7 +8,7 @@ import { uiLang, setUiLanguage, m, tp } from '../../i18n.js';
 import { loadFbPages, loadPublishStatus } from './publish.js';
 import { loadLlmPresets, inferPresetId, stashLlmAccount, renderLlmPreset, llmAccountsForSave, fetchLlmModels, forgetShownPreset } from './llm.js';
 import { renderProviderFields, testProvider, renderLangVoiceList, removeLangVoice, collectProviderFields } from './tts.js';
-import { initAgentPanel, loadAgent } from './agent.js';
+import { initAgentPanel, loadAgent, renderBudget, budgetForSave } from './agent.js';
 import { LANGS } from '../../ui/langs.js';
 
 // The languages the app can be shown in, named in themselves — a picker that says "Japanese" to
@@ -95,7 +95,7 @@ export async function loadVoices() {
 }
 
 export async function loadSettings() {
-  const { settings } = await api.get('/settings', { ttl: 5000 }); // masked '••' — server keeps real keys on round-trip
+  const { settings, budget } = await api.get('/settings', { ttl: 5000 }); // masked '••' — server keeps real keys on round-trip
   state.settings = settings;
   await loadLlmPresets();
   $('#setLlmOn').checked = !!settings.llm?.enabled;
@@ -117,6 +117,7 @@ export async function loadSettings() {
   loadPublishStatus();
   loadFbPages();
   loadAgent(settings);
+  renderBudget(budget);
 }
 
 async function saveSettings() {
@@ -140,6 +141,7 @@ async function saveSettings() {
     },
     tts: { ...oldTts, provider: pid, providers },
     subtitle: { engine: $('#setSubEngine').value, llmCorrect: $('#setSubLlmFix') ? $('#setSubLlmFix').checked : true },
+    budget: budgetForSave(),
   };
   await api.put('/settings', body);
   await loadSettings();

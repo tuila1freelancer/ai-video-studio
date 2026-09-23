@@ -78,3 +78,21 @@ test('/boot says where this copy lives, so the panel can print a command that ru
     assert.equal(health.host, undefined, '/health is open — nothing about this machine goes on it');
   } finally { server.close(); }
 });
+
+test('the panel a person actually uses carries the switch, the tokens and the caps', async () => {
+  const { indexHtml, sourceOf } = await import('./_source.mjs');
+  const html = indexHtml();
+  const modal = html.slice(html.indexOf('id="settingsModal"'), html.indexOf('id="srtModal"'));
+  for (const id of ['setAgentOn', 'agentBox', 'agentTokens', 'btnAgentNew', 'agentCmd', 'agentWarn']) {
+    assert.ok(modal.includes(`id="${id}"`), `the agent panel needs #${id}`);
+  }
+  for (const id of ['setBudVideo', 'setBudDay', 'setBudVideos', 'setBudHard']) {
+    assert.ok(modal.includes(`id="${id}"`), `spending caps need #${id}`);
+  }
+  const js = sourceOf('public/js/features/settings.js');
+  assert.match(js, /budget: budgetForSave\(\)/, 'the caps must travel with the rest of the save');
+  assert.match(js, /claude mcp add avs -- \$\{q\(info\.node\)\} \$\{q\(info\.kit\.mcp\)\} --token \$\{token\}/,
+    'the command printed for the owner is built from this machine, not from a README');
+  assert.ok(!/--url/.test(js.slice(js.indexOf('mcpCommand'), js.indexOf('function renderCommand'))),
+    'and it pins no URL: the port changes every launch');
+});

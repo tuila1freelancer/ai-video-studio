@@ -7,8 +7,9 @@
 // Every "Mở …" button navigates to the real screen instead of describing where it is. A manual
 // that can open the thing it is explaining stops being a document and starts being part of the UI.
 import { $, $$, esc } from '../ui/dom.js';
+import { toast } from '../ui/toast.js';
 import { registerPageHook, switchPage } from './nav.js';
-import { uiLang, t } from '../i18n.js';
+import { uiLang, t, m } from '../i18n.js';
 
 /* ---------------------------------------------------------------------------
    CONTENT — public/guide/sections.json
@@ -64,6 +65,9 @@ const BLOCK = {
     const label = t(labelKey, null, { 'ui.guide.note.tip': 'Mẹo', 'ui.guide.note.warn': 'Lưu ý', 'ui.guide.note.cost': 'Chi phí', 'ui.guide.note.key': 'Phím tắt' }[labelKey]);
     return `<div class="gd-note ${b.kind}"><span class="gd-note-i">${ic}</span><div><b class="gd-note-l">${label}</b> ${fmt(b.text)}</div></div>`;
   },
+  // A command is not prose: it is shown verbatim, never translated, and made easy to take away.
+  code: (b) => `<div class="gd-code"><pre><code>${esc(b.text)}</code></pre>`
+    + `<button class="gd-copy" data-copy="${esc(b.text)}" title="${esc(m('Sao chép'))}">⧉</button></div>`,
   go: (b) => `<div class="gd-go">${b.items.map((x) => `<button class="btn sm" data-act="${esc(x.act)}"${x.arg ? ` data-arg="${esc(x.arg)}"` : ''}>${esc(x.label)}</button>`).join('')}</div>`,
 };
 
@@ -188,9 +192,13 @@ async function build() {
     document.getElementById('gd-' + a.dataset.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
 
-  $('#gdBody').addEventListener('click', (e) => {
+  $('#gdBody').addEventListener('click', async (e) => {
     const b = e.target.closest('button[data-act]');
-    if (b) ACTIONS[b.dataset.act]?.(b.dataset.arg);
+    if (b) return ACTIONS[b.dataset.act]?.(b.dataset.arg);
+    const copy = e.target.closest('[data-copy]');
+    if (!copy) return;
+    try { await navigator.clipboard.writeText(copy.dataset.copy); toast('⧉ Đã sao chép', 'success'); }
+    catch { toast('Trình duyệt không cho sao chép.', 'error'); }
   });
 
   // Two-tier search. "phụ đề" appears in fifteen chapters and is the NAME of one — showing all
