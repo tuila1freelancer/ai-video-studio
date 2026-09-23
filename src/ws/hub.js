@@ -6,7 +6,7 @@
 // slow clients instead of ballooning memory during 200+ scene renders.
 import { WebSocketServer } from 'ws';
 import { WS_MAX_BUFFERED } from '../core/constants.js';
-import { isServerMode } from '../core/runtime-mode.js';
+import { authRequired } from '../api/middleware/auth.js';
 import { tokenHasScope, verifyApiToken } from '../db/index.js';
 
 const REPLAY_MAX = 200;               // events kept per project
@@ -24,7 +24,7 @@ export class Hub {
     this.wss.on('connection', (ws, req) => {
       // The feed carries every project's progress, so it is behind the same token as the API.
       // A browser cannot set a header on a WebSocket, hence the query parameter.
-      if (isServerMode() && !wsAllowed(req)) { try { ws.close(4401, 'token_required'); } catch { /* already gone */ } return; }
+      if (authRequired() && !wsAllowed(req)) { try { ws.close(4401, 'token_required'); } catch { /* already gone */ } return; }
       ws.subscribed = null; // project id this socket cares about
       ws.isAlive = true;
       this.clients.add(ws);

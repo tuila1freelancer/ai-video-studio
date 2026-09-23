@@ -16,6 +16,7 @@ import { requestLang } from './request-lang.js';
 import { processHealth } from './http.js';
 import { mode } from '../core/runtime-mode.js';
 import { opsState } from '../ops/state.js';
+import { agentMode } from '../ops/agent-mode.js';
 import { maskChannel } from './helpers.js';
 import { channelIdFor } from './channel-scope.js';
 import { buildOpenApi } from './spec/index.js';
@@ -83,7 +84,7 @@ export function mountRoutes(app, { version }) {
   r.use(idempotency);
 
   r.get('/health', (req, res) => {
-    res.json({ ok: true, version, mode: mode(), ops: opsState().state, degraded: processHealth.degraded, deps: depStatus(), paths: {
+    res.json({ ok: true, version, mode: mode(), ops: opsState().state, agent: agentMode().enabled, degraded: processHealth.degraded, deps: depStatus(), paths: {
       ffmpeg: PATHS.ffmpeg, whisper: !!PATHS.whisperCli, chrome: !!PATHS.chrome, say: !!PATHS.say,
     } });
   });
@@ -94,6 +95,7 @@ export function mountRoutes(app, { version }) {
     const active = channelIdFor(req);
     res.json({
       version, uiLang: uiLang(), deps: depStatus(),
+      agent: agentMode(),
       settings: maskSecrets(DB.aiSettings()),
       channels: DB.listChannels().map(maskChannel), activeChannel: active,
       projects: DB.listProjectSummaries(active),
