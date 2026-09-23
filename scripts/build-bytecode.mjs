@@ -31,7 +31,10 @@ import { V8_FLAGS } from './bytecode-flags.mjs';
 
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const VENDOR_NODE = join(ROOT, 'vendor', 'node', 'bin', 'node');
+// The runtime that compiles must be the runtime that ships. On this machine that is the vendored
+// node; inside a container image it is the image's own node, which is the same version — hence the
+// override rather than a second copy of Node in the build stage.
+const VENDOR_NODE = process.env.AVS_BYTECODE_NODE || join(ROOT, 'vendor', 'node', 'bin', 'node');
 
 function arg(name, fallback) {
   const i = process.argv.indexOf(`--${name}`);

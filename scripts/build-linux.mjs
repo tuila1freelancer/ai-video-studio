@@ -74,7 +74,9 @@ for (const f of ['app.jsc', 'app.jsc.json', 'loader.cjs']) {
 // paths it resolves (./node-*/bin/node, ./app-payload) are the layout this script writes.
 console.log('· dựng launcher Go (nhúng khoá)…');
 const LAUNCHER = join(OUT, 'avs-launcher');
-run('go', ['build', '-trimpath', '-ldflags', `-s -w -X main.appKey=${APP_KEY}`, '-o', LAUNCHER, '.'],
+// nodeRel: the Windows default points at node-win/node.exe, which is not where a Linux payload
+// keeps its runtime. One source, three layouts, each named at build time.
+run('go', ['build', '-trimpath', '-ldflags', `-s -w -X main.appKey=${APP_KEY} -X main.nodeRel=node-linux/bin/node`, '-o', LAUNCHER, '.'],
   { cwd: join(ROOT, 'shell', 'win-launcher'), env: { ...process.env, GOOS: 'linux', GOARCH: 'amd64', CGO_ENABLED: '0' } });
 if (!existsSync(LAUNCHER)) die('không dựng được avs-launcher');
 chmodSync(LAUNCHER, 0o755);
