@@ -9,6 +9,8 @@ import { authRequired } from '../src/api/middleware/auth.js';
 import { resetUiSession, uiSessionToken } from '../src/ops/ui-session.js';
 import { mountRoutes } from '../src/api/routes.js';
 import { errorHandler } from '../src/api/http.js';
+import { existsSync } from 'node:fs';
+import { isAbsolute, join } from 'node:path';
 
 test('agent access is off until the owner turns it on, and it survives a restart', () => {
   assert.deepEqual(agentMode(), { enabled: false, since: null });
@@ -54,4 +56,25 @@ test('with agent access on, an agent needs a token and the app window still gets
     resetUiSession();
     server.close();
   }
+});
+
+test('/boot says where this copy lives, so the panel can print a command that runs', async () => {
+  const app = express();
+  app.use('/api', express.json({ limit: '2mb' }));
+  mountRoutes(app, { version: 'test' });
+  const server = await new Promise((resolve) => { const s = app.listen(0, '127.0.0.1', () => resolve(s)); });
+  const base = `http://127.0.0.1:${server.address().port}/api`;
+  try {
+    const { host } = await (await fetch(`${base}/boot`)).json();
+    assert.equal(host.platform, process.platform);
+    assert.equal(host.dist, false, 'a repository is not a shipped build');
+    assert.ok(host.root.endsWith('ai-video-generation') || existsSync(join(host.root, 'package.json')));
+    assert.ok(isAbsolute(host.dataDir), 'an absolute path, or it means nothing to a shell');
+    assert.ok(host.node === null || isAbsolute(host.node));
+    assert.ok(host.kit.mcp.endsWith(join('bin', 'avs-mcp.mjs')), 'the kit is in this tree, so it is named');
+    assert.ok(existsSync(host.kit.mcp), 'and the path given is one that exists');
+
+    const health = await (await fetch(`${base}/health`)).json();
+    assert.equal(health.host, undefined, '/health is open — nothing about this machine goes on it');
+  } finally { server.close(); }
 });

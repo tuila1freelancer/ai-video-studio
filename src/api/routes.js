@@ -17,6 +17,7 @@ import { processHealth } from './http.js';
 import { mode } from '../core/runtime-mode.js';
 import { opsState } from '../ops/state.js';
 import { agentMode } from '../ops/agent-mode.js';
+import { hostInfo } from '../ops/host-info.js';
 import { maskChannel } from './helpers.js';
 import { channelIdFor } from './channel-scope.js';
 import { buildOpenApi } from './spec/index.js';
@@ -96,7 +97,9 @@ export function mountRoutes(app, { version }) {
     const active = channelIdFor(req);
     res.json({
       version, uiLang: uiLang(), deps: depStatus(),
-      agent: agentMode(),
+      // Where this copy lives, so the Agent panel can print a command with real paths in it. Behind
+      // `read` like the rest of /boot — /health stays open, so it is not the place for any of this.
+      agent: agentMode(), host: hostInfo(),
       settings: maskSecrets(DB.aiSettings()),
       channels: DB.listChannels().map(maskChannel), activeChannel: active,
       projects: DB.listProjectSummaries(active),
