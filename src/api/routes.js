@@ -10,6 +10,8 @@ import { maskSecrets } from '../core/config.js';
 import { licenseGate } from '../license/gate.js';
 import { apiAuth } from './middleware/auth.js';
 import { t, uiLang } from '../i18n/t.js';
+import { codeFor } from '../core/api-codes.js';
+import { requestLang } from './request-lang.js';
 import { processHealth } from './http.js';
 import { mode } from '../core/runtime-mode.js';
 import { maskChannel } from './helpers.js';
@@ -47,10 +49,13 @@ export function mountRoutes(app, { version }) {
   // touched — a reply's DATA is never language.
   r.use((req, res, next) => {
     const json = res.json.bind(res);
+    const lang = requestLang(req);
     res.json = (body) => {
       if (body && typeof body === 'object') {
+        // The code is read from the UNTRANSLATED text: the Vietnamese sentence is the key here too.
+        if (typeof body.error === 'string' && !body.code) body.code = codeFor(body.error, res.statusCode);
         for (const f of ['error', 'message', 'hint']) {
-          if (typeof body[f] === 'string') body[f] = t(`srv.${body[f]}`, null);
+          if (typeof body[f] === 'string') body[f] = t(`srv.${body[f]}`, null, lang);
         }
       }
       return json(body);
