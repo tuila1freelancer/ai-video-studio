@@ -24,6 +24,7 @@ export const ERROR_CLASS = {
   'config.no-voice': 'config',
   'config.bad-input': 'config',
   'config.empty-catalog': 'config',
+  'script.audit-failed': 'config',
   'resource.no-binary': 'resource',
   'resource.disk': 'resource',
   'rate-limit': 'rate-limit',
