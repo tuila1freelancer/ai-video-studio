@@ -6,6 +6,7 @@ import express from 'express';
 import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 import { assembleIndex } from '../util/html-include.js';
+import { uiSessionToken, wantsUiSession } from '../ops/ui-session.js';
 
 /** A release build names every script and stylesheet by its content hash. */
 const HASHED = /-[A-Z0-9]{8}\.(?:js|css)$/;
@@ -23,6 +24,13 @@ export function mountStaticSite(app, publicDir) {
   const indexHtml = assembleIndex(publicDir);
   const indexEtag = `"${createHash('sha1').update(indexHtml).digest('hex').slice(0, 16)}"`;
   const sendIndex = (req, res) => {
+    // The launcher opens the window at /?uikey=<nonce>. That one request becomes a session cookie
+    // and a clean URL, so the nonce never sits in history and the window can talk to a server that
+    // asks every other caller for a token.
+    if (wantsUiSession(req)) {
+      res.cookie('avs_token', uiSessionToken(), { httpOnly: true, sameSite: 'strict', maxAge: 31536000000 });
+      return res.redirect(302, '/');
+    }
     res.set('Cache-Control', 'no-cache');
     res.set('ETag', indexEtag);
     if (req.headers['if-none-match'] === indexEtag) return res.status(304).end();

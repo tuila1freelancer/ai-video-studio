@@ -13,6 +13,7 @@
 // the server code is byte-identical on all three platforms.
 const { app, BrowserWindow, Menu, Tray, shell, dialog, nativeImage } = require('electron');
 const { fork, spawn } = require('node:child_process');
+const { randomUUID } = require('node:crypto');
 const { join } = require('node:path');
 const { existsSync, mkdirSync } = require('node:fs');
 
@@ -22,6 +23,9 @@ const SERVER = join(ROOT, 'src', 'server.js');
 let child = null;
 let win = null;
 let tray = null;
+// One boot, one nonce: the window trades it for a session cookie so the owner never pastes a token
+// into their own app. Passed in the environment, never on a command line.
+const uiKey = randomUUID();
 
 /**
  * Writable data lives beside the user's profile, never beside the executable. On Windows a
@@ -49,7 +53,7 @@ function startServer() {
       if (!existsSync(launcher)) return reject(new Error(`Không tìm thấy launcher: ${launcher}`));
       child = spawn(launcher, [], {
         cwd: join(process.resourcesPath, 'app-payload'),
-        env: { ...process.env, AVS_DATA_DIR: dataDir() }, // launcher adds AVS_DIST=1; no key here
+        env: { ...process.env, AVS_DATA_DIR: dataDir(), AVS_UI_KEY: uiKey }, // launcher adds AVS_DIST=1; no key here
         stdio: ['ignore', 'pipe', 'pipe'],
       });
     } else {
@@ -59,7 +63,7 @@ function startServer() {
       if (!existsSync(SERVER)) return reject(new Error(`Không tìm thấy server: ${SERVER}`));
       child = fork(SERVER, [], {
         cwd: ROOT,
-        env: { ...process.env, ELECTRON_RUN_AS_NODE: '1', AVS_DATA_DIR: dataDir() },
+        env: { ...process.env, ELECTRON_RUN_AS_NODE: '1', AVS_DATA_DIR: dataDir(), AVS_UI_KEY: uiKey },
         stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
       });
     }
@@ -100,7 +104,7 @@ function createWindow(url) {
     // with the Swift shell disabling developerExtrasEnabled in dist). On in dev.
     webPreferences: { nodeIntegration: false, contextIsolation: true, devTools: !app.isPackaged },
   });
-  win.loadURL(url);
+  win.loadURL(`${url}/?uikey=${encodeURIComponent(uiKey)}`);
   // Anything aimed at another site opens in the real browser — this window is the app, not a tab.
   win.webContents.setWindowOpenHandler(({ url: target }) => {
     if (!target.startsWith(url)) shell.openExternal(target);
