@@ -3,6 +3,7 @@
 // native WKWebView (Safari engine) — lightweight, no bundled Chromium for the UI.
 import Cocoa
 import WebKit
+import ServiceManagement
 
 // Height of the strip below, in points. Must stay equal to the web UI's `--pad-titlebar`, which is
 // pure padding at the top of the topbar — the strip covers no control.
@@ -28,9 +29,10 @@ final class TitlebarDragView: NSView {
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, WKUIDelegate {
-  var window: NSWindow!
+  var window: NSWindow!  // nil only before applicationDidFinishLaunching; see showWindow's guard
   var webView: WKWebView!
   var backend: Process?
+  var statusItem: NSStatusItem?
   // Learned from the backend's own AVS_READY line rather than assumed. A fixed port meant a second
   // copy of the app silently loaded the FIRST copy's server (its own died with AVS_PORT_IN_USE and
   // nobody read that), and it made the port unknowable to anything else — the agent kit included.
@@ -38,9 +40,62 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
 
   func applicationDidFinishLaunching(_ note: Notification) {
     buildMenu()
+    buildStatusItem()
     setupWindow()
     startBackend()
     NSApp.activate(ignoringOtherApps: true)
+  }
+
+  // The app is a server with a window on it, not a window with a server behind it. Closing the
+  // window used to end the process — and with it any agent's access and any render in flight. Now
+  // it hides, and the menu-bar item is the honest sign that something is still running.
+  func buildStatusItem() {
+    let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+    // A symbol name that this macOS does not know returns nil, and a button with neither image nor
+    // title is an invisible zero-width item — so there is always a title to fall back to.
+    if let icon = NSImage(systemSymbolName: "film.stack", accessibilityDescription: "AI Video Studio")
+      ?? NSImage(systemSymbolName: "film", accessibilityDescription: "AI Video Studio") {
+      icon.isTemplate = true
+      item.button?.image = icon
+    } else {
+      item.button?.title = "AVS"
+    }
+    item.button?.toolTip = "AI Video Studio"
+    let menu = NSMenu()
+    menu.addItem(withTitle: "Mở cửa sổ", action: #selector(showWindow), keyEquivalent: "")
+    let login = NSMenuItem(title: "Mở cùng máy", action: #selector(toggleLoginItem), keyEquivalent: "")
+    login.state = loginItemEnabled() ? .on : .off
+    menu.addItem(login)
+    menu.addItem(NSMenuItem.separator())
+    menu.addItem(withTitle: "Thoát hẳn", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "")
+    for entry in menu.items where entry.action != #selector(NSApplication.terminate(_:)) { entry.target = self }
+    item.menu = menu
+    statusItem = item
+  }
+
+  @objc func showWindow() {
+    guard let window else { return }
+    window.makeKeyAndOrderFront(nil)
+    NSApp.activate(ignoringOtherApps: true)
+  }
+
+  /** Registered with launchd through SMAppService (macOS 13+); older systems simply cannot. */
+  func loginItemEnabled() -> Bool {
+    if #available(macOS 13.0, *) { return SMAppService.mainApp.status == .enabled }
+    return false
+  }
+
+  @objc func toggleLoginItem(_ sender: NSMenuItem) {
+    guard #available(macOS 13.0, *) else {
+      sender.isEnabled = false
+      sender.title = "Mở cùng máy (cần macOS 13+)"
+      return
+    }
+    do {
+      if SMAppService.mainApp.status == .enabled { try SMAppService.mainApp.unregister() }
+      else { try SMAppService.mainApp.register() }
+    } catch { NSSound.beep() }
+    sender.state = loginItemEnabled() ? .on : .off
   }
 
   func setupWindow() {
@@ -52,6 +107,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
       styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
       backing: .buffered, defer: false)
     window.title = "AI Video Studio"
+    // The app outlives its window now, so the window has to outlive being closed: AppKit frees a
+    // programmatically created window on close by default, and the next "open it again" then sends
+    // a message to freed memory. That is a segfault, and it is what the first build of this did.
+    window.isReleasedWhenClosed = false
     window.titleVisibility = .hidden
     window.titlebarAppearsTransparent = true
     window.backgroundColor = NSColor(red: 0.027, green: 0.027, blue: 0.043, alpha: 1) // #07070b — no white flash on resize
@@ -221,7 +280,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     }
   }
 
-  func applicationShouldTerminateAfterLastWindowClosed(_ s: NSApplication) -> Bool { true }
+  // False, deliberately: the backend keeps serving agents and finishing renders after the window
+  // is closed. "Thoát hẳn" in the menu-bar item is how someone ends it.
+  func applicationShouldTerminateAfterLastWindowClosed(_ s: NSApplication) -> Bool { false }
+  // Clicking the dock icon with no window open brings the app back rather than doing nothing.
+  func applicationShouldHandleReopen(_ s: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+    if !flag { showWindow() }
+    return true
+  }
   func applicationWillTerminate(_ note: Notification) { backend?.terminate() }
 }
 
