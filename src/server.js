@@ -52,6 +52,15 @@ async function boot() {
     license.markTampered(tamper);
     logger.error(`integrity: ${tamper} — bản cài đã bị can thiệp, khoá lại`);
   }
+  // A server has nobody to click "sign in": the key comes from the environment, once, and only when
+  // this copy has none. Everything after activation — verification, the heartbeat, the grace period
+  // — is the path the app already uses.
+  if (process.env.AVS_LICENSE_KEY && license.status().state === 'missing') {
+    try {
+      await license.activate(process.env.AVS_LICENSE_KEY);
+      logger.info('license: kích hoạt tự động từ AVS_LICENSE_KEY');
+    } catch (e) { logger.error(`license: AVS_LICENSE_KEY không kích hoạt được — ${e.message}`); }
+  }
   license.startLicenseLoop();
 
   try {
