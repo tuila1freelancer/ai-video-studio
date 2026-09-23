@@ -13,7 +13,7 @@ const OPEN = /^\/(health|license\/status)$/;
  * channels, the queue's own switches. An agent that only makes videos must not hold these.
  */
 const ADMIN_WRITE = [
-  /^\/(settings|license|channels|ops)(\/|$)/,
+  /^\/(settings|license|channels|ops|tokens)(\/|$)/,
   /^\/(assistant\/settings|platforms|llm|tts\/server)(\/|$)/,
   /^\/(styles|presets|logo-presets|subtitle-presets|export\/presets|hyperframe)(\/|$)/,
   /^\/brandgen\/providers(\/|$)/,

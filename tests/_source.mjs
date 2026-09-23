@@ -26,7 +26,7 @@ export const RELOCATED = {
     'src/api/routers/channels.js', 'src/api/routers/projects.js', 'src/api/routers/project-exports.js',
     'src/api/routers/pipeline.js', 'src/api/routers/journal-usage.js', 'src/api/routers/assistant-calendar.js',
     'src/api/routers/publish.js', 'src/api/routers/project-outputs.js', 'src/api/routers/jobs.js',
-    'src/api/routers/events.js', 'src/api/routers/ops.js',
+    'src/api/routers/events.js', 'src/api/routers/ops.js', 'src/api/routers/tokens.js',
     'src/api/routers/scene-studio.js', 'src/api/routers/scenes.js', 'src/api/routers/research.js',
     'src/api/routers/library-fonts.js', 'src/api/routers/brands.js', 'src/api/routers/files-media.js',
     'src/api/routers/edit-video.js', 'src/api/helpers.js', 'src/core/llm-accounts.js',
