@@ -72,6 +72,16 @@
       <div class="agent-cmd" id="agentCmd"></div>
       <div class="hint mt-4" data-i18n="ui.settingsModal.thay-token-o-cuoi-lenh">Thay &lt;TOKEN&gt; ở cuối lệnh bằng token vừa cấp — token chỉ hiện đúng một lần lúc cấp.</div>
     </div>
+    <div class="sec-label" data-i18n="ui.settingsModal.tran-chi-tieu">Trần chi tiêu</div>
+    <div class="field">
+      <div class="row">
+        <input class="input" id="setBudVideo" type="number" min="0" step="0.5" placeholder="USD mỗi video" data-i18n-placeholder="ui.setBudVideo.usd-moi-video">
+        <input class="input" id="setBudDay" type="number" min="0" step="1" placeholder="USD mỗi kênh mỗi ngày" data-i18n-placeholder="ui.setBudDay.usd-moi-kenh-moi-ngay">
+        <input class="input" id="setBudVideos" type="number" min="0" step="1" placeholder="Số video mỗi kênh mỗi ngày" data-i18n-placeholder="ui.setBudVideos.so-video-moi-kenh">
+      </div>
+      <label class="switch-row mt-6"><span class="switch"><input type="checkbox" id="setBudHard"><span class="sl"></span></span> <span data-i18n="ui.settingsModal.cham-tran-thi-dung">⛔ Chạm trần thì dừng hẳn, không hạ xuống lane miễn phí</span></label>
+      <div class="hint mt-4" data-i18n="ui.settingsModal.de-trong-hoac-0-la">Để trống hoặc 0 là không đặt trần. Trần áp cho mọi lời gọi — của bạn và của agent như nhau.</div>
+    </div>
     <button class="btn primary block" id="setSave" data-i18n="ui.settingsModal.luu-cau-hinh">💾 Lưu cấu hình</button>
   </div>
 </div>

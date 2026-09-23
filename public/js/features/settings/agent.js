@@ -123,6 +123,29 @@ async function toggleAgent(next) {
   await loadAgent({ agent: { enabled: next } });
 }
 
+/**
+ * Spending caps live here rather than with the provider keys: they are the other half of letting
+ * something else spend your money. Empty means no cap, which is what an app with no agent had.
+ */
+export function renderBudget(budget) {
+  const val = (n) => (n > 0 ? String(n) : '');
+  if ($('#setBudVideo')) $('#setBudVideo').value = val(+budget?.perVideoUsd);
+  if ($('#setBudDay')) $('#setBudDay').value = val(+budget?.perChannelDayUsd);
+  if ($('#setBudVideos')) $('#setBudVideos').value = val(+budget?.perChannelDayVideos);
+  if ($('#setBudHard')) $('#setBudHard').checked = budget?.hardStop === true;
+}
+
+/** What "Lưu cấu hình" sends. A blank field is 0, and 0 means "no cap" to the server. */
+export function budgetForSave() {
+  const num = (id) => Math.max(0, +($(id)?.value || 0) || 0);
+  return {
+    perVideoUsd: num('#setBudVideo'),
+    perChannelDayUsd: num('#setBudDay'),
+    perChannelDayVideos: num('#setBudVideos'),
+    hardStop: $('#setBudHard') ? $('#setBudHard').checked : false,
+  };
+}
+
 export function initAgentPanel({ onGuide } = {}) {
   $('#setAgentOn')?.addEventListener('change', (e) => toggleAgent(e.currentTarget.checked));
   $('#btnAgentNew')?.addEventListener('click', async () => {

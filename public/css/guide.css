@@ -50,6 +50,15 @@
 .gd-sec code{font-family:var(--font-mono);font-size:.88em;padding:1.5px 5px;border-radius:5px;
   background:var(--surface-2);border:1px solid var(--hairline);color:#c9b8ff}
 
+/* a command to paste: shown verbatim, copied whole */
+.gd-code{display:flex;align-items:flex-start;gap:8px;margin:12px 0;padding:10px 12px;border-radius:10px;
+  background:var(--surface-1);border:1px solid var(--hairline)}
+.gd-code pre{flex:1;min-width:0;margin:0;white-space:pre-wrap;word-break:break-all}
+.gd-code code{font-family:var(--font-mono);font-size:12px;line-height:1.7;color:var(--text-1);
+  background:none;border:none;padding:0;user-select:all}
+.gd-copy{flex-shrink:0;border:none;background:transparent;color:var(--text-3);cursor:pointer;font-size:14px;padding:0 2px}
+.gd-copy:hover{color:var(--accent-hi)}
+
 /* breadcrumb to the real screen */
 .gd-where{display:inline-flex;align-items:center;gap:6px;margin:12px 0 2px;padding:5px 12px;border-radius:var(--r-full);
   font-size:12px;font-weight:600;color:var(--text-2);background:var(--surface-1);border:1px dashed var(--hairline-2)}

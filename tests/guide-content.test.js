@@ -23,7 +23,7 @@ const CONTENT = readFileSync(join(REPO, 'public', 'guide', 'sections.json'), 'ut
 
 // Required fields per block type, mirroring what each renderer in BLOCK reads.
 const NEEDS = {
-  h: ['text'], p: ['text'], where: ['text'],
+  h: ['text'], p: ['text'], where: ['text'], code: ['text'],
   list: ['items'], steps: ['items'], defs: ['items'], keys: ['items'], grid: ['items'], go: ['items'],
   note: ['kind', 'text'],
 };
