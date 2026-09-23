@@ -104,3 +104,11 @@ test('the journal records who asked, not only what happened', async () => {
   assert.equal(rows.find((r) => r.msg.includes('không có ai')).actor, null);
   assert.ok(DB);
 });
+
+test('a browser subresource authenticates by cookie, since it cannot carry a header', () => {
+  assert.equal(bearerOf({ headers: { cookie: 'x=1; avs_token=avs_tok1_secret; y=2' } }), 'avs_tok1_secret');
+  assert.equal(bearerOf({ headers: { cookie: 'avs_token=avs%5Ftok1' } }), 'avs_tok1', 'url-encoded values decode');
+  assert.equal(bearerOf({ headers: { authorization: 'Bearer from-header', cookie: 'avs_token=from-cookie' } }), 'from-header',
+    'an explicit header still wins');
+  assert.equal(bearerOf({ headers: { cookie: 'other=1' } }), null);
+});

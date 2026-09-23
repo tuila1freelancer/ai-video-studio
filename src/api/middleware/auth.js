@@ -8,12 +8,20 @@ import { isServerMode } from '../../core/runtime-mode.js';
 import { requiredScope } from '../scopes.js';
 import { m, tp } from '../../i18n/t.js';
 
-/** `Authorization: Bearer <token>`, or the query parameter a WebSocket has to use instead. */
+/**
+ * `Authorization: Bearer <token>`, or the cookie the browser sends by itself.
+ *
+ * The cookie is not a second way in for an agent — it is the only way a BROWSER can authenticate a
+ * subresource. A stylesheet, an <img src="/api/thumb…"> and a font face carry no headers, so in
+ * server mode the interface would load and then show nothing. The access screen writes the same
+ * token to the cookie; SameSite=Strict keeps another site from spending it.
+ */
 export function bearerOf(req) {
   const header = String(req.headers?.authorization || '');
   const m2 = /^Bearer\s+(\S+)$/i.exec(header);
   if (m2) return m2[1];
-  return null;
+  const cookie = /(?:^|;\s*)avs_token=([^;]+)/.exec(String(req.headers?.cookie || ''));
+  return cookie ? decodeURIComponent(cookie[1]) : null;
 }
 
 /** @type {import('express').RequestHandler} */
