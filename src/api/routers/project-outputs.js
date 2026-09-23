@@ -1,6 +1,7 @@
 // Project outputs: repurposing, thumbnails and covers, thumbnail versions, open/export/dub.
 import { existsSync, statSync, mkdirSync, copyFileSync } from 'node:fs';
 import { execFile } from 'node:child_process';
+import { isHeadless, refuseHeadless } from '../../core/headless.js';
 import { join } from 'node:path';
 import * as DB from '../../db/index.js';
 import { logger } from '../../util/log.js';
@@ -229,7 +230,8 @@ function mountProjectActions(r) {
         copyFileSync(c.path, join(outDir, name));
         files.push(name);
       }
-      execFile('open', [outDir], () => {}); // land the owner in the folder they just filled
+      // land the owner in the folder they just filled — a server answers with the path instead
+      if (!isHeadless()) execFile('open', [outDir], () => {});
       res.json({ ok: true, dir: outDir, files });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
@@ -243,6 +245,7 @@ function mountProjectActions(r) {
       if (!existsSync(dir)) return res.status(400).json({ error: 'chưa có thư mục xuất — render xong đã' });
       // Reveal the finished file when there is one, otherwise just open the folder.
       const target = p.video_path && existsSync(p.video_path) ? p.video_path : dir;
+      if (isHeadless()) refuseHeadless(target);
       execFile('open', target === dir ? [dir] : ['-R', target], () => {});
       res.json({ ok: true, dir });
     } catch (e) { res.status(500).json({ error: e.message }); }

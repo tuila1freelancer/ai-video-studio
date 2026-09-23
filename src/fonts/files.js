@@ -32,6 +32,11 @@ export const SYSTEM_FAMILIES = new Set([
   'Arial', 'Times New Roman', 'Georgia', 'Verdana', 'Courier New', 'Menlo', 'Monaco',
   'Impact', 'Trebuchet MS', 'Avenir', 'Avenir Next', 'Futura', 'Optima', 'Palatino',
   'American Typewriter', 'Baskerville', 'Didot', 'Gill Sans', 'Charter', 'Noto Sans',
+  // What a Linux server has instead, once fonts-noto-* are installed. Listing them here is what
+  // stops prepareBurnFontDir treating them as missing and hunting for a file that never existed.
+  'Noto Sans CJK JP', 'Noto Sans CJK KR', 'Noto Sans CJK SC', 'Noto Sans CJK TC',
+  'Noto Sans JP', 'Noto Sans KR', 'Noto Sans SC', 'Noto Sans Thai', 'Noto Sans Devanagari',
+  'Noto Sans Arabic', 'Noto Sans Hebrew', 'Noto Color Emoji', 'DejaVu Sans', 'Liberation Sans',
 ]);
 const SYSTEM_NORM = new Set([...SYSTEM_FAMILIES].map(normFamily));
 

@@ -8,11 +8,25 @@
 // to the pre-preset behavior of buildSceneHtml / runner.subtitleStyleFrom.
 
 // System fonts for the scripts nothing here bundles — every preset carries the same fallbacks.
-function perLangDefaults() {
+function perLangDefaults(platform = process.platform) {
   // libass finds these through fontconfig, and Chrome finds them for the measurement, so the
   // caption the box was sized for is the caption that gets burned. Nothing outside Latin and
   // Vietnamese is bundled, so a language missing from this table burned in a substituted face
   // whose metrics the box had never measured — or in tofu.
+  //
+  // The names below are macOS's. On Linux those faces do not exist and fontconfig substitutes
+  // SILENTLY — the video ships in a face nobody chose. The Noto families are what a container
+  // installs (fonts-noto-cjk, fonts-noto-color-emoji), so the table names them there instead.
+  if (platform === 'linux') {
+    return {
+      ja: { fontStack: "'Noto Sans CJK JP','Noto Sans JP',sans-serif", assFont: 'Noto Sans CJK JP' },
+      ko: { fontStack: "'Noto Sans CJK KR','Noto Sans KR',sans-serif", assFont: 'Noto Sans CJK KR' },
+      zh: { fontStack: "'Noto Sans CJK SC','Noto Sans SC',sans-serif", assFont: 'Noto Sans CJK SC' },
+      ru: { fontStack: "'Noto Sans','DejaVu Sans',sans-serif", assFont: 'Noto Sans' },
+      th: { fontStack: "'Noto Sans Thai','Noto Sans',sans-serif", assFont: 'Noto Sans Thai' },
+      hi: { fontStack: "'Noto Sans Devanagari','Noto Sans',sans-serif", assFont: 'Noto Sans Devanagari' },
+    };
+  }
   return {
     ja: { fontStack: "'Hiragino Sans','Yu Gothic',sans-serif", assFont: 'Hiragino Sans' },
     ko: { fontStack: "'Apple SD Gothic Neo','Malgun Gothic',sans-serif", assFont: 'Apple SD Gothic Neo' },
