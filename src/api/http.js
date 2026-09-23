@@ -1,6 +1,7 @@
 // The HTTP plumbing shared by every router: async handlers whose rejections reach the error
 // middleware, and one JSON shape for whatever falls through.
 import { logger } from '../util/log.js';
+import { codeFor } from '../core/api-codes.js';
 
 /**
  * Set by server.js when an uncaught error was logged and swallowed: the process is still
@@ -25,5 +26,6 @@ export function errorHandler(err, req, res, next) {
   if (res.headersSent) return next(err);
   const status = Number.isInteger(err?.status || err?.statusCode) ? (err.status || err.statusCode) : 500;
   if (status >= 500) logger.error(`${req.method} ${req.originalUrl}: ${err?.stack || err?.message || err}`);
-  res.status(status).json({ error: err?.expose || status < 500 ? (err?.message || 'request failed') : 'internal error' });
+  const error = err?.expose || status < 500 ? (err?.message || 'request failed') : 'internal error';
+  res.status(status).json({ code: err?.code || codeFor(error, status), error });
 }
