@@ -17,14 +17,14 @@ function loadPending(id) {
 /** Owner clicked "make it now": create the project (with reviewed config) and mark the row.
  *  P34: the RESEARCHED topic always feeds B2; a picked click-title is display metadata
  *  (config.titleOverride) — it must never replace the topic the script engine writes from. */
-export function acceptSuggestion(id, { config = {}, title = null } = {}) {
+export function acceptSuggestion(id, { config = {}, title = null, channelId = null } = {}) {
   const row = loadPending(id);
   const request = {
     ...config,
     assistantBrief: { suggestionId: row.id, angle: row.angle || '', source: row.source || '' },
     ...(title ? { titleOverride: String(title).trim().slice(0, 100) } : {}),
   };
-  const { projects } = startBatch({ topics: [row.topic.trim()], config: request });
+  const { projects } = startBatch({ topics: [row.topic.trim()], config: request, channelId: channelId || row.channel_id || null });
   DB.setSuggestionStatus(id, 'accepted', { projectId: projects[0] });
   return { projectId: projects[0] };
 }
@@ -85,12 +85,12 @@ export function planWeek({ channelId = null, days = 7, perDay = 1, times = ['08:
  * persist each episode as a pending suggestion (origin 'series'). LLM required — with it
  * off we refuse rather than fabricate a series. Creates suggestion rows ONLY.
  */
-export async function buildSeries({ suggestionId = null, seed = '', episodes = 5, ai = null } = {}) {
+export async function buildSeries({ suggestionId = null, seed = '', episodes = 5, ai = null, channelId: askedChannel = null } = {}) {
   const llm = ai?.llm || null;
   if (!llmEnabled(llm)) { const e = new Error(m('cần bật LLM để lên series')); e.status = 400; throw e; }
   let seedTopic = String(seed || '').trim();
   let seedAngle = '';
-  let channelId = DB.activeChannelId();
+  let channelId = askedChannel || DB.activeChannelId();
   if (suggestionId) {
     const row = DB.getSuggestion(suggestionId);
     if (!row) { const e = new Error(m('gợi ý không tồn tại')); e.status = 404; throw e; }

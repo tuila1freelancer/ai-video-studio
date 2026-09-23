@@ -9,6 +9,7 @@ import { ttsOverrideFor } from '../../core/config.js';
 import { estimateCost } from '../../core/pricing.js';
 import { resolveVoiceTarget } from '../../providers/tts.js';
 import { startBatch } from '../services/batch.js';
+import { channelIdFor } from '../channel-scope.js';
 import { resolveLang, declaredLang, DEFAULT_LANG } from '../../util/lang.js';
 import { m } from '../../i18n/t.js';
 
@@ -17,7 +18,7 @@ export function mount(r) {
   // ---- batch queue: multiple topics → run sequentially on their own ----
   r.post('/batch', (req, res) => {
     try {
-      const { projects, count } = startBatch(req.body || {});
+      const { projects, count } = startBatch({ ...(req.body || {}), channelId: channelIdFor(req) });
       res.json({ ok: true, projects, count });
     } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
   });
