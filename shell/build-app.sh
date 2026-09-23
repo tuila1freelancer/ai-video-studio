@@ -15,7 +15,10 @@ cd "$ROOT"
 MODE="dev"
 [ "$1" = "--dist" ] && MODE="dist"
 
-AVS_PORT="${AVS_PORT:-8123}"
+# 0 = the OS hands out a free port and the backend prints it as AVS_READY, which the launcher reads.
+# A fixed port made a second copy attach to the first copy's server, and made the URL unknowable to
+# anything outside the app.
+AVS_PORT="${AVS_PORT:-0}"
 # Overridable so a release candidate can be built and smoke-tested without deleting the copy the
 # owner is using — the first thing this script does is `rm -rf` the target.
 APP="${AVS_APP_PATH:-AI Video Studio.app}"

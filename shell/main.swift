@@ -31,13 +31,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
   var window: NSWindow!
   var webView: WKWebView!
   var backend: Process?
-  let baseURL = "http://127.0.0.1:\(AVS_PORT)"
+  // Learned from the backend's own AVS_READY line rather than assumed. A fixed port meant a second
+  // copy of the app silently loaded the FIRST copy's server (its own died with AVS_PORT_IN_USE and
+  // nobody read that), and it made the port unknowable to anything else — the agent kit included.
+  var baseURL: String?
 
   func applicationDidFinishLaunching(_ note: Notification) {
     buildMenu()
     setupWindow()
     startBackend()
-    waitForHealthThenLoad(attempt: 0)
     NSApp.activate(ignoringOtherApps: true)
   }
 
@@ -131,6 +133,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     // in the environment, `ps` would hand it straight back to whoever asked.
     let stdinPipe = Pipe()
     p.standardInput = stdinPipe
+    // The backend prints `AVS_READY <url>` once it is listening; that line is the only thing that
+    // knows which port the OS handed out.
+    let outPipe = Pipe()
+    p.standardOutput = outPipe
+    var seen = ""
+    outPipe.fileHandleForReading.readabilityHandler = { handle in
+      let chunk = String(decoding: handle.availableData, as: UTF8.self)
+      guard !chunk.isEmpty else { return }
+      FileHandle.standardOutput.write(Data(chunk.utf8)) // keep the log readable from a terminal
+      seen += chunk
+      guard let range = seen.range(of: "AVS_READY "), let end = seen[range.upperBound...].firstIndex(where: { $0.isWhitespace }) else { return }
+      let url = String(seen[range.upperBound..<end])
+      outPipe.fileHandleForReading.readabilityHandler = nil
+      DispatchQueue.main.async { self.serverReady(url) }
+    }
     do {
       try p.run()
       backend = p
@@ -142,14 +159,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     }
   }
 
+  func serverReady(_ url: String) {
+    guard baseURL == nil else { return }
+    baseURL = url
+    waitForHealthThenLoad(attempt: 0)
+  }
+
   func waitForHealthThenLoad(attempt: Int) {
+    guard let base = baseURL else { return }
     if attempt > 120 { loadSplash("Backend không phản hồi. Kiểm tra Node tại \(NODE_PATH)"); return }
-    guard let url = URL(string: baseURL + "/api/health") else { return }
+    guard let url = URL(string: base + "/api/health") else { return }
     var req = URLRequest(url: url); req.timeoutInterval = 2
     URLSession.shared.dataTask(with: req) { data, resp, _ in
       let ok = (resp as? HTTPURLResponse)?.statusCode == 200
       DispatchQueue.main.async {
-        if ok { self.webView.load(URLRequest(url: URL(string: self.baseURL)!)) }
+        if ok { self.webView.load(URLRequest(url: URL(string: base)!)) }
         else { DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { self.waitForHealthThenLoad(attempt: attempt + 1) } }
       }
     }.resume()
@@ -199,6 +223,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
 
   func applicationShouldTerminateAfterLastWindowClosed(_ s: NSApplication) -> Bool { true }
   func applicationWillTerminate(_ note: Notification) { backend?.terminate() }
+}
+
+// One copy per machine. Two copies used to mean two servers on one database — and, with the fixed
+// port, a second window quietly showing the FIRST copy's server while its own backend had already
+// died. Activating the running copy is what a person meant by opening the app again.
+let mine = Bundle.main.bundleIdentifier ?? "com.aivideostudio.app"
+let others = NSRunningApplication.runningApplications(withBundleIdentifier: mine)
+  .filter { $0.processIdentifier != ProcessInfo.processInfo.processIdentifier }
+if let running = others.first {
+  running.activate(options: [.activateAllWindows])
+  exit(0)
 }
 
 let app = NSApplication.shared
