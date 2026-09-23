@@ -7,6 +7,6 @@
     "allowJs": true,
     "noEmit": true
   },
-  "include": ["src", "public/js", "scripts", "tests", "shell/electron"],
+  "include": ["src", "public/js", "scripts", "tests", "shell/electron", "packages"],
   "exclude": ["node_modules", "dist", "vendor", "data", "shell/build"]
 }
