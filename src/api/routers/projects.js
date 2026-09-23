@@ -106,7 +106,8 @@ function mountProjects(r) {
   // Everything the checks above know, read once and turned into a decision: may this be published?
   // The one call an unattended run makes before it puts something in front of an audience.
   r.get('/projects/:id/verdict', wrap(async (req, res) => {
-    res.json(await projectVerdict(req.params.id));
+    // ?vision=0 skips the paid look — a caller polling the verdict should not buy one each time.
+    res.json(await projectVerdict(req.params.id, { vision: req.query.vision !== '0' }));
   }));
 
   // Read the finished project back and report what a human would not catch — above all whether

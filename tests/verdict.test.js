@@ -97,3 +97,18 @@ test('over HTTP, with the same shape an agent branches on', async () => {
     assert.equal((await missing.json()).code, 'not_found');
   } finally { server.close(); }
 });
+
+test('the vision review is off unless a channel turns it on, and never fails a video by breaking', async () => {
+  const { visionSettings, visionReview } = await import('../src/api/services/vision-review.js');
+  assert.equal(visionSettings({}).enabled, false);
+  assert.equal(visionSettings({ visionReview: { enabled: true } }).minScore, 6, 'a default bar');
+  assert.equal(visionSettings({ visionReview: { enabled: true, minScore: 99 } }).minScore, 10, 'clamped to the scale');
+
+  const p = project({ status: 'done' });
+  assert.equal(await visionReview(p.id, {}), null, 'off means no call at all');
+  // Turned on with no usable model: the review reports itself unavailable rather than failing the video.
+  assert.equal(await visionReview(p.id, { visionReview: { enabled: true } }, { llm: { enabled: false } }), null);
+  const v = await projectVerdict(p.id);
+  assert.equal(v.checks.video.vision, null);
+  assert.ok(!v.reasons.some((r) => r.code === 'video.vision_score'));
+});

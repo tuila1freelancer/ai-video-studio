@@ -15,6 +15,8 @@ import { atRiskScenes } from '../../pipeline/typeset-scan.js';
 import { qcFinalVideo } from '../../pipeline/qc.js';
 import { auditProjectScript } from '../../pipeline/stages/script-gate.js';
 import { qcScan } from './qc-scan.js';
+import { visionReview } from './vision-review.js';
+import { aiSettingsFor } from '../../core/config.js';
 import { m } from '../../i18n/t.js';
 
 /** Findings from the artifact scan that mean the video does not say what the project says it says. */
@@ -46,7 +48,7 @@ async function videoCheck(project, dir) {
  * @param {string} projectId
  * @returns {Promise<object>} { publishable, score, reasons, checks, cost }
  */
-export async function projectVerdict(projectId) {
+export async function projectVerdict(projectId, { vision = true } = {}) {
   const project = DB.getProject(projectId);
   if (!project) throw apiError('not_found', m('not found'), 404);
   const config = project.config || {};
@@ -84,6 +86,13 @@ export async function projectVerdict(projectId) {
   if (video.missing) reasons.push(reason('video.missing', 'blocker', project.video_path || null));
   else for (const issue of video.issues || []) reasons.push(reason(`video.${issue.type}`, 'blocker', issue.detail));
 
+  // 5. What the deterministic checks cannot see: whether the frames actually look right. Opt-in per
+  // channel (a paid multimodal call), and a review that cannot run is never held against the video.
+  const seen = vision ? await visionReview(projectId, config, aiSettingsFor(DB.channelOf(projectId))) : null;
+  if (seen && seen.ok === false) {
+    reasons.push(reason('video.vision_score', 'blocker', `${seen.score}/${seen.minScore}`));
+  }
+
   const blockers = reasons.filter((r) => r.severity === 'blocker');
   const warnings = reasons.filter((r) => r.severity === 'warning');
   return {
@@ -96,7 +105,13 @@ export async function projectVerdict(projectId) {
       status: project.status,
       script: script ? { ok: script.ok, mode: script.mode, words: script.words, fails: script.fails } : null,
       scenes: { total: scenes.length, typesetAtRisk: typeset.length, findings: scan.findings },
-      video: { path: project.video_path || null, ok: !video.missing && !(video.issues || []).length, duration: video.duration ?? null, issues: video.issues || [] },
+      video: {
+        path: project.video_path || null,
+        ok: !video.missing && !(video.issues || []).length,
+        duration: video.duration ?? null,
+        issues: video.issues || [],
+        vision: seen,
+      },
     },
     cost: DB.usageForProject(projectId),
   };
