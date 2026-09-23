@@ -20,6 +20,7 @@ export * from './repositories/publishes.js';
 export * from './repositories/calendar.js';
 export * from './repositories/suggestions.js';
 export * from './repositories/journal.js';
+export * from './repositories/api-tokens.js';
 
 // ---- one-time bootstrap (runs on first import) ----
 // existing projects belong to Default

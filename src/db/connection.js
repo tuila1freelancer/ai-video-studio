@@ -277,6 +277,16 @@ CREATE TABLE IF NOT EXISTS journal_events (
 );
 CREATE INDEX IF NOT EXISTS idx_journal_proj ON journal_events(project_id, id);
 CREATE INDEX IF NOT EXISTS idx_journal_job ON journal_events(job_id);
+CREATE TABLE IF NOT EXISTS api_tokens (
+  id           TEXT PRIMARY KEY,        -- the public half of the token; the secret is never stored
+  name         TEXT NOT NULL,           -- who holds it, for the revoke list
+  hash         TEXT NOT NULL,           -- sha256 of the secret half, hex
+  scopes       TEXT NOT NULL,           -- JSON array: read|produce|publish|admin
+  channel_ids  TEXT,                    -- JSON array of channels it may touch; NULL = every channel
+  created_at   INTEGER NOT NULL,
+  last_used_at INTEGER,
+  revoked_at   INTEGER                  -- set, never deleted: a revoked token stays auditable
+);
 `);
 
 // Versioned migrations run AFTER every CREATE TABLE block (so migrations may reference any
