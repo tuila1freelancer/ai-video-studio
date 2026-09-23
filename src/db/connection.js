@@ -277,6 +277,13 @@ CREATE TABLE IF NOT EXISTS journal_events (
 );
 CREATE INDEX IF NOT EXISTS idx_journal_proj ON journal_events(project_id, id);
 CREATE INDEX IF NOT EXISTS idx_journal_job ON journal_events(job_id);
+CREATE TABLE IF NOT EXISTS idempotency (
+  key        TEXT PRIMARY KEY,           -- the caller's Idempotency-Key header, verbatim
+  route      TEXT NOT NULL,              -- METHOD /path it was first used on; reuse elsewhere is a mistake
+  status     INTEGER NOT NULL,
+  body       TEXT NOT NULL,              -- the reply, replayed verbatim to the retry
+  created_at INTEGER NOT NULL
+);
 CREATE TABLE IF NOT EXISTS api_tokens (
   id           TEXT PRIMARY KEY,        -- the public half of the token; the secret is never stored
   name         TEXT NOT NULL,           -- who holds it, for the revoke list

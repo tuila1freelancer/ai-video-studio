@@ -9,6 +9,7 @@ import { PATHS, depStatus } from '../config/paths.js';
 import { maskSecrets } from '../core/config.js';
 import { licenseGate } from '../license/gate.js';
 import { apiAuth } from './middleware/auth.js';
+import { idempotency } from './middleware/idempotency.js';
 import { t, uiLang } from '../i18n/t.js';
 import { codeFor } from '../core/api-codes.js';
 import { requestLang } from './request-lang.js';
@@ -73,6 +74,9 @@ export function mountRoutes(app, { version }) {
   // /license/*. Mounting it here rather than decorating routes means a route added tomorrow is
   // covered by default instead of by memory.
   r.use(licenseGate);
+
+  // After the gate: a refused request is not an answer worth replaying.
+  r.use(idempotency);
 
   r.get('/health', (req, res) => {
     res.json({ ok: true, version, mode: mode(), degraded: processHealth.degraded, deps: depStatus(), paths: {

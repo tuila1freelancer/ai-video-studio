@@ -110,6 +110,18 @@ const MIGRATIONS = [
       }
     },
   },
+  {
+    id: 7,
+    name: 'client-ref',
+    // An agent that retries a create after a network timeout must not end up with two videos and
+    // two bills. Its own reference for the request is stored with the project, unique per channel,
+    // so the second attempt finds the first one instead of making another.
+    up(db) {
+      const pcols = db.prepare('PRAGMA table_info(projects)').all().map((c) => c.name);
+      if (!pcols.includes('client_ref')) db.exec('ALTER TABLE projects ADD COLUMN client_ref TEXT');
+      db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_projects_client_ref ON projects(channel_id, client_ref) WHERE client_ref IS NOT NULL');
+    },
+  },
 ];
 
 function backupBefore(db) {
