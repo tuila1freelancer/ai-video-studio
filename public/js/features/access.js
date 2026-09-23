@@ -1,6 +1,7 @@
-// The token screen, for the one case the desktop app never sees: a server-mode instance opened in
-// a browser. The API answers 401 until a token is pasted, so the interface asks for one instead of
-// filling the console with failures behind a blank page.
+// The token screen, for a page that is not the app's own window: a server-mode instance opened in a
+// browser, or a browser tab pointed at a desktop app whose owner has turned agent access on. The API
+// answers 401 until a token is pasted, so the interface asks for one instead of filling the console
+// with failures behind a blank page.
 //
 // Built in JavaScript rather than markup because it belongs to a deployment the desktop app does
 // not have, and the document should not carry a panel almost nobody will ever see.
@@ -21,7 +22,7 @@ function overlay() {
   h.textContent = m('Cần API token');
   const p = document.createElement('p');
   p.className = 'license-msg';
-  p.textContent = m('Bản cài đặt này chạy ở chế độ server. Dán token đã cấp bằng lệnh npm run token để tiếp tục.');
+  p.textContent = m('Trang này cần API token: quyền cho Agent đang bật, hoặc đây là bản chạy máy chủ. Dán token vào đây — cấp ở AI Setting → Agent trên cửa sổ ứng dụng, hoặc bằng npm run token trên máy chủ.');
   const input = document.createElement('input');
   input.className = 'input license-key';
   input.type = 'password';

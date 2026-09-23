@@ -49,7 +49,7 @@ export function apiAuth(req, res, next) {
     return res.status(401).json({
       code: 'token_required',
       error: 'token_required',
-      message: m('Cần API token hợp lệ (Authorization: Bearer …) để gọi API ở chế độ server.'),
+      message: m('Cần API token hợp lệ (Authorization: Bearer …). Quyền cho Agent đang bật, hoặc đây là bản chạy máy chủ.'),
     });
   }
   if (!tokenHasScope(token, scope)) {
