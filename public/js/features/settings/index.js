@@ -78,10 +78,20 @@ export function initSettings() {
 
 export function openSettings() { $('#settingsModal').classList.add('open'); }
 
-/** The manual's own button: open AI Setting with the Agent panel in view rather than at the top. */
+/**
+ * The manual's own button: open AI Setting with the Agent panel in view rather than at the top.
+ *
+ * The scroll is set on the modal itself. `scrollIntoView` on the switch does nothing useful — the
+ * checkbox is visually replaced and has a zero-sized box — and the panel is the last section of a
+ * long form, so landing at the top means the owner has to go looking for what they just asked for.
+ */
 export function openAgentPanel() {
   openSettings();
-  requestAnimationFrame(() => $('#setAgentOn')?.scrollIntoView({ block: 'center' }));
+  const modal = $('#settingsModal')?.querySelector('.modal');
+  const field = $('#setAgentOn')?.closest('.field');
+  if (!modal || !field) return;
+  // After the open animation has laid the modal out, or offsetTop is measured against nothing.
+  setTimeout(() => { modal.scrollTop = Math.max(0, field.offsetTop - 120); }, 60);
 }
 
 /** The manual, at the chapter this panel is about. Built before scrolling, so the anchor exists. */
