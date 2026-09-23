@@ -24,6 +24,7 @@
   "GET /channels/:id/presets",
   "GET /dashboard",
   "GET /edit-video/:id/srt",
+  "GET /events",
   "GET /export/presets",
   "GET /file",
   "GET /fonts/:family/css",

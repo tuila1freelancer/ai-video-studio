@@ -53,3 +53,35 @@ export function listJournal({ projectId = null, jobId = null, level = null, q = 
   rows.reverse();
   return rows.map((r) => ({ ...r, data: safeJson(r.data, null) }));
 }
+
+/**
+ * Read FORWARDS from a cursor — the lane an agent polls, where listJournal pages backwards for a
+ * person scrolling a panel. The id is an AUTOINCREMENT integer, so "everything after what I already
+ * have" is exact and cheap, and an agent that was away for an hour misses nothing.
+ *
+ * @param {{afterId?:number, projectId?:string|null, channelId?:string|null, kinds?:string[],
+ *          level?:string|null, limit?:number}} q
+ */
+export function journalAfter({ afterId = 0, projectId = null, channelId = null, kinds = null, level = null, limit = 200 } = {}) {
+  const where = ['e.id > ?']; const args = [Math.max(0, parseInt(afterId, 10) || 0)];
+  if (projectId) { where.push('e.project_id=?'); args.push(projectId); }
+  if (channelId) { where.push('p.channel_id=?'); args.push(channelId); }
+  if (level === 'warn') where.push(`e.level IN ('warn','error')`);
+  else if (level) { where.push('e.level=?'); args.push(level); }
+  const picked = (kinds || []).filter(Boolean);
+  if (picked.length) { where.push(`e.kind IN (${picked.map(() => '?').join(',')})`); args.push(...picked); }
+  const take = Math.min(Math.max(parseInt(limit, 10) || 200, 1), 1000);
+  const rows = stmt(`SELECT e.*, p.channel_id AS channel_id FROM journal_events e
+    LEFT JOIN projects p ON p.id = e.project_id
+    WHERE ${where.join(' AND ')} ORDER BY e.id ASC LIMIT ?`).all(...args, take + 1);
+  const more = rows.length > take;
+  return {
+    events: rows.slice(0, take).map((r) => ({ ...r, data: safeJson(r.data, null) })),
+    hasMore: more,
+  };
+}
+
+/** The newest row id, so a caller can start "from now" instead of from the beginning. */
+export function journalHeadId() {
+  return stmt('SELECT MAX(id) AS id FROM journal_events').get()?.id || 0;
+}

@@ -29,6 +29,7 @@ import { mount as mountAssistantCalendar } from './routers/assistant-calendar.js
 import { mount as mountPublish } from './routers/publish.js';
 import { mount as mountProjectOutputs } from './routers/project-outputs.js';
 import { mount as mountJobs } from './routers/jobs.js';
+import { mount as mountEvents } from './routers/events.js';
 import { mount as mountSceneStudio } from './routers/scene-studio.js';
 import { mount as mountScenes } from './routers/scenes.js';
 import { mount as mountResearch } from './routers/research.js';
@@ -109,6 +110,7 @@ export function mountRoutes(app, { version }) {
   mountPublish(r);
   mountProjectOutputs(r);
   mountJobs(r);
+  mountEvents(r);
   mountSceneStudio(r);
   mountScenes(r);
   mountResearch(r);
