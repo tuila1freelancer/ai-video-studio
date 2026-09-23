@@ -10,14 +10,14 @@ import { coded } from '../../core/errors.js';
 
 import { m, tp } from '../../i18n/t.js';
 /**
- * @param {{topics?:string[], config?:object}} req
+ * @param {{topics?:string[], config?:object, channelId?:string}} req
  * @returns {{projects:string[], count:number}}
  * @throws {Error} with .status=400 when no valid topic is present
  */
-export function startBatch({ topics = [], config = {} } = {}) {
+export function startBatch({ topics = [], config = {}, channelId = null } = {}) {
   const clean = topics.map((t) => String(t || '').trim()).filter((t) => t.length > 3);
   if (!clean.length) { const e = coded(new Error(m('không có chủ đề hợp lệ')), 'config.bad-input'); e.status = 400; throw e; }
-  const batchChannel = DB.getChannel(DB.activeChannelId());
+  const batchChannel = DB.getChannel(channelId || DB.activeChannelId());
   const batchConfig = resolveProjectConfig({
     channel: batchChannel, preset: DB.defaultPresetFor(batchChannel?.id), request: config,
   });

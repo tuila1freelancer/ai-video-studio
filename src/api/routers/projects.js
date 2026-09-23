@@ -12,13 +12,14 @@ import { planChanges } from '../services/change-plan.js';
 import { framePreview } from '../services/frame-preview.js';
 import { normalizeAssets } from '../../pipeline/brand-assets.js';
 import { atRiskScenes } from '../../pipeline/typeset-scan.js';
+import { channelFor, channelIdFor } from '../channel-scope.js';
 
 /** List, create, read, update, versions, variants, QC, pending changes. */
 function mountProjects(r) {
   // ---- projects ----
   // Summaries only (no config/metadata): the list never reads them and they were 97% of the bytes.
   r.get('/projects', (req, res) => {
-    const channel = req.query.channel || DB.activeChannelId();
+    const channel = channelIdFor(req);
     let list = DB.listProjectSummaries(channel);
     const cat = req.query.category;
     if (cat === 'short') list = list.filter((p) => ['9:16', '4:5', '1:1'].includes(p.aspect_ratio));
@@ -29,7 +30,7 @@ function mountProjects(r) {
     const { topic = '', config: reqConfig = {} } = req.body || {};
     const inputType = detectInputType(topic);
     // layered config: channel defaults → default preset → request overrides
-    const channel = DB.getChannel(DB.activeChannelId());
+    const channel = channelFor(req);
     const config = resolveProjectConfig({ channel, preset: DB.defaultPresetFor(channel?.id), request: reqConfig });
     const aspectRatio = config.aspectRatio || '9:16';
     const title = (config.title || topic || 'Dự án mới').slice(0, 80) || 'Dự án mới';
@@ -255,7 +256,7 @@ function mountProjectMaintenance(r) {
     // Consistent with the single delete: "xoá" means the files go too.
     let files = 0;
     let bytes = 0;
-    for (const p of DB.listProjects(DB.activeChannelId()) || []) {
+    for (const p of DB.listProjects(channelIdFor(req)) || []) {
       const r2 = purgeProjectFiles(p);
       files += r2.files; bytes += r2.bytes;
     }

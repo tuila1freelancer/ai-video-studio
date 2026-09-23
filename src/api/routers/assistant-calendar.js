@@ -3,6 +3,10 @@ import * as DB from '../../db/index.js';
 import { suggestTopics } from '../services/topic-autopilot.js';
 import { aiSettingsFor } from '../../core/config.js';
 import { acceptSuggestion, scheduleSuggestion, buildSeries, planWeek } from '../services/assistant.js';
+import { channelFor, channelIdFor } from '../channel-scope.js';
+
+/** The channel a suggestion action names, or null to keep the suggestion's own. */
+const askedChannelOf = (req) => (req.body?.channelId ? channelIdFor(req) : null);
 
 /** Assistant preferences and topic suggestions. */
 function mountAssistant(r) {
@@ -26,7 +30,7 @@ function mountAssistant(r) {
   });
   r.post('/topics/suggest', async (req, res) => {
     try {
-      const channel = DB.getChannel(DB.activeChannelId());
+      const channel = channelFor(req);
       // trend sources: global assistant settings, overridable per channel (config.assistant)
       const globalSrc = DB.getSetting('assistant', {}) || {};
       const chSrc = channel?.config?.assistant || {};
@@ -37,7 +41,7 @@ function mountAssistant(r) {
   // suggestion history + owner decisions (accept is the ONLY route that starts a pipeline,
   // and only for the explicitly clicked suggestion)
   r.get('/topics/history', (req, res) => {
-    const channel = DB.getChannel(DB.activeChannelId());
+    const channel = channelFor(req);
     res.json({ suggestions: DB.listSuggestions({
       channelId: req.query.all ? null : channel?.id,
       status: req.query.status || null,
@@ -48,7 +52,7 @@ function mountAssistant(r) {
   });
   r.post('/topics/:id/accept', async (req, res) => {
     try {
-      res.json({ ok: true, ...acceptSuggestion(req.params.id, { config: req.body?.config || {}, title: req.body?.title || null }) });
+      res.json({ ok: true, ...acceptSuggestion(req.params.id, { config: req.body?.config || {}, title: req.body?.title || null, channelId: askedChannelOf(req) }) });
     } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
   });
   r.post('/topics/:id/schedule', async (req, res) => {
@@ -61,8 +65,9 @@ function mountAssistant(r) {
   // mini-series: LLM designs N connected episodes → persisted as pending suggestions (data only)
   r.post('/topics/series', async (req, res) => {
     try {
-      const channel = DB.getChannel(DB.activeChannelId());
+      const channel = channelFor(req);
       res.json({ ok: true, ...(await buildSeries({
+        channelId: channel?.id || null,
         suggestionId: req.body?.suggestionId || null,
         seed: req.body?.seed || '',
         episodes: req.body?.episodes,
@@ -77,7 +82,7 @@ function mountCalendar(r) {
   r.get('/calendar', (req, res) => res.json({ slots: DB.listSlots() }));
   r.post('/calendar', (req, res) => {
     try {
-      const channel = DB.getChannel(DB.activeChannelId());
+      const channel = channelFor(req);
       res.json({ slot: DB.addSlot({ channelId: channel?.id || null, topic: req.body?.topic, config: req.body?.config || {}, dueAt: +req.body?.dueAt }) });
     } catch (e) { res.status(400).json({ error: e.message }); }
   });
@@ -96,12 +101,12 @@ function mountCalendar(r) {
   });
   // recurring planning templates — inert windows; they never create projects by themselves
   r.get('/calendar/recurrences', (req, res) => {
-    res.json({ recurrences: DB.listRecurrences(DB.activeChannelId()) });
+    res.json({ recurrences: DB.listRecurrences(channelIdFor(req)) });
   });
   r.post('/calendar/recurrences', (req, res) => {
     try {
       res.json({ recurrence: DB.addRecurrence({
-        channelId: DB.activeChannelId(),
+        channelId: channelIdFor(req),
         weekday: req.body?.weekday, time: req.body?.time, config: req.body?.config || {},
       }) });
     } catch (e) { res.status(400).json({ error: e.message }); }
@@ -112,6 +117,7 @@ function mountCalendar(r) {
     try {
       const b = req.body || {};
       res.json({ ok: true, ...planWeek({
+        channelId: channelIdFor(req),
         days: Math.min(31, parseInt(b.days, 10) || 7),
         perDay: Math.min(5, parseInt(b.perDay, 10) || 1),
         times: Array.isArray(b.times) && b.times.length ? b.times.map(String) : ['08:00'],

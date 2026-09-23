@@ -15,6 +15,7 @@ import { requestLang } from './request-lang.js';
 import { processHealth } from './http.js';
 import { mode } from '../core/runtime-mode.js';
 import { maskChannel } from './helpers.js';
+import { channelIdFor } from './channel-scope.js';
 import { mount as mountLicense } from './routers/license.js';
 import { mount as mountSettingsProviders } from './routers/settings-providers.js';
 import { mount as mountStyles } from './routers/styles.js';
@@ -82,7 +83,7 @@ export function mountRoutes(app, { version }) {
   // used to make six of these one after another (license → settings → health → channels →
   // projects → presets), each a full loopback hop before the next could start.
   r.get('/boot', (req, res) => {
-    const active = DB.activeChannelId();
+    const active = channelIdFor(req);
     res.json({
       version, uiLang: uiLang(), deps: depStatus(),
       settings: maskSecrets(DB.aiSettings()),
