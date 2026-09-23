@@ -32,6 +32,7 @@
     "release": "node scripts/release.mjs",
     "win:build": "node scripts/build-windows.mjs",
     "linux:build": "node scripts/build-linux.mjs",
+    "image:audit": "node scripts/audit-image.mjs",
     "node:fetch:linux": "node scripts/fetch-node.mjs --linux",
     "electron:mac": "electron-builder --mac --publish never",
     "electron:dev": "electron shell/electron/main.cjs"
