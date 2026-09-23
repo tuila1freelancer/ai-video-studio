@@ -80,6 +80,7 @@ export const RELOCATED = {
   'public/js/features/settings.js': [
     'public/js/features/settings.js', 'public/js/features/settings/index.js', 'public/js/features/settings/publish.js',
     'public/js/features/settings/llm.js', 'public/js/features/settings/tts.js',
+    'public/js/features/settings/agent.js',
   ],
   'public/js/features/brandkit.js': [
     'public/js/features/brandkit.js', 'public/js/features/brandkit/draft.js', 'public/js/features/brandkit/stage.js',

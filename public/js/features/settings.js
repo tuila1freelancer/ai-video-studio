@@ -2,3 +2,4 @@
 export { initSettings, openSettings, loadVoices, loadSettings } from './settings/index.js';
 export { loadFbPages, loadPublishStatus } from './settings/publish.js';
 export { loadLlmPresets } from './settings/llm.js';
+export { loadAgent } from './settings/agent.js';
