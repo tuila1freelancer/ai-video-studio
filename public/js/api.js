@@ -9,14 +9,38 @@ export class ApiError extends Error {
 
 const TIMEOUT_MS = 120000; // some endpoints (fetch-link, voice preview) legitimately take long
 
+// A desktop app talks to its own loopback server and carries no token; a server-mode instance
+// opened in a browser does, and it lives where the browser keeps things — per origin, per device.
+export function authToken() {
+  try { return localStorage.avsToken || ''; } catch { return ''; } // private window
+}
+export function setAuthToken(value) {
+  const token = String(value || '');
+  try { localStorage.avsToken = token; } catch { /* nothing to remember it with */ }
+  // The same token as a cookie, because a <link>, an <img> and a font face carry no headers — in
+  // server mode the interface would otherwise load and then show nothing.
+  const secure = location.protocol === 'https:' ? '; Secure' : '';
+  document.cookie = `avs_token=${encodeURIComponent(token)}; path=/; max-age=31536000; SameSite=Strict${secure}`;
+}
+const authHeader = () => (authToken() ? { Authorization: `Bearer ${authToken()}` } : undefined);
+
+// Once the server has asked for a token, asking it forty more times answers nothing: the boot
+// fires a dozen requests, and every one of them would be its own 401 in the console.
+let gated = false;
+export function accessGated() { return gated; }
+
 async function request(method, path, { body, formData } = {}) {
+  if (gated) throw new ApiError(m('Cần API token'), 401);
   const retries = method === 'GET' ? 1 : 0; // mutations must never silently double-fire
   if (method !== 'GET') cached.clear(); // a mutation may change any catalogue a cached GET described
   for (let attempt = 0; ; attempt++) {
     try {
       const res = await fetch('/api' + path, {
         method,
-        headers: formData || body === undefined ? undefined : { 'Content-Type': 'application/json' },
+        headers: {
+          ...(formData || body === undefined ? {} : { 'Content-Type': 'application/json' }),
+          ...authHeader(),
+        },
         body: formData || (body === undefined ? undefined : JSON.stringify(body)),
         signal: AbortSignal.timeout(TIMEOUT_MS),
       });
@@ -27,6 +51,13 @@ async function request(method, path, { body, formData } = {}) {
         // A licence that lapses mid-session shows up here first, as a 403 on whatever the owner
         // happened to click. One event, and the licence view repaints the lock screen — every
         // other caller keeps its normal error handling.
+        // A server-mode instance answers this until a token is pasted; one event, and the access
+        // screen asks for one instead of every caller reporting its own failure.
+        if (res.status === 401 && data?.code === 'token_required') {
+          gated = true;
+          window.dispatchEvent(new CustomEvent('token-required', { detail: data }));
+          throw new ApiError(data.message || m('Cần API token'), 401);
+        }
         if (res.status === 403 && data?.error === 'license_required') {
           window.dispatchEvent(new CustomEvent('license-required', { detail: data }));
           throw new ApiError(data.message || m('Cần license để tiếp tục'), 403);
@@ -97,7 +128,9 @@ export class WS {
   }
   connect() {
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-    this.ws = new WebSocket(`${proto}://${location.host}/ws`);
+    // A browser cannot set a header on a WebSocket, so the token rides the query string.
+    const token = authToken();
+    this.ws = new WebSocket(`${proto}://${location.host}/ws${token ? `?token=${encodeURIComponent(token)}` : ''}`);
     this.ws.onmessage = (e) => { try { this.onMsg(JSON.parse(e.data)); } catch {} };
     this.ws.onopen = () => { this._open = true; this.attempt = 0; if (this.sub) this.subscribe(this.sub); this.onMsg({ type: '_status', open: true }); };
     // Exponential backoff with jitter, 1.5 s → 30 s: a server that is down for a minute used to be

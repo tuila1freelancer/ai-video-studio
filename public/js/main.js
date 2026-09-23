@@ -1,5 +1,5 @@
 // Boot: wire every module, then load data and restore the last session.
-import { api } from './api.js';
+import { accessGated, api } from './api.js';
 import { initI18n } from './i18n.js';
 import { state, channelDefaults } from './state.js';
 import { initModals } from './ui/modals.js';
@@ -20,12 +20,14 @@ import { initBatch } from './features/batch.js';
 import { initJournal } from './features/journal.js';
 import { initPalette } from './ui/palette.js';
 import { bootLicense, initLicense } from './features/license.js';
+import { initAccess } from './features/access.js';
 
 init();
 
 async function init() {
   // Before anything else. An unlicensed copy answers 403 to every other route, so loading
   // channels and projects first would just fill the console with failures behind a lock screen.
+  initAccess(); // before anything fetches: a server-mode instance answers 401 until a token exists
   initLicense();
   if (!(await bootLicense())) return;
   initNav();
@@ -37,6 +39,9 @@ async function init() {
   const catalogueP = hint ? initI18n(hint).catch(() => null) : null;
   let boot = null;
   try { boot = await api.get('/boot'); } catch { /* offline or locked mid-way: the loaders below fetch on their own */ }
+  // A server-mode instance with no token: the access screen is up and every further call would be
+  // one more 401 behind it.
+  if (accessGated()) return;
   if (boot) {
     api.seed('/settings', { settings: boot.settings, uiLang: boot.uiLang });
     api.seed('/health', { ok: true, deps: boot.deps });
