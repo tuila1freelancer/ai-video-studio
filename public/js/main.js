@@ -43,7 +43,7 @@ async function init() {
   // one more 401 behind it.
   if (accessGated()) return;
   if (boot) {
-    api.seed('/settings', { settings: boot.settings, uiLang: boot.uiLang });
+    api.seed('/settings', { settings: boot.settings, uiLang: boot.uiLang, agent: boot.agent, budget: boot.budget });
     api.seed('/health', { ok: true, deps: boot.deps });
   }
   // Paint the interface in the owner's language BEFORE any view patches a label, or the boot-time

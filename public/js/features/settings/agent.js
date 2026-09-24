@@ -94,9 +94,13 @@ async function loadTokens() {
   }
 }
 
-/** Show or hide the token half, and keep the command in step with it. */
-export async function loadAgent(settings) {
-  const on = settings?.agent?.enabled === true;
+/**
+ * Show or hide the token half, and keep the command in step with it.
+ * @param {{enabled?: boolean}} agent the reply's own `agent` block — a sibling of `settings`,
+ * not a field inside it, which is what this read used to get wrong.
+ */
+export async function loadAgent(agent) {
+  const on = agent?.enabled === true;
   const box = $('#agentBox');
   if ($('#setAgentOn')) $('#setAgentOn').checked = on;
   if (box) box.hidden = !on;
@@ -120,7 +124,7 @@ async function toggleAgent(next) {
   await api.put('/settings', { agent: { enabled: next } });
   if (next) toast('Đã bật quyền cho Agent ✓', 'success');
   else toast('Đã tắt quyền của Agent.', 'success');
-  await loadAgent({ agent: { enabled: next } });
+  await loadAgent({ enabled: next });
 }
 
 /**
