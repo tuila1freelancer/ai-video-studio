@@ -1,0 +1,18 @@
+{
+  "name": "avs-kit",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Agent Kit for AI Video Studio — SDK, CLI and MCP server. No doctrine, no dependencies.",
+  "type": "module",
+  "main": "src/sdk.js",
+  "exports": {
+    ".": "./src/sdk.js",
+    "./errors": "./src/errors.js"
+  },
+  "bin": {
+    "avs": "bin/avs.mjs",
+    "avs-mcp": "bin/avs-mcp.mjs"
+  },
+  "engines": { "node": ">=22" },
+  "license": "UNLICENSED"
+}

@@ -28,6 +28,21 @@ export function writeChannelJson(ch) {
 let version = 0;
 export function channelsVersion() { return version; }
 
+/**
+ * Where a channel's folder goes when the owner names none.
+ *
+ * AVS_CHANNELS_DIR is what a server sets — in a container the volume is mounted somewhere
+ * deliberate and a home directory means nothing. Otherwise it is the place that operating system
+ * keeps videos: Movies on macOS, Videos on Windows (there is no Movies folder there, so the old
+ * shared answer would have made one and put a customer's work somewhere they never look).
+ *
+ * @param {NodeJS.Platform} [platform] @param {Record<string,string|undefined>} [env]
+ */
+export function defaultChannelsRoot(platform = process.platform, env = process.env) {
+  if (env.AVS_CHANNELS_DIR) return env.AVS_CHANNELS_DIR;
+  return join(homedir(), platform === 'win32' ? 'Videos' : 'Movies', 'AI Video Studio');
+}
+
 export function createChannel({ name, rootDir, config = {} }) {
   version += 1;
   const slug0 = slugify(name);
@@ -35,7 +50,7 @@ export function createChannel({ name, rootDir, config = {} }) {
   while (stmt('SELECT 1 FROM channels WHERE slug=?').get(slug)) slug = `${slug0}-${++n}`;
   const root = rootDir && rootDir.trim()
     ? rootDir.trim().replace(/^~(?=\/|$)/, homedir())
-    : join(homedir(), 'Movies', 'AI Video Studio', slug);
+    : join(defaultChannelsRoot(), slug);
   const id = newId('ch');
   ensureChannelDirs(root);
   stmt('INSERT INTO channels(id,name,slug,root_dir,config,created_at) VALUES(?,?,?,?,?,?)')

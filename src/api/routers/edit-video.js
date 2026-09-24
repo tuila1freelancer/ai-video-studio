@@ -61,7 +61,7 @@ export function mount(r) {
       const project = await createEditVideoProject({
         source: src, title, language: language || 'auto', config: config || {},
       });
-      Pipeline.startProject(project.id).catch((e) => logger.error(`edit-video failed: ${e.message}`, { projectId: project.id }));
+      Pipeline.startProject(project.id, { actor: req.actor }).catch((e) => logger.error(`edit-video failed: ${e.message}`, { projectId: project.id }));
       res.json({ projectId: project.id, aspectRatio: project.aspect_ratio, status: 'running' });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });

@@ -9,30 +9,52 @@ import { ttsOverrideFor } from '../../core/config.js';
 import { estimateCost } from '../../core/pricing.js';
 import { resolveVoiceTarget } from '../../providers/tts.js';
 import { startBatch } from '../services/batch.js';
+import { channelIdFor } from '../channel-scope.js';
+import { spendState } from '../../core/budget.js';
+import { apiError } from '../../core/api-codes.js';
+import { wrap } from '../http.js';
 import { resolveLang, declaredLang, DEFAULT_LANG } from '../../util/lang.js';
 import { m } from '../../i18n/t.js';
+
+/**
+ * Refuse before anything is queued. The pipeline would refuse anyway at its first paid call, but
+ * an agent deserves the answer now — with the numbers that decided it — rather than a project row
+ * that dies a minute later.
+ */
+function assertBudget(projectId, channelId) {
+  const state = spendState({ projectId, channelId });
+  if (!state.hardStop || !state.over.length) return;
+  const err = apiError('budget_exceeded', m('đã chạm trần ngân sách — tạm dừng để tránh phát sinh chi phí'), 402);
+  err.over = state.over;
+  throw err;
+}
 
 /** @param {import('express').Router} r */
 export function mount(r) {
   // ---- batch queue: multiple topics → run sequentially on their own ----
   r.post('/batch', (req, res) => {
     try {
-      const { projects, count } = startBatch(req.body || {});
+      const channelId = channelIdFor(req);
+      assertBudget(null, channelId);
+      const { projects, count } = startBatch({ ...(req.body || {}), channelId, actor: req.actor });
       res.json({ ok: true, projects, count });
     } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
   });
 
   // ---- pipeline control ----
-  r.post('/projects/:id/start', async (req, res) => {
+  // wrap(): an async handler that throws is a REJECTED PROMISE, which Express 4 does not catch —
+  // the request would hang until the caller gave up instead of answering 402.
+  r.post('/projects/:id/start', wrap(async (req, res) => {
     const p = DB.getProject(req.params.id);
     if (!p) return res.status(404).json({ error: 'not found' });
+    assertBudget(p.id, p.channel_id);
     if (req.body && req.body.config) DB.updateProject(p.id, { config: { ...p.config, ...req.body.config } });
-    Pipeline.startProject(p.id).catch((e) => logger.error(`start failed: ${e.message}`, { projectId: p.id }));
+    Pipeline.startProject(p.id, { actor: req.actor }).catch((e) => logger.error(`start failed: ${e.message}`, { projectId: p.id }));
     res.json({ ok: true, status: 'running' });
-  });
+  }));
   r.post('/projects/:id/stop', (req, res) => { Pipeline.stopProject(req.params.id); res.json({ ok: true }); });
   r.post('/projects/:id/resume', (req, res) => {
-    Pipeline.startProject(req.params.id, { resume: true }).catch((e) => logger.error(e.message, { projectId: req.params.id }));
+    Pipeline.startProject(req.params.id, { resume: true, actor: req.actor }).catch((e) => logger.error(e.message, { projectId: req.params.id }));
     res.json({ ok: true });
   });
   // Scene gate continue: the owner's EXPLICIT "scenes look good — voice + render" click.
@@ -46,7 +68,7 @@ export function mount(r) {
     // status would permanently disarm a gate the owner never saw.
     if (p.status !== 'scenes') return res.status(409).json({ error: 'dự án không ở bước duyệt cảnh' });
     DB.updateProject(p.id, { scenes_approved_at: Date.now() });
-    Pipeline.startProject(p.id, { resume: true }).catch((e) => logger.error(e.message, { projectId: p.id }));
+    Pipeline.startProject(p.id, { resume: true, actor: req.actor }).catch((e) => logger.error(e.message, { projectId: p.id }));
     res.json({ ok: true });
   });
   // Voice cost preview for the gate CTA: characters still to be synthesized + the resolved
@@ -71,7 +93,7 @@ export function mount(r) {
   });
   r.post('/projects/:id/render', async (req, res) => {
     const { mode = 'all', sceneIds = [] } = req.body || {};
-    Pipeline.renderProject(req.params.id, { mode, sceneIds }).catch((e) => logger.error(e.message, { projectId: req.params.id }));
+    Pipeline.renderProject(req.params.id, { mode, sceneIds }, { actor: req.actor }).catch((e) => logger.error(e.message, { projectId: req.params.id }));
     res.json({ ok: true });
   });
   // P34 — PRE-create cost preview (assistant sheet): TTS chars priced by the pricing table,

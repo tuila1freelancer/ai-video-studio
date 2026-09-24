@@ -82,3 +82,22 @@ Where the remaining bytes are: 20 thumbnails (~750 KB) are the page — the gall
 and the four Lexend subsets (99 KB) are the typeface. The next step, if one is ever needed, is
 WebP thumbnails at ~60 % of the JPEG size.
 
+
+## Agent-ops pass — 2026-09-23, branch `feat/agent-ops`
+
+The server lane (tokens, explicit channels, error codes, the event cursor, the verdict) adds work to
+every request in **server mode only**: in desktop mode `apiAuth` returns on its first line and the
+rest is untouched. Measured back to back on the same machine and the same live database, because a
+number from a different day is not a comparison:
+
+| dev tree, vi | `origin/main` (`d2c255c`) | `feat/agent-ops` |
+|---|---|---|
+| requests | 86 | 87 |
+| bytes on wire | 402 KB | 405 KB |
+| serial API hops | 6 | 6 |
+| `boot-done` | 965 ms | 929 ms |
+
+The two are within this machine's noise — on the day of the measurement the same commit produced
+`boot-done` anywhere between 457 ms and 965 ms, and the one extra request is the boot's own shape
+varying between runs. The table exists to show the absence of a regression, not to set a record: the
+2026-09-17 figures above were taken on a quiet machine and remain the reference numbers.

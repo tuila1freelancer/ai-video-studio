@@ -23,6 +23,7 @@ export function jlog(projectId, { level = 'info', stage = null, sceneIdx = null,
     const row = {
       project_id: projectId || null,
       job_id: jobId || currentRun().jobId || null,
+      actor: currentRun().actor || null,
       ts: Date.now(), level, stage,
       scene_idx: sceneIdx == null ? null : sceneIdx,
       kind, msg: String(msg),

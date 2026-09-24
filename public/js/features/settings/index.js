@@ -8,6 +8,7 @@ import { uiLang, setUiLanguage, m, tp } from '../../i18n.js';
 import { loadFbPages, loadPublishStatus } from './publish.js';
 import { loadLlmPresets, inferPresetId, stashLlmAccount, renderLlmPreset, llmAccountsForSave, fetchLlmModels, forgetShownPreset } from './llm.js';
 import { renderProviderFields, testProvider, renderLangVoiceList, removeLangVoice, collectProviderFields } from './tts.js';
+import { initAgentPanel, loadAgent, renderBudget, budgetForSave } from './agent.js';
 import { LANGS } from '../../ui/langs.js';
 
 // The languages the app can be shown in, named in themselves — a picker that says "Japanese" to
@@ -24,6 +25,7 @@ function initUiLangPicker() {
 
 export function initSettings() {
   initUiLangPicker();
+  initAgentPanel({ onGuide: openAgentChapter });
   $('#setSave').addEventListener('click', saveSettings);
   $('#setTtsProvider').addEventListener('change', renderProviderFields);
   $('#btnTestProvider').addEventListener('click', testProvider);
@@ -76,6 +78,30 @@ export function initSettings() {
 
 export function openSettings() { $('#settingsModal').classList.add('open'); }
 
+/**
+ * The manual's own button: open AI Setting with the Agent panel in view rather than at the top.
+ *
+ * The scroll is set on the modal itself. `scrollIntoView` on the switch does nothing useful — the
+ * checkbox is visually replaced and has a zero-sized box — and the panel is the last section of a
+ * long form, so landing at the top means the owner has to go looking for what they just asked for.
+ */
+export function openAgentPanel() {
+  openSettings();
+  const modal = $('#settingsModal')?.querySelector('.modal');
+  const field = $('#setAgentOn')?.closest('.field');
+  if (!modal || !field) return;
+  // After the open animation has laid the modal out, or offsetTop is measured against nothing.
+  setTimeout(() => { modal.scrollTop = Math.max(0, field.offsetTop - 120); }, 60);
+}
+
+/** The manual, at the chapter this panel is about. Built before scrolling, so the anchor exists. */
+async function openAgentChapter() {
+  closeModal('#settingsModal');
+  (await import('../../views/nav.js')).switchPage('tutorials');
+  await (await import('../../views/guide.js')).openGuide();
+  document.getElementById('gd-agent')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 export async function loadVoices() {
   const { voices, providers } = await api.get('/voices');
   state.voiceCatalog = voices || [];
@@ -85,7 +111,7 @@ export async function loadVoices() {
 }
 
 export async function loadSettings() {
-  const { settings } = await api.get('/settings', { ttl: 5000 }); // masked '••' — server keeps real keys on round-trip
+  const { settings, budget, agent } = await api.get('/settings', { ttl: 5000 }); // masked '••' — server keeps real keys on round-trip
   state.settings = settings;
   await loadLlmPresets();
   $('#setLlmOn').checked = !!settings.llm?.enabled;
@@ -106,6 +132,8 @@ export async function loadSettings() {
   renderLangVoiceList();
   loadPublishStatus();
   loadFbPages();
+  loadAgent(agent);
+  renderBudget(budget);
 }
 
 async function saveSettings() {
@@ -129,6 +157,7 @@ async function saveSettings() {
     },
     tts: { ...oldTts, provider: pid, providers },
     subtitle: { engine: $('#setSubEngine').value, llmCorrect: $('#setSubLlmFix') ? $('#setSubLlmFix').checked : true },
+    budget: budgetForSave(),
   };
   await api.put('/settings', body);
   await loadSettings();

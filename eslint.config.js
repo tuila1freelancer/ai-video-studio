@@ -3,7 +3,7 @@
 import js from '@eslint/js';
 import globals from 'globals';
 
-const nodeFiles = ['src/**/*.js', 'scripts/**/*.{js,mjs,cjs}', 'tests/**/*.{js,mjs}', 'shell/electron/**/*.{js,cjs}', 'eslint.config.js'];
+const nodeFiles = ['src/**/*.js', 'scripts/**/*.{js,mjs,cjs}', 'tests/**/*.{js,mjs}', 'shell/electron/**/*.{js,cjs}', 'packages/**/*.{js,mjs,cjs}', 'eslint.config.js'];
 const browserFiles = ['public/js/**/*.js'];
 
 const rules = {

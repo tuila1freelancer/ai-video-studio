@@ -8,9 +8,19 @@ import * as DB from '../db/index.js';
 import { PATHS, depStatus } from '../config/paths.js';
 import { maskSecrets } from '../core/config.js';
 import { licenseGate } from '../license/gate.js';
+import { apiAuth } from './middleware/auth.js';
+import { idempotency } from './middleware/idempotency.js';
 import { t, uiLang } from '../i18n/t.js';
+import { codeFor } from '../core/api-codes.js';
+import { requestLang } from './request-lang.js';
 import { processHealth } from './http.js';
+import { mode } from '../core/runtime-mode.js';
+import { opsState } from '../ops/state.js';
+import { agentMode } from '../ops/agent-mode.js';
+import { hostInfo } from '../ops/host-info.js';
 import { maskChannel } from './helpers.js';
+import { channelIdFor } from './channel-scope.js';
+import { buildOpenApi } from './spec/index.js';
 import { mount as mountLicense } from './routers/license.js';
 import { mount as mountSettingsProviders } from './routers/settings-providers.js';
 import { mount as mountStyles } from './routers/styles.js';
@@ -23,6 +33,9 @@ import { mount as mountAssistantCalendar } from './routers/assistant-calendar.js
 import { mount as mountPublish } from './routers/publish.js';
 import { mount as mountProjectOutputs } from './routers/project-outputs.js';
 import { mount as mountJobs } from './routers/jobs.js';
+import { mount as mountEvents } from './routers/events.js';
+import { mount as mountOps } from './routers/ops.js';
+import { mount as mountTokens } from './routers/tokens.js';
 import { mount as mountSceneStudio } from './routers/scene-studio.js';
 import { mount as mountScenes } from './routers/scenes.js';
 import { mount as mountResearch } from './routers/research.js';
@@ -45,10 +58,13 @@ export function mountRoutes(app, { version }) {
   // touched — a reply's DATA is never language.
   r.use((req, res, next) => {
     const json = res.json.bind(res);
+    const lang = requestLang(req);
     res.json = (body) => {
       if (body && typeof body === 'object') {
+        // The code is read from the UNTRANSLATED text: the Vietnamese sentence is the key here too.
+        if (typeof body.error === 'string' && !body.code) body.code = codeFor(body.error, res.statusCode);
         for (const f of ['error', 'message', 'hint']) {
-          if (typeof body[f] === 'string') body[f] = t(`srv.${body[f]}`, null);
+          if (typeof body[f] === 'string') body[f] = t(`srv.${body[f]}`, null, lang);
         }
       }
       return json(body);
@@ -56,13 +72,21 @@ export function mountRoutes(app, { version }) {
     next();
   });
 
+  // WHO is asking (server mode only; a no-op for the desktop app). Registered after the egress
+  // translator so its own refusals are translated too, and before the licence gate so an
+  // unauthenticated caller never learns anything about the licence beyond /license/status.
+  r.use(apiAuth);
+
   // FIRST, before any route: an unlicensed copy answers 403 everywhere except /health and
   // /license/*. Mounting it here rather than decorating routes means a route added tomorrow is
   // covered by default instead of by memory.
   r.use(licenseGate);
 
+  // After the gate: a refused request is not an answer worth replaying.
+  r.use(idempotency);
+
   r.get('/health', (req, res) => {
-    res.json({ ok: true, version, degraded: processHealth.degraded, deps: depStatus(), paths: {
+    res.json({ ok: true, version, mode: mode(), ops: opsState().state, agent: agentMode().enabled, degraded: processHealth.degraded, deps: depStatus(), paths: {
       ffmpeg: PATHS.ffmpeg, whisper: !!PATHS.whisperCli, chrome: !!PATHS.chrome, say: !!PATHS.say,
     } });
   });
@@ -70,15 +94,23 @@ export function mountRoutes(app, { version }) {
   // used to make six of these one after another (license → settings → health → channels →
   // projects → presets), each a full loopback hop before the next could start.
   r.get('/boot', (req, res) => {
-    const active = DB.activeChannelId();
+    const active = channelIdFor(req);
     res.json({
       version, uiLang: uiLang(), deps: depStatus(),
+      // Where this copy lives, so the Agent panel can print a command with real paths in it. Behind
+      // `read` like the rest of /boot — /health stays open, so it is not the place for any of this.
+      // `agent` and `budget` ride along because the interface seeds its /settings cache from this
+      // reply: seed a shape that is missing them and the panel reads undefined for both.
+      agent: agentMode(), budget: DB.getSetting('budget', {}) || {}, host: hostInfo(),
       settings: maskSecrets(DB.aiSettings()),
       channels: DB.listChannels().map(maskChannel), activeChannel: active,
       projects: DB.listProjectSummaries(active),
       presets: DB.listPresets(active),
     });
   });
+
+  // The API describing itself, so an agent can be pointed at a URL rather than a paragraph.
+  r.get('/openapi.json', (req, res) => res.json(buildOpenApi({ version })));
 
   mountLicense(r);
   mountSettingsProviders(r);
@@ -92,6 +124,9 @@ export function mountRoutes(app, { version }) {
   mountPublish(r);
   mountProjectOutputs(r);
   mountJobs(r);
+  mountEvents(r);
+  mountOps(r);
+  mountTokens(r);
   mountSceneStudio(r);
   mountScenes(r);
   mountResearch(r);

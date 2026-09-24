@@ -51,6 +51,11 @@
             "arg": "studio"
           }
         ]
+      },
+      {
+        "t": "note",
+        "kind": "tip",
+        "text": "Đóng cửa sổ **không** thoát app: server vẫn chạy để render nốt và để agent gọi được. Biểu tượng trên thanh menu (macOS) hoặc khay hệ thống (Windows) là chỗ mở lại cửa sổ — và là chỗ **Thoát hẳn**."
       }
     ]
   },
@@ -939,7 +944,7 @@
           {
             "i": "🔬",
             "t": "Kiểm tra",
-            "d": "Quét chữ sai ngôn ngữ, quy ước số, clip không khớp thiết kế. Nó **báo cáo**, không tự sửa."
+            "d": "Quét chữ sai ngôn ngữ, quy ước số, clip không khớp thiết kế. Nó **báo cáo**, không tự sửa. Bản kiểm định đầy đủ (`publishable` + lý do) nằm ở chương *Kiểm định trước khi đăng*."
           },
           {
             "i": "📸",
@@ -949,7 +954,7 @@
           {
             "i": "📤",
             "t": "Đăng video",
-            "d": "Đăng thẳng lên YouTube / Facebook Page. Mặc định **không** công khai ngay."
+            "d": "Đăng thẳng lên YouTube / Facebook Page. Mặc định **không** công khai ngay. Kênh có thể bắt video phải **qua kiểm định** trước khi đăng — xem chương *Kiểm định trước khi đăng*."
           },
           {
             "i": "📂",
@@ -998,6 +1003,10 @@
           [
             "🔇 Không lời",
             "Video chỉ nhạc + phụ đề, bỏ hẳn khâu lồng tiếng."
+          ],
+          [
+            "Trần chi tiêu",
+            "AI Setting → **Trần chi tiêu**: trần USD mỗi video, trần USD và số video mỗi kênh mỗi ngày. Chạm trần thì app **hạ xuống lane miễn phí** (LLM offline + giọng miễn phí), hoặc dừng hẳn nếu bạn bật *Chạm trần thì dừng hẳn*."
           ]
         ]
       },
@@ -1032,7 +1041,7 @@
           ],
           [
             "Thư mục",
-            "Bỏ trống thì app tự đặt trong `~/Movies/AI Video Studio/`."
+            "Bỏ trống thì app tự đặt trong thư mục video của hệ điều hành: macOS `~/Movies/AI Video Studio/`, Windows `C:\\Users\\<user>\\Videos\\AI Video Studio\\`. Chọn ổ ngoài cũng được — app chỉ cần quyền ghi."
           ],
           [
             "Watermark của kênh",
@@ -1152,6 +1161,14 @@
           [
             "Đăng video",
             "Kết nối YouTube (OAuth Client dạng Desktop app) và Facebook Page (Page ID + Page Access Token)."
+          ],
+          [
+            "Agent (MCP)",
+            "Bật quyền cho agent gọi API, cấp/thu hồi token, và dòng lệnh cài sẵn cho máy này. Xem chương **Agent & MCP**."
+          ],
+          [
+            "Trần chi tiêu",
+            "Trần USD mỗi video, trần USD và số video mỗi kênh mỗi ngày. Áp cho cả bạn lẫn agent. Xem chương **Ngân sách & hạn mức**."
           ]
         ]
       },
@@ -1170,6 +1187,10 @@
           {
             "label": "🎙 Mở kho giọng",
             "act": "voices"
+          },
+          {
+            "label": "🤖 Mở panel Agent",
+            "act": "agent"
           }
         ]
       }
@@ -1250,6 +1271,22 @@
           [
             "Không chắc video có lỗi gì không",
             "Bấm **🔬 Kiểm tra** ở video đã xong: quét chữ sai ngôn ngữ, quy ước số và clip lệch thiết kế. Nó chỉ báo cáo, không tự sửa gì."
+          ],
+          [
+            "Đóng cửa sổ rồi mà app vẫn chạy",
+            "Đúng như thiết kế: server vẫn phục vụ agent và chạy nốt render. Biểu tượng trên thanh menu (macOS) hoặc khay hệ thống (Windows) là dấu hiệu. Muốn tắt hẳn thì chọn **Thoát hẳn** trong menu đó."
+          ],
+          [
+            "Agent báo `token_required`",
+            "Quyền cho Agent đang bật nhưng lời gọi không kèm token, hoặc token đã bị thu hồi. Cấp token mới ở AI Setting → Agent (MCP) rồi cập nhật lại cấu hình của agent."
+          ],
+          [
+            "Agent không tìm thấy app",
+            "Kit tìm app qua file `server.url` trong thư mục dữ liệu. App phải đang chạy — mở app rồi thử lại. Cấu hình agent **không** nên ghi cứng `--url`: mỗi lần mở app là một cổng khác."
+          ],
+          [
+            "Agent báo `budget_exceeded`",
+            "Đã chạm trần chi tiêu và bạn đang bật *dừng hẳn*. Nâng trần ở AI Setting → Trần chi tiêu, hoặc chờ sang ngày mới."
           ]
         ]
       },
@@ -1268,7 +1305,7 @@
     "blocks": [
       {
         "t": "p",
-        "text": "Đăng nhập bằng Google hoặc nhập mã kích hoạt. Huy hiệu bản quyền trên thanh trên cùng cho biết trạng thái và thiết bị đang dùng. Khi có bản mới, một dải thông báo hiện ra kèm nút tải — bạn tự chọn lúc cập nhật."
+        "text": "Đăng nhập bằng Google — app mở trình duyệt mặc định của máy (cả macOS lẫn Windows) rồi tự nhận kết quả — hoặc nhập mã kích hoạt. Huy hiệu bản quyền trên thanh trên cùng cho biết trạng thái và thiết bị đang dùng. Khi có bản mới, một dải thông báo hiện ra kèm nút tải — bạn tự chọn lúc cập nhật."
       },
       {
         "t": "note",
@@ -1321,8 +1358,414 @@
           [
             "Overlay mode",
             "Dựng đồ hoạ trên nền trong suốt rồi ghép lên video nền có sẵn."
+          ],
+          [
+            "Agent",
+            "Một chương trình tự chạy (Claude Code, một MCP host bất kỳ) gọi API của app để làm video thay bạn."
+          ],
+          [
+            "MCP",
+            "Model Context Protocol — chuẩn để agent nạp công cụ. App kèm sẵn một MCP server nên agent thấy 17 công cụ mà không cần bạn viết code."
+          ],
+          [
+            "Token",
+            "Chìa khoá API: agent phải kèm nó thì app mới trả lời. Cấp ở AI Setting → Agent, hiện đúng một lần, thu hồi được bất cứ lúc nào."
+          ],
+          [
+            "Verdict / Kiểm định",
+            "Một câu trả lời duy nhất cho câu hỏi *video này đăng được chưa*, kèm danh sách lý do — để một agent không phải tự đoán."
           ]
         ]
+      }
+    ]
+  },
+  {
+    "id": "agent",
+    "ic": "🤖",
+    "grp": "Tự động hoá",
+    "title": "Agent & MCP",
+    "lede": "Giao việc cho một agent — Claude Code hay bất kỳ host MCP nào — chạy kênh thay bạn, vẫn dưới quyền và trần chi tiêu của bạn.",
+    "blocks": [
+      {
+        "t": "where",
+        "text": "Thanh trên cùng → ⚙️ AI Setting → **Agent (MCP)**"
+      },
+      {
+        "t": "p",
+        "text": "App là một máy chủ HTTP chạy ngay trên máy bạn. Bình thường chỉ cửa sổ app gọi được và không ai phải đưa chìa khoá gì cả. Bật quyền cho Agent là đổi luật đó: từ lúc ấy **mọi lời gọi API đều phải kèm token**, kể cả trên chính máy này — nhờ vậy mới biết ai gọi, ghi được vào nhật ký, và thu hồi được khi cần."
+      },
+      {
+        "t": "steps",
+        "items": [
+          {
+            "n": "Bật “Cho phép Agent gọi API bằng token”",
+            "t": "App hỏi lại một lần trước khi bật. Cửa sổ ứng dụng vẫn vào được như thường — nó có phiên riêng do chính app cấp lúc khởi động."
+          },
+          {
+            "n": "Bấm “＋ Cấp token mới”",
+            "t": "Token hiện **đúng một lần** trong hộp thoại, kèm nút sao chép. Đóng hộp thoại là không xem lại được; mất thì cấp cái khác và thu hồi cái cũ."
+          },
+          {
+            "n": "Sao chép dòng lệnh app in sẵn",
+            "t": "Dòng lệnh đó chứa đường dẫn thật của **máy này** — Node đi kèm app và Agent Kit đi kèm app — nên dán vào là chạy, không phải cài thêm gì."
+          },
+          {
+            "n": "Dán vào agent",
+            "t": "Với Claude Code là `claude mcp add …`. Agent sẽ thấy 17 công cụ: tạo video, theo dõi, duyệt cảnh, đọc kiểm định, đăng, xem chi phí, dừng/chạy tiếp."
+          }
+        ]
+      },
+      {
+        "t": "code",
+        "text": "claude mcp add avs -- \"<node của app>\" \"<kit của app>/bin/avs-mcp.mjs\" --token avs_…"
+      },
+      {
+        "t": "note",
+        "kind": "tip",
+        "text": "Đừng ghi cứng địa chỉ (`--url`) vào cấu hình agent. Mỗi lần mở app là một cổng khác; kit tự tìm app đang chạy qua file `server.url` trong thư mục dữ liệu."
+      },
+      {
+        "t": "h",
+        "text": "Quyền của một token"
+      },
+      {
+        "t": "defs",
+        "items": [
+          [
+            "read",
+            "Đọc: danh sách kênh, dự án, trạng thái, nhật ký, chi phí, kiểm định. Không thay đổi gì."
+          ],
+          [
+            "produce",
+            "Tạo dự án và chạy dây chuyền. Đây là quyền tiêu tiền — nó gọi LLM và TTS."
+          ],
+          [
+            "publish",
+            "Đăng video lên nền tảng. Tách riêng khỏi produce để một agent làm video được nhưng không tự đăng."
+          ],
+          [
+            "admin",
+            "Đổi cài đặt, kênh, khoá API, van dừng hàng đợi. Chỉ cấp khi thật sự cần."
+          ],
+          [
+            "Kênh của token",
+            "Token có thể bị ràng vào một hoặc vài kênh. Ràng rồi thì nó không với sang kênh khác được, kể cả khi gọi đích danh."
+          ]
+        ]
+      },
+      {
+        "t": "note",
+        "kind": "warn",
+        "text": "Token là chìa khoá của toàn bộ API. Chỉ **cửa sổ ứng dụng trên chính máy này** mới cấp được — một agent đang giữ quyền `admin` cũng không tự cấp cho mình token mới, nên thu hồi là thu hồi thật."
+      },
+      {
+        "t": "h",
+        "text": "Agent làm được gì"
+      },
+      {
+        "t": "list",
+        "items": [
+          "Tạo video từ một chủ đề, kèm `clientRef` để chạy lại lệnh cũ không đẻ ra video thứ hai.",
+          "Theo dõi tiến độ bằng một dòng sự kiện có con trỏ — ngắt kết nối rồi nối lại vẫn đọc tiếp đúng chỗ, không mất và không lặp.",
+          "Duyệt cảnh (mở cổng B5), dừng, chạy tiếp, làm lại.",
+          "Đọc **kiểm định** trước khi đăng và tự quyết theo lý do máy đọc được, không đoán theo câu chữ.",
+          "Đọc chi phí đã tiêu và trần còn lại.",
+          "Lấy file kết quả: video, phụ đề, ảnh bìa."
+        ]
+      },
+      {
+        "t": "p",
+        "text": "Mọi việc agent làm đều ghi vào nhật ký kèm **tên token đã gọi**. Mở Nhật ký xử lý của dự án là thấy ai đã yêu cầu bước nào."
+      },
+      {
+        "t": "h",
+        "text": "Thu hồi"
+      },
+      {
+        "t": "p",
+        "text": "Mỗi token trong danh sách có nút ✖. Thu hồi có hiệu lực ở **lời gọi kế tiếp** — agent đang chạy dở sẽ bị từ chối ngay giữa chừng. Tắt hẳn công tắc “Cho phép Agent” thì app quay về như cũ: loopback không đòi token nữa."
+      },
+      {
+        "t": "note",
+        "kind": "cost",
+        "text": "Trước khi đưa token cho agent, hãy đặt **Trần chi tiêu** ở ngay bên dưới. Đó là cái van duy nhất chặn được một vòng lặp hỏng tiêu tiền cả đêm."
+      },
+      {
+        "t": "go",
+        "items": [
+          {
+            "label": "🤖 Mở panel Agent",
+            "act": "agent"
+          },
+          {
+            "label": "⚙️ Mở AI Setting",
+            "act": "settings"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "verdict",
+    "ic": "🔬",
+    "grp": "Tự động hoá",
+    "title": "Kiểm định trước khi đăng",
+    "lede": "Một câu trả lời duy nhất cho câu hỏi mà một lần chạy không người trông không tự trả lời được: video này đăng được chưa?",
+    "blocks": [
+      {
+        "t": "p",
+        "text": "Các phép kiểm tra vốn đã có sẵn — soát kịch bản, quét chữ tràn khung, đối chiếu clip với thiết kế, báo cáo ghép cuối, đồng hồ chi phí. Cái thiếu là **một chỗ đọc hết chúng**. Kiểm định đọc tất cả rồi trả về `publishable: true/false` kèm danh sách lý do."
+      },
+      {
+        "t": "where",
+        "text": "Sau khi video xong → **🔬 Kiểm tra**, hoặc agent gọi `avs_video_verdict`"
+      },
+      {
+        "t": "h",
+        "text": "Nó nhìn những gì"
+      },
+      {
+        "t": "defs",
+        "items": [
+          [
+            "Dự án đã xong chưa",
+            "Một lần chạy còn dở thì chưa có video để nói về."
+          ],
+          [
+            "Kịch bản",
+            "Đối chiếu với hợp đồng viết của kênh, nếu kênh có đặt. Kênh chọn: chặn hẳn, hay chỉ cảnh báo."
+          ],
+          [
+            "Cảnh",
+            "Chữ có nguy cơ tràn khung; clip thiếu, clip cũ hơn thiết kế, hoặc cảnh sai ngôn ngữ."
+          ],
+          [
+            "File video",
+            "Có tồn tại không, có đủ cả hình lẫn tiếng không, dài đúng bằng giọng đọc không."
+          ],
+          [
+            "Mắt nhìn (tuỳ chọn)",
+            "Một lượt xem bằng model đa phương thức, bật theo kênh vì nó tốn tiền. Chấm điểm khung hình; dưới ngưỡng là chặn. Lượt xem không chạy được thì **không** bị tính là lỗi của video."
+          ]
+        ]
+      },
+      {
+        "t": "h",
+        "text": "Đọc kết quả"
+      },
+      {
+        "t": "defs",
+        "items": [
+          [
+            "publishable",
+            "`true` khi không còn lý do nào ở mức **blocker**. Cảnh báo không chặn."
+          ],
+          [
+            "score",
+            "Một con số cho bảng theo dõi: 100 trừ đi mỗi blocker 40, mỗi cảnh báo 8. Nó không phải lời phán xét."
+          ],
+          [
+            "reasons[]",
+            "Mỗi lý do có `code` (máy đọc), `severity` (blocker/warning) và `detail` (bằng chứng: số đếm, đường dẫn, mã lỗi). Agent phải rẽ nhánh theo `code`, không theo câu chữ — câu chữ dịch theo ngôn ngữ của bạn."
+          ]
+        ]
+      },
+      {
+        "t": "note",
+        "kind": "warn",
+        "text": "Kiểm định **chỉ báo cáo**. Nó không sửa, không render, không đăng. Việc sửa vẫn là của bạn hoặc của agent."
+      },
+      {
+        "t": "h",
+        "text": "Bắt buộc đạt mới được đăng"
+      },
+      {
+        "t": "p",
+        "text": "Kênh có thể đặt luật đăng riêng: mức công khai tối đa, số video mỗi ngày, khung giờ được đăng, và **bắt buộc qua kiểm định**. Khi bật, một lời gọi đăng với video chưa đạt bị từ chối bằng mã `verdict_failed` kèm đúng những lý do đã chặn — chứ không im lặng đăng ra."
+      },
+      {
+        "t": "note",
+        "kind": "tip",
+        "text": "Xin mức công khai cao hơn luật của kênh thì app **hạ xuống mức trần**, không từ chối. Một agent xin `public` ở kênh chỉ cho `unlisted` vẫn đăng được — ở mức `unlisted`."
+      }
+    ]
+  },
+  {
+    "id": "budget",
+    "ic": "💳",
+    "grp": "Tự động hoá",
+    "title": "Ngân sách & hạn mức",
+    "lede": "Trần chi tiêu là cái van duy nhất chặn được một vòng lặp hỏng tiêu tiền cả đêm.",
+    "blocks": [
+      {
+        "t": "where",
+        "text": "Thanh trên cùng → ⚙️ AI Setting → **Trần chi tiêu**"
+      },
+      {
+        "t": "defs",
+        "items": [
+          [
+            "USD mỗi video",
+            "Một dự án tiêu quá mức này thì dừng lại ở đó."
+          ],
+          [
+            "USD mỗi kênh mỗi ngày",
+            "Tính từ 0h theo giờ máy bạn, không phải 24 giờ trượt."
+          ],
+          [
+            "Số video mỗi kênh mỗi ngày",
+            "Đếm số lần chạy, hữu ích khi bạn quan tâm nhịp đăng hơn là tiền."
+          ],
+          [
+            "Chạm trần thì dừng hẳn",
+            "Tắt (mặc định): app **hạ xuống lane miễn phí** — LLM offline và giọng miễn phí — nên video vẫn ra, chỉ là bản rẻ. Bật: app từ chối luôn bằng mã `budget_exceeded`."
+          ]
+        ]
+      },
+      {
+        "t": "note",
+        "kind": "cost",
+        "text": "Trần áp cho **mọi lời gọi**: của bạn ngồi bấm và của agent như nhau. Để trống hoặc 0 là không đặt trần."
+      },
+      {
+        "t": "h",
+        "text": "Agent gặp trần thì thấy gì"
+      },
+      {
+        "t": "p",
+        "text": "Lệnh tạo hoặc chạy bị từ chối **trước khi** xếp hàng, kèm mã `budget_exceeded` và danh sách trần đã chạm (`video_usd`, `channel_day_usd`, `channel_day_videos`). Agent biết ngay để dừng thay vì tạo ra một dự án chết sau đó một phút."
+      },
+      {
+        "t": "h",
+        "text": "Hạn mức của nền tảng"
+      },
+      {
+        "t": "p",
+        "text": "YouTube tính hạn ngạch API theo ngày. App đếm số đơn vị đã dùng và từ chối bằng mã `publish_quota_exhausted` khi hết, thay vì để lời gọi thất bại ở phía Google. Kênh đặt được hạn mức riêng nếu dự án của bạn dùng chung khoá với việc khác."
+      },
+      {
+        "t": "go",
+        "items": [
+          {
+            "label": "⚙️ Mở AI Setting",
+            "act": "settings"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "background",
+    "ic": "🌙",
+    "grp": "Nền tảng",
+    "title": "Chạy nền & mở cùng máy",
+    "lede": "Cửa sổ không phải là app. Đóng cửa sổ, app vẫn chạy.",
+    "blocks": [
+      {
+        "t": "p",
+        "text": "App gồm hai phần: một máy chủ làm việc thật (viết kịch bản, render, ghép) và một cửa sổ để bạn nhìn vào nó. Đóng cửa sổ chỉ giấu cửa sổ đi — server vẫn chạy nốt việc đang dở và vẫn trả lời agent. Đó là lý do bạn giao được việc cho agent làm ban đêm."
+      },
+      {
+        "t": "defs",
+        "items": [
+          [
+            "macOS",
+            "Biểu tượng trên **thanh menu** (góc trên bên phải). Menu có: Mở cửa sổ · Mở cùng máy · Thoát hẳn."
+          ],
+          [
+            "Windows",
+            "Biểu tượng trong **khay hệ thống** (góc dưới bên phải, có thể nằm trong mũi tên ẩn). Menu tương đương; bấm đúp để mở lại cửa sổ."
+          ],
+          [
+            "Mở cùng máy",
+            "Bật thì app tự chạy khi bạn đăng nhập máy — agent gọi được ngay cả sau khi khởi động lại."
+          ],
+          [
+            "Thoát hẳn",
+            "Dừng cả server. Sau lệnh này agent sẽ không gọi được nữa cho đến khi bạn mở app lại."
+          ]
+        ]
+      },
+      {
+        "t": "note",
+        "kind": "tip",
+        "text": "Mở app lần thứ hai không chạy thêm bản thứ hai: bản đang chạy chỉ đưa cửa sổ của nó ra trước. Hai bản cùng lúc sẽ dùng chung một cơ sở dữ liệu — app không cho phép điều đó xảy ra."
+      },
+      {
+        "t": "h",
+        "text": "Còn nếu bạn muốn nó tắt hẳn khi đóng cửa sổ?"
+      },
+      {
+        "t": "p",
+        "text": "Dùng **Thoát hẳn** trong menu thanh menu / khay hệ thống thay vì bấm dấu ✕ của cửa sổ. Đang có render dở thì việc đó dừng và sẽ chạy tiếp từ đúng chỗ ở lần mở sau."
+      }
+    ]
+  },
+  {
+    "id": "platforms",
+    "ic": "🖥",
+    "grp": "Nền tảng",
+    "title": "Windows & macOS",
+    "lede": "Cùng một engine, khác vài chỗ mà hệ điều hành quyết định.",
+    "blocks": [
+      {
+        "t": "defs",
+        "items": [
+          [
+            "Thư mục dữ liệu",
+            "macOS `~/Library/Application Support/AI Video Studio`; Windows `%APPDATA%\\ai-video-studio\\data`. Đây là chỗ chứa cơ sở dữ liệu, nhật ký và file `server.url`."
+          ],
+          [
+            "Thư mục kênh mặc định",
+            "macOS `~/Movies/AI Video Studio/`; Windows `C:\\Users\\<user>\\Videos\\AI Video Studio\\`. Đặt thư mục riêng cho từng kênh được."
+          ],
+          [
+            "Phím tắt",
+            "⌘ trên macOS ↔ **Ctrl** trên Windows. Bảng lệnh là ⌘K / Ctrl K."
+          ],
+          [
+            "ffmpeg",
+            "Đi kèm cả hai bản. Trên macOS nếu máy có sẵn ffmpeg của Homebrew thì app dùng bản đó vì nó chạy đúng kiến trúc và nhanh hơn."
+          ],
+          [
+            "Google Chrome",
+            "**Cần cài trên máy** ở cả hai hệ: app dùng Chrome để dựng cảnh, đo phụ đề và làm ảnh bìa. Thiếu Chrome là hỏng cả ba."
+          ],
+          [
+            "whisper",
+            "Không đi kèm bản phát hành (nặng vài trăm MB). Thiếu whisper thì phụ đề vẫn chạy — xem dưới — nhưng **bóc lời thoại** trong Edit Video thì cần."
+          ],
+          [
+            "Giọng đọc offline",
+            "Giọng `say` là của macOS, Windows không có. Trên Windows dùng **Edge** (miễn phí, không cần khoá, ~400 giọng) hoặc một nhà cung cấp có khoá."
+          ]
+        ]
+      },
+      {
+        "t": "note",
+        "kind": "tip",
+        "text": "Không có whisper, phụ đề karaoke vẫn khớp nếu giọng đọc trả về mốc thời gian từng từ — Edge trả về. Với giọng không trả mốc, app giữ nguyên chữ của kịch bản và chia nhịp ước tính."
+      },
+      {
+        "t": "h",
+        "text": "Chạy nền"
+      },
+      {
+        "t": "p",
+        "text": "macOS dùng thanh menu, Windows dùng khay hệ thống; cách bật “mở cùng máy” nằm trong chính menu đó. Xem chương *Chạy nền & mở cùng máy*."
+      },
+      {
+        "t": "h",
+        "text": "Đăng nhập bản quyền"
+      },
+      {
+        "t": "p",
+        "text": "Nút **Đăng nhập với Google** mở trình duyệt mặc định của máy trên cả hai hệ rồi tự nhận kết quả. Máy không có trình duyệt mặc định thì vẫn nhập mã kích hoạt tay được."
+      },
+      {
+        "t": "note",
+        "kind": "warn",
+        "text": "Một license gắn với số thiết bị nhất định, và cài lại hệ điều hành thường được tính là **một thiết bị mới**. Gỡ liên kết máy cũ trước khi chuyển máy."
       }
     ]
   }

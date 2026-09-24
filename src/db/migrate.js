@@ -110,6 +110,31 @@ const MIGRATIONS = [
       }
     },
   },
+  {
+    id: 7,
+    name: 'client-ref',
+    // An agent that retries a create after a network timeout must not end up with two videos and
+    // two bills. Its own reference for the request is stored with the project, unique per channel,
+    // so the second attempt finds the first one instead of making another.
+    up(db) {
+      const pcols = db.prepare('PRAGMA table_info(projects)').all().map((c) => c.name);
+      if (!pcols.includes('client_ref')) db.exec('ALTER TABLE projects ADD COLUMN client_ref TEXT');
+      db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_projects_client_ref ON projects(channel_id, client_ref) WHERE client_ref IS NOT NULL');
+    },
+  },
+  {
+    id: 8,
+    name: 'actor',
+    // Who asked for this. With several agents and a person sharing one installation, "a video was
+    // made" is only half an answer; the journal and the job ledger record which token (or the
+    // scheduler, or the window) started the work.
+    up(db) {
+      const jcols = db.prepare('PRAGMA table_info(jobs)').all().map((c) => c.name);
+      if (!jcols.includes('actor')) db.exec('ALTER TABLE jobs ADD COLUMN actor TEXT');
+      const ecols = db.prepare('PRAGMA table_info(journal_events)').all().map((c) => c.name);
+      if (!ecols.includes('actor')) db.exec('ALTER TABLE journal_events ADD COLUMN actor TEXT');
+    },
+  },
 ];
 
 function backupBefore(db) {

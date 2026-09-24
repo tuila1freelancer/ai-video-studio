@@ -22,6 +22,9 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const WIN = process.argv.includes('--win') || process.env.AVS_NODE_TARGET === 'win';
+// A Linux server payload needs a Linux runtime, pinned to the same version as the macOS one for the
+// same reason --win is: the bytecode is compiled by that V8 and the loader refuses any other.
+const LINUX = process.argv.includes('--linux') || process.env.AVS_NODE_TARGET === 'linux';
 const FORCE = process.argv.includes('--force');
 
 // The macOS vendor node is the single source of truth for the version. For --win, pin to it so the
@@ -36,17 +39,20 @@ function pinnedVersion() {
   return process.env.AVS_NODE_VERSION || process.version.replace(/^v/, '');
 }
 
-const VERSION = WIN ? pinnedVersion() : (process.env.AVS_NODE_VERSION || process.version.replace(/^v/, ''));
+const VERSION = WIN || LINUX ? pinnedVersion() : (process.env.AVS_NODE_VERSION || process.version.replace(/^v/, ''));
 const ARCH = process.env.AVS_NODE_ARCH || (process.arch === 'x64' ? 'x64' : 'arm64');
 
+const LINUX_ARCH = process.env.AVS_NODE_ARCH || 'x64';
 const target = WIN
   ? { name: `node-v${VERSION}-win-x64`, ext: 'zip', dest: join(ROOT, 'vendor', 'node-win'), bin: join(ROOT, 'vendor', 'node-win', 'node.exe') }
-  : { name: `node-v${VERSION}-darwin-${ARCH}`, ext: 'tar.gz', dest: join(ROOT, 'vendor', 'node'), bin: join(ROOT, 'vendor', 'node', 'bin', 'node') };
+  : LINUX
+    ? { name: `node-v${VERSION}-linux-${LINUX_ARCH}`, ext: 'tar.xz', dest: join(ROOT, 'vendor', 'node-linux'), bin: join(ROOT, 'vendor', 'node-linux', 'bin', 'node') }
+    : { name: `node-v${VERSION}-darwin-${ARCH}`, ext: 'tar.gz', dest: join(ROOT, 'vendor', 'node'), bin: join(ROOT, 'vendor', 'node', 'bin', 'node') };
 
 if (existsSync(target.bin) && !FORCE) {
-  if (WIN) {
-    // node.exe cannot be run on macOS to check its version, so existence is the skip signal.
-    console.log(`vendor/node-win đã có node.exe — bỏ qua (dùng --force để tải lại)`);
+  if (WIN || LINUX) {
+    // A foreign binary cannot be run here to check its version, so existence is the skip signal.
+    console.log(`${target.dest.replace(ROOT + '/', '')} đã có runtime — bỏ qua (dùng --force để tải lại)`);
     process.exit(0);
   }
   const have = execFileSync(target.bin, ['-v'], { encoding: 'utf8' }).trim();
@@ -91,7 +97,8 @@ if (WIN) {
   // exe, flattened (-j) into vendor/node-win. -o overwrites without prompting.
   execFileSync('/usr/bin/unzip', ['-j', '-o', tmp, `${target.name}/node.exe`, '-d', target.dest], { stdio: 'inherit' });
 } else {
-  execFileSync('/usr/bin/tar', ['-xzf', tmp, '-C', target.dest, '--strip-components=1'], { stdio: 'inherit' });
+  // Linux builds ship as .tar.xz, macOS as .tar.gz — the flag has to follow the file, not the habit.
+  execFileSync('/usr/bin/tar', [LINUX ? '-xJf' : '-xzf', tmp, '-C', target.dest, '--strip-components=1'], { stdio: 'inherit' });
   // Everything except the runtime itself is npm/npx/docs the bundle will never run.
   for (const extra of ['share', 'include', 'lib/node_modules/corepack']) {
     rmSync(join(target.dest, extra), { recursive: true, force: true });
@@ -99,10 +106,12 @@ if (WIN) {
 }
 rmSync(tmp, { force: true });
 
-if (WIN) {
+if (WIN || LINUX) {
+  // A foreign binary cannot be executed here to read its version back; the checksum above is what
+  // proves it is the right one, and the loader refuses at boot if the V8 inside disagrees.
   const { statSync } = await import('node:fs');
   const mb = (statSync(target.bin).size / 1e6).toFixed(1);
-  console.log(`✅ vendor/node-win/node.exe (v${VERSION} win-x64, ${mb} MB) — checksum khớp`);
+  console.log(`✅ ${target.bin.replace(`${ROOT}/`, '')} (v${VERSION}, ${mb} MB) — checksum khớp`);
 } else {
   const version = execFileSync(target.bin, ['-v'], { encoding: 'utf8' }).trim();
   console.log(`✅ vendor/node ${version} (${ARCH}) — checksum khớp`);

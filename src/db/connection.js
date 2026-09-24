@@ -277,6 +277,23 @@ CREATE TABLE IF NOT EXISTS journal_events (
 );
 CREATE INDEX IF NOT EXISTS idx_journal_proj ON journal_events(project_id, id);
 CREATE INDEX IF NOT EXISTS idx_journal_job ON journal_events(job_id);
+CREATE TABLE IF NOT EXISTS idempotency (
+  key        TEXT PRIMARY KEY,           -- the caller's Idempotency-Key header, verbatim
+  route      TEXT NOT NULL,              -- METHOD /path it was first used on; reuse elsewhere is a mistake
+  status     INTEGER NOT NULL,
+  body       TEXT NOT NULL,              -- the reply, replayed verbatim to the retry
+  created_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS api_tokens (
+  id           TEXT PRIMARY KEY,        -- the public half of the token; the secret is never stored
+  name         TEXT NOT NULL,           -- who holds it, for the revoke list
+  hash         TEXT NOT NULL,           -- sha256 of the secret half, hex
+  scopes       TEXT NOT NULL,           -- JSON array: read|produce|publish|admin
+  channel_ids  TEXT,                    -- JSON array of channels it may touch; NULL = every channel
+  created_at   INTEGER NOT NULL,
+  last_used_at INTEGER,
+  revoked_at   INTEGER                  -- set, never deleted: a revoked token stays auditable
+);
 `);
 
 // Versioned migrations run AFTER every CREATE TABLE block (so migrations may reference any
@@ -292,6 +309,7 @@ CREATE INDEX IF NOT EXISTS idx_jobs_batch ON jobs(batch_id);
 CREATE INDEX IF NOT EXISTS idx_calendar_project ON calendar_slots(project_id);
 CREATE INDEX IF NOT EXISTS idx_library_kind_folder ON library(kind, brand_folder);
 CREATE INDEX IF NOT EXISTS idx_sugg_slot ON topic_suggestions(slot_id);
+CREATE INDEX IF NOT EXISTS idx_usage_channel ON provider_usage(channel_id, at);
 `);
 
 const statements = new Map();

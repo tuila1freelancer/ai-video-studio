@@ -8,8 +8,8 @@
 //
 // Signing out forgets both the session and the licence: holding a licence on
 // this machine is something the signed-in account did, and it leaves with it.
-import { execFile } from 'node:child_process';
 import { createServer } from 'node:http';
+import { openExternal } from '../util/open-external.js';
 import { logger } from '../util/log.js';
 import { PRODUCT_SLUG, configured, isDist, storeUrl, webUrl } from './config.js';
 import { activate, forgetLicense, status } from './index.js';
@@ -215,7 +215,7 @@ function codeFromBrowser() {
     server.listen(0, '127.0.0.1', () => {
       const { port } = server.address();
       const authorizeUrl = desktopAuthorizeUrl(storeUrl(), { state, port });
-      execFile('/usr/bin/open', [authorizeUrl], (error) => {
+      openExternal(authorizeUrl, (error) => {
         if (!error || settled) return;
         settled = true;
         clearTimeout(timer);

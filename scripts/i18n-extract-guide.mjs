@@ -38,7 +38,8 @@ export function flatten(sections) {
     put(`${si}.lede`, s.lede);
     (s.blocks || []).forEach((b, bi) => {
       const p = `${si}.blocks.${bi}`;
-      put(`${p}.text`, b.text);
+      // A `code` block is a command to paste. Translating it would break it.
+      if (b.t !== 'code') put(`${p}.text`, b.text);
       (b.items || []).forEach((it, ii) => {
         const q = `${p}.items.${ii}`;
         if (typeof it === 'string') return put(q, it);          // list

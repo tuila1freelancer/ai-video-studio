@@ -15,7 +15,10 @@ cd "$ROOT"
 MODE="dev"
 [ "$1" = "--dist" ] && MODE="dist"
 
-AVS_PORT="${AVS_PORT:-8123}"
+# 0 = the OS hands out a free port and the backend prints it as AVS_READY, which the launcher reads.
+# A fixed port made a second copy attach to the first copy's server, and made the URL unknowable to
+# anything outside the app.
+AVS_PORT="${AVS_PORT:-0}"
 # Overridable so a release candidate can be built and smoke-tested without deleting the copy the
 # owner is using — the first thing this script does is `rm -rf` the target.
 APP="${AVS_APP_PATH:-AI Video Studio.app}"
@@ -159,6 +162,11 @@ if [ "$MODE" = "dist" ]; then
   for v in ffmpeg gsap libs fonts; do
     [ -d "vendor/$v" ] && cp -R "vendor/$v" "$APPDIR/vendor/$v"
   done
+
+  # The Agent Kit travels WITH the app: readable, dependency-free, and the only way an owner who
+  # never cloned the repo can point an agent at their own copy. Closed engine, open kit.
+  mkdir -p "$APPDIR/packages"
+  cp -R packages/avs-kit "$APPDIR/packages/avs-kit"
 
   # Everything under Resources, so the vendored runtime is held to the same rule as the payload.
   scrub_payload "$APP/Contents/Resources"

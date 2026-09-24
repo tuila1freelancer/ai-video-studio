@@ -115,6 +115,9 @@ if (existsSync(join(ROOT, 'vendor', 'ffmpeg-win', 'ffmpeg.exe'))) {
   console.warn('  ⚠ KHÔNG có vendor/ffmpeg-win — bản Windows sẽ cần ffmpeg hệ thống (C:\\ffmpeg\\bin hoặc PATH); phụ đề libass cần ffmpeg vendored. Chạy: npm run ffmpeg:fetch:win');
 }
 
+// ── 10b. The Agent Kit, shipped as readable source beside the sealed engine ──────────────────────
+cpSync(join(ROOT, 'packages', 'avs-kit'), join(PAYLOAD, 'packages', 'avs-kit'), { recursive: true });
+
 // ── 11. Scrub the payload (mirror scrub_payload in build-app.sh) ──────────────────────────────────
 console.log('· dọn payload…');
 scrub(PAYLOAD);

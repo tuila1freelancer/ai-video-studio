@@ -41,3 +41,12 @@ export function usageSummary({ limit = 30 } = {}) {
       MAX(at) lastAt
     FROM provider_usage GROUP BY project_id ORDER BY lastAt DESC LIMIT ?`).all(limit);
 }
+
+/** What a channel spent since a moment, and how many videos it finished in that window. */
+export function channelSpendSince(channelId, sinceTs) {
+  const spend = stmt(`SELECT COALESCE(SUM(est_cost),0) usd, COALESCE(SUM(credits),0) credits
+    FROM provider_usage WHERE channel_id=? AND at>=?`).get(channelId, sinceTs);
+  const made = stmt(`SELECT COUNT(*) n FROM projects
+    WHERE channel_id=? AND status='done' AND updated_at>=?`).get(channelId, sinceTs);
+  return { usd: spend.usd, credits: spend.credits, videos: made.n };
+}

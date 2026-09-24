@@ -1,5 +1,6 @@
 // OpenAI-compatible chat transport: presets, key rotation, the 429 back-off ladder (P3), the max_tokens floor (P1), SSE fallback parsing.
 import { aiSettings } from '../../db/index.js';
+import { assertSpendAllowed } from '../../core/spend-guard.js';
 import { recordUsage } from '../../util/usage.js';
 import { withPreset } from '../llm-presets.js';
 import { lang as langRow } from '../../i18n/languages.js';
@@ -37,6 +38,7 @@ const DEAD_KEY = /\b40[13]\b|invalid[_ ]?api[_ ]?key|incorrect api key|quota|cre
  * unchanged, deliberately.
  */
 export async function chat(messages, { json = false, temperature = 0.8, maxTokens = 2048, timeoutMs = 120000, llm = null, budgetMs = Infinity } = {}) {
+  assertSpendAllowed(); // a hard cap stops here, before the call that would spend
   const s = withPreset(llm || aiSettings().llm);
   if (!llmEnabled(s)) throw new Error('LLM not configured');
   const started = Date.now();
