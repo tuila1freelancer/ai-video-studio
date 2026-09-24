@@ -99,7 +99,9 @@ export function mountRoutes(app, { version }) {
       version, uiLang: uiLang(), deps: depStatus(),
       // Where this copy lives, so the Agent panel can print a command with real paths in it. Behind
       // `read` like the rest of /boot — /health stays open, so it is not the place for any of this.
-      agent: agentMode(), host: hostInfo(),
+      // `agent` and `budget` ride along because the interface seeds its /settings cache from this
+      // reply: seed a shape that is missing them and the panel reads undefined for both.
+      agent: agentMode(), budget: DB.getSetting('budget', {}) || {}, host: hostInfo(),
       settings: maskSecrets(DB.aiSettings()),
       channels: DB.listChannels().map(maskChannel), activeChannel: active,
       projects: DB.listProjectSummaries(active),

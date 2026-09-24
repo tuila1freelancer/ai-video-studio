@@ -111,7 +111,7 @@ export async function loadVoices() {
 }
 
 export async function loadSettings() {
-  const { settings, budget } = await api.get('/settings', { ttl: 5000 }); // masked '••' — server keeps real keys on round-trip
+  const { settings, budget, agent } = await api.get('/settings', { ttl: 5000 }); // masked '••' — server keeps real keys on round-trip
   state.settings = settings;
   await loadLlmPresets();
   $('#setLlmOn').checked = !!settings.llm?.enabled;
@@ -132,7 +132,7 @@ export async function loadSettings() {
   renderLangVoiceList();
   loadPublishStatus();
   loadFbPages();
-  loadAgent(settings);
+  loadAgent(agent);
   renderBudget(budget);
 }
 

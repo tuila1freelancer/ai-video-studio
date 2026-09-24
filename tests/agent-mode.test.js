@@ -76,6 +76,15 @@ test('/boot says where this copy lives, so the panel can print a command that ru
 
     const health = await (await fetch(`${base}/health`)).json();
     assert.equal(health.host, undefined, '/health is open — nothing about this machine goes on it');
+
+    // The interface seeds its /settings cache from this reply, so it must carry the same fields the
+    // panel reads there — a seed missing them showed the switch off and the caps blank on every boot.
+    const boot = await (await fetch(`${base}/boot`)).json();
+    assert.deepEqual(Object.keys(boot.agent).sort(), ['enabled', 'since']);
+    assert.equal(typeof boot.budget, 'object');
+    const { sourceOf } = await import('./_source.mjs');
+    const seeded = sourceOf('public/js/main.js');
+    assert.match(seeded, /api\.seed\('\/settings', \{ settings: boot\.settings, uiLang: boot\.uiLang, agent: boot\.agent, budget: boot\.budget \}\)/);
   } finally { server.close(); }
 });
 
@@ -91,6 +100,10 @@ test('the panel a person actually uses carries the switch, the tokens and the ca
   }
   const js = sourceOf('public/js/features/settings.js');
   assert.match(js, /budget: budgetForSave\(\)/, 'the caps must travel with the rest of the save');
+  // /settings answers with `agent` beside `settings`, not inside it. Reading it from the wrong
+  // place showed the switch off on every reload, however the lane was actually set.
+  assert.match(js, /const \{ settings, budget, agent \} = await api\.get\('\/settings'/);
+  assert.match(js, /loadAgent\(agent\);/, 'the panel reads the block the server actually sends');
   assert.match(js, /claude mcp add avs -- \$\{q\(info\.node\)\} \$\{q\(info\.kit\.mcp\)\} --token \$\{token\}/,
     'the command printed for the owner is built from this machine, not from a README');
   assert.ok(!/--url/.test(js.slice(js.indexOf('mcpCommand'), js.indexOf('function renderCommand'))),

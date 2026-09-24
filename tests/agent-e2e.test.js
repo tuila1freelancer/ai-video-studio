@@ -93,14 +93,17 @@ test('the durable feed carries the agent name that asked', async () => {
   const { channels } = await avs.channels();
   const { project } = await avs.createProject({ topic: 'a topic that produces a journal line', channelId: channels[0].id, clientRef: 'e2e-2' });
   await avs.startProject(project.id);
-  // The enqueue line is written by the route that queued it, under this token's name. The budget is
-  // generous because this is a real server process competing with the whole suite for one machine:
-  // ten seconds was enough alone and lost about one run in four under load.
+  // Read the way an agent reads: keep the cursor, keep going until the line being waited for has
+  // arrived. Stopping at the first non-empty batch is what made this flaky — the pipeline's own
+  // first line can land before the route's enqueue line, and that batch carries no actor at all.
+  const named = (list) => list.some((e) => String(e.actor || '').startsWith('token:'));
   const deadline = Date.now() + 45_000;
-  let seen = [];
-  while (Date.now() < deadline && !seen.length) {
-    const feed = await avs.events({ after: head.lastId, project: project.id, wait: 3 });
-    seen = feed.events;
+  const seen = [];
+  let cursor = head.lastId;
+  while (Date.now() < deadline && !named(seen)) {
+    const feed = await avs.events({ after: cursor, project: project.id, wait: 3 });
+    seen.push(...feed.events);
+    cursor = feed.lastId ?? cursor;
   }
   assert.ok(seen.length, 'the feed showed the run starting');
   assert.ok(seen.every((e) => e.projectId === project.id));
