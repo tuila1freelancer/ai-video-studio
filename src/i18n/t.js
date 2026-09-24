@@ -44,12 +44,15 @@ export function uiLang() { return current; }
  * than an empty string is deliberate: a missing translation should look obviously wrong in the
  * interface, not silently blank a button.
  */
-export function t(key, params = null) {
+export function t(key, params = null, code = null) {
   const k = String(key || '');
   // A `srv.<Vietnamese sentence>` key IS its own Vietnamese fallback (the gettext model), so an
   // untranslated one must show the sentence, never the literal "srv.…".
   const self = k.startsWith('srv.') ? k.slice(4) : k;
-  const s = catalogue(current)[k] ?? catalogue('en')[k] ?? self;
+  // `code` is the caller's language for THIS reply only — an agent may ask for English while the
+  // owner's interface stays Vietnamese. Absent, the interface language answers as it always did.
+  const want = code && isSupported(code) ? String(code).toLowerCase() : current;
+  const s = catalogue(want)[k] ?? catalogue('en')[k] ?? self;
   if (!params) return s;
   return String(s).replace(/\{(\w+)\}/g, (m, name) => (params[name] === undefined ? m : String(params[name])));
 }

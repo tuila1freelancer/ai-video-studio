@@ -262,3 +262,43 @@ test('P40 determinism: window.__onSeek is the ONLY harness door, and rAF stays b
   // a hook that throws must never take the whole seek (and thus the render) down
   assert.match(harness, /try \{ fn\(t, st\); \} catch\(e\) \{ window\.__hookErr/, 'a broken hook is contained');
 });
+
+test('P45: the agent lane is opt-in, scoped, channel-explicit and coded', () => {
+  // (1) desktop is the default and asks for nothing.
+  const mode = sourceOf('src/core/runtime-mode.js');
+  assert.match(mode, /env\.AVS_MODE === 'server' \? 'server' : 'desktop'/, 'server mode is opt-in, never inferred');
+  assert.match(mode, /!isLoopback\(host\(env\)\) && !isServerMode\(env\)/, 'a public host without server mode refuses to boot');
+  const auth = sourceOf('src/api/middleware/auth.js');
+  // Two doors, both opt-in: started as a server, or agent access turned on in the app. A desktop
+  // app that was asked for neither still passes straight through.
+  assert.match(auth, /return isServerMode\(\) \|\| agentEnabled\(\);/, 'the second door is the setting, nothing inferred');
+  assert.match(auth, /if \(!authRequired\(\)\) \{[\s\S]{0,120}return next\(\);/, 'desktop keeps passing straight through');
+  assert.match(sourceOf('src/ops/agent-mode.js'), /s\.enabled === true/, 'and it is off unless the owner said otherwise');
+
+  // (2) the secret is never stored, and the comparison is constant-time.
+  const tokens = sourceOf('src/db/repositories/api-tokens.js');
+  assert.match(tokens, /createHash\('sha256'\)/);
+  assert.match(tokens, /timingSafeEqual/);
+  assert.ok(!/INSERT INTO api_tokens[^)]*secret/i.test(tokens), 'no column ever holds the secret');
+  // ... and minting one is the machine's to do: the window asks, a caller of the API never can.
+  const minting = sourceOf('src/api/routers/tokens.js');
+  assert.match(minting, /if \(isServerMode\(\)\) \{/, 'a server deployment mints with the CLI, not over HTTP');
+  assert.match(minting, /if \(!isLocalRequest\(req\)\)/, 'and never from off this machine');
+  assert.match(minting, /authRequired\(\) && !String\(req\.token\?\.id \|\| ''\)\.startsWith\('sys'\)/,
+    'an agent holding admin is still not the window');
+
+  // (3) the channel is what the caller named, and a bound token cannot leave it.
+  const scope = sourceOf('src/api/channel-scope.js');
+  assert.match(scope, /body\?\.channelId \?\? req\?\.query\?\.channel \?\? req\?\.headers\?\.\['x-avs-channel'\]/);
+  assert.match(scope, /tokenHasChannel\(req\?\.token, found\.id\)/, 'a named channel is still checked against the token');
+
+  // (4) every refusal carries a machine word, derived from the untranslated message.
+  const codes = sourceOf('src/core/api-codes.js');
+  assert.match(codes, /BY_MESSAGE\.get\(String\(message/);
+  assert.match(sourceOf('src/api/routes.js'), /body\.code = codeFor\(body\.error, res\.statusCode\)/);
+
+  // (5) P16/P17 still hold: the gate stamp has exactly one writer, and it is a route a caller hits.
+  const pipeline = sourceOf('src/api/routers/pipeline.js');
+  assert.match(pipeline, /approve-scenes/);
+  assert.match(pipeline, /scenes_approved_at: Date\.now\(\)/);
+});

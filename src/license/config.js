@@ -52,8 +52,18 @@ export function configured() {
   return Boolean(storeUrl() && clientApiKey());
 }
 
-/** The platform string this build reports to the store's version endpoints. */
-export const PLATFORM = 'macos-arm64';
+/**
+ * The platform string this build reports to the store's version endpoints.
+ *
+ * Derived rather than pinned: a Linux server build asking for macOS releases would be handed an
+ * .app it cannot run, and a device page would name the wrong machine. `scripts/release.mjs` uses
+ * the same vocabulary when it publishes.
+ */
+const PLATFORM_NAMES = { darwin: 'macos', win32: 'windows', linux: 'linux' };
+export function platformName(platform = process.platform, arch = process.arch) {
+  return `${PLATFORM_NAMES[platform] || platform}-${arch}`;
+}
+export const PLATFORM = platformName();
 
 /** Which release channel this build follows. */
 export const CHANNEL = process.env.TOOLS_UPDATE_CHANNEL || 'stable';

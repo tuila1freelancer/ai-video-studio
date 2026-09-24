@@ -31,9 +31,9 @@ The two gates are optional holds: the run stops at its own status and waits.
 
 ```bash
 npm install
-npm start        # http://127.0.0.1:8123
+npm start        # prints AVS_READY <url>; also written to data/server.url
 npm run dev      # node --watch
-npm test         # 99 files, 825 tests, no network
+npm test         # 126 files, 950 tests, no network
 ```
 
 Without a terminal: double-click `run.command` (macOS) or `run-windows.bat` (Windows).
@@ -121,7 +121,7 @@ fallback chain, and a post-render pass that re-renders any clip whose audio and 
 
 ## Architecture
 
-261 backend modules, 65 frontend modules, 35,227 lines — no module over 400 lines (a ratchet in
+288 backend modules, 66 frontend modules — no module over 400 lines (a ratchet in
 `tests/code-health.test.js` keeps it that way). The frontend is native ES modules — no framework,
 no runtime dependency — bundled only for release: 6 pages and 15 modals as `public/partials/`
 assembled into one document at boot, 12 per-area stylesheets, and screens that load on first click.
@@ -138,7 +138,8 @@ assembled into one document at boot, 12 per-area stylesheets, and screens that l
 | `styleguide/` | the visual-identity contract shared by animation and codegen | `guide.js`, `presets.js`, `script-fonts.js` |
 | `i18n/` | the language table and everything derived from it | `languages.js`, `segment.js`, `t.js` |
 | `db/` | SQLite handle, DDL, migrations, repositories | `connection.js`, `migrate.js`, `repositories/` |
-| `api/` | 178 REST routes, one router per domain | `routes.js` (mount order), `routers/`, `services/`, `http.js` |
+| `api/` | 185 REST routes, one router per domain, the agent contract | `routes.js` (mount order), `routers/`, `services/`, `spec/`, `scopes.js` |
+| `ops/` | the stop valve, outbound webhooks, the first token | `state.js`, `webhooks.js`, `bootstrap-token.js` |
 | `fonts/` | which typeface exists, and which file libass gets | `registry.js`, `files.js`, `coverage.js` |
 | `license/` | offline verdict, activation, refresh, API gate | `state.js`, `index.js`, `gate.js` |
 | `core/` | config layering, cost, error taxonomy, budget | `config.js`, `pricing.js`, `errors.js` |
@@ -159,7 +160,12 @@ source text. `public/js` follows the same rule: `views/config/`, `views/studio/`
 | the offline / no-LLM script path | `providers/llm/script.js` — `offlineScript`, `twoStageScript`, `verbatimScript` |
 | the LLM retry / backoff / multi-key chain | `providers/llm/transport.js` — `chat`, `chatOnce`; `llm/json.js` — `chatJson` |
 | the scene codegen prompt | `hyperframe/prompt/` (`system`, `blocks`, `layout`, `animation`, `build`) |
-| a REST route | `api/routers/<domain>.js`; a new router is one `mount()` line in `api/routes.js` |
+| a REST route | `api/routers/<domain>.js`; a new router is one `mount()` line in `api/routes.js`, plus a line in `tests/fixtures/route-table.json` |
+| what a token may do | `api/scopes.js` — a rule per group, unmatched writes need `admin` |
+| which channel a request works in | `api/channel-scope.js` — body `channelId`, `?channel=`, `X-AVS-Channel`, then the token's |
+| what an agent is told this API is | `api/spec/operations.js` → `GET /api/openapi.json` (`npm run openapi` writes it to `docs/agent/`) |
+| whether a video may be published | `api/services/verdict.js` + `publish/policy.js` |
+| the tools an agent sees | `packages/avs-kit/src/mcp-tools.js` — descriptions are the interface |
 | an HTTP error or a request-body limit | `api/http.js` (`wrap`, `errorHandler`) · body limits in `server.js` |
 | scene validation rules and thresholds | `hyperframe/validate.js` |
 | what an animation lands on, and when | `hyperframe/beats.js` |
@@ -181,9 +187,9 @@ source text. `public/js` follows the same rule: `views/config/`, `views/studio/`
 | the audio mix, ducking or mastering | `pipeline/render/encode.js` · `pipeline/finalize/sound.js` · `media/master.js` |
 | dub a finished video into another language | `pipeline/dub.js` |
 | export a subtitle track in another language | `subtitles/translate.js` · `GET /projects/:id/srt?lang=xx&format=vtt` |
-| cost rates or the budget guardrail | `core/pricing.js` · `core/budget.js` |
+| cost rates or the budget guardrail | `core/pricing.js` · `core/budget.js` · `core/spend-guard.js` (hard stops) |
 | what the licence blocks | `license/gate.js` · `license/state.js` |
-| the release pipeline | `scripts/release.mjs` · `shell/build-app.sh` |
+| the release pipeline | `scripts/release.mjs` · `shell/build-app.sh` (macOS) · `scripts/build-windows.mjs` · `scripts/build-linux.mjs` + `Dockerfile` (server) |
 
 ### Invariants
 
@@ -331,7 +337,7 @@ defaults.
 ## Development
 
 ```bash
-npm test              # 104 files, 856 tests, hermetic, 120 s per-test timeout
+npm test              # 126 files, 950 tests, hermetic, 120 s per-test timeout
 npm run lint          # ESLint 9 flat config — errors block CI, warnings are a to-do list
 npm run test:smoke    # every template built in 16:9 and 9:16, GSAP compiled
 npm run test:e2e      # boot, make a real short video, verify the MP4
@@ -376,8 +382,10 @@ codesign → zip with checksum → notarise and staple → upload and publish.
 The macOS release contains no readable source: `src/server.js` is bundled by esbuild, compiled to V8
 cached data, AES-256-GCM encrypted, and loaded by `loader.cjs`, which verifies the V8 build, the
 flags and a SHA-256 before V8 sees the bytes and refuses rather than falling back. The key is
-generated per build and passed over stdin. Windows ships `src/**` inside an asar with no bytecode
-step.
+generated per build and passed over stdin. Windows ships the same chain: the payload is encrypted
+bytecode in `resources/app-payload`, and the key lives inside a compiled Go launcher
+(`shell/win-launcher`) that hands it to the vendored `node.exe` over stdin — Electron never sees it.
+Both bundles also carry `packages/avs-kit` as readable source, which is the point of it.
 
 The interface ships as `js/main-[hash].js` plus `js/chunks/*-[hash].js` (code-split, so lazy
 screens stay lazy), one minified `css/app-[hash].css`, and the document assembled from its partials
@@ -410,6 +418,37 @@ retries and errors, searchable and exportable. A red dependency chip means FFmpe
 missing. A run sitting at `scenes` or `review` is a gate, not a crash. Why a video did not update is
 answered by the concat tier printed in the log. A project produced in the wrong language can be
 repaired with `scripts/repair-language.mjs`.
+
+### Running it for agents
+
+The app is a desktop app by default and changes nothing about that. There are two ways to let an
+agent in, and the first one needs no terminal at all.
+
+**From the installed app.** AI Setting → **Agent (MCP)** → turn it on → mint a token. From that
+moment every API call needs one, loopback included; the app's own window keeps working because the
+launcher hands it a session of its own. The panel prints the exact `claude mcp add` line for that
+machine — the bundled Node, the bundled kit — and the caps beside it are what stops a bad loop
+spending all night. Both bundles ship `packages/avs-kit`, and the kit finds the running app by
+reading `server.url` from its data directory, so nothing pins a port that changes every launch.
+
+**As a server.** `AVS_MODE=server` opens the other shape: tokens are required from boot, there is no
+window to authenticate, and tokens are minted on the machine — the HTTP route refuses outright.
+
+```bash
+npm run token -- create --name claude --scopes read,produce,publish   # mint one per agent
+AVS_MODE=server AVS_HOST=127.0.0.1 npm start                          # 0.0.0.0 only behind Tailscale
+claude mcp add avs -- node packages/avs-kit/bin/avs-mcp.mjs --token avs_…
+```
+
+Either way an agent gets the same thing: an explicit channel on every creation, machine-readable
+error codes, a durable event cursor, a publish verdict, spending caps and a stop valve.
+
+- The contract an agent reads: [`docs/agent/README.md`](docs/agent/README.md) and
+  `GET /api/openapi.json` · the playbooks are in `docs/agent/playbooks/`.
+- The kit (MCP server, `avs` CLI, SDK — no dependencies): [`packages/avs-kit`](packages/avs-kit/README.md).
+- Deploying it, on a Mac or in a container: [`docs/deploy/README.md`](docs/deploy/README.md).
+- Shipping a build: [`docs/release/checklist.md`](docs/release/checklist.md) — and note that the
+  Windows installer has not yet been run on Windows.
 
 ---
 

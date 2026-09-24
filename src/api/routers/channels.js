@@ -10,7 +10,8 @@ import { WEB_SAFE, toPng } from '../services/image-convert.js';
 import { maskChannel, upload } from '../helpers.js';
 import { saveSubtitleDefaults } from '../services/subtitle-defaults.js';
 import { normalizeGuide } from '../../styleguide/index.js';
-import { execFile } from 'node:child_process';
+import { revealInFileManager } from '../../util/open-external.js';
+import { isHeadless, refuseHeadless } from '../../core/headless.js';
 
 /** @param {import('express').Router} r */
 export function mount(r) {
@@ -76,8 +77,9 @@ export function mount(r) {
   r.post('/channels/:id/open', async (req, res) => {
     const ch = DB.getChannel(req.params.id);
     if (!ch) return res.status(404).json({ error: 'not found' });
-    execFile('open', [ch.root_dir], () => {});
-    res.json({ ok: true });
+    if (isHeadless()) refuseHeadless(ch.root_dir);
+    revealInFileManager(ch.root_dir);
+    res.json({ ok: true, dir: ch.root_dir });
   });
   // logo/brand asset upload → <channel root>/library/logo/
   r.post('/channels/:id/brand-logo', upload.single('file'), async (req, res) => {

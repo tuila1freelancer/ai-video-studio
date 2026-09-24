@@ -23,3 +23,13 @@ export function listPublishes(projectId) {
 export function publishedProjectIds() {
   return stmt("SELECT DISTINCT project_id FROM publish_targets WHERE status='done'").all().map((r) => r.project_id);
 }
+
+/** Successful uploads for a channel since a moment — what a daily publish cap counts. */
+export function publishCountSince(channelId, sinceTs, platform = null) {
+  const where = ["t.status='done'", 't.at>=?'];
+  const args = [sinceTs];
+  if (channelId) { where.push('p.channel_id=?'); args.push(channelId); }
+  if (platform) { where.push('t.platform=?'); args.push(platform); }
+  return stmt(`SELECT COUNT(*) n FROM publish_targets t JOIN projects p ON p.id=t.project_id
+    WHERE ${where.join(' AND ')}`).get(...args).n;
+}

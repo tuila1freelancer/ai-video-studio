@@ -13,6 +13,8 @@ import { resolveProjectConfig } from '../core/config.js';
 import { runPipeline, renderOnly } from './runner.js';
 import { jlog } from './journal.js';
 import { status as licenseStatus } from '../license/index.js';
+import { notifyWebhooks } from '../ops/webhooks.js';
+import { acceptingWork, opsState, setOpsState } from '../ops/state.js';
 import { isRunnable } from '../license/state.js';
 
 import { m, tp } from '../i18n/t.js';
@@ -38,7 +40,7 @@ async function execute(job) {
   const projectId = job.project_id;
   // attribution for the cost meter AND the journal (P32): every llm/tts call in this async
   // chain bills the project, and every journal row in the chain carries this run's job id.
-  return withRunContext({ projectId, channelId: DB.getProject(projectId)?.channel_id || null, jobId: job.id }, () => executeInner(job));
+  return withRunContext({ projectId, channelId: DB.getProject(projectId)?.channel_id || null, jobId: job.id, actor: job.actor || 'scheduler' }, () => executeInner(job));
 }
 
 async function executeInner(job) {
@@ -75,6 +77,7 @@ async function executeInner(job) {
 function settle(job, { status, error = null }) {
   DB.settleJob(job.id, status, error);
   hub.broadcast({ type: 'job', id: job.id, kind: job.kind, projectId: job.project_id, status });
+  notifyWebhooks('job.settled', { jobId: job.id, kind: job.kind, projectId: job.project_id, status, error, actor: job.actor || null });
   // a calendar-born video finished (or failed) — tell the owner which scheduled topic it was
   if (job.kind === 'pipeline') {
     try {
@@ -106,7 +109,7 @@ export function promoteDueSlots() {
       DB.markSlotCreated(slot.id, project.id);
       // linkage is bookkeeping — its failure must never reach the cancelSlot error path
       try { DB.linkSuggestionProject(slot.id, project.id); } catch { /* best-effort */ }
-      const j = DB.enqueueJob({ kind: 'pipeline', projectId: project.id, payload: {}, priority: -1 });
+      const j = DB.enqueueJob({ kind: 'pipeline', projectId: project.id, payload: {}, priority: -1, actor: 'scheduler' });
       hub.broadcast({ type: 'calendar', slotId: slot.id, projectId: project.id, topic: slot.topic });
       jlog(project.id, { kind: 'enqueue', jobId: j.id, msg: m('⏳ Đã xếp vào hàng đợi sản xuất (video hẹn lịch)') });
       logger.info(tp`🗓 Đến hạn lịch — tạo dự án "${slot.topic}"`, { projectId: project.id });
@@ -130,6 +133,16 @@ export function tick() {
       scheduleTick(60_000);
       return;
     }
+    // Paused or draining: running work finishes, nothing new is claimed. A drain becomes a pause
+    // the moment the last job settles, so "drained" is a fact rather than a hope.
+    if (!acceptingWork()) {
+      if (opsState().state === 'draining' && running.size === 0) {
+        setOpsState('paused', { by: 'scheduler', reason: 'drained' });
+        logger.info(m('⏸ Đã dừng nhận việc: mọi tác vụ đang chạy đã xong'));
+      }
+      scheduleTick(5_000);
+      return;
+    }
     promoteDueSlots();
     for (;;) {
       const kinds = laneCapacity();
@@ -151,6 +164,9 @@ export function tick() {
   scheduleTick(30000); // safety net — normal wakeups come from enqueue/settle
 }
 
+/** Jobs this process is running right now — the number a drain counts down. */
+export function runningCount() { return running.size; }
+
 export function scheduleTick(delayMs = 0) {
   clearTimeout(timer);
   timer = setTimeout(tick, delayMs);
@@ -162,10 +178,10 @@ export function scheduleTick(delayMs = 0) {
  * old in-memory queue gave callers). Deduped: an existing queued/running job for the same
  * project+kind is returned instead of double-enqueueing.
  */
-export function submit({ kind, projectId, batchId = null, payload = {}, priority = 0 }) {
+export function submit({ kind, projectId, batchId = null, payload = {}, priority = 0, actor = null }) {
   const existing = DB.activeJobFor(projectId, kind);
   if (existing) return { job: existing, done: promiseFor(existing.id) };
-  const job = DB.enqueueJob({ kind, projectId, batchId, payload, priority });
+  const job = DB.enqueueJob({ kind, projectId, batchId, payload, priority, actor });
   hub.broadcast({ type: 'job', id: job.id, kind, projectId, status: 'queued' });
   jlog(projectId, { kind: 'enqueue', jobId: job.id,
     msg: kind === 'render' ? m('⏳ Đã xếp render vào hàng đợi') : m('⏳ Đã xếp vào hàng đợi sản xuất') });

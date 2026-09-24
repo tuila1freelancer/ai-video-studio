@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import * as DB from '../../db/index.js';
 import { hub } from '../../ws/hub.js';
 import { buildContactSheet } from '../services/contact-sheet.js';
+import { channelFor } from '../channel-scope.js';
 import { HF_PRESETS, generateStyleGuide } from '../../styleguide/index.js';
 import { aiSettingsFor } from '../../core/config.js';
 import { buildSceneHtml, previewSceneFrame, sceneTemplateSource } from '../../animation/index.js';
@@ -17,7 +18,7 @@ export function mount(r) {
   });
   r.post('/hyperframe/styleguide', async (req, res) => {
     try {
-      const ai = aiSettingsFor(DB.getChannel(DB.activeChannelId()));
+      const ai = aiSettingsFor(channelFor(req));
       const out = await generateStyleGuide({
         topic: req.body?.topic || '', describe: req.body?.describe || '', llm: ai?.llm || null,
       });

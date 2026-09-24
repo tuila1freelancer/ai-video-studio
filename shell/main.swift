@@ -3,6 +3,7 @@
 // native WKWebView (Safari engine) — lightweight, no bundled Chromium for the UI.
 import Cocoa
 import WebKit
+import ServiceManagement
 
 // Height of the strip below, in points. Must stay equal to the web UI's `--pad-titlebar`, which is
 // pure padding at the top of the topbar — the strip covers no control.
@@ -28,17 +29,76 @@ final class TitlebarDragView: NSView {
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, WKUIDelegate {
-  var window: NSWindow!
+  var window: NSWindow!  // nil only before applicationDidFinishLaunching; see showWindow's guard
   var webView: WKWebView!
   var backend: Process?
-  let baseURL = "http://127.0.0.1:\(AVS_PORT)"
+  var statusItem: NSStatusItem?
+  // One boot, one nonce. The window trades it for a session cookie on its first request, so the
+  // owner never has to paste a token into their own app once agent access is on.
+  let uiKey = UUID().uuidString
+  // Learned from the backend's own AVS_READY line rather than assumed. A fixed port meant a second
+  // copy of the app silently loaded the FIRST copy's server (its own died with AVS_PORT_IN_USE and
+  // nobody read that), and it made the port unknowable to anything else — the agent kit included.
+  var baseURL: String?
 
   func applicationDidFinishLaunching(_ note: Notification) {
     buildMenu()
+    buildStatusItem()
     setupWindow()
     startBackend()
-    waitForHealthThenLoad(attempt: 0)
     NSApp.activate(ignoringOtherApps: true)
+  }
+
+  // The app is a server with a window on it, not a window with a server behind it. Closing the
+  // window used to end the process — and with it any agent's access and any render in flight. Now
+  // it hides, and the menu-bar item is the honest sign that something is still running.
+  func buildStatusItem() {
+    let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+    // A symbol name that this macOS does not know returns nil, and a button with neither image nor
+    // title is an invisible zero-width item — so there is always a title to fall back to.
+    if let icon = NSImage(systemSymbolName: "film.stack", accessibilityDescription: "AI Video Studio")
+      ?? NSImage(systemSymbolName: "film", accessibilityDescription: "AI Video Studio") {
+      icon.isTemplate = true
+      item.button?.image = icon
+    } else {
+      item.button?.title = "AVS"
+    }
+    item.button?.toolTip = "AI Video Studio"
+    let menu = NSMenu()
+    menu.addItem(withTitle: "Mở cửa sổ", action: #selector(showWindow), keyEquivalent: "")
+    let login = NSMenuItem(title: "Mở cùng máy", action: #selector(toggleLoginItem), keyEquivalent: "")
+    login.state = loginItemEnabled() ? .on : .off
+    menu.addItem(login)
+    menu.addItem(NSMenuItem.separator())
+    menu.addItem(withTitle: "Thoát hẳn", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "")
+    for entry in menu.items where entry.action != #selector(NSApplication.terminate(_:)) { entry.target = self }
+    item.menu = menu
+    statusItem = item
+  }
+
+  @objc func showWindow() {
+    guard let window else { return }
+    window.makeKeyAndOrderFront(nil)
+    NSApp.activate(ignoringOtherApps: true)
+  }
+
+  /** Registered with launchd through SMAppService (macOS 13+); older systems simply cannot. */
+  func loginItemEnabled() -> Bool {
+    if #available(macOS 13.0, *) { return SMAppService.mainApp.status == .enabled }
+    return false
+  }
+
+  @objc func toggleLoginItem(_ sender: NSMenuItem) {
+    guard #available(macOS 13.0, *) else {
+      sender.isEnabled = false
+      sender.title = "Mở cùng máy (cần macOS 13+)"
+      return
+    }
+    do {
+      if SMAppService.mainApp.status == .enabled { try SMAppService.mainApp.unregister() }
+      else { try SMAppService.mainApp.register() }
+    } catch { NSSound.beep() }
+    sender.state = loginItemEnabled() ? .on : .off
   }
 
   func setupWindow() {
@@ -50,6 +110,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
       styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
       backing: .buffered, defer: false)
     window.title = "AI Video Studio"
+    // The app outlives its window now, so the window has to outlive being closed: AppKit frees a
+    // programmatically created window on close by default, and the next "open it again" then sends
+    // a message to freed memory. That is a segfault, and it is what the first build of this did.
+    window.isReleasedWhenClosed = false
     window.titleVisibility = .hidden
     window.titlebarAppearsTransparent = true
     window.backgroundColor = NSColor(red: 0.027, green: 0.027, blue: 0.043, alpha: 1) // #07070b — no white flash on resize
@@ -122,6 +186,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     p.currentDirectoryURL = URL(fileURLWithPath: PROJECT_ROOT)
     var env = ProcessInfo.processInfo.environment
     env["AVS_PORT"] = AVS_PORT
+    env["AVS_UI_KEY"] = uiKey
     // Build-mode settings (AVS_DIST, AVS_DATA_DIR) come from Config.swift, which the build script
     // writes per mode. They are set HERE, inside the app, so nothing a customer puts in their
     // shell can change what the bundle thinks it is.
@@ -131,6 +196,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     // in the environment, `ps` would hand it straight back to whoever asked.
     let stdinPipe = Pipe()
     p.standardInput = stdinPipe
+    // The backend prints `AVS_READY <url>` once it is listening; that line is the only thing that
+    // knows which port the OS handed out.
+    let outPipe = Pipe()
+    p.standardOutput = outPipe
+    var seen = ""
+    outPipe.fileHandleForReading.readabilityHandler = { handle in
+      let chunk = String(decoding: handle.availableData, as: UTF8.self)
+      guard !chunk.isEmpty else { return }
+      FileHandle.standardOutput.write(Data(chunk.utf8)) // keep the log readable from a terminal
+      seen += chunk
+      guard let range = seen.range(of: "AVS_READY "), let end = seen[range.upperBound...].firstIndex(where: { $0.isWhitespace }) else { return }
+      let url = String(seen[range.upperBound..<end])
+      outPipe.fileHandleForReading.readabilityHandler = nil
+      DispatchQueue.main.async { self.serverReady(url) }
+    }
     do {
       try p.run()
       backend = p
@@ -142,14 +222,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     }
   }
 
+  func serverReady(_ url: String) {
+    guard baseURL == nil else { return }
+    baseURL = url
+    waitForHealthThenLoad(attempt: 0)
+  }
+
   func waitForHealthThenLoad(attempt: Int) {
+    guard let base = baseURL else { return }
     if attempt > 120 { loadSplash("Backend không phản hồi. Kiểm tra Node tại \(NODE_PATH)"); return }
-    guard let url = URL(string: baseURL + "/api/health") else { return }
+    guard let url = URL(string: base + "/api/health") else { return }
     var req = URLRequest(url: url); req.timeoutInterval = 2
     URLSession.shared.dataTask(with: req) { data, resp, _ in
       let ok = (resp as? HTTPURLResponse)?.statusCode == 200
       DispatchQueue.main.async {
-        if ok { self.webView.load(URLRequest(url: URL(string: self.baseURL)!)) }
+        if ok, let url = URL(string: base + "/?uikey=" + self.uiKey) { self.webView.load(URLRequest(url: url)) }
         else { DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { self.waitForHealthThenLoad(attempt: attempt + 1) } }
       }
     }.resume()
@@ -197,8 +284,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     }
   }
 
-  func applicationShouldTerminateAfterLastWindowClosed(_ s: NSApplication) -> Bool { true }
+  // False, deliberately: the backend keeps serving agents and finishing renders after the window
+  // is closed. "Thoát hẳn" in the menu-bar item is how someone ends it.
+  func applicationShouldTerminateAfterLastWindowClosed(_ s: NSApplication) -> Bool { false }
+  // Clicking the dock icon with no window open brings the app back rather than doing nothing.
+  func applicationShouldHandleReopen(_ s: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+    if !flag { showWindow() }
+    return true
+  }
   func applicationWillTerminate(_ note: Notification) { backend?.terminate() }
+}
+
+// One copy per machine. Two copies used to mean two servers on one database — and, with the fixed
+// port, a second window quietly showing the FIRST copy's server while its own backend had already
+// died. Activating the running copy is what a person meant by opening the app again.
+let mine = Bundle.main.bundleIdentifier ?? "com.aivideostudio.app"
+let others = NSRunningApplication.runningApplications(withBundleIdentifier: mine)
+  .filter { $0.processIdentifier != ProcessInfo.processInfo.processIdentifier }
+if let running = others.first {
+  running.activate(options: [.activateAllWindows])
+  exit(0)
 }
 
 let app = NSApplication.shared

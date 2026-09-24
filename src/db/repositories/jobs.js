@@ -4,13 +4,13 @@
 import db, { stmt } from '../connection.js';
 import { newId, safeJson } from '../../util/util.js';
 
-const _insert = db.prepare(`INSERT INTO jobs(id,kind,project_id,batch_id,payload,status,priority,attempts,created_at)
-  VALUES(@id,@kind,@project_id,@batch_id,@payload,'queued',@priority,0,@created_at)`);
+const _insert = db.prepare(`INSERT INTO jobs(id,kind,project_id,batch_id,payload,status,priority,attempts,actor,created_at)
+  VALUES(@id,@kind,@project_id,@batch_id,@payload,'queued',@priority,0,@actor,@created_at)`);
 
-export function enqueueJob({ kind, projectId = null, batchId = null, payload = {}, priority = 0 }) {
+export function enqueueJob({ kind, projectId = null, batchId = null, payload = {}, priority = 0, actor = null }) {
   const job = {
     id: newId('job'), kind, project_id: projectId, batch_id: batchId,
-    payload: JSON.stringify(payload || {}), priority, created_at: Date.now(),
+    payload: JSON.stringify(payload || {}), priority, actor, created_at: Date.now(),
   };
   _insert.run(job);
   return getJob(job.id);
@@ -104,4 +104,12 @@ export function requeueZombieJobs() {
     WHERE status='running' AND attempts >= 2`).run(Date.now()).changes;
   const requeued = stmt(`UPDATE jobs SET status='queued', started_at=NULL WHERE status='running'`).run().changes;
   return { requeued, dead, stopped };
+}
+
+/** How much work is in flight right now — what a drain waits for. */
+export function jobCounts() {
+  const rows = stmt("SELECT status, COUNT(*) n FROM jobs WHERE status IN ('queued','running') GROUP BY status").all();
+  const out = { queued: 0, running: 0 };
+  for (const r of rows) out[r.status] = r.n;
+  return out;
 }

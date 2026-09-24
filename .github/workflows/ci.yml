@@ -3,6 +3,9 @@ on:
   push:
     branches: [main]
   pull_request:
+  # The image job is manual: it builds a Debian image and boots it, which is minutes rather than
+  # seconds, and nothing in a normal push changes its answer.
+  workflow_dispatch:
 
 # A newer push to the same branch supersedes the run in flight.
 concurrency:
@@ -52,3 +55,73 @@ jobs:
       - run: npm ci
       # Reported, not enforced: a transitive advisory must not block a fix from landing.
       - run: npm audit --omit=dev || true
+
+  # The kit is what an agent installs, and its promise is that it needs nothing installed. This job
+  # therefore runs it on a bare checkout with NO npm ci — if a dependency ever creeps in, it fails
+  # here rather than on somebody's machine.
+  kit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node packages/avs-kit/bin/avs.mjs --help
+      - name: MCP handshake over stdio, with no engine and no dependencies
+        run: |
+          printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18"}}' \
+            '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
+            | node packages/avs-kit/bin/avs-mcp.mjs 2>/dev/null | grep -q '"avs_video_verdict"'
+
+  # The one thing a build on macOS cannot prove about itself: that encrypted bytecode, a compiled
+  # launcher and a native module actually boot on Linux. The image compiles its own bytecode, so this
+  # job answers it — build, audit what shipped, run it, and drive the control plane through the kit.
+  #
+  # Manual by default: it takes minutes and pulls a Debian image, which is not what every push needs.
+  image:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build the image (key as a BuildKit secret, fresh BUILD_ID)
+        env:
+          AVS_APP_KEY: ${{ github.run_id }}${{ github.run_attempt }}00000000000000000000000000000000
+        run: |
+          KEY=$(printf '%s' "$AVS_APP_KEY" | sha256sum | cut -d' ' -f1)
+          echo "AVS_APP_KEY=$KEY" >> "$GITHUB_ENV"
+          DOCKER_BUILDKIT=1 docker build \
+            --secret id=appkey,env=AVS_APP_KEY \
+            --build-arg BUILD_ID="${{ github.run_id }}-${{ github.run_attempt }}" \
+            -t avs:ci .
+        # AVS_APP_KEY above is only the SEED for the hash on the next line; the key itself never
+        # leaves this step's shell, and a BuildKit secret is not written into the image's history.
+      - name: Audit what actually shipped
+        run: node scripts/audit-image.mjs --image avs:ci
+      - name: Boot it and drive the control plane through the kit
+        run: |
+          docker run -d --name avs-ci -p 8123:8123 -e TOOLS_LICENSE_BYPASS=1 avs:ci
+          for i in $(seq 1 60); do
+            curl -fsS http://127.0.0.1:8123/api/health >/dev/null 2>&1 && break
+            sleep 2
+          done
+          curl -fsS http://127.0.0.1:8123/api/health | tee /dev/stderr | grep -q '"mode":"server"'
+          TOKEN=$(docker logs avs-ci 2>&1 | grep -o 'avs_[A-Za-z0-9_-]*' | head -1)
+          test -n "$TOKEN"
+          # An unauthenticated call must still be refused, with the code an agent branches on.
+          curl -s http://127.0.0.1:8123/api/projects | grep -q '"code":"token_required"'
+          export AVS_URL=http://127.0.0.1:8123 AVS_TOKEN="$TOKEN"
+          node packages/avs-kit/bin/avs.mjs channels list
+          node packages/avs-kit/bin/avs.mjs video create --topic "a video the CI asked for" --ref ci-1 --json > /tmp/created.json
+          node -e "const p=require('/tmp/created.json').project; if(!p?.id) process.exit(1); console.log('created', p.id)"
+          node packages/avs-kit/bin/avs.mjs ops status
+      - name: Logs on failure
+        if: failure()
+        run: docker logs avs-ci || true
+      - name: Stop
+        if: always()
+        run: docker rm -f avs-ci || true

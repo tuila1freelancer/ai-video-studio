@@ -1,6 +1,7 @@
 // Projects: CRUD, export history, variants, QC scan, change plans, frame preview, restart, footprint, typeset repair, deletion.
 import { existsSync, statSync } from 'node:fs';
 import * as DB from '../../db/index.js';
+import { wrap } from '../http.js';
 import { logger } from '../../util/log.js';
 import { detectInputType } from '../../util/util.js';
 import * as Pipeline from '../../pipeline/queue.js';
@@ -8,17 +9,19 @@ import { resolveProjectConfig } from '../../core/config.js';
 import { tp } from '../../i18n/t.js';
 import { projectOwnedFiles, purgeProjectFiles } from '../services/project-files.js';
 import { qcScan } from '../services/qc-scan.js';
+import { projectVerdict } from '../services/verdict.js';
 import { planChanges } from '../services/change-plan.js';
 import { framePreview } from '../services/frame-preview.js';
 import { normalizeAssets } from '../../pipeline/brand-assets.js';
 import { atRiskScenes } from '../../pipeline/typeset-scan.js';
+import { channelFor, channelIdFor } from '../channel-scope.js';
 
 /** List, create, read, update, versions, variants, QC, pending changes. */
 function mountProjects(r) {
   // ---- projects ----
   // Summaries only (no config/metadata): the list never reads them and they were 97% of the bytes.
   r.get('/projects', (req, res) => {
-    const channel = req.query.channel || DB.activeChannelId();
+    const channel = channelIdFor(req);
     let list = DB.listProjectSummaries(channel);
     const cat = req.query.category;
     if (cat === 'short') list = list.filter((p) => ['9:16', '4:5', '1:1'].includes(p.aspect_ratio));
@@ -26,14 +29,18 @@ function mountProjects(r) {
     res.json({ projects: list });
   });
   r.post('/projects', (req, res) => {
-    const { topic = '', config: reqConfig = {} } = req.body || {};
+    const { topic = '', config: reqConfig = {}, clientRef = null } = req.body || {};
     const inputType = detectInputType(topic);
     // layered config: channel defaults → default preset → request overrides
-    const channel = DB.getChannel(DB.activeChannelId());
+    const channel = channelFor(req);
+    // The agent's own reference for this request: a retry after a timeout finds the first project
+    // instead of making a second one (and paying for it twice).
+    const already = clientRef ? DB.projectByClientRef(channel?.id, clientRef) : null;
+    if (already) return res.json({ project: already, reused: true });
     const config = resolveProjectConfig({ channel, preset: DB.defaultPresetFor(channel?.id), request: reqConfig });
     const aspectRatio = config.aspectRatio || '9:16';
     const title = (config.title || topic || 'Dự án mới').slice(0, 80) || 'Dự án mới';
-    const p = DB.createProject({ title, topic, inputType, aspectRatio, config, channelId: channel?.id });
+    const p = DB.createProject({ title, topic, inputType, aspectRatio, config, channelId: channel?.id, clientRef });
     DB.projectDirFor(p.id);
     logger.info(tp`🆕 Đã tạo dự án (kênh ${channel?.name || 'Default'})`, { projectId: p.id });
     res.json({ project: p });
@@ -90,11 +97,18 @@ function mountProjects(r) {
       DB.updateProject(p.id, { metadata: { ...md, variants } });
       // run it with the overrides layered on, WITHOUT saving them as the project's config —
       // a variant is a second output, not a change of mind
-      Pipeline.renderProject(p.id, { mode: 'concat', configOverrides: overrides, variantName: name })
+      Pipeline.renderProject(p.id, { mode: 'concat', configOverrides: overrides, variantName: name }, { actor: req.actor })
         .catch((e) => logger.error(e.message, { projectId: p.id }));
       res.json({ ok: true, name, variants });
     } catch (e) { res.status(400).json({ error: e.message }); }
   });
+
+  // Everything the checks above know, read once and turned into a decision: may this be published?
+  // The one call an unattended run makes before it puts something in front of an audience.
+  r.get('/projects/:id/verdict', wrap(async (req, res) => {
+    // ?vision=0 skips the paid look — a caller polling the verdict should not buy one each time.
+    res.json(await projectVerdict(req.params.id, { vision: req.query.vision !== '0' }));
+  }));
 
   // Read the finished project back and report what a human would not catch — above all whether
   // the clip on disk still matches the design in the database. It reports; it never edits.
@@ -123,7 +137,7 @@ function mountProjects(r) {
       DB.updateProject(p.id, { config: { ...(p.config || {}), ...(req.body?.config || {}) } });
       // 'all' rather than a scene subset when clips are stale: renderOnly's subset mode skips the
       // join, and a half-applied change is worse than a slower one.
-      Pipeline.renderProject(p.id, { mode: plan.mode === 'concat' ? 'concat' : 'all' })
+      Pipeline.renderProject(p.id, { mode: plan.mode === 'concat' ? 'concat' : 'all' }, { actor: req.actor })
         .catch((e) => logger.error(e.message, { projectId: p.id }));
       res.json({ ok: true, plan, started: true });
     } catch (e) { res.status(400).json({ error: e.message }); }
@@ -177,7 +191,7 @@ function mountProjectEdits(r) {
         title: p.title, topic: p.topic, inputType: p.input_type,
         aspectRatio: cfg.aspectRatio || p.aspect_ratio, config: cfg, channelId: p.channel_id,
       });
-      Pipeline.startProject(fresh.id).catch((e) => logger.error(`restart failed: ${e.message}`, { projectId: fresh.id }));
+      Pipeline.startProject(fresh.id, { actor: req.actor }).catch((e) => logger.error(`restart failed: ${e.message}`, { projectId: fresh.id }));
       res.json({ projectId: fresh.id, status: 'running' });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
@@ -238,7 +252,7 @@ function mountProjectMaintenance(r) {
     Pipeline.renderProject(p.id, {
       mode: 'scenes', sceneIds: at.map((x) => x.id), alsoJoin: true,
       configOverrides: { thumbnailAi: false },
-    }).catch((e) => logger.error(e.message, { projectId: p.id }));
+    }, { actor: req.actor }).catch((e) => logger.error(e.message, { projectId: p.id }));
     res.json({ ok: true, atRisk: at.length, started: true });
   });
 
@@ -255,7 +269,7 @@ function mountProjectMaintenance(r) {
     // Consistent with the single delete: "xoá" means the files go too.
     let files = 0;
     let bytes = 0;
-    for (const p of DB.listProjects(DB.activeChannelId()) || []) {
+    for (const p of DB.listProjects(channelIdFor(req)) || []) {
       const r2 = purgeProjectFiles(p);
       files += r2.files; bytes += r2.bytes;
     }

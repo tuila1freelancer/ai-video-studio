@@ -21,6 +21,16 @@ import (
 // build, which loader.cjs will reject — a keyless launcher is a build error, not a runtime path.
 var appKey string
 
+// Where the runtime is, relative to this binary — or absolute, for an image whose node is installed
+// system-wide. Windows keeps the default; the Linux build passes node-linux/bin/node, and the
+// container passes /usr/local/bin/node. Injected the same way the key is, so one source builds all
+// three and nothing has to guess a layout.
+var nodeRel = "node-win/node.exe"
+
+// Where the payload is, relative to this binary. cwd is set to it: integrity.js finds app.jsc.json
+// by process.argv[1]'s directory, which is "." — so this is load-bearing, not cosmetic.
+var payloadRel = "app-payload"
+
 func main() {
 	// Resolve everything from the executable's own location, never the working directory: a
 	// per-machine install directory under Program Files is unpredictable, and so is cwd with it.
@@ -29,8 +39,11 @@ func main() {
 		os.Exit(1)
 	}
 	base := filepath.Dir(exe)
-	nodeExe := filepath.Join(base, "node-win", "node.exe")
-	payload := filepath.Join(base, "app-payload")
+	nodeExe := nodeRel
+	if !filepath.IsAbs(nodeExe) {
+		nodeExe = filepath.Join(base, nodeRel)
+	}
+	payload := filepath.Join(base, payloadRel)
 
 	// The V8 flags are the same doctrine as scripts/bytecode-flags.mjs, and both are mandatory: a
 	// missing --no-lazy makes V8 hand back no wrapper, a missing --no-flush-bytecode throws a

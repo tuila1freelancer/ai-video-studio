@@ -1,0 +1,16 @@
+# Everything the image does not need, and everything it must not carry.
+.git
+node_modules
+dist
+data
+vendor/node
+vendor/node-win
+vendor/node-linux
+vendor/whisper
+vendor/chrome
+AI Video Studio.app
+shell/build
+tests
+docs
+*.md
+!NOTICE.md

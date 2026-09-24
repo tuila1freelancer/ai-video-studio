@@ -21,7 +21,7 @@ test('P42: restart makes a NEW project — one click can never destroy a finishe
   assert.match(routes, /const fresh = DB\.createProject\(\{/, 'a fresh project, not an in-place wipe');
   assert.ok(!/deleteProject\(p\.id\)/.test(routes.slice(routes.indexOf("'/projects/:id/restart'"), routes.indexOf("'/projects/:id/restart'") + 900)),
     'the previous attempt survives for comparison');
-  assert.match(routes, /Pipeline\.startProject\(fresh\.id\)/, 'and it starts through the ordinary queue');
+  assert.match(routes, /Pipeline\.startProject\(fresh\.id[,)]/, 'and it starts through the ordinary queue');
 });
 
 test('P42: the publish caption is written from the narration and outranks the description', () => {

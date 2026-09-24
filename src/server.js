@@ -8,13 +8,16 @@ import { hub } from './ws/hub.js';
 import { bindHub, logger } from './util/log.js';
 import { openLogFile } from './util/log-file.js';
 import { sweepStale } from './util/sweep.js';
-import { assembleIndex } from './util/html-include.js';
-import { createHash } from 'node:crypto';
+import { notifyWebhooks } from './ops/webhooks.js';
 import { ensureDirs, DIRS, ROOT } from './config/paths.js';
+import { bootRefusal, host, isLoopback, mode } from './core/runtime-mode.js';
 import { mountRoutes } from './api/routes.js';
+import { mountStaticSite } from './api/static-site.js';
+import { authRefusal } from './api/middleware/auth.js';
+import { bootstrapToken } from './ops/bootstrap-token.js';
 import { errorHandler, processHealth } from './api/http.js';
 import { setUiLang } from './i18n/t.js';
-import db, { getSetting } from './db/index.js';
+import db, { getSetting, pruneIdempotency } from './db/index.js';
 
 // Both of these hang off ROOT rather than this file's own location: a release bundles the whole
 // server into one file, so "one directory up from here" stops meaning what it means in the repo.
@@ -29,6 +32,12 @@ const VERSION = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).ver
 // are load-bearing ordering (journal binds before any logger fanout, metering subscribes before
 // any run), so they stay exactly where they are; only their container changed.
 async function boot() {
+  // A container has nowhere to run `npm run token`, so it may mint its first one from the
+  // environment — on an empty token table only, and it says so in the log.
+  bootstrapToken();
+  // Before the port is open and before anything spends: a misconfigured deployment stops here.
+  const refusal = bootRefusal() || authRefusal();
+  if (refusal) { logger.error(refusal); process.exit(1); }
   ensureDirs();
   openLogFile(join(DIRS.data, 'logs'));
   bindHub(hub);
@@ -46,6 +55,15 @@ async function boot() {
   if (tamper) {
     license.markTampered(tamper);
     logger.error(`integrity: ${tamper} — bản cài đã bị can thiệp, khoá lại`);
+  }
+  // A server has nobody to click "sign in": the key comes from the environment, once, and only when
+  // this copy has none. Everything after activation — verification, the heartbeat, the grace period
+  // — is the path the app already uses.
+  if (process.env.AVS_LICENSE_KEY && license.status().state === 'missing') {
+    try {
+      await license.activate(process.env.AVS_LICENSE_KEY);
+      logger.info('license: kích hoạt tự động từ AVS_LICENSE_KEY');
+    } catch (e) { logger.error(`license: AVS_LICENSE_KEY không kích hoạt được — ${e.message}`); }
   }
   license.startLicenseLoop();
 
@@ -99,34 +117,7 @@ async function boot() {
   mountRoutes(app, { version: VERSION });
   app.use('/api', errorHandler);
 
-  // SPA static (after API so /api wins). Font filenames encode family+weight+subset,
-  // so /fonts can be cached immutable — a manifest change produces new URLs.
-  app.use('/fonts', express.static(join(PUBLIC_DIR, 'fonts'), { maxAge: '365d', immutable: true, fallthrough: false }));
-  // The document is assembled from its partials once, served from memory, always revalidated
-  // (the release build hashes everything it references). The partials themselves are not a page.
-  const indexHtml = assembleIndex(PUBLIC_DIR);
-  const indexEtag = `"${createHash('sha1').update(indexHtml).digest('hex').slice(0, 16)}"`;
-  const sendIndex = (req, res) => {
-    res.set('Cache-Control', 'no-cache');
-    res.set('ETag', indexEtag);
-    if (req.headers['if-none-match'] === indexEtag) return res.status(304).end();
-    res.type('html').send(indexHtml);
-  };
-  app.get(['/', '/index.html'], sendIndex);
-  app.use('/partials', (req, res) => res.status(404).end());
-  // A release build names every script and stylesheet by its content hash, so those can live in
-  // the cache forever; a dev tree has no hashes and every file is revalidated.
-  const HASHED = /-[A-Z0-9]{8}\.(?:js|css)$/;
-  app.use(express.static(PUBLIC_DIR, {
-    index: false,
-    setHeaders: (res, path) => { if (HASHED.test(path)) res.set('Cache-Control', 'public, max-age=31536000, immutable'); },
-  }));
-  // Deep links get the document; a missing asset gets a 404, not 120 KB of HTML parsed as script.
-  app.get('*', (req, res, next) => {
-    if (req.path.startsWith('/api')) return next();
-    if (/\.[a-z0-9]+$/i.test(req.path)) return res.status(404).end();
-    sendIndex(req, res);
-  });
+  mountStaticSite(app, PUBLIC_DIR);
 
   const server = http.createServer(app);
 
@@ -153,16 +144,21 @@ async function boot() {
   hub.attach(server);
   // The owner's interface language, restored before anything can produce a message in it.
   try { setUiLang(getSetting('uiLang')); } catch { /* first boot, no settings row yet */ }
-  server.listen(PORT, '127.0.0.1', () => {
+  const HOST = host();
+  server.listen(PORT, HOST, () => {
     const addr = server.address();
-    const url = `http://127.0.0.1:${addr.port}`;
+    // A bound wildcard is not an address anyone can open; the sentinel keeps naming a reachable one.
+    const url = `http://${isLoopback(HOST) ? '127.0.0.1' : HOST}:${addr.port}`;
     // Write port file so the native shell can discover the URL.
     try { writeFileSync(join(DIRS.data, 'server.url'), url); } catch { /* ignore */ }
-    logger.info(`AI Video Studio v${VERSION} ready`);
+    logger.info(`AI Video Studio v${VERSION} ready (${mode()})`);
     // Sentinel line the Swift/launcher waits for:
     console.log(`AVS_READY ${url}`);
     // Housekeeping after the UI is reachable, never before.
-    setTimeout(() => { sweepStale([DIRS.tmp, DIRS.uploads]).catch((e) => logger.warn(`sweep: ${e.message}`)); }, 15000).unref();
+    setTimeout(() => {
+      sweepStale([DIRS.tmp, DIRS.uploads]).catch((e) => logger.warn(`sweep: ${e.message}`));
+      try { pruneIdempotency(); } catch (e) { logger.warn(`idempotency sweep: ${e.message}`); }
+    }, 15000).unref();
   });
 
   // Everything this process owns goes down with it: spawned TTS servers (an orphan holds its port
@@ -191,6 +187,7 @@ async function boot() {
   const survived = (kind) => (e) => {
     logger.error(`${kind}: ${e?.stack || e?.message || e}`);
     processHealth.degraded = { kind, message: String(e?.message || e), at: Date.now() };
+    notifyWebhooks('server.degraded', processHealth.degraded);
   };
   process.on('unhandledRejection', survived('unhandledRejection'));
   process.on('uncaughtException', survived('uncaughtException'));
