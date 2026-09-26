@@ -1,36 +1,37 @@
 // Sign in with the store account; the licence follows automatically.
 //
-// The flow is the loopback bridge the store exposes for desktop apps: start a
-// listener on 127.0.0.1, open the system browser at the store's authorize
-// endpoint, receive a one-time code on the listener, trade it for a JWT pair.
-// With the session in hand the customer's licences are listed and the one for
-// this product is activated — nobody ever types a licence key.
+// The flow is RFC 8252 with PKCE: start a listener on 127.0.0.1, open the system
+// browser at the store's own page, receive a one-time code on the listener,
+// trade it for a link token. The store answers with the licences this account
+// holds FOR THIS PRODUCT — which product that is comes from the client key baked
+// into the build, never from a name typed in here — and the right one is
+// activated. Nobody ever types a licence key.
 //
-// Signing out forgets both the session and the licence: holding a licence on
-// this machine is something the signed-in account did, and it leaves with it.
+// Signing out forgets the session, the licence, and the link at the store:
+// holding a licence on this machine is something the signed-in account did, and
+// it leaves with it.
 import { createServer } from 'node:http';
-import { openExternal } from '../util/open-external.js';
+import { hostname } from 'node:os';
 import { logger } from '../util/log.js';
-import { PRODUCT_SLUG, configured, isDist, storeUrl, webUrl } from './config.js';
+import { openExternal } from '../util/open-external.js';
+import { clientApiKey, configured, PLATFORM, PRODUCT_SLUG, storeUrl, webUrl } from './config.js';
 import { activate, forgetLicense, status } from './index.js';
 import {
-  OfflineError,
-  StoreError,
-  desktopAuthorizeUrl,
-  desktopDevLogin,
+  clientKeyPrefix,
+  desktopLinkUrl,
+  desktopRevoke,
+  desktopSession,
   exchangeDesktopCode,
-  listMyLicenses,
+  OfflineError,
+  pkcePair,
   randomState,
-  refreshDesktopSession,
+  StoreError,
 } from './sdk.js';
 import { clearSession, readSession, writeSession } from './store.js';
 
 import { m, tp } from '../i18n/t.js';
 /** How long the browser tab may sit unfinished before the listener gives up. */
 const LOGIN_TIMEOUT_MS = 5 * 60 * 1000;
-
-/** Rotate the pair once the access token is past this age (its TTL is 15 min). */
-const SESSION_STALE_MS = 10 * 60 * 1000;
 
 let loginInFlight = null;
 
@@ -41,16 +42,15 @@ export function sessionAccount() {
 }
 
 /**
- * Which of the customer's licences this app should activate.
+ * Which of the account's licences this app should activate.
  *
- * Pure and exported for tests. Rules: only this product; `active` beats
- * anything else; among equals, the one expiring last (lifetime = null sorts
- * first of all) wins.
+ * Pure and exported for tests. The list already contains only this product's
+ * licences — the store narrowed it by the client key — so this ranks and does
+ * not filter: `active` beats anything else, and among equals the one expiring
+ * last wins (a lifetime licence, with no expiry, wins outright).
  */
-export function chooseLicense(licenses, slug = PRODUCT_SLUG) {
-  const mine = (Array.isArray(licenses) ? licenses : []).filter(
-    (l) => l?.product?.slug === slug && l?.key,
-  );
+export function chooseLicense(licenses) {
+  const mine = (Array.isArray(licenses) ? licenses : []).filter((l) => l?.key);
   if (mine.length === 0) return null;
   const rank = (l) => (l.status === 'active' ? 0 : 1);
   const expiry = (l) => (l.expiresAt ? new Date(l.expiresAt).getTime() : Number.POSITIVE_INFINITY);
@@ -78,26 +78,21 @@ export function signIn() {
 }
 
 async function runSignIn() {
-  const session = await obtainSession();
-  writeSession({
-    user: session.user,
-    accessToken: session.accessToken,
-    refreshToken: session.refreshToken,
-    obtainedAt: new Date().toISOString(),
-  });
-  logger.info(`đăng nhập cửa hàng: ${session.user.email}`);
-  const licenseFound = await adoptLicense(session.accessToken);
-  return { status: status({ fresh: true }), account: sessionAccount(), licenseFound };
-}
-
-/** List the account's licences and activate the right one, if there is one. */
-async function adoptLicense(accessToken) {
-  let licenses;
+  const { code, verifier } = await codeFromBrowser();
+  let linked;
   try {
-    licenses = await listMyLicenses(storeUrl(), accessToken);
+    linked = await exchangeDesktopCode(storeUrl(), clientApiKey(), { code, verifier });
   } catch (e) {
     throw translateAuthError(e);
   }
+  writeSession({ user: linked.user, token: linked.token, obtainedAt: new Date().toISOString() });
+  logger.info(`đăng nhập cửa hàng: ${linked.user?.email}`);
+  const licenseFound = await adoptLicense(linked.licenses);
+  return { status: status({ fresh: true }), account: sessionAccount(), licenseFound };
+}
+
+/** Activate the best of the licences the store just listed, if there is one. */
+async function adoptLicense(licenses) {
   const license = chooseLicense(licenses);
   if (!license) return false;
   await activate(license.key); // translates store refusals itself
@@ -105,20 +100,30 @@ async function adoptLicense(accessToken) {
 }
 
 /**
- * Sign-in again without a browser when the licence needs re-adopting (a new
- * device, an admin reset). Uses the stored session; throws 401-shaped when
- * the session is gone and a fresh sign-in is needed.
+ * Re-adopt without a browser: a new device, an admin reset, a licence bought
+ * after signing in. Uses the stored link; throws 401-shaped when it is gone and
+ * a fresh sign-in is needed.
  */
 export async function adoptWithStoredSession() {
-  const accessToken = await freshAccessToken();
-  if (!accessToken) {
+  const { token } = readSession();
+  if (!token) {
     throw withStatus(401, m('Phiên đăng nhập đã hết hạn. Đăng nhập lại để tiếp tục.'));
   }
-  return adoptLicense(accessToken);
+  let linked;
+  try {
+    linked = await desktopSession(storeUrl(), clientApiKey(), token);
+  } catch (e) {
+    throw translateAuthError(e);
+  }
+  // The account may have been renamed since; keep what the store says.
+  writeSession({ ...readSession(), user: linked.user });
+  return adoptLicense(linked.licenses);
 }
 
 /** Forget the session and the licence; the app locks on the next verdict. */
 export function signOut() {
+  const { token } = readSession();
+  if (token) unlinkAtStore(token);
   clearSession();
   const next = forgetLicense();
   logger.info('đã đăng xuất và gỡ license khỏi máy này');
@@ -126,52 +131,29 @@ export function signOut() {
 }
 
 /**
- * A usable access token from the stored session, rotating the pair when it is
- * older than SESSION_STALE_MS. Null when nobody is signed in; a session the
- * store refuses (revoked account, ancient refresh token) is cleared so the UI
- * asks for a fresh sign-in instead of failing forever.
+ * Tell the store this machine is signed out, without making the owner wait.
+ *
+ * A failure here is not worth showing: the session file is already gone, so the
+ * app is signed out either way, and the link expires on its own.
  */
-export async function freshAccessToken() {
-  const session = readSession();
-  if (!session.accessToken || !session.refreshToken) return null;
-  const age = Date.now() - new Date(session.obtainedAt || 0).getTime();
-  if (age < SESSION_STALE_MS) return session.accessToken;
-  try {
-    const rotated = await refreshDesktopSession(storeUrl(), session.refreshToken);
-    writeSession({
-      user: rotated.user,
-      accessToken: rotated.accessToken,
-      refreshToken: rotated.refreshToken,
-      obtainedAt: new Date().toISOString(),
-    });
-    return rotated.accessToken;
-  } catch (e) {
-    if (e instanceof OfflineError) return session.accessToken; // stale beats none while offline
-    clearSession();
-    return null;
-  }
+function unlinkAtStore(token) {
+  desktopRevoke(storeUrl(), clientApiKey(), token).catch((e) => {
+    logger.warn(`không thu hồi được liên kết ở cửa hàng: ${e.message}`);
+  });
 }
 
 // ---------------------------------------------------------------------------
 // The loopback dance
 // ---------------------------------------------------------------------------
 
-async function obtainSession() {
-  // Development shortcut: the store's dev-login mirrors Google without
-  // credentials. Dead in a shipped build — isDist() wins over any env var.
-  const devEmail = !isDist() && process.env.TOOLS_DEV_LOGIN_EMAIL;
-  if (devEmail) {
-    logger.warn(`đăng nhập dev (${devEmail}) — chỉ tồn tại khi chạy từ repo`);
-    return desktopDevLogin(storeUrl(), devEmail);
-  }
-  const code = await codeFromBrowser();
-  return exchangeDesktopCode(storeUrl(), code);
-}
-
-/** Run the listener + browser round-trip; resolve with the one-time code. */
+/**
+ * Run the listener plus the browser round-trip; resolve with the code and the
+ * verifier that proves this program asked for it.
+ */
 function codeFromBrowser() {
   return new Promise((resolve, reject) => {
     const state = randomState();
+    const { verifier, challenge } = pkcePair();
     let settled = false;
 
     const server = createServer((req, res) => {
@@ -190,8 +172,8 @@ function codeFromBrowser() {
       settled = true;
       clearTimeout(timer);
       server.close();
-      if (ok) resolve(code);
-      else if (err) reject(withStatus(401, m('Đăng nhập Google không thành công. Thử lại.')));
+      if (ok) resolve({ code, verifier });
+      else if (err) reject(withStatus(401, m('Đăng nhập không thành công. Thử lại.')));
       else reject(withStatus(400, m('Phản hồi đăng nhập không hợp lệ.')));
     });
 
@@ -214,8 +196,15 @@ function codeFromBrowser() {
     // collide. The store pins its redirect to 127.0.0.1 + this port.
     server.listen(0, '127.0.0.1', () => {
       const { port } = server.address();
-      const authorizeUrl = desktopAuthorizeUrl(storeUrl(), { state, port });
-      openExternal(authorizeUrl, (error) => {
+      const url = desktopLinkUrl(webUrl(), {
+        client: clientKeyPrefix(clientApiKey()),
+        state,
+        challenge,
+        port,
+        label: machineName(),
+        platform: PLATFORM,
+      });
+      openExternal(url, (error) => {
         if (!error || settled) return;
         settled = true;
         clearTimeout(timer);
@@ -224,6 +213,11 @@ function codeFromBrowser() {
       });
     });
   });
+}
+
+/** What the consent page shows beside the account, so the owner knows which machine. */
+function machineName() {
+  return String(hostname() || '').replace(/\.local$/, '') || null;
 }
 
 /** What the browser tab shows once its part is done. */
@@ -256,5 +250,5 @@ function withStatus(statusCode, message) {
 
 /** Where "Mua license" points — the product page for THIS app. */
 export function buyUrl() {
-  return `${webUrl()}/products/${PRODUCT_SLUG}`;
+  return `${webUrl()}/store/products/${PRODUCT_SLUG}`;
 }
