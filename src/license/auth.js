@@ -45,12 +45,17 @@ export function sessionAccount() {
  * Which of the account's licences this app should activate.
  *
  * Pure and exported for tests. The list already contains only this product's
- * licences — the store narrowed it by the client key — so this ranks and does
- * not filter: `active` beats anything else, and among equals the one expiring
- * last wins (a lifetime licence, with no expiry, wins outright).
+ * licences — the store narrowed it by the client key — so the only filtering
+ * left is dropping the ones the store would refuse to activate. `active` beats
+ * anything else, and among equals the one expiring last wins (a lifetime
+ * licence, with no expiry, wins outright).
  */
 export function chooseLicense(licenses) {
-  const mine = (Array.isArray(licenses) ? licenses : []).filter((l) => l?.key);
+  // Revoked and suspended are the two the store refuses outright; an expired one is still
+  // activated, because the token it returns is what carries the expiry and the grace window.
+  const mine = (Array.isArray(licenses) ? licenses : []).filter(
+    (l) => l?.key && l.status !== 'revoked' && l.status !== 'suspended',
+  );
   if (mine.length === 0) return null;
   const rank = (l) => (l.status === 'active' ? 0 : 1);
   const expiry = (l) => (l.expiresAt ? new Date(l.expiresAt).getTime() : Number.POSITIVE_INFINITY);

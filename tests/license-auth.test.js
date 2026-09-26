@@ -23,10 +23,16 @@ test('chooseLicense ranks what the store already narrowed to this product', () =
   assert.equal(chooseLicense([only]), only);
 });
 
-test('chooseLicense prefers active over anything else', () => {
+test('chooseLicense prefers active, and never offers one the store would refuse', () => {
   const revoked = lic({ id: 'r', status: 'revoked' });
   const active = lic({ id: 'a', status: 'active' });
   assert.equal(chooseLicense([revoked, active]).id, 'a');
+  // Alone, a revoked or suspended licence is no licence: activating it would fail and the sign-in
+  // would read as an error instead of "this account owns nothing here".
+  assert.equal(chooseLicense([revoked]), null);
+  assert.equal(chooseLicense([lic({ status: 'suspended' })]), null);
+  // Expired is different: the store still activates it and the token carries the grace window.
+  assert.equal(chooseLicense([lic({ id: 'e', status: 'expired' })]).id, 'e');
 });
 
 test('chooseLicense prefers the licence expiring last; lifetime beats all', () => {
