@@ -68,8 +68,15 @@ export const PLATFORM = platformName();
 /** Which release channel this build follows. */
 export const CHANNEL = process.env.TOOLS_UPDATE_CHANNEL || 'stable';
 
-/** The store product this app is sold as. The one constant that differs between apps. */
-export const PRODUCT_SLUG = 'ai-video-generation';
+/**
+ * The store product this app is sold as.
+ *
+ * A label and a link, nothing more: which licences belong to this app is
+ * decided by the client key baked into the build, not by this string. It cost a
+ * production outage to learn the difference — renaming the product in the store
+ * used to tell every paying customer they owned nothing.
+ */
+export const PRODUCT_SLUG = 'ai-video-studio';
 
 /**
  * Where humans go — the storefront. In production web and API share one origin, so this is the

@@ -10,7 +10,7 @@
 //   - errors are CLASSIFIED. "No network" and "your licence was revoked" look identical to a
 //     `fetch` that rejects, and treating the first like the second would lock a paying customer
 //     out of their own work the moment their wifi drops.
-import { createVerify, randomBytes } from 'node:crypto';
+import { createHash, createVerify, randomBytes } from 'node:crypto';
 
 import { m } from '../i18n/t.js';
 import { safeJson } from '../util/util.js';
@@ -143,31 +143,48 @@ export function isWithinGrace(claims, now = new Date()) {
 // ============================================================================
 // Desktop sign-in bridge (client half)
 //
-// Mirrors the desktop-auth helpers in `@tools/sdk`. The app starts a loopback
-// listener, opens the browser at `desktopAuthorizeUrl(...)`, trades the
-// one-time code for a JWT pair, then finds the customer's licence with
-// `listMyLicenses(...)` — nobody types a licence key.
+// RFC 8252 with PKCE. The app opens a loopback port, sends the owner to the
+// store's own page, and trades the one-time code for a link token.
+//
+// Two things travel with the machine half of the flow: the client key baked
+// into this build, which is how the store knows WHICH PRODUCT is asking — no
+// slug is ever typed into the app, so renaming a product in the store cannot
+// strand a paying customer — and the PKCE verifier, which proves the program
+// redeeming the code is the one that started the flow.
 // ============================================================================
 
-/** An unguessable, URL-safe `state` for the loopback flow. */
+/** The public half of a client key — `pk_xxxxxxxx.<secret>` — safe to put in a URL. */
+export function clientKeyPrefix(apiKey) {
+  return String(apiKey || '').split('.')[0];
+}
+
+/** An unguessable, URL-safe nonce for the loopback round-trip. */
 export function randomState() {
   return randomBytes(24).toString('base64url');
 }
 
-/** The URL the system browser opens to start a desktop sign-in. */
-export function desktopAuthorizeUrl(baseUrl, { state, port }) {
-  const origin = String(baseUrl).replace(/\/+$/, '');
-  const params = new URLSearchParams({ state, port: String(port) });
-  return `${origin}/api/auth/desktop/authorize?${params}`;
+/** A PKCE pair: the secret stays here, only its digest goes through the browser. */
+export function pkcePair() {
+  const verifier = randomBytes(32).toString('base64url');
+  return { verifier, challenge: createHash('sha256').update(verifier).digest('base64url') };
 }
 
-async function desktopRequest(baseUrl, path, body) {
+/** The store page the system browser opens to start a sign-in. */
+export function desktopLinkUrl(webBase, { client, state, challenge, port, label, platform }) {
+  const origin = String(webBase).replace(/\/+$/, '');
+  const params = new URLSearchParams({ client, state, challenge, port: String(port) });
+  if (label) params.set('label', label);
+  if (platform) params.set('platform', platform);
+  return `${origin}/link/desktop?${params}`;
+}
+
+async function desktopRequest(baseUrl, apiKey, path, body) {
   const origin = String(baseUrl).replace(/\/+$/, '');
   let res;
   try {
     res = await fetch(`${origin}${path}`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', 'x-api-key': apiKey },
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
@@ -182,37 +199,22 @@ async function desktopRequest(baseUrl, path, body) {
   return json;
 }
 
-/** Trade the one-time code from the loopback redirect for a session. */
-export function exchangeDesktopCode(baseUrl, code) {
-  return desktopRequest(baseUrl, '/api/auth/desktop/exchange', { code });
+/** Trade the one-time code from the loopback redirect for the link token. */
+export function exchangeDesktopCode(baseUrl, apiKey, { code, verifier }) {
+  return desktopRequest(baseUrl, apiKey, '/api/auth/desktop/exchange', { code, verifier });
 }
 
-/** Rotate a stored session before its access token runs out. */
-export function refreshDesktopSession(baseUrl, refreshToken) {
-  return desktopRequest(baseUrl, '/api/auth/desktop/refresh', { refreshToken });
+/**
+ * Ask the store who this machine is linked to and what it owns.
+ *
+ * The answer is already narrowed to this product by the client key, so the app
+ * never filters licences by name — there is no name to get wrong.
+ */
+export function desktopSession(baseUrl, apiKey, token) {
+  return desktopRequest(baseUrl, apiKey, '/api/auth/desktop/session', { token });
 }
 
-/** Development-only: a session for any email while the store runs without Google. */
-export function desktopDevLogin(baseUrl, email) {
-  return desktopRequest(baseUrl, '/api/auth/desktop/dev-login', { email });
-}
-
-/** The signed-in customer's licences, for picking the one this app activates. */
-export async function listMyLicenses(baseUrl, accessToken) {
-  const origin = String(baseUrl).replace(/\/+$/, '');
-  let res;
-  try {
-    res = await fetch(`${origin}/api/me/licenses`, {
-      headers: { authorization: `Bearer ${accessToken}` },
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-    });
-  } catch (e) {
-    throw new OfflineError(e?.message || m('không kết nối được tới cửa hàng'));
-  }
-  const text = await res.text().catch(() => '');
-  const json = text ? safeJson(text, null) : null;
-  if (!res.ok) {
-    throw new StoreError(res.status, json?.message || text || `HTTP ${res.status}`, json);
-  }
-  return Array.isArray(json) ? json : [];
+/** Sign this machine out at the store, so the token stops working everywhere. */
+export function desktopRevoke(baseUrl, apiKey, token) {
+  return desktopRequest(baseUrl, apiKey, '/api/auth/desktop/revoke', { token });
 }

@@ -23,7 +23,7 @@ function token(claims = {}) {
   const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
   const header = b64({ alg: 'RS256', typ: 'JWT' });
   const payload = b64({
-    licenseKey: KEY, productSlug: 'ai-video-generation', plan: 'Pro Monthly', features: [],
+    licenseKey: KEY, productSlug: 'ai-video-studio', plan: 'Pro Monthly', features: [],
     deviceId: deviceId(), expiresAt: null, graceUntil: null, iat: now, exp: now + 2_592_000, ...claims,
   });
   const s = createSign('RSA-SHA256');
