@@ -29,6 +29,17 @@ npm run test:smoke
       everyone else.
 - [ ] Manual read on screen, not only extracted: open **Hướng dẫn**, check the chapters that changed,
       the `go` buttons and the `code` blocks.
+- [ ] The client key about to be baked belongs to **this** product. Ask the store rather than
+      trusting the variable name:
+
+      ```bash
+      curl -s "$TOOLS_PLATFORM_URL/api/auth/desktop/app?client=${TOOLS_STORE_CLIENT_KEY%%.*}"
+      # {"product":{"slug":"ai-video-studio",…},"keyName":"macOS build"}
+      ```
+
+      A key from another product would build an app that signs in happily and then reports no
+      licence — which is exactly the failure this release exists to end. The store's side of the
+      flow is documented in the store repository, `docs/DESKTOP-LINK.md`.
 
 ## 2. macOS
 
@@ -85,4 +96,6 @@ On a real Windows machine (Windows 10 or 11, x64):
 ## 4. After publishing
 
 - [ ] Download the published artefact and open it — not the one in `dist/`.
+- [ ] Sign in from that copy: the browser must show **the store's page naming this app**, and the
+      app must come back holding the licence. Then sign out and check the licence badge locks.
 - [ ] Update `JOURNAL.md` and the release notes.
