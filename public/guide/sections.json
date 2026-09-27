@@ -82,16 +82,16 @@
           {
             "i": "📚",
             "t": "Thư viện",
-            "d": "Brand asset, nhạc nền, hiệu ứng âm thanh, font chữ."
+            "d": "Ảnh Brand, nhạc nền, hiệu ứng âm thanh, font chữ."
           },
           {
             "i": "🎨",
-            "t": "Brand Asset",
+            "t": "Ảnh Brand",
             "d": "Xưởng sinh nhân vật thương hiệu bằng AI, nền trong suốt."
           },
           {
             "i": "✂️",
-            "t": "Edit Video",
+            "t": "Sửa video",
             "d": "Cắt video có sẵn, bóc lời thoại, phủ đồ hoạ lên footage."
           },
           {
@@ -474,7 +474,7 @@
             "Mô tả bạn muốn thấy gì, AI dựng lại hình ảnh theo mô tả đó."
           ],
           [
-            "&lt;/&gt; HTML",
+            "</> HTML",
             "Sửa thẳng mã nguồn cảnh (**⌘↵** để áp dụng), hoặc **Sửa bằng lời** — nói bạn muốn đổi gì, AI chỉnh đúng chỗ đó và giữ nguyên phần còn lại. “Bỏ bản sửa tay” trả cảnh về bản AI dựng."
           ],
           [
@@ -775,7 +775,7 @@
         "items": [
           {
             "i": "🎨",
-            "t": "Brand Asset",
+            "t": "Ảnh Brand",
             "d": "Nhân vật, concept art, ảnh nền theo thư mục brand. AI lấy từ đây khi bật “Asset thương hiệu tự động”."
           },
           {
@@ -816,12 +816,12 @@
     "id": "brandgen",
     "grp": "Màn hình",
     "ic": "🎨",
-    "title": "Tạo Brand Asset",
+    "title": "Tạo ảnh Brand",
     "lede": "Một ảnh tham chiếu → cả bộ nhân vật với hàng chục cảm xúc, nền trong suốt.",
     "blocks": [
       {
         "t": "where",
-        "text": "Thanh trên cùng → Brand Asset"
+        "text": "Thanh trên cùng → Ảnh Brand"
       },
       {
         "t": "steps",
@@ -865,7 +865,7 @@
         "t": "go",
         "items": [
           {
-            "label": "🎨 Mở Brand Asset",
+            "label": "🎨 Mở Ảnh Brand",
             "act": "page",
             "arg": "brandgen"
           }
@@ -877,12 +877,12 @@
     "id": "editvideo",
     "grp": "Màn hình",
     "ic": "✂️",
-    "title": "Edit Video",
+    "title": "Sửa video",
     "lede": "Cho footage có sẵn: cắt, bóc lời thoại, phủ đồ hoạ động lên trên.",
     "blocks": [
       {
         "t": "where",
-        "text": "Thanh trên cùng → Edit Video"
+        "text": "Thanh trên cùng → Sửa video"
       },
       {
         "t": "defs",
@@ -913,7 +913,7 @@
         "t": "go",
         "items": [
           {
-            "label": "✂️ Mở Edit Video",
+            "label": "✂️ Mở Sửa video",
             "act": "page",
             "arg": "editvideo"
           }
@@ -1733,7 +1733,7 @@
           ],
           [
             "whisper",
-            "Không đi kèm bản phát hành (nặng vài trăm MB). Thiếu whisper thì phụ đề vẫn chạy — xem dưới — nhưng **bóc lời thoại** trong Edit Video thì cần."
+            "Không đi kèm bản phát hành (nặng vài trăm MB). Thiếu whisper thì phụ đề vẫn chạy — xem dưới — nhưng **bóc lời thoại** trong Sửa video thì cần."
           ],
           [
             "Giọng đọc offline",
