@@ -30,7 +30,7 @@ function sign(claims, { ttlSec = 3600 } = {}) {
 }
 
 const DEVICE = 'AAAA-BBBB-CCCC';
-const base = { licenseKey: 'TOOLS-1111-2222-3333-4444', productSlug: 'ai-video-generation', plan: 'Pro Monthly', features: [], deviceId: DEVICE };
+const base = { licenseKey: 'TOOLS-1111-2222-3333-4444', productSlug: 'ai-video-studio', plan: 'Pro Monthly', features: [], deviceId: DEVICE };
 const ask = (file, extra = {}) =>
   licenseState({ file, device: DEVICE, publicKeyPem: PEM, ...extra });
 
