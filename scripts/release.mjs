@@ -169,15 +169,7 @@ try {
     console.log('· dry-run: bỏ qua upload\n');
   } else {
     // ---- 8. upload + publish ------------------------------------------------------------------
-    console.log('· xin URL upload…');
-    const uploadUrl = await postJson('/versions/upload-url', { filename: zipName });
-    console.log('· tải bản build lên kho…');
-    const put = await fetch(uploadUrl.uploadUrl, {
-      method: 'PUT',
-      headers: { 'content-type': 'application/zip' },
-      body: finalBytes,
-    });
-    if (!put.ok) die(`upload thất bại: HTTP ${put.status}`);
+    const storageKey = await uploadBuild(zipName, finalBytes);
 
     console.log('· phát hành phiên bản…');
     await postJson('/versions', {
@@ -185,7 +177,7 @@ try {
       platform: PLATFORM,
       channel: args.channel || 'stable',
       changelog: notes || undefined,
-      storageKey: uploadUrl.storageKey,
+      storageKey,
       fileSize: finalSize,
       checksum: finalChecksum,
     });
@@ -203,6 +195,94 @@ try {
   restoreConfig();
   restoreConfig = () => {};
   console.log('· đã khôi phục src/license/config.js (không commit khoá)');
+}
+
+/**
+ * How much of a build may travel in one request.
+ *
+ * Not our ceiling to raise: Cloudflare refuses a proxied body over 100 MB, and
+ * it refuses it at the edge — the store never hears about the upload at all.
+ * Anything bigger goes up in parts, which the store stitches back together.
+ */
+const SINGLE_PUT_LIMIT = 64 * 1024 * 1024;
+/** Parts in flight at once. Three fills a home uplink without starving any of them. */
+const LANES = 3;
+/** A part the network dropped is worth asking for again before failing a release. */
+const ATTEMPTS = 3;
+
+async function putBytes(url, bytes) {
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: { 'content-type': 'application/zip' },
+    body: bytes,
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+}
+
+/** Send the build to the store and answer with the key it was filed under. */
+async function uploadBuild(zipName, bytes) {
+  if (bytes.length <= SINGLE_PUT_LIMIT) {
+    console.log('· xin URL upload…');
+    const { uploadUrl, storageKey } = await postJson('/versions/upload-url', { filename: zipName });
+    console.log('· tải bản build lên kho…');
+    await putBytes(uploadUrl, bytes).catch((e) => die(`upload thất bại: ${e.message}`));
+    return storageKey;
+  }
+
+  console.log('· mở phiên upload nhiều phần…');
+  const { storageKey, uploadId, partSize } = await postJson('/versions/multipart', {
+    filename: zipName,
+  });
+  const count = Math.ceil(bytes.length / partSize);
+  console.log(`· tải lên ${count} phần × ${(partSize / 1024 / 1024).toFixed(0)} MB…`);
+  try {
+    const { urls } = await request('/versions/multipart/urls', {
+      storageKey,
+      uploadId,
+      parts: Array.from({ length: count }, (_, i) => i + 1),
+    });
+    const byPart = new Map(urls.map((u) => [u.partNumber, u.url]));
+
+    let next = 0;
+    let done = 0;
+    const lane = async () => {
+      for (let i = next++; i < count; i = next++) {
+        const chunk = bytes.subarray(i * partSize, Math.min((i + 1) * partSize, bytes.length));
+        for (let attempt = 1; ; attempt += 1) {
+          try {
+            await putBytes(byPart.get(i + 1), chunk);
+            break;
+          } catch (e) {
+            if (attempt >= ATTEMPTS) throw new Error(`phần ${i + 1}: ${e.message}`);
+          }
+        }
+        console.log(`  · ${++done}/${count}`);
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(LANES, count) }, lane));
+
+    console.log('· ghép các phần…');
+    const stitched = await request('/versions/multipart/complete', { storageKey, uploadId });
+    if (stitched.fileSize !== bytes.length) {
+      throw new Error(`kho nhận ${stitched.fileSize} byte, file là ${bytes.length}`);
+    }
+    return storageKey;
+  } catch (e) {
+    // Parts nobody completes sit in the bucket and are billed for; say so and clear them.
+    await request('/versions/multipart/abort', { storageKey, uploadId }).catch(() => {});
+    return die(`upload thất bại: ${e.message}`);
+  }
+}
+
+/** Like `postJson`, but it throws instead of exiting — the caller still has cleanup to do. */
+async function request(path, body) {
+  const res = await fetch(`${storeUrl}/api/v1${path}`, {
+    method: 'POST',
+    headers: { 'x-api-key': publisherKey, 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`POST ${path} → HTTP ${res.status}: ${await res.text()}`);
+  return res.json();
 }
 
 async function postJson(path, body) {
