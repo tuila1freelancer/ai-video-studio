@@ -89,6 +89,20 @@ test('a distributed app keeps its data where macOS expects, not inside the bundl
   assert.match(sourceOf('shell/main.swift'), /for \(k, v\) in EXTRA_ENV \{ env\[k\] = v \}/);
 });
 
+test('a build too big for one request goes up in parts, and never leaves parts behind', () => {
+  const rel = sourceOf('scripts/release.mjs');
+  // Cloudflare refuses a proxied body over 100 MB at the edge — the store never hears about it.
+  // The macOS zip is 102 MB and the Windows installer twice that, so one PUT stopped being a
+  // release path on 27/09; this is what replaced it.
+  assert.match(rel, /SINGLE_PUT_LIMIT/);
+  assert.match(rel, /\/versions\/multipart'/, 'the upload is opened as a session');
+  assert.match(rel, /\/versions\/multipart\/urls'/, 'each part gets its own presigned URL');
+  assert.match(rel, /\/versions\/multipart\/complete'/, 'and the store stitches them');
+  // A half-finished upload is billed for until somebody clears it.
+  assert.match(rel, /\/versions\/multipart\/abort'/);
+  assert.match(rel, /stitched\.fileSize !== bytes\.length/, 'what arrived is what was sent');
+});
+
 test('an unsigned release says so instead of quietly shipping a build Gatekeeper blocks', () => {
   const rel = sourceOf('scripts/release.mjs');
   assert.match(rel, /BẢN NÀY CHƯA ĐƯỢC NOTARIZE/);
