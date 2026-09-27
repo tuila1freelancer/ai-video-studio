@@ -96,7 +96,7 @@ export function publicStatus() {
     graceUntil: claims?.graceUntil || null,
     lastOnlineAt: readStore().lastOnlineAt || null,
     productSlug: PRODUCT_SLUG,
-    buyUrl: configured() ? `${webUrl()}/products/${PRODUCT_SLUG}` : null,
+    buyUrl: configured() ? `${webUrl()}/store/products/${PRODUCT_SLUG}` : null,
     devicesUrl: configured() ? `${webUrl()}/dashboard/devices` : null,
   };
 }

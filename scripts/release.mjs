@@ -196,7 +196,7 @@ try {
   console.log(`   file      : dist/${zipName}`);
   console.log(`   dung lượng: ${(finalSize / 1024 / 1024).toFixed(1)} MB`);
   console.log(`   sha256    : ${finalChecksum}`);
-  console.log(`   sản phẩm  : ${storeUrl}/products/ai-video-generation`);
+  console.log(`   sản phẩm  : ${storeUrl}/store/products/ai-video-studio`);
   console.log('\n   Git chưa được push — kiểm tra rồi commit/push thủ công.\n');
 } finally {
   // Whatever happened, the working tree goes back to a config with no key in it.

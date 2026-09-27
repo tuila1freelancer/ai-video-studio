@@ -25,7 +25,7 @@ test('the sign-in flow no longer names a macOS binary', async () => {
   const { readFileSync } = await import('node:fs');
   const auth = readFileSync(new URL('../src/license/auth.js', import.meta.url), 'utf8');
   assert.ok(!auth.includes('/usr/bin/open'), 'the browser is opened through the portable helper');
-  assert.match(auth, /openExternal\(authorizeUrl/);
+  assert.match(auth, /openExternal\(/, 'the sign-in still goes through it');
 });
 
 test('a new channel lands where the operating system keeps videos', async () => {

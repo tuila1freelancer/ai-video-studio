@@ -6,6 +6,7 @@ import { loadPickerFonts } from './fonts.js';
 import { RES_LABEL } from './subtitle-studio.js';
 import { syncFramePreviewAvailability } from './frame-preview.js';
 import { hfCurrentStyle } from './hf-style.js';
+import { subPresetName } from './presets.js';
 import { rafThrottle } from '../../ui/timing.js';
 
 // ================= config groups: summary cards + edit modal =================
@@ -80,7 +81,7 @@ export function updateCfgChips() {
   // lifted out of the tagged template: a regex literal inside tp`…` derails msgid extraction
   const subFont = $('#cfgSubFont').value.split(',')[0].replace(/['"]/g, '');
   set('subtitle', $('#cfgSub').checked
-    ? tp`${sp ? sp.name : m('Tuỳ chỉnh')} · ${subMode}${subChunk} · ${subFont} · cỡ ${$('#cfgSubSize').value} · vị trí ${pos}`
+    ? tp`${sp ? subPresetName(sp) : m('Tuỳ chỉnh')} · ${subMode}${subChunk} · ${subFont} · cỡ ${$('#cfgSubSize').value} · vị trí ${pos}`
     : m('Tắt phụ đề'));
   const lv = state.settings?.tts?.langVoices?.vi;
   const voice = lv ? `${lv.voice} (${lv.provider})` : (state.settings?.tts?.provider ? `provider ${state.settings.tts.provider}` : m('tự chọn'));
