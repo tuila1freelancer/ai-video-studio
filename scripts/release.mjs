@@ -25,6 +25,24 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const APP = process.env.AVS_APP_PATH || join(ROOT, 'AI Video Studio.app');
 const PLATFORM = 'macos-arm64';
 
+/**
+ * How much of a build may travel in one request.
+ *
+ * Not our ceiling to raise: Cloudflare refuses a proxied body over 100 MB, and
+ * it refuses it at the edge — the store never hears about the upload at all.
+ * Anything bigger goes up in parts, which the store stitches back together.
+ *
+ * Declared up here, not beside `uploadBuild`: the main flow calls that function
+ * before execution ever reaches the bottom of the file, and a `const` read
+ * before its declaration line runs is a ReferenceError, not a hoisted value.
+ */
+const SINGLE_PUT_LIMIT = 64 * 1024 * 1024;
+/** Parts in flight at once. Three fills a home uplink without starving any of them. */
+const LANES = 3;
+/** A part the network dropped is worth asking for again before failing a release. */
+const ATTEMPTS = 3;
+
+
 const args = parseArgs(process.argv.slice(2));
 const run = (cmd, argv, opts = {}) =>
   execFileSync(cmd, argv, { cwd: ROOT, stdio: 'inherit', ...opts });
@@ -196,19 +214,6 @@ try {
   restoreConfig = () => {};
   console.log('· đã khôi phục src/license/config.js (không commit khoá)');
 }
-
-/**
- * How much of a build may travel in one request.
- *
- * Not our ceiling to raise: Cloudflare refuses a proxied body over 100 MB, and
- * it refuses it at the edge — the store never hears about the upload at all.
- * Anything bigger goes up in parts, which the store stitches back together.
- */
-const SINGLE_PUT_LIMIT = 64 * 1024 * 1024;
-/** Parts in flight at once. Three fills a home uplink without starving any of them. */
-const LANES = 3;
-/** A part the network dropped is worth asking for again before failing a release. */
-const ATTEMPTS = 3;
 
 async function putBytes(url, bytes) {
   const res = await fetch(url, {
