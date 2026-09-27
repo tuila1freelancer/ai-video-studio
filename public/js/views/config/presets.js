@@ -67,6 +67,29 @@ export function wirePresetBar() {
 }
 
 // ================= subtitle preset gallery =================
+
+/**
+ * The name a built-in preset is shown under.
+ *
+ * `src/subtitles/presets.js` is pure data shared with the render path, so it carries no
+ * catalogue; the eight names it ships were Vietnamese in every language until this map put them
+ * where `m()` can reach them. A preset the owner saved keeps the name they typed.
+ */
+const BUILT_IN_NAMES = {
+  'classic-karaoke': () => m('Karaoke Vàng'),
+  'bold-impact': () => m('Impact Đậm'),
+  'neon-glow': () => m('Neon Rực'),
+  'boxed-news': () => m('Bản Tin'),
+  'shadow-cinema': () => m('Điện Ảnh'),
+  'clean-minimal': () => m('Tối Giản'),
+  'pop-rounded': () => m('Pop Tròn'),
+  'condensed-sport': () => m('Thể Thao'),
+};
+
+export function subPresetName(preset) {
+  const named = !preset?.mine && BUILT_IN_NAMES[preset?.id];
+  return named ? named() : preset?.name || '';
+}
 export async function loadSubtitlePresets() {
   try { state.subPresets = (await api.get('/subtitle-presets')).presets || []; } catch { state.subPresets = []; }
   renderSubPresetGrid();
@@ -82,7 +105,7 @@ export function renderSubPresetGrid() {
     return `<div class="sub-preset-card${state.subPreset === p.id ? ' sel' : ''}" data-id="${p.id}">
       ${p.mine ? `<button class="spc-del" title="${m('Xoá bộ mẫu này')}">×</button>` : ''}
       <div class="spc-demo" style="font-family:${p.fontStack};font-weight:${p.weight};color:${p.activeColor};${fx}">${txt} <span style="color:${p.baseColor};opacity:.75">${m('mẫu')}</span></div>
-      <div class="spc-name">${p.mine ? '★ ' : ''}${esc(p.name)}</div>
+      <div class="spc-name">${p.mine ? '★ ' : ''}${esc(subPresetName(p))}</div>
     </div>`;
   }).join('');
   grid.innerHTML = `<div class="sub-preset-card${!state.subPreset ? ' sel' : ''}" data-id="">

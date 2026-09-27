@@ -24,6 +24,20 @@ const WRITE = process.argv.includes('--write');
 const VN = /[àáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵđ]/i;
 const ATTRS = ['title', 'placeholder', 'aria-label', 'data-tip', 'alt'];
 
+/**
+ * Markup text as a person reads it.
+ *
+ * The catalogue is written back with `textContent`, which does not decode anything — so an
+ * `&amp;` harvested verbatim reached every translated language as the four characters "&amp;".
+ * Vietnamese never showed it, because the source language leaves the parsed DOM alone.
+ */
+const ENTITIES = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: '\u00a0' };
+const decode = (s) =>
+  String(s).replace(/&(#\d+|#x[0-9a-f]+|[a-z]+);/gi, (whole, body) => {
+    if (body[0] === '#') return String.fromCodePoint(Number(body.replace('#x', '0x').slice(1) || 0));
+    return ENTITIES[body.toLowerCase()] ?? whole;
+  });
+
 const slug = (s) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd')
   .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').split('-').slice(0, 5).join('-').slice(0, 34) || 'x';
 
@@ -73,10 +87,10 @@ function tagFile(html, { found, used }) {
       // Already tagged by hand: harvest its text under the key it was given, so a string that is
       // translatable but carries no Vietnamese diacritic (`API key`, `FPS`) can still be keyed.
       const tagged = tg.attrs.match(new RegExp(`\\bdata-i18n-${a}="([^"]+)"`));
-      if (tagged) { if (m[1].trim()) found.set(tagged[1], m[1]); continue; }
+      if (tagged) { if (m[1].trim()) found.set(tagged[1], decode(m[1])); continue; }
       if (/\bdata-i18n/.test(tg.attrs) || !VN.test(m[1])) continue;
       const key = keyFor(tg.scope, m[1]);
-      found.set(key, m[1]);
+      found.set(key, decode(m[1]));
       edits.push({ at: tg.end - (tg.full.endsWith('/>') ? 2 : 1), insert: ` data-i18n-${a}="${key}"` });
     }
   }
@@ -92,7 +106,7 @@ function tagFile(html, { found, used }) {
       // catalogue for interface chrome that happens to be spelled in ASCII.
       const owner = [...tags].reverse().find((tg) => tg.end === m.index + 1);
       const key = owner && (owner.attrs.match(/\bdata-i18n="([^"]+)"/) || [])[1];
-      if (key) { found.set(key, trimmed); continue; }
+      if (key) { found.set(key, decode(trimmed)); continue; }
     }
     if (!VN.test(raw)) continue;
     // The run may follow an OPEN tag (`<b>text`) or a CLOSE tag (`</span> text`, which is how
@@ -103,7 +117,7 @@ function tagFile(html, { found, used }) {
     const closeTag = open ? html.indexOf(`</${open.name}`, open.end) : -1;
     const wholeContent = !!open && closeTag >= 0 && html.slice(open.end, closeTag).trim() === trimmed;
     const key = keyFor(scope, trimmed);
-    found.set(key, trimmed);
+    found.set(key, decode(trimmed));
     if (wholeContent) {
       // The element's entire content — tag the element and replace its text at runtime.
       edits.push({ at: open.end - (open.full.endsWith('/>') ? 2 : 1), insert: ` data-i18n="${key}"` });
