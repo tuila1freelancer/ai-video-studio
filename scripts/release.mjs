@@ -47,6 +47,9 @@ const args = parseArgs(process.argv.slice(2));
 const PLATFORMS = ['macos-arm64', 'windows-x64'];
 const PLATFORM = typeof args.platform === 'string' ? args.platform : 'macos-arm64';
 const WINDOWS = PLATFORM === 'windows-x64';
+
+/** What the object is stored as; the download sets its own filename on top of this. */
+const CONTENT_TYPE = WINDOWS ? 'application/vnd.microsoft.portable-executable' : 'application/zip';
 const run = (cmd, argv, opts = {}) =>
   execFileSync(cmd, argv, { cwd: ROOT, stdio: 'inherit', ...opts });
 
@@ -238,9 +241,6 @@ try {
   restoreConfig = () => {};
   console.log('· đã khôi phục src/license/config.js (không commit khoá)');
 }
-
-/** What the object is stored as; the download sets its own filename on top of this. */
-const CONTENT_TYPE = WINDOWS ? 'application/vnd.microsoft.portable-executable' : 'application/zip';
 
 async function putBytes(url, bytes) {
   const res = await fetch(url, {
