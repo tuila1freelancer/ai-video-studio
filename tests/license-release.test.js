@@ -104,10 +104,13 @@ test('a build too big for one request goes up in parts, and never leaves parts b
   // The main flow calls uploadBuild() long before execution reaches the bottom of the file, so a
   // limit declared down there is a ReferenceError at release time, not a hoisted value. It cost
   // one release run to learn; this keeps the declaration above the code that reads it.
-  assert.ok(
-    rel.indexOf('const SINGLE_PUT_LIMIT') < rel.indexOf('async function uploadBuild'),
-    'SINGLE_PUT_LIMIT must be declared before the function that reads it',
-  );
+  const uploadStarts = rel.indexOf('async function uploadBuild');
+  for (const name of ['SINGLE_PUT_LIMIT', 'LANES', 'ATTEMPTS', 'CONTENT_TYPE']) {
+    assert.ok(
+      rel.indexOf(`const ${name}`) >= 0 && rel.indexOf(`const ${name}`) < uploadStarts,
+      `${name} must be declared before the upload code that reads it`,
+    );
+  }
 });
 
 test('an unsigned release says so instead of quietly shipping a build Gatekeeper blocks', () => {
