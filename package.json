@@ -1,6 +1,6 @@
 {
   "name": "ai-video-studio",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "AI Video Studio — tạo video tự động (dài tuỳ ý) cho macOS. Node 22 backend + native WKWebView shell.",
   "type": "module",
   "main": "shell/electron/main.cjs",
