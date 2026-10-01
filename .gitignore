@@ -11,3 +11,8 @@ shell/build/
 
 # Electron build output — 99 MB artifacts, rebuilt on demand
 dist/electron/
+
+# Release credentials — TOOLS_STORE_* keys are live; a single `git add -A` would publish them.
+.env
+.env.*
+!.env.example
