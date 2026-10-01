@@ -12,20 +12,23 @@
 .nav-brand{display:flex;align-items:center;gap:9px;font-weight:700;letter-spacing:.01em;white-space:nowrap;flex-shrink:0}
 .nav-brand .logo{width:26px;height:26px;display:grid;place-items:center;flex-shrink:0;filter:drop-shadow(0 2px 10px rgba(109,92,255,.4))}
 .nav-brand small{display:block;font-size:9px;color:var(--text-3);font-weight:600;letter-spacing:.08em}
-.nav-items{display:flex;align-items:center;gap:3px;min-width:0}
+/* Never narrower than its items: they do not shrink, so a collapsed track makes them
+   overflow and paint over the channel picker and the badge that follow. */
+.nav-items{display:flex;align-items:center;gap:3px;flex-shrink:0}
 .nav .nav-channel{flex-shrink:0}
 .nav #channelSelect{font-size:12px;max-width:190px;padding:5px 8px}
 .nav #navSettings{flex-shrink:0;white-space:nowrap}
 /* ---- responsive topbar ----
-   One row has to survive from a wide desktop down to a narrow window, so it sheds in a fixed
-   order — least useful first — instead of wrapping or scrolling:
-     1220px  the brand wordmark (the logo still says which app this is)
-     1060px  the page LABELS: nav becomes icons, and the tooltip below carries the name
-      880px  the "AI Setting" label, then the channel picker narrows
+   One row has to survive from a wide desktop down to the 960px window minimum (main.swift), so it
+   sheds in a fixed order — least useful first — instead of wrapping or scrolling. Each number is
+   the measured width the row needs in the state above it; the plan badge counts toward that sum:
+     1360px  the brand wordmark (the logo still says which app this is) — that row measures 1345
+     1240px  the page LABELS: nav becomes icons, the tooltip carries the name — measures 1225
+      880px  the "AI Setting" label, then the channel picker narrows — the icon row measures 799
    Nothing is ever cut off mid-word and nothing overflows; at every width the row still holds
    every control it started with. */
-@media (max-width:1220px){.nav-brand .nav-label{display:none}}
-@media (max-width:1060px){
+@media (max-width:1360px){.nav-brand .nav-label{display:none}}
+@media (max-width:1240px){
   .nav-item .nav-label{display:none}
   .nav-item{padding:7px 9px;gap:0}
   .nav-items{gap:1px}
@@ -41,7 +44,7 @@
    chip half a screen away; this appears under the item it belongs to, immediately. It is only
    built at the widths where the label is actually gone — with the label visible it would be a
    duplicate of the text right next to it. */
-@media (max-width:1060px){
+@media (max-width:1240px){
   .nav-item{position:relative}
   .nav-item::after{content:attr(data-tip);position:absolute;top:calc(100% + 7px);left:50%;
     transform:translateX(-50%) translateY(-3px);padding:4px 9px;border-radius:7px;
