@@ -50,10 +50,19 @@ test('a project can be named, from the row that lists it', () => {
 
 test('the topbar sheds in a fixed order and never loses a control', () => {
   const css = sourceOf('public/css/app.css');
-  // least useful first: the wordmark, then the page labels, then the settings label
-  assert.match(css, /@media \(max-width:1220px\)\{\.nav-brand \.nav-label\{display:none\}\}/);
-  assert.match(css, /@media \(max-width:1060px\)\{[\s\S]{0,120}\.nav-item \.nav-label\{display:none\}/);
+  // Least useful first: the wordmark, then the page labels, then the settings label. Each
+  // threshold sits above what that state measures — 1345px with wordmark and labels, 1225px
+  // labelled, 799px icon-only — and the plan badge counts toward those sums. Thresholds set
+  // below them (they were 1220/1060) let the row overflow instead of shedding.
+  assert.match(css, /@media \(max-width:1360px\)\{\.nav-brand \.nav-label\{display:none\}\}/);
+  assert.match(css, /@media \(max-width:1240px\)\{[\s\S]{0,120}\.nav-item \.nav-label\{display:none\}/);
   assert.match(css, /@media \(max-width:880px\)\{[\s\S]{0,200}#navSettings \.nav-label\{display:none\}/);
+  // The badge is a pill in the row, not the block it was in the 216px rail: `width:100%` made it
+  // claim the whole nav and paint over the items.
+  assert.doesNotMatch(css, /\.license-badge\{[^}]*width:100%/);
+  // The item track must never be squeezed under its own content — the items themselves do not
+  // shrink, so a collapsed track pushes them over the controls that follow.
+  assert.doesNotMatch(css, /\.nav-items\{[^}]*min-width:0/);
   // an icon-only item must still say what it is, and only where the label is actually gone
   assert.match(css, /\.nav-item::after\{content:attr\(data-tip\)/);
   assert.match(sourceOf('public/js/views/nav.js'), /b\.dataset\.tip = name;/);
