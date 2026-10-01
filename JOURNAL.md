@@ -373,3 +373,48 @@ from the studio's own database — every number is real production data.
 - Scenes with rendered clips (active projects): 0 · Jobs: 0 done / 0 error / 0 cancelled
 - AI usage: 0 calls · 0 tokens in / 0 out · 0 TTS chars · est. $0.00
 - Published: — · Calendar-driven runs: —
+## 2026-09-24
+- Videos: 2 created · 1 completed — “Đừng Hỏi AI Chung Chung: Bắt Đầu Từ Mục Tiêu Thật”
+- Scenes with rendered clips (active projects): 62 · Jobs: 3 done / 0 error / 1 cancelled
+- AI usage: 259 calls · 2914k tokens in / 502k out · 14.8k TTS chars · est. $11.16
+- Published: — · Calendar-driven runs: —
+## 2026-09-25
+- Videos: 0 created · 1 completed — “Đừng Hỏi AI Chung Chung: Bắt Đầu Từ Mục Tiêu Thật”
+- Scenes with rendered clips (active projects): 87 · Jobs: 1 done / 0 error / 0 cancelled
+- AI usage: 2 calls · 20.4k tokens in / 1.9k out · 0 TTS chars · est. $0.01
+- Published: — · Calendar-driven runs: —
+## 2026-09-26
+- Videos: 0 created · 0 completed
+- Scenes with rendered clips (active projects): 0 · Jobs: 0 done / 0 error / 0 cancelled
+- AI usage: 0 calls · 0 tokens in / 0 out · 0 TTS chars · est. $0.00
+- Published: — · Calendar-driven runs: —
+## 2026-09-27
+- Videos: 2 created · 2 completed — “3 Chỗ Lỏng Khiến Prompt AI Hỏng & Cách Sửa” · “Prompt AI Bị Hỏng: Vặn Đúng 3 Con Ốc Này”
+- Scenes with rendered clips (active projects): 106 · Jobs: 4 done / 0 error / 1 cancelled
+- AI usage: 276 calls · 3118k tokens in / 534k out · 14.8k TTS chars · est. $11.86
+- Published: — · Calendar-driven runs: —
+## 2026-10-01
+- Videos: 0 created · 0 completed
+- Scenes with rendered clips (active projects): 0 · Jobs: 0 done / 0 error / 0 cancelled
+- AI usage: 0 calls · 0 tokens in / 0 out · 0 TTS chars · est. $0.00
+- Published: — · Calendar-driven runs: —
+## 2026-10-28
+- Videos: 0 created · 0 completed
+- Scenes with rendered clips (active projects): 0 · Jobs: 0 done / 0 error / 0 cancelled
+- AI usage: 0 calls · 0 tokens in / 0 out · 0 TTS chars · est. $0.00
+- Published: — · Calendar-driven runs: —
+## 2026-09-28
+- Videos: 0 created · 0 completed
+- Scenes with rendered clips (active projects): 0 · Jobs: 0 done / 0 error / 0 cancelled
+- AI usage: 0 calls · 0 tokens in / 0 out · 0 TTS chars · est. $0.00
+- Published: — · Calendar-driven runs: —
+## 2026-09-29
+- Videos: 0 created · 0 completed
+- Scenes with rendered clips (active projects): 0 · Jobs: 0 done / 0 error / 0 cancelled
+- AI usage: 0 calls · 0 tokens in / 0 out · 0 TTS chars · est. $0.00
+- Published: — · Calendar-driven runs: —
+## 2026-09-30
+- Videos: 0 created · 0 completed
+- Scenes with rendered clips (active projects): 0 · Jobs: 0 done / 0 error / 0 cancelled
+- AI usage: 0 calls · 0 tokens in / 0 out · 0 TTS chars · est. $0.00
+- Published: — · Calendar-driven runs: —
