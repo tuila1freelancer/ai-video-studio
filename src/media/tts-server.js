@@ -1,10 +1,12 @@
-// Local TTS server lifecycle (P40) — reference-app parity for the self-hosted Supertonic voice.
+// Local TTS server lifecycle (P40) — the self-hosted Supertonic and VieNeu-TTS voices.
 //
 // The reference app spawns `supertonic serve` on demand, waits for the port, deep-checks that a
 // tiny synthesis really works (an HTTP-alive-but-broken zombie is worse than a dead port), and
 // kills the process on shutdown. Same behaviour here, kept in ONE place so the provider stays a
 // pure request/response module and nothing else in the app has to know about child processes.
 import { spawn, spawnSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { logger } from '../util/log.js';
 
 import { tp } from '../i18n/t.js';
@@ -114,6 +116,56 @@ export async function ensureSupertonic(cfg = {}, { restart = false, waitMs = 600
     await sleep(1000);
   }
   logger.warn(tp`[TTS] Supertonic không sẵn sàng trong ${Math.round(waitMs / 1000)}s`);
+  return false;
+}
+
+const VIENEU_URL = 'http://127.0.0.1:8000';
+
+/** Normalized base URL for the VieNeu-TTS server (no trailing slash). */
+export function vieneuUrl(cfg = {}) {
+  return String(cfg.serverUrl || VIENEU_URL).replace(/\/+$/, '');
+}
+
+/** The interpreter `uv sync` created inside the VieNeu checkout, or null when it is not there. */
+export function vieneuPython(repoDir) {
+  if (!repoDir) return null;
+  const py = process.platform === 'win32'
+    ? join(repoDir, '.venv', 'Scripts', 'python.exe')
+    : join(repoDir, '.venv', 'bin', 'python');
+  return existsSync(py) ? py : null;
+}
+
+/**
+ * Make sure a VieNeu server answers. Never throws — false lets the façade fall back.
+ * The model loads in ~20–30 s on a laptop CPU, hence the long wait.
+ */
+export async function ensureVieneu(cfg = {}, { waitMs = 120000 } = {}) {
+  const base = vieneuUrl(cfg);
+  if (await isAlive(base)) return true;
+  const py = vieneuPython(cfg.repoDir);
+  if (!py) {
+    logger.info('[TTS] VieNeu chưa cài (chạy `uv sync` trong thư mục VieNeu-TTS) — bỏ qua');
+    return false;
+  }
+  const url = new URL(base);
+  const child = spawn(py, ['-m', 'apps.openai_speech'], {
+    cwd: cfg.repoDir,
+    env: { ...process.env, HOST: url.hostname || '127.0.0.1', PORT: String(portOf(base)) },
+    detached: false, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true,
+  });
+  const relay = (b) => { const s = String(b).trim(); if (s) logger.info(`[TTS][vieneu] ${s.slice(0, 300)}`); };
+  child.stdout?.on('data', relay);
+  child.stderr?.on('data', relay);
+  child.on('exit', (code) => { if (procs.get('vieneu') === child) { procs.delete('vieneu'); logger.info(`[TTS] VieNeu thoát code ${code}`); } });
+  child.on('error', (e) => { procs.delete('vieneu'); logger.warn(tp`[TTS] VieNeu lỗi process: ${e.message}`); });
+  procs.set('vieneu', child);
+
+  const deadline = Date.now() + waitMs;
+  while (Date.now() < deadline) {
+    if (await isAlive(base, 2000)) { logger.info(`[TTS] VieNeu sẵn sàng tại ${base}`); return true; }
+    await sleep(1500);
+  }
+  logger.warn(tp`[TTS] VieNeu không sẵn sàng trong ${Math.round(waitMs / 1000)}s`);
   return false;
 }
 

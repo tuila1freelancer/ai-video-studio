@@ -1,4 +1,4 @@
-// Voice provider registry — one contract, ten providers.
+// Voice provider registry — one contract, eleven providers.
 import edge from './edge.js';
 import say from './say.js';
 import openai from './openai.js';
@@ -6,11 +6,12 @@ import elevenlabs from './elevenlabs.js';
 import vbee from './vbee.js';
 import larvoice from './larvoice.js';
 import supertonic from './supertonic.js';
+import vieneu from './vieneu.js';
 import azure from './azure.js';
 import google from './google.js';
 import polly from './polly.js';
 
-export const PROVIDERS = { edge, say, supertonic, vbee, larvoice, elevenlabs, openai, azure, google, polly };
+export const PROVIDERS = { edge, say, supertonic, vieneu, vbee, larvoice, elevenlabs, openai, azure, google, polly };
 
 export function getProvider(id) { return PROVIDERS[id] || PROVIDERS.edge; }
 
