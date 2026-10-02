@@ -16,8 +16,9 @@ import { rulesFor } from '../i18n/tts-rules.js';
 /**
  * @param {string} text the script line as written
  * @param {{lang?:string, lexicon?:Record<string,string>|null}} opts
- *   lexicon: per-channel pronunciation map { "AI": "ây ai", "ChatGPT": "chát gi pi ti" } —
- *   applied first (longest key wins), word-boundary, case-insensitive.
+ *   lexicon: per-channel pronunciation map { "AI": "ây ai", "micro": "mi crô" } — applied first
+ *   (longest key wins), word-boundary. A key with a capital letter matches exactly; an
+ *   all-lowercase key matches any case.
  * @returns {string} what the synthesizer should SPEAK (captions keep the original)
  */
 export function normalizeForTts(text, { lang = 'vi', lexicon = null } = {}) {
@@ -31,9 +32,11 @@ export function normalizeForTts(text, { lang = 'vi', lexicon = null } = {}) {
       .sort((a, b) => b.length - a.length).slice(0, 64);
     if (keys.length) {
       const alt = keys.map((k) => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
-      const map = new Map(keys.map((k) => [k.toLowerCase(), lexicon[k]]));
+      // Capitalised keys are acronyms/brands: "AI" must never swallow the Vietnamese pronoun "ai".
+      const exact = new Map(keys.filter((k) => k !== k.toLowerCase()).map((k) => [k, lexicon[k]]));
+      const loose = new Map(keys.filter((k) => k === k.toLowerCase()).map((k) => [k, lexicon[k]]));
       out = out.replace(new RegExp(`(?<![\\p{L}\\p{N}])(?:${alt})(?![\\p{L}\\p{N}])`, 'giu'),
-        (m) => map.get(m.toLowerCase()) ?? m);
+        (m) => exact.get(m) ?? loose.get(m.toLowerCase()) ?? m);
     }
   }
   for (const [re, rep] of rulesFor(lang)) out = out.replace(re, rep);

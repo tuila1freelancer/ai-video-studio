@@ -40,6 +40,14 @@ test('per-channel lexicon applies word-boundary, longest key first', () => {
   assert.equal(normalizeForTts('CHAIN không đổi', { lexicon: lex }), 'CHAIN không đổi', 'no mid-word hits');
 });
 
+test('a capitalised lexicon key never rewrites the Vietnamese word it spells', () => {
+  const lex = { AI: 'ây ai', micro: 'mi crô' };
+  assert.equal(normalizeForTts('Ai cũng dùng AI, nhưng ai cũng hỏi sai', { lexicon: lex }),
+    'Ai cũng dùng ây ai, nhưng ai cũng hỏi sai');
+  assert.equal(normalizeForTts('Micro ở góc phải, bấm micro', { lexicon: lex }), 'mi crô ở góc phải, bấm mi crô',
+    'an all-lowercase key still matches any case');
+});
+
 test('moodOf: [MOOD] direction wins; hook/outro positions get sensible defaults', () => {
   assert.equal(moodOf({ visual_prompt: '[MAIN FOCUS] x\n[MOOD] epic urgency', idx: 3 }, 10), 'energetic');
   assert.equal(moodOf({ visual_prompt: '[MOOD] calm reflective', idx: 3 }, 10), 'calm');
