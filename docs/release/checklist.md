@@ -29,18 +29,6 @@ npm run test:smoke
       everyone else.
 - [ ] Manual read on screen, not only extracted: open **Hướng dẫn**, check the chapters that changed,
       the `go` buttons and the `code` blocks.
-- [ ] The client key about to be baked belongs to **this** product. Ask the store rather than
-      trusting the variable name:
-
-      ```bash
-      curl -s "$TOOLS_PLATFORM_URL/api/auth/desktop/app?client=${TOOLS_STORE_CLIENT_KEY%%.*}"
-      # {"product":{"slug":"ai-video-studio",…},"keyName":"macOS build"}
-      ```
-
-      A key from another product would build an app that signs in happily and then reports no
-      licence — which is exactly the failure this release exists to end. The store's side of the
-      flow is documented in the store repository, `docs/DESKTOP-LINK.md`.
-
 ## 2. macOS
 
 ```bash
@@ -49,7 +37,7 @@ vendor/node/bin/node scripts/audit-release.mjs
 ```
 
 - [ ] Audit green, including *Agent Kit có mặt trong payload* and *kit không chứa khoá 64-hex*.
-- [ ] Open the built `.app` and sign in; the browser opens and the licence comes back.
+- [ ] Open the built `.app`: the window appears with no key, no account and no sign-in.
 - [ ] Close the window: the app stays in the menu bar, and `curl $(cat ~/Library/Application\
       Support/AI\ Video\ Studio/server.url)/api/health` still answers.
 - [ ] Launch it a second time: no second server, the running window comes forward.
@@ -57,8 +45,8 @@ vendor/node/bin/node scripts/audit-release.mjs
       confirm the kit answers (`avs health`). Then revoke and confirm the next call is refused.
 - [ ] Spending caps: set one, save, reopen, still there.
 - [ ] Menu bar → Thoát hẳn actually ends the process.
-- [ ] `npm run release -- --version <v> --notes-file NOTES.md` (bakes the store key, notarises,
-      staples, uploads). The sourcemap must land in `dist/private/`, never in the payload.
+- [ ] `npm run release -- --version <v>` (builds, audits, signs, notarises, staples). The sourcemap
+      must land in `dist/private/`, never in the payload.
 
 ## 3. Windows — NOT YET VERIFIED ON WINDOWS
 
@@ -78,8 +66,6 @@ On a real Windows machine (Windows 10 or 11, x64):
       the payload and that V8 accepts the bytecode compiled on a Mac. If it fails here, the bytecode
       or the ABI is wrong and nothing else on this list matters.
 - [ ] `better-sqlite3` loads: the app reaches its own database (any screen that lists projects).
-- [ ] Sign in with Google: the default browser opens and the licence comes back (this path was
-      macOS-only until this release).
 - [ ] Render one short video end to end: ffmpeg, Chrome and the subtitle burn all work.
 - [ ] Chrome: the app finds an installed Google Chrome. Without one, thumbnails and subtitle
       measurement fail — confirm the dependency chip says so rather than failing silently.
@@ -95,7 +81,6 @@ On a real Windows machine (Windows 10 or 11, x64):
 
 ## 4. After publishing
 
-- [ ] Download the published artefact and open it — not the one in `dist/`.
-- [ ] Sign in from that copy: the browser must show **the store's page naming this app**, and the
-      app must come back holding the licence. Then sign out and check the licence badge locks.
+- [ ] Download the published artefact and open it — not the one in `dist/`. It must reach its own
+      screen with nothing asked of the person opening it.
 - [ ] Update `JOURNAL.md` and the release notes.

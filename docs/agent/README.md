@@ -37,7 +37,7 @@ owner mints it on the machine (`npm run token -- create --name claude --scopes
 read,produce,publish`), and in an installed app the owner mints it in that panel, which also prints
 the exact command to add this server to an agent. You never mint your own — the route that mints
 refuses anyone but the app's own window, and refuses outright on a server. Scopes are `read`, `produce`, `publish`, `admin`; `admin` covers
-settings, licence and channel writes and is not something a producing agent needs.
+settings and channel writes and is not something a producing agent needs.
 
 An installation can produce for several channels. The "active channel" is what the app's own window
 happens to be showing — it is **not** your channel. Name yours on every call that creates something:

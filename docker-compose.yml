@@ -20,8 +20,6 @@ services:
       # Minted inside the container once: docker compose exec avs /usr/local/bin/node \
       #   /app/app-payload/loader.cjs is NOT how — tokens are made with the repo's npm run token on
       #   the machine that holds the database, or by mounting a data dir that already has one.
-      AVS_LICENSE_KEY: ${AVS_LICENSE_KEY:-}
-      AVS_DEVICE_ID: ${AVS_DEVICE_ID:-}
       TZ: ${TZ:-Asia/Ho_Chi_Minh}
     # Chromium needs no privileges it cannot be given inside a hardened container.
     security_opt: ['no-new-privileges:true']

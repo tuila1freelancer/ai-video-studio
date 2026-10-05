@@ -51,7 +51,7 @@ func main() {
 	cmd := exec.Command(nodeExe, "--no-lazy", "--no-flush-bytecode", "loader.cjs")
 	cmd.Dir = payload
 	// AVS_DIST lives in this compiled binary, not a readable file — same as the Swift launcher's
-	// EXTRA_ENV. It keeps isDist() true so the developer license bypass stays dead.
+	// EXTRA_ENV. It is how the payload knows it is a shipped build (DevTools off, dist paths).
 	cmd.Env = append(os.Environ(), "AVS_DIST=1")
 	// Inherit the parent's stdout/stderr directly: the server's "AVS_READY <url>" reaches Electron
 	// unbuffered, and there is no pipe for us to drain (and deadlock on).

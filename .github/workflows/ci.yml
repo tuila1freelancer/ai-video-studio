@@ -104,7 +104,7 @@ jobs:
         run: node scripts/audit-image.mjs --image avs:ci
       - name: Boot it and drive the control plane through the kit
         run: |
-          docker run -d --name avs-ci -p 8123:8123 -e TOOLS_LICENSE_BYPASS=1 avs:ci
+          docker run -d --name avs-ci -p 8123:8123 avs:ci
           for i in $(seq 1 60); do
             curl -fsS http://127.0.0.1:8123/api/health >/dev/null 2>&1 && break
             sleep 2

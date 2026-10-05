@@ -33,8 +33,11 @@ The two gates are optional holds: the run stops at its own status and waits.
 npm install
 npm start        # prints AVS_READY <url>; also written to data/server.url
 npm run dev      # node --watch
-npm test         # 126 files, 950 tests, no network
+npm test         # 122 files, 909 tests, no network
 ```
+
+No key, no account, no sign-in: a fresh clone runs. API keys are optional and go in AI Setting —
+without them the app still renders, using the offline script path and the system voice.
 
 Without a terminal: double-click `run.command` (macOS) or `run-windows.bat` (Windows).
 
@@ -141,7 +144,6 @@ assembled into one document at boot, 12 per-area stylesheets, and screens that l
 | `api/` | 185 REST routes, one router per domain, the agent contract | `routes.js` (mount order), `routers/`, `services/`, `spec/`, `scopes.js` |
 | `ops/` | the stop valve, outbound webhooks, the first token | `state.js`, `webhooks.js`, `bootstrap-token.js` |
 | `fonts/` | which typeface exists, and which file libass gets | `registry.js`, `files.js`, `coverage.js` |
-| `license/` | offline verdict, activation, refresh, API gate | `state.js`, `index.js`, `gate.js` |
 | `core/` | config layering, cost, error taxonomy, budget | `config.js`, `pricing.js`, `errors.js` |
 | `publish/` | per-platform upload + the limits table | `youtube.js`, `facebook.js`, `platforms.js` |
 | `config/` `util/` `ws/` `audio/` | paths, primitives, live progress, sound design | `paths.js`, `util.js`, `html-include.js`, `hub.js`, `sound-design.js` |
@@ -188,7 +190,6 @@ source text. `public/js` follows the same rule: `views/config/`, `views/studio/`
 | dub a finished video into another language | `pipeline/dub.js` |
 | export a subtitle track in another language | `subtitles/translate.js` · `GET /projects/:id/srt?lang=xx&format=vtt` |
 | cost rates or the budget guardrail | `core/pricing.js` · `core/budget.js` · `core/spend-guard.js` (hard stops) |
-| what the licence blocks | `license/gate.js` · `license/state.js` |
 | the release pipeline | `scripts/release.mjs` · `shell/build-app.sh` (macOS) · `scripts/build-windows.mjs` · `scripts/build-linux.mjs` + `Dockerfile` (server) |
 
 ### Invariants
@@ -372,12 +373,12 @@ Regression tests are named after the behaviour they protect — see
 npm run shell:build          # dev .app pointing at this checkout
 npm run shell:build:dist     # release .app — bundled, bytecode-compiled, encrypted
 npm run win:build            # Windows NSIS installer
-npm run release -- --version 1.1.0 --notes-file NOTES.md
+npm run release -- --version 1.1.0
 ```
 
-`scripts/release.mjs` runs: bake the store key into `license/config.js` (restored in a `finally`) →
-bump the version → build the `.app` → move the sourcemap out of the payload → `audit-release.mjs` →
-codesign → zip with checksum → notarise and staple → upload and publish.
+`scripts/release.mjs` runs: bump the version → build the `.app` → move the sourcemap out of the
+payload → `audit-release.mjs` → codesign → zip with checksum → notarise and staple. The artefact
+lands in `dist/`; there is nothing to sign in to and nothing to upload it to.
 
 The macOS release contains no readable source: `src/server.js` is bundled by esbuild, compiled to V8
 cached data, AES-256-GCM encrypted, and loaded by `loader.cjs`, which verifies the V8 build, the
@@ -462,7 +463,7 @@ error codes, a durable event cursor, a publish verdict, spending caps and a stop
 - **Prompts are visible to whoever owns the LLM key**, which is the customer. Accepted trade; see
   [`ENGINEERING.md`](ENGINEERING.md).
 - **Scene codegen costs one LLM call per scene.** Past ~40 scenes that dominates the cost of a video.
-- **No open-source licence.** Commercial product with a licence gate. Third-party obligations are in
+- **No open-source licence file.** The repository ships none; third-party obligations are in
   [`NOTICE.md`](NOTICE.md).
 
 ---

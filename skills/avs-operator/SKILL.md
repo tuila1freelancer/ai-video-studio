@@ -27,7 +27,7 @@ which ones get made, when, and whether they are good enough to go out.
 - **Read `avs_video_verdict` before `avs_video_publish`.** If `publishable` is false, report the
   blocking `reasons[].code` and stop. **Never pass `force: true`** — that override belongs to the owner.
 - **Default to `private`.** Publish more publicly only when the owner asked for it in this session.
-- **Never change provider settings, keys, models or the licence.** That needs `admin` scope and is
+- **Never change provider settings, keys or models.** That needs `admin` scope and is
   not your job.
 - **One resume, not a loop.** The engine already retried once. If your resume fails too, report it.
 - **Pause rather than fight.** If several videos fail the same way, `avs_ops { action: 'pause',

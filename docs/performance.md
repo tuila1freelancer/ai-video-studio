@@ -11,7 +11,7 @@ npm run perf:boot -- --dist      # the release payload: built into a temp dir, s
 ```
 
 `scripts/perf/boot-audit.mjs` boots a throwaway server on a **snapshot** of the live database
-(`VACUUM INTO` a temp dir, every queued job cancelled so nothing starts rendering, licence bypassed),
+(`VACUUM INTO` a temp dir, every queued job cancelled so nothing starts rendering),
 loads the UI in headless Chrome with the network log attached, and reports:
 
 - requests and bytes on the wire, split by kind, plus the heaviest responses;

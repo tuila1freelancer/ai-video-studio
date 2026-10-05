@@ -1,7 +1,7 @@
 # The server image: the app with no readable source in it, and no desktop around it.
 #
 #   DOCKER_BUILDKIT=1 docker build --secret id=appkey,env=AVS_APP_KEY -t avs:latest .
-#   docker run -d -p 8123:8123 -v avs-data:/data -e AVS_LICENSE_KEY=… avs:latest
+#   docker run -d -p 8123:8123 -v avs-data:/data avs:latest
 #
 # Three stages, and the reason for each:
 #   build    — bundles src/ and compiles it to encrypted V8 bytecode WITH THE IMAGE'S OWN NODE, so
@@ -85,8 +85,8 @@ ENV AVS_DIST=1 \
     # to run the token command against a database that only exists inside the volume. This is a NAME,
     # not a credential — the token itself is generated inside the container. Replace it after use.
     AVS_BOOTSTRAP_TOKEN_NAME=bootstrap
-# /data holds the database, the licence, the device id and every project: it MUST outlive the
-# container, or each restart is a new machine to the store and a new installation to the owner.
+# /data holds the database, the API tokens and every project: it MUST outlive the container, or
+# each restart is a new installation to the owner.
 VOLUME ["/data"]
 RUN useradd --create-home --uid 10001 avs && mkdir -p /data && chown -R avs:avs /data /app
 USER avs

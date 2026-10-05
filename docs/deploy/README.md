@@ -48,8 +48,6 @@ DOCKER_BUILDKIT=1 docker build \
 docker run -d --name avs \
   -p 127.0.0.1:8123:8123 \
   -v avs-data:/data \
-  -e AVS_LICENSE_KEY=…            # only for a build wired to the store
-  -e AVS_DEVICE_ID=my-server-1 \
   avs:latest
 
 docker logs avs | grep 'API token'   # the first token, printed once — then mint your own and revoke it
@@ -59,9 +57,8 @@ docker logs avs | grep 'API token'   # the first token, printed once — then mi
 with a new key would reuse the bytecode layer encrypted with the old one and the image would refuse
 to decrypt itself. Pass a fresh one every build.
 
-**`/data` must be a real volume.** It holds the database, the licence, the device id and every
-project. A container without it is a new machine to the store on every restart (a burned seat) and
-an empty installation to the owner.
+**`/data` must be a real volume.** It holds the database, the API tokens and every project. A
+container without it is an empty installation to the owner on every restart.
 
 Verify what shipped, not what the Dockerfile meant to ship:
 
@@ -75,7 +72,6 @@ node scripts/audit-image.mjs --image avs:latest
 - **Whisper** — not installed; subtitle `engine: 'estimate'` or `'align'` with a model mounted in.
 - **Opening a folder** — `/channels/:id/open` and `/projects/:id/open` answer `501 headless` with the
   path instead, which is what a remote caller wanted anyway.
-- **Signing in with Google** — licence activation is `AVS_LICENSE_KEY`, once, at boot.
 
 ### Fonts
 
