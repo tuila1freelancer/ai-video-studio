@@ -8,8 +8,8 @@
 // directory: launcher, runtime, payload. The Dockerfile copies it; a bare VM can run it as it is.
 //
 // Written beside build-windows.mjs rather than inside shell/build-app.sh on purpose: that script's
-// text is pinned by tests/release-payload.test.js and tests/license-release.test.js, and a Linux
-// branch in it would turn those red for a platform they say nothing about.
+// text is pinned by tests/release-payload.test.js, and a Linux branch in it would turn that red
+// for a platform it says nothing about.
 //
 // Cross-compilation caveat, same as Windows: bytecode is compiled here by the macOS vendored node.
 // V8 bytecode is architecture-neutral and process.versions.v8 is identical across a Node release's
