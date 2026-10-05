@@ -1,5 +1,4 @@
 import './_env.mjs';
-process.env.TOOLS_LICENSE_BYPASS = '1';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';

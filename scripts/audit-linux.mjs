@@ -102,7 +102,7 @@ const launcher = existsSync(LAUNCHER) ? readFileSync(LAUNCHER) : Buffer.alloc(0)
 note(launcher.length > 0, 'avs-launcher có mặt');
 note(launcher.includes(Buffer.from('loader.cjs')), 'launcher chạy loader.cjs');
 note(launcher.includes(Buffer.from('--no-lazy')), 'launcher truyền --no-lazy', 'thiếu cờ này thì V8 không trả về gì');
-note(launcher.includes(Buffer.from('AVS_DIST=1')), 'launcher đặt AVS_DIST', 'thiếu thì bypass license sống lại');
+note(launcher.includes(Buffer.from('AVS_DIST=1')), 'launcher đặt AVS_DIST', 'thiếu thì DevTools mở trong bản dist');
 note(!launcher.includes(Buffer.from('src/server.js')), 'launcher không trỏ vào mã nguồn');
 const elfLauncher = launcher.subarray(0, 4);
 note(elfLauncher[0] === 0x7f && elfLauncher[1] === 0x45, 'launcher là ELF/Linux');

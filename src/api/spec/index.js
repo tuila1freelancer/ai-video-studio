@@ -35,7 +35,7 @@ export function buildOpenApi({ version = '0.0.0', serverUrl = '/api' } = {}) {
       ...(op.body ? { requestBody: jsonBody(op.body) } : {}),
       responses: {
         200: jsonReply(op.reply),
-        ...(scope ? { 401: errorReply('token_required'), 403: errorReply('scope_denied or license_required') } : {}),
+        ...(scope ? { 401: errorReply('token_required'), 403: errorReply('scope_denied') } : {}),
         ...(op.codes?.length ? { default: errorReply(`Known codes: ${op.codes.join(', ')}`) } : {}),
       },
     };

@@ -12,13 +12,10 @@ import { withRunContext } from '../util/run-context.js';
 import { resolveProjectConfig } from '../core/config.js';
 import { runPipeline, renderOnly } from './runner.js';
 import { jlog } from './journal.js';
-import { status as licenseStatus } from '../license/index.js';
 import { notifyWebhooks } from '../ops/webhooks.js';
 import { acceptingWork, opsState, setOpsState } from '../ops/state.js';
-import { isRunnable } from '../license/state.js';
 
 import { m, tp } from '../i18n/t.js';
-const licensed = () => isRunnable(licenseStatus());
 
 // Per-kind lanes: how many jobs of a kind may run at once across the whole process.
 // Two interactive pipelines may overlap (matches the old per-project Map semantics);
@@ -126,13 +123,6 @@ export function promoteDueSlots() {
 
 export function tick() {
   try {
-    // A licence that lapses mid-session stops NEW work only. Whatever is rendering right now runs
-    // to the end: cutting a customer's video off halfway through destroys work they already paid
-    // for, and the queued rows stay exactly where they are until the licence is sorted out.
-    if (!licensed()) {
-      scheduleTick(60_000);
-      return;
-    }
     // Paused or draining: running work finishes, nothing new is claimed. A drain becomes a pause
     // the moment the last job settles, so "drained" is a fact rather than a hope.
     if (!acceptingWork()) {

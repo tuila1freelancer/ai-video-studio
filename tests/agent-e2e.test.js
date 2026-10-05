@@ -19,7 +19,7 @@ import { createMcpServer } from '../packages/avs-kit/src/mcp-server.js';
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const NODE = process.execPath;
 const dataDir = mkdtempSync(join(tmpdir(), 'avs-agent-e2e-'));
-const env = { ...process.env, AVS_DATA_DIR: dataDir, TOOLS_LICENSE_BYPASS: '1' };
+const env = { ...process.env, AVS_DATA_DIR: dataDir };
 
 const minted = execFileSync(NODE, [join(ROOT, 'scripts', 'token.mjs'), 'create', '--name', 'e2e', '--scopes', 'read,produce'], { env, encoding: 'utf8' });
 const TOKEN = /avs_[A-Za-z0-9_-]+/.exec(minted)?.[0];

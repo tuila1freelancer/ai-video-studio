@@ -8,7 +8,7 @@ import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import db, { stmt } from '../connection.js';
 import { newId, safeJson } from '../../util/util.js';
 
-/** Every power a token can carry. `admin` covers settings, licence and channel writes. */
+/** Every power a token can carry. `admin` covers settings and channel writes. */
 export const SCOPES = ['read', 'produce', 'publish', 'admin'];
 
 /** Rows are written at most this often per token — an auth check must not cost a write. */

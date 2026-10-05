@@ -169,8 +169,8 @@ test('an unknown preset id is safe', () => {
 });
 
 // ---- the routes the panel talks to ----
-// Source-anchored, like p42-route-parity: mounting the router for real would need a licensed
-// fixture (licenseGate answers 403 first), and everything with logic is covered functionally
+// Source-anchored, like p42-route-parity: mounting the router for real would need the whole
+// server fixture, and everything with logic is covered functionally
 // above and below this block.
 
 test('the app can list providers and ask one what models it serves', async () => {

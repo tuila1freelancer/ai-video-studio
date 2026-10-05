@@ -1,7 +1,6 @@
 // The API as the interface sees it: the app mounted in-process on an ephemeral port, real
 // requests, real JSON. Shapes asserted here are the ones public/js reads.
 import './_env.mjs';
-process.env.TOOLS_LICENSE_BYPASS = '1';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';

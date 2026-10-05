@@ -48,19 +48,12 @@ async function request(method, path, { body, formData } = {}) {
       let data = null;
       if (text) { try { data = JSON.parse(text); } catch { /* non-JSON body (proxy error page) */ } }
       if (!res.ok) {
-        // A licence that lapses mid-session shows up here first, as a 403 on whatever the owner
-        // happened to click. One event, and the licence view repaints the lock screen — every
-        // other caller keeps its normal error handling.
         // A server-mode instance answers this until a token is pasted; one event, and the access
         // screen asks for one instead of every caller reporting its own failure.
         if (res.status === 401 && data?.code === 'token_required') {
           gated = true;
           window.dispatchEvent(new CustomEvent('token-required', { detail: data }));
           throw new ApiError(data.message || m('Cần API token'), 401);
-        }
-        if (res.status === 403 && data?.error === 'license_required') {
-          window.dispatchEvent(new CustomEvent('license-required', { detail: data }));
-          throw new ApiError(data.message || m('Cần license để tiếp tục'), 403);
         }
         throw new ApiError(data?.error || `HTTP ${res.status}${data ? '' : ` — ${text.slice(0, 120)}`}`, res.status);
       }

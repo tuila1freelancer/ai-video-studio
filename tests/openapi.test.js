@@ -45,7 +45,7 @@ test('every code the document names is one the API can actually produce', () => 
   const producible = new Set([
     'not_found', 'forbidden', 'token_required', 'scope_denied', 'gate_not_at_scenes', 'video_not_ready',
     'publish_not_connected', 'input_no_topic', 'suggestion_not_found', 'channel_not_found', 'channel_denied',
-    'idempotency_key_reused', 'license_required', 'bad_request', 'conflict', 'internal',
+    'idempotency_key_reused', 'bad_request', 'conflict', 'internal',
   ]);
   for (const code of named) assert.ok(producible.has(code), `${code} is documented but nothing raises it`);
   // and the fallbacks the edge produces are in that same vocabulary

@@ -19,17 +19,12 @@ import { initChangePlan } from './features/changeplan.js';
 import { initBatch } from './features/batch.js';
 import { initJournal } from './features/journal.js';
 import { initPalette } from './ui/palette.js';
-import { bootLicense, initLicense } from './features/license.js';
 import { initAccess } from './features/access.js';
 
 init();
 
 async function init() {
-  // Before anything else. An unlicensed copy answers 403 to every other route, so loading
-  // channels and projects first would just fill the console with failures behind a lock screen.
   initAccess(); // before anything fetches: a server-mode instance answers 401 until a token exists
-  initLicense();
-  if (!(await bootLicense())) return;
   initNav();
   // ONE round trip for everything the first paint needs. The catalogue for a translated
   // interface is fetched alongside it, on the language the last session left in localStorage;

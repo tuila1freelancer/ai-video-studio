@@ -1,13 +1,11 @@
 // The API: one router per domain under ./routers, mounted here in a fixed order.
 //
-// The order is load-bearing in two places: the licence gate is registered before any route so a
-// route added tomorrow is covered by default, and /health sits right after it because it is the
-// one thing a locked copy may still answer.
+// The order is load-bearing: the egress translator wraps res.json before any handler writes one,
+// and authentication runs before the routes it guards.
 import express from 'express';
 import * as DB from '../db/index.js';
 import { PATHS, depStatus } from '../config/paths.js';
 import { maskSecrets } from '../core/config.js';
-import { licenseGate } from '../license/gate.js';
 import { apiAuth } from './middleware/auth.js';
 import { idempotency } from './middleware/idempotency.js';
 import { t, uiLang } from '../i18n/t.js';
@@ -21,7 +19,6 @@ import { hostInfo } from '../ops/host-info.js';
 import { maskChannel } from './helpers.js';
 import { channelIdFor } from './channel-scope.js';
 import { buildOpenApi } from './spec/index.js';
-import { mount as mountLicense } from './routers/license.js';
 import { mount as mountSettingsProviders } from './routers/settings-providers.js';
 import { mount as mountStyles } from './routers/styles.js';
 import { mount as mountChannels } from './routers/channels.js';
@@ -73,16 +70,10 @@ export function mountRoutes(app, { version }) {
   });
 
   // WHO is asking (server mode only; a no-op for the desktop app). Registered after the egress
-  // translator so its own refusals are translated too, and before the licence gate so an
-  // unauthenticated caller never learns anything about the licence beyond /license/status.
+  // translator so its own refusals are translated too, and before every route it guards.
   r.use(apiAuth);
 
-  // FIRST, before any route: an unlicensed copy answers 403 everywhere except /health and
-  // /license/*. Mounting it here rather than decorating routes means a route added tomorrow is
-  // covered by default instead of by memory.
-  r.use(licenseGate);
-
-  // After the gate: a refused request is not an answer worth replaying.
+  // After authentication: a refused request is not an answer worth replaying.
   r.use(idempotency);
 
   r.get('/health', (req, res) => {
@@ -91,8 +82,8 @@ export function mountRoutes(app, { version }) {
     } });
   });
   // Everything the interface needs before its first paint, in one round trip. The boot sequence
-  // used to make six of these one after another (license → settings → health → channels →
-  // projects → presets), each a full loopback hop before the next could start.
+  // used to make five of these one after another (settings → health → channels → projects →
+  // presets), each a full loopback hop before the next could start.
   r.get('/boot', (req, res) => {
     const active = channelIdFor(req);
     res.json({
@@ -112,7 +103,6 @@ export function mountRoutes(app, { version }) {
   // The API describing itself, so an agent can be pointed at a URL rather than a paragraph.
   r.get('/openapi.json', (req, res) => res.json(buildOpenApi({ version })));
 
-  mountLicense(r);
   mountSettingsProviders(r);
   mountStyles(r);
   mountChannels(r);

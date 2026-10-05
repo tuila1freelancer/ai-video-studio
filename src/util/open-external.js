@@ -1,10 +1,7 @@
-// Hand a URL to whatever browser the person uses.
+// Hand a URL or a folder to the desktop: the system browser, and the file manager.
 //
-// This existed inline as `/usr/bin/open` — which is macOS and only macOS. On a Windows install the
-// "Sign in with Google" button therefore did nothing at all: the sign-in flow opens the store's
-// authorize page in the system browser and waits on a loopback listener for the callback, so with
-// no browser there is no callback and no licence. The customer's only way in was to type a key by
-// hand, which is precisely what this flow exists to avoid.
+// Both used to be spelled `/usr/bin/open` inline, which is macOS and only macOS — on Windows the
+// call simply did nothing, with no error to say so.
 import { execFile } from 'node:child_process';
 
 /**

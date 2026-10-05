@@ -1,7 +1,7 @@
 // Serving the interface itself: the assembled document, the hashed release assets, the fonts.
 //
 // Lifted out of server.js verbatim when boot() outgrew its line budget — the wiring is one
-// coherent job and reads better named than inlined among licence recovery and shutdown.
+// coherent job and reads better named than inlined among boot recovery and shutdown.
 import express from 'express';
 import { createHash } from 'node:crypto';
 import { join } from 'node:path';

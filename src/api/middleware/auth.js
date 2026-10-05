@@ -1,8 +1,7 @@
 // The server lane's edge: no token, no API.
 //
-// Mounted next to the licence gate, and the division between them is deliberate — the licence
-// decides whether this COPY may run, this decides WHO is asking. In desktop mode it is a no-op, so
-// the shells and the browser UI keep talking to their own loopback server exactly as before.
+// The one gate in front of every route: it decides WHO is asking. In desktop mode it is a no-op,
+// so the shells and the browser UI keep talking to their own loopback server exactly as before.
 import { countApiTokens, tokenHasScope, verifyApiToken } from '../../db/index.js';
 import { isServerMode } from '../../core/runtime-mode.js';
 import { agentEnabled } from '../../ops/agent-mode.js';

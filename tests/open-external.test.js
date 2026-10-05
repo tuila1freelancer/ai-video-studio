@@ -21,13 +21,6 @@ test('a folder — or a file inside it — shows in the right file manager', () 
   assert.equal(revealCommand('C:\\out', { platform: 'win32' }).ignoreExit, true, 'explorer exits 1 even when it worked');
 });
 
-test('the sign-in flow no longer names a macOS binary', async () => {
-  const { readFileSync } = await import('node:fs');
-  const auth = readFileSync(new URL('../src/license/auth.js', import.meta.url), 'utf8');
-  assert.ok(!auth.includes('/usr/bin/open'), 'the browser is opened through the portable helper');
-  assert.match(auth, /openExternal\(/, 'the sign-in still goes through it');
-});
-
 test('a new channel lands where the operating system keeps videos', async () => {
   const { defaultChannelsRoot } = await import('../src/db/repositories/channels.js');
   const { homedir } = await import('node:os');

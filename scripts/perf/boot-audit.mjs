@@ -70,7 +70,7 @@ function startServer(dataDir, publicDir) {
   return new Promise((resolveUrl, reject) => {
     const child = spawn(process.execPath, [join(ROOT, 'src', 'server.js')], {
       cwd: ROOT,
-      env: { ...process.env, AVS_DATA_DIR: dataDir, AVS_PORT: '0', TOOLS_LICENSE_BYPASS: '1', AVS_DEBUG: '', ...(publicDir ? { AVS_PUBLIC_DIR: publicDir } : {}) },
+      env: { ...process.env, AVS_DATA_DIR: dataDir, AVS_PORT: '0', AVS_DEBUG: '', ...(publicDir ? { AVS_PUBLIC_DIR: publicDir } : {}) },
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     let out = '';

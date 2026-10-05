@@ -104,6 +104,5 @@ export const OPERATIONS = {
   'POST /ops/pause': { summary: 'Stop claiming new work. Running jobs finish.', tags: ['ops'], reply: ref('OpsStatus') },
   'POST /ops/drain': { summary: 'Pause, and report as draining until the last running job settles.', tags: ['ops'], reply: ref('OpsStatus') },
   'POST /ops/resume': { summary: 'Accept work again.', tags: ['ops'], reply: ref('OpsStatus') },
-  'GET /license/status': { summary: 'Licence verdict and the signed-in account. Open — no token needed.', tags: ['ops'] },
   'GET /openapi.json': { summary: 'This document.', tags: ['ops'] },
 };

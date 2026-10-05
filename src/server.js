@@ -44,29 +44,6 @@ async function boot() {
   await import('./pipeline/journal.js'); // P32 journal: bindJournal before any logger fanout
   await import('./core/metering.js'); // cost meter: subscribe to provider usage before any run
 
-  // The licence is resolved before anything can run work: the scheduler picks up QUEUED jobs on its
-  // own, so a copy that boots locked must not quietly carry on rendering what it was left with.
-  const license = await import('./license/index.js');
-  license.setAppVersion(VERSION);
-  // A repackaged dist (protection stripped) locks itself before the scheduler can pick up work.
-  // No file is deleted — the copy simply refuses to run until a clean re-activation.
-  const { distIntegrityProblem } = await import('./license/integrity.js');
-  const tamper = distIntegrityProblem();
-  if (tamper) {
-    license.markTampered(tamper);
-    logger.error(`integrity: ${tamper} — bản cài đã bị can thiệp, khoá lại`);
-  }
-  // A server has nobody to click "sign in": the key comes from the environment, once, and only when
-  // this copy has none. Everything after activation — verification, the heartbeat, the grace period
-  // — is the path the app already uses.
-  if (process.env.AVS_LICENSE_KEY && license.status().state === 'missing') {
-    try {
-      await license.activate(process.env.AVS_LICENSE_KEY);
-      logger.info('license: kích hoạt tự động từ AVS_LICENSE_KEY');
-    } catch (e) { logger.error(`license: AVS_LICENSE_KEY không kích hoạt được — ${e.message}`); }
-  }
-  license.startLicenseLoop();
-
   try {
     const { recoverZombieProjects, stopRequestedProjects } = await import('./db/index.js');
     const n = recoverZombieProjects();
@@ -83,21 +60,7 @@ async function boot() {
     // After P13's project recovery: requeue jobs orphaned by the dead process and start the
     // scheduler — queued/batched work continues across restarts instead of being stranded.
     const { startScheduler } = await import('./pipeline/scheduler.js');
-    const { isRunnable } = await import('./license/state.js');
-    if (isRunnable(license.status())) {
-      startScheduler();
-    } else {
-      logger.warn('Chưa có license hợp lệ — tạm dừng nhận việc mới. Kích hoạt trong app để tiếp tục.');
-      // Activating must not mean restarting: the moment the verdict turns runnable, the queue
-      // resumes with whatever was left in it.
-      let started = false;
-      license.licenseEvents.on('change', (next) => {
-        if (started || !isRunnable(next)) return;
-        started = true;
-        logger.info('License đã hợp lệ — tiếp tục hàng đợi công việc');
-        startScheduler();
-      });
-    }
+    startScheduler();
   } catch (e) { logger.warn(`boot recovery failed: ${e.message}`); }
 
   const app = express();

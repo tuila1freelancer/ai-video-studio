@@ -10,7 +10,6 @@
 const BY_MESSAGE = new Map(Object.entries({
   'not found': 'not_found',
   forbidden: 'forbidden',
-  license_required: 'license_required',
   token_required: 'token_required',
   scope_denied: 'scope_denied',
   'dự án không ở bước duyệt cảnh': 'gate_not_at_scenes',

@@ -17,7 +17,7 @@
 <link rel="stylesheet" href="/css/config.css">
 <link rel="stylesheet" href="/css/brand.css">
 <link rel="stylesheet" href="/css/scene-tools.css">
-<link rel="stylesheet" href="/css/license.css">
+<link rel="stylesheet" href="/css/access.css">
 <link rel="stylesheet" href="/css/studio-panels.css">
 <link rel="stylesheet" href="/css/guide.css">
 <link rel="modulepreload" href="/js/main.js">
@@ -47,7 +47,6 @@
 <link rel="modulepreload" href="/js/features/channels.js">
 <link rel="modulepreload" href="/js/features/batch.js">
 <link rel="modulepreload" href="/js/ui/palette.js">
-<link rel="modulepreload" href="/js/features/license.js">
 </head>
 <body>
 <div class="app">
@@ -75,7 +74,6 @@
     <!-- Tool status lives in AI Setting now. This stays as a WARNING only: silent is the normal
          state, but a missing Chrome or ffmpeg has to be visible or renders fail with no clue. -->
     <button class="dep-warn hidden" id="depWarn" title="Thiếu công cụ hệ thống — bấm để xem" data-i18n-title="ui.app.thieu-cong-cu-he-thong"></button>
-    <button class="license-badge" id="licenseBadge" style="display:none" title="License"></button>
     <!-- No data-i18n on the BUTTON: initNav() runs before applyDom() and fills it with an icon +
          a .nav-label span, which a textContent write would delete. nav.js tags that span instead. -->
     <button class="btn sm" id="navSettings" data-i18n-exempt>⚙️ AI Setting</button>
@@ -145,38 +143,6 @@
 
 <!-- LIVE SCENE PREVIEW MODAL -->
 <!--#include "partials/modal-live.html" -->
-
-<!-- LICENSE LOCK — covers everything until the app is licensed. Not a modal: there is nothing
-     behind it to go back to. -->
-<div class="license-lock" id="licenseLock">
-  <div class="license-card">
-    <div class="license-logo">🎬</div>
-    <h2>AI Video Studio</h2>
-    <p class="license-msg" id="licenseLockMsg" data-i18n="ui.licenseLock.dang-nhap-bang-tai-khoan">Đăng nhập bằng tài khoản Google đã mua license để sử dụng.</p>
-    <div class="license-err" id="licenseLockErr"></div>
-    <button class="btn primary block" id="btnLicenseLogin" data-i18n="ui.licenseLock.dang-nhap-voi-google">Đăng nhập với Google</button>
-    <div class="hint license-account" id="licenseAccount" style="display:none"></div>
-    <div class="row mt-10" style="gap:8px">
-      <button class="btn block sm" id="btnLicenseBuy" data-i18n="ui.licenseLock.mua-license">Mua license</button>
-      <button class="btn block sm ghost" id="btnLicenseRefresh" data-i18n="ui.licenseLock.kiem-tra-lai">Kiểm tra lại</button>
-    </div>
-    <details class="license-manual mt-14">
-      <summary class="hint pointer" data-i18n="ui.licenseLock.kich-hoat-bang-license-key">Kích hoạt bằng license key (dự phòng)</summary>
-      <input class="input license-key mt-8" id="licenseKeyInput" placeholder="TOOLS-XXXX-XXXX-XXXX-XXXX"
-             autocomplete="off" spellcheck="false">
-      <button class="btn block sm mt-8" id="btnLicenseActivate" data-i18n="ui.licenseLock.kich-hoat">Kích hoạt</button>
-    </details>
-    <div class="hint license-known" id="licenseKnownKey"></div>
-    <div class="hint mt-14" data-i18n="ui.licenseLock.trinh-duyet-se-mo-ra">Trình duyệt sẽ mở ra để đăng nhập — license gắn với tài khoản, không cần nhập key.</div>
-  </div>
-</div>
-
-<!-- UPDATE BANNER -->
-<div class="update-banner" id="updateBanner" style="display:none">
-  <div class="update-text" id="updateBannerText"></div>
-  <button class="btn sm primary" id="btnUpdateDownload" data-i18n="ui.updateBanner.tai-ve">Tải về</button>
-  <button class="btn sm ghost" id="btnUpdateDismiss" data-i18n="ui.updateBanner.de-sau">Để sau</button>
-</div>
 
 <div class="toasts" id="toasts"></div>
 <script type="module" src="/js/main.js"></script>

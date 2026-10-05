@@ -22,7 +22,7 @@ const ROOT = new URL('../', import.meta.url);
 export const RELOCATED = {
   'src/api/routes.js': [
     'src/api/routes.js',
-    'src/api/routers/license.js', 'src/api/routers/settings-providers.js', 'src/api/routers/styles.js',
+    'src/api/routers/settings-providers.js', 'src/api/routers/styles.js',
     'src/api/routers/channels.js', 'src/api/routers/projects.js', 'src/api/routers/project-exports.js',
     'src/api/routers/pipeline.js', 'src/api/routers/journal-usage.js', 'src/api/routers/assistant-calendar.js',
     'src/api/routers/publish.js', 'src/api/routers/project-outputs.js', 'src/api/routers/jobs.js',
@@ -89,7 +89,7 @@ export const RELOCATED = {
   'public/css/app.css': [
     'public/css/base.css', 'public/css/primitives.css', 'public/css/shell.css', 'public/css/studio.css',
     'public/css/home.css', 'public/css/modals.css', 'public/css/config.css', 'public/css/brand.css',
-    'public/css/scene-tools.css', 'public/css/license.css', 'public/css/studio-panels.css', 'public/css/guide.css',
+    'public/css/scene-tools.css', 'public/css/access.css', 'public/css/studio-panels.css', 'public/css/guide.css',
   ],
 };
 

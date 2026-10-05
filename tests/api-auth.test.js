@@ -1,5 +1,4 @@
 import './_env.mjs';
-process.env.TOOLS_LICENSE_BYPASS = '1';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
@@ -13,7 +12,6 @@ const serverMode = (on) => { if (on) process.env.AVS_MODE = 'server'; else delet
 
 test('the scope map is ordered and fails closed', () => {
   assert.equal(requiredScope('GET', '/health'), null);
-  assert.equal(requiredScope('GET', '/license/status'), null);
   assert.equal(requiredScope('GET', '/projects'), 'read');
   assert.equal(requiredScope('GET', '/settings'), 'read', 'reads are reads — secrets are masked anyway');
   assert.equal(requiredScope('POST', '/projects'), 'produce');
@@ -23,7 +21,7 @@ test('the scope map is ordered and fails closed', () => {
   assert.equal(requiredScope('POST', '/publish/pages/1/select'), 'publish');
   assert.equal(requiredScope('POST', '/publish/youtube/auth-url'), 'admin', 'connecting is not publishing');
   assert.equal(requiredScope('PUT', '/settings'), 'admin');
-  assert.equal(requiredScope('POST', '/license/activate'), 'admin');
+  assert.equal(requiredScope('POST', '/settings'), 'admin');
   assert.equal(requiredScope('DELETE', '/channels/c1'), 'admin');
   assert.equal(requiredScope('POST', '/ops/pause'), 'admin');
   assert.equal(requiredScope('POST', '/some-route-invented-tomorrow'), 'produce');

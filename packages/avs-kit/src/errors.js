@@ -29,7 +29,7 @@ export class AvsError extends Error {
 
 const RETRYABLE = new Set(['rate_limited', 'internal', 'unavailable']);
 const CONFIG = new Set([
-  'token_required', 'scope_denied', 'license_required', 'channel_not_found', 'channel_denied',
+  'token_required', 'scope_denied', 'channel_not_found', 'channel_denied',
   'not_found', 'bad_request', 'idempotency_key_reused', 'publish_not_connected',
 ]);
 const BUDGET = new Set(['budget_exceeded', 'publish_quota_exhausted', 'publish_daily_cap']);

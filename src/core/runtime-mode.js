@@ -28,7 +28,7 @@ export function isLoopback(h) {
 /**
  * Why this process must not start, or null when it may.
  *
- * The API answers to whoever reaches the port: the licence gate decides whether the COPY may run,
+ * The API answers to whoever reaches the port: the token decides WHO may call it,
  * never who is asking. Publishing that beyond loopback without the server lane's token check would
  * hand anyone on the network the owner's projects and provider keys, so it is refused at boot —
  * loudly, and before the port is open, rather than discovered later.

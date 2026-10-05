@@ -13,18 +13,18 @@ let shown = false;
 function overlay() {
   const wrap = document.createElement('div');
   wrap.id = 'accessGate';
-  wrap.className = 'license-lock open'; // the licence screen's own styling — same job, same look
+  wrap.className = 'access-gate open';
   wrap.setAttribute('role', 'dialog');
   wrap.setAttribute('aria-modal', 'true');
   const card = document.createElement('div');
-  card.className = 'license-card';
+  card.className = 'access-card';
   const h = document.createElement('h2');
   h.textContent = m('Cần API token');
   const p = document.createElement('p');
-  p.className = 'license-msg';
+  p.className = 'access-msg';
   p.textContent = m('Trang này cần API token: quyền cho Agent đang bật, hoặc đây là bản chạy máy chủ. Dán token vào đây — cấp ở AI Setting → Agent trên cửa sổ ứng dụng, hoặc bằng npm run token trên máy chủ.');
   const input = document.createElement('input');
-  input.className = 'input license-key';
+  input.className = 'input access-key';
   input.type = 'password';
   input.autocomplete = 'off';
   input.spellcheck = false;
@@ -34,7 +34,7 @@ function overlay() {
   btn.className = 'btn primary block';
   btn.textContent = m('Lưu token');
   const err = document.createElement('p');
-  err.className = 'license-err';
+  err.className = 'access-err';
   const save = () => {
     const value = input.value.trim();
     if (!value.startsWith('avs_')) { err.textContent = m('Token không đúng định dạng.'); return; }

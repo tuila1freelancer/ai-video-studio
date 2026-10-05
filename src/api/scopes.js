@@ -1,19 +1,19 @@
-// What each route asks of a token. Data, not code sprinkled over 178 handlers — the same reason
-// the licence gate is one middleware: a route added tomorrow is covered by a rule, not by memory.
+// What each route asks of a token. Data, not code sprinkled over 178 handlers: a route added
+// tomorrow is covered by a rule, not by memory.
 //
 // Fail-closed by construction: anything that does not match a rule still needs `produce` to write,
 // and the four rules that matter (open, admin, publish, everything else) are ordered, so a path can
 // only ever be granted by the FIRST rule that claims it.
 
-/** Reachable without a token: the launcher's poll, and the one endpoint a locked copy shows. */
-const OPEN = /^\/(health|license\/status)$/;
+/** Reachable without a token: the launcher's poll, and nothing else. */
+const OPEN = /^\/health$/;
 
 /**
- * Writes that reconfigure the installation rather than produce a video: provider keys, the licence,
- * channels, the queue's own switches. An agent that only makes videos must not hold these.
+ * Writes that reconfigure the installation rather than produce a video: provider keys, channels,
+ * the queue's own switches. An agent that only makes videos must not hold these.
  */
 const ADMIN_WRITE = [
-  /^\/(settings|license|channels|ops|tokens)(\/|$)/,
+  /^\/(settings|channels|ops|tokens)(\/|$)/,
   /^\/(assistant\/settings|platforms|llm|tts\/server)(\/|$)/,
   /^\/(styles|presets|logo-presets|subtitle-presets|export\/presets|hyperframe)(\/|$)/,
   /^\/brandgen\/providers(\/|$)/,
