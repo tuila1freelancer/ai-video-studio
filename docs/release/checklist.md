@@ -1,6 +1,6 @@
 # Release checklist
 
-What has to be true before a build goes to a customer. Two lists, because the two platforms are not
+What has to be true before a build is published. Two lists, because the two platforms are not
 equally proven: macOS is built, audited and run here on every release; **Windows is built and
 audited here but has never been run on Windows**, and the second list is the part somebody with a
 Windows machine has to do before that installer is handed to anyone.
@@ -51,7 +51,7 @@ vendor/node/bin/node scripts/audit-release.mjs
 ## 3. Windows — NOT YET VERIFIED ON WINDOWS
 
 Built and audited on macOS; everything below is unproven until someone runs it on a real Windows
-machine. Do not publish the installer to customers before this list is done.
+machine. Do not publish the installer before this list is done.
 
 ```bash
 npm run win:build

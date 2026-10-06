@@ -11,7 +11,7 @@ upload). `GET /api/health` returns `ok` and `ops.state === 'running'`.
    and the channel's caps. If a hard cap is already reached the next step answers `402
    budget_exceeded` — that is the answer, not a problem to route around.
 2. **Create it.** `POST /api/projects { topic, channelId, clientRef }`. Use a `clientRef` you can
-   reproduce (`daily-2026-09-23-money-mechanics`), so a retry cannot make a second video.
+   reproduce (`daily-2026-09-23-my-channel`), so a retry cannot make a second video.
    MCP: `avs_video_create { topic, channelId, clientRef, start: true, wait: true }`.
 3. **Start it.** `POST /api/projects/:id/start`.
 4. **Follow it.** Poll `GET /api/projects/:id?scenes=0` for the status; read

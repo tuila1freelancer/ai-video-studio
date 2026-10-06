@@ -1,8 +1,8 @@
 # avs-kit
 
-The agent-facing half of AI Video Studio: an MCP server, a CLI and an SDK. No dependencies, and no
-doctrine — everything here is a thin wrapper over the engine's HTTP API, which is why this can be
-read by anyone while the engine stays closed.
+The agent-facing half of AI Video Studio: an MCP server, a CLI and an SDK. No runtime
+dependencies — everything here is a thin wrapper over the engine's HTTP API, so it can be copied
+next to any agent without the rest of the repository.
 
 ```bash
 # MCP host (Claude Code, Claude Desktop, …)
