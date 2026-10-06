@@ -719,7 +719,6 @@
   "ui.bgProviderForm.luu-provider": "💾 Save provider",
   "ui.bgProviderForm.nha-cung-cap": "Provider",
   "ui.bgSize.1024-1024-vuong": "1024×1024 — Square",
-  "ui.bgSize.1024-1536-doc-nhu-app": "1024×1536 — Portrait (reference app)",
   "ui.bgSize.1536-1024-ngang": "1536×1024 — landscape",
   "ui.bgStyleChips.khac": "✏️ Other",
   "ui.brandAiSub.align-chu-chuan-timing-that": "align (exact text + real timing)",
@@ -2181,5 +2180,6 @@
   "ui.wmSource.ten-kenh": "Channel name",
   "ui.wmSpeed.cham-75s-vong": "Slow — 75s/loop",
   "ui.wmSpeed.rat-cham-120s-vong": "Very slow — 120s/loop",
-  "ui.wmSpeed.vua-45s-vong": "Medium — 45s/loop"
+  "ui.wmSpeed.vua-45s-vong": "Medium — 45s/loop",
+  "ui.bgSize.1024-1536-doc": "1024×1536 — Portrait"
 }

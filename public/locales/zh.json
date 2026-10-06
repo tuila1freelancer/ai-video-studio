@@ -719,7 +719,6 @@
   "ui.bgProviderForm.luu-provider": "💾 保存服务商",
   "ui.bgProviderForm.nha-cung-cap": "服务商",
   "ui.bgSize.1024-1024-vuong": "1024×1024 — 正方形",
-  "ui.bgSize.1024-1536-doc-nhu-app": "1024×1536 — 竖屏 (参考应用)",
   "ui.bgSize.1536-1024-ngang": "1536×1024 — 横向",
   "ui.bgStyleChips.khac": "✏️ 其他",
   "ui.brandAiSub.align-chu-chuan-timing-that": "align（标准文本 + 实际时间轴）",
@@ -2181,5 +2180,6 @@
   "ui.wmSource.ten-kenh": "频道名称",
   "ui.wmSpeed.cham-75s-vong": "慢 — 75s/圈",
   "ui.wmSpeed.rat-cham-120s-vong": "极慢 — 120s/圈",
-  "ui.wmSpeed.vua-45s-vong": "中 — 45s/圈"
+  "ui.wmSpeed.vua-45s-vong": "中 — 45s/圈",
+  "ui.bgSize.1024-1536-doc": "1024×1536 — 竖屏"
 }

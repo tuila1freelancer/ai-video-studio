@@ -1,5 +1,5 @@
-// P27 — Brand Asset generation: the two reference-app prompts are carried VERBATIM (byte
-// equality pinned here) with exactly one mandated edit (transparent background), the image
+// P27 — Brand Asset generation: the two prompts are pinned byte for byte here (a true-alpha
+// transparent background is mandatory), the image
 // model runs primary-only ×10 then fails loudly (no fallback), every accepted PNG passes a
 // real alpha transparency gate, and provider mutations round-trip through settings safely.
 import './_env.mjs';
@@ -18,7 +18,7 @@ import {
   addEditProvider, removeEditProvider, TRANSPARENT_RETRY_LINE, BRAND_EDIT_ATTEMPTS,
 } from '../src/api/services/brand-gen.js';
 
-// ---- prompt fidelity (byte-for-byte against the reference app's strings) ----
+// ---- prompt fidelity (byte-for-byte against the pinned strings) ----
 
 const REF_EMOTIONS_NO_CONTEXT = `You are a character emotion/action designer for brand assets.
 

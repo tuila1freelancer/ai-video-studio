@@ -719,7 +719,6 @@
   "ui.bgProviderForm.luu-provider": "💾 Simpan provider",
   "ui.bgProviderForm.nha-cung-cap": "Penyedia",
   "ui.bgSize.1024-1024-vuong": "1024×1024 — persegi",
-  "ui.bgSize.1024-1536-doc-nhu-app": "1024×1536 — vertikal (seperti app referensi)",
   "ui.bgSize.1536-1024-ngang": "1536×1024 — lanskap",
   "ui.bgStyleChips.khac": "✏️ Lainnya",
   "ui.brandAiSub.align-chu-chuan-timing-that": "align (teks standar + timing nyata)",
@@ -2181,5 +2180,6 @@
   "ui.wmSource.ten-kenh": "Nama kanal",
   "ui.wmSpeed.cham-75s-vong": "Lambat — 75 dtk/putaran",
   "ui.wmSpeed.rat-cham-120s-vong": "Sangat lambat — 120 dtk/putaran",
-  "ui.wmSpeed.vua-45s-vong": "Sedang — 45 dtk/putaran"
+  "ui.wmSpeed.vua-45s-vong": "Sedang — 45 dtk/putaran",
+  "ui.bgSize.1024-1536-doc": "1024×1536 — vertikal"
 }

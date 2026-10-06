@@ -719,7 +719,6 @@
   "ui.bgProviderForm.luu-provider": "💾 프로바이더 저장",
   "ui.bgProviderForm.nha-cung-cap": "공급자",
   "ui.bgSize.1024-1024-vuong": "1024×1024 — 정사각형",
-  "ui.bgSize.1024-1536-doc-nhu-app": "1024×1536 — 세로 (참조 앱)",
   "ui.bgSize.1536-1024-ngang": "1536×1024 — 가로",
   "ui.bgStyleChips.khac": "✏️ 기타",
   "ui.brandAiSub.align-chu-chuan-timing-that": "align (정확한 텍스트 + 실제 타이밍)",
@@ -2181,5 +2180,6 @@
   "ui.wmSource.ten-kenh": "채널 이름",
   "ui.wmSpeed.cham-75s-vong": "느림 — 75초/회전",
   "ui.wmSpeed.rat-cham-120s-vong": "매우 느림 — 120초/회전",
-  "ui.wmSpeed.vua-45s-vong": "보통 — 45초/회전"
+  "ui.wmSpeed.vua-45s-vong": "보통 — 45초/회전",
+  "ui.bgSize.1024-1536-doc": "1024×1536 — 세로"
 }

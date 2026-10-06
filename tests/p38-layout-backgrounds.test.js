@@ -1,4 +1,4 @@
-// P38 — reference-parity layout (hard px thresholds + per-ratio rules) and the per-scene
+// P38 — layout (hard px thresholds + per-ratio rules) and the per-scene
 // backdrop rotation. Pure/fast: no browser, no ffmpeg.
 import './_env.mjs';
 import test from 'node:test';
@@ -7,8 +7,8 @@ import { sourceOf } from './_source.mjs';
 import { viewportBlock, ratioRulesBlock, ratioClass } from '../src/hyperframe/prompt.js';
 import { BACKDROP_STYLES, ALL_MOTIFS, backdropForScene } from '../src/animation/backdrop.js';
 
-test('P39 viewportBlock emits the reference INTEGER threshold table for the ratio', () => {
-  const v = viewportBlock(1920, 1080, true); // 16:9 → the reference app's exact integers
+test('P39 viewportBlock emits the INTEGER threshold table for the ratio', () => {
+  const v = viewportBlock(1920, 1080, true); // 16:9 → the table's exact integers
   for (const [k, val] of [['SIDE_PADDING', 90], ['TOP_PADDING', 70], ['BOTTOM_PADDING', 90],
     ['TEXT_MAX_W', 980], ['HERO_MAX_W', 920], ['CARD_MIN_W', 520], ['CARD_MAX_W', 760],
     ['SUBJECT_MAX_H', 450], ['TEXT_BLOCK_MAX_H', 300], ['SAFE_CENTER_W', 1320], ['SAFE_CENTER_H', 620], ['SPLIT_GAP', 80]]) {

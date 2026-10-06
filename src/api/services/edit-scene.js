@@ -1,4 +1,4 @@
-// Edit-scene-by-prompt (reference-app parity, its prompt #55): the user types a plain
+// Edit-scene-by-prompt: the user types a plain
 // instruction ("make the number gold", "move the chart left, add a warning badge") and ONE
 // LLM call rewrites the scene's CURRENT effective {css,html,script} accordingly. The result
 // passes the same lint + syntax + render-validation gates as fresh codegen — a bad edit is

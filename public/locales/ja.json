@@ -719,7 +719,6 @@
   "ui.bgProviderForm.luu-provider": "💾 プロバイダーを保存",
   "ui.bgProviderForm.nha-cung-cap": "プロバイダー",
   "ui.bgSize.1024-1024-vuong": "1024×1024 — 正方形",
-  "ui.bgSize.1024-1536-doc-nhu-app": "1024×1536 — 縦 (参考アプリ)",
   "ui.bgSize.1536-1024-ngang": "1536×1024 — 横向き",
   "ui.bgStyleChips.khac": "✏️ その他",
   "ui.brandAiSub.align-chu-chuan-timing-that": "配置 (標準テキスト＋実タイミング)",
@@ -2181,5 +2180,6 @@
   "ui.wmSource.ten-kenh": "チャンネル名",
   "ui.wmSpeed.cham-75s-vong": "遅い — 75秒/周",
   "ui.wmSpeed.rat-cham-120s-vong": "とても遅い — 120秒/周",
-  "ui.wmSpeed.vua-45s-vong": "標準 — 45秒/周"
+  "ui.wmSpeed.vua-45s-vong": "標準 — 45秒/周",
+  "ui.bgSize.1024-1536-doc": "1024×1536 — 縦"
 }

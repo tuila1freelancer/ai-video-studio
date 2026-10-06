@@ -719,7 +719,6 @@
   "ui.bgProviderForm.luu-provider": "💾 प्रोवाइडर सेव करें",
   "ui.bgProviderForm.nha-cung-cap": "प्रोवाइडर",
   "ui.bgSize.1024-1024-vuong": "1024×1024 — स्क्वायर",
-  "ui.bgSize.1024-1536-doc-nhu-app": "1024×1536 — वर्टिकल (रेफ़रंस ऐप जैसा)",
   "ui.bgSize.1536-1024-ngang": "1536×1024 — लैंडस्केप",
   "ui.bgStyleChips.khac": "✏️ अन्य",
   "ui.brandAiSub.align-chu-chuan-timing-that": "align (सटीक टेक्स्ट + रियल टाइमिंग)",
@@ -2181,5 +2180,6 @@
   "ui.wmSource.ten-kenh": "चैनल का नाम",
   "ui.wmSpeed.cham-75s-vong": "धीमी — 75s/लूप",
   "ui.wmSpeed.rat-cham-120s-vong": "बहुत धीमी — 120s/लूप",
-  "ui.wmSpeed.vua-45s-vong": "मीडियम — 45s/लूप"
+  "ui.wmSpeed.vua-45s-vong": "मीडियम — 45s/लूप",
+  "ui.bgSize.1024-1536-doc": "1024×1536 — वर्टिकल"
 }

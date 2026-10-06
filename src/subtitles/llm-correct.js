@@ -1,10 +1,10 @@
-// LLM subtitle correction — reference-app parity (its prompts #89/#90), scoped to where it
+// LLM subtitle correction, scoped to where it
 // actually helps US: cues that came from RAW whisper transcription (unknown audio). Our
 // default 'align' engine already displays the script's own words, so narrated scenes never
 // carry mishears; this lane exists for the whisper engine and transcription-driven flows
 // (e.g. overlay-over-existing-footage).
 //
-// Contract (inviolable — mirrors the reference app and is enforced here, not just asked):
+// Contract (inviolable — enforced here, not just asked):
 //   • block COUNT unchanged           • every timestamp unchanged
 //   • only the TEXT of a block may change (fix misheard proper nouns / numbers / foreign
 //     terms by comparing against the original narration when provided)

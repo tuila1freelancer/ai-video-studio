@@ -719,7 +719,6 @@
   "ui.bgProviderForm.luu-provider": "💾 Guardar proveedor",
   "ui.bgProviderForm.nha-cung-cap": "Proveedor",
   "ui.bgSize.1024-1024-vuong": "1024×1024 — cuadrado",
-  "ui.bgSize.1024-1536-doc-nhu-app": "1024×1536 — vertical (como app de ref.)",
   "ui.bgSize.1536-1024-ngang": "1536×1024 — horizontal",
   "ui.bgStyleChips.khac": "✏️ Otro",
   "ui.brandAiSub.align-chu-chuan-timing-that": "alinear (texto exacto + timing real)",
@@ -2181,5 +2180,6 @@
   "ui.wmSource.ten-kenh": "Nombre del canal",
   "ui.wmSpeed.cham-75s-vong": "Lento — 75s/vuelta",
   "ui.wmSpeed.rat-cham-120s-vong": "Muy lento — 120s/vuelta",
-  "ui.wmSpeed.vua-45s-vong": "Medio — 45s/vuelta"
+  "ui.wmSpeed.vua-45s-vong": "Medio — 45s/vuelta",
+  "ui.bgSize.1024-1536-doc": "1024×1536 — vertical"
 }

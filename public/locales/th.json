@@ -719,7 +719,6 @@
   "ui.bgProviderForm.luu-provider": "💾 บันทึก Provider",
   "ui.bgProviderForm.nha-cung-cap": "ผู้ให้บริการ",
   "ui.bgSize.1024-1024-vuong": "1024×1024 — สี่เหลี่ยมจัตุรัส",
-  "ui.bgSize.1024-1536-doc-nhu-app": "1024×1536 — แนวตั้ง (เหมือนแอปอ้างอิง)",
   "ui.bgSize.1536-1024-ngang": "1536×1024 — แนวนอน",
   "ui.bgStyleChips.khac": "✏️ อื่นๆ",
   "ui.brandAiSub.align-chu-chuan-timing-that": "align (ข้อความตรง + เวลาจริง)",
@@ -2181,5 +2180,6 @@
   "ui.wmSource.ten-kenh": "ชื่อช่อง",
   "ui.wmSpeed.cham-75s-vong": "ช้า — 75s/รอบ",
   "ui.wmSpeed.rat-cham-120s-vong": "ช้ามาก — 120s/รอบ",
-  "ui.wmSpeed.vua-45s-vong": "ปานกลาง — 45s/รอบ"
+  "ui.wmSpeed.vua-45s-vong": "ปานกลาง — 45s/รอบ",
+  "ui.bgSize.1024-1536-doc": "1024×1536 — แนวตั้ง"
 }

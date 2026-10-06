@@ -1,7 +1,6 @@
-// Brand Asset generation (P27) — reference-app parity lane.
-// The two prompts are VERBATIM copies of the reference app's brand-gen prompts with exactly
-// ONE user-mandated edit: the image prompt's background sentence is hardened from
-// "Transparent or clean solid background." to a mandatory true-alpha transparent background.
+// Brand Asset generation (P27).
+// The two prompts are pinned byte-for-byte by tests. The image prompt's background sentence
+// demands a true-alpha transparent background rather than accepting a clean solid one.
 // Contract: the image model selected in settings gets up to 10 attempts (a non-transparent
 // result consumes an attempt), then the item FAILS LOUDLY naming provider+model — no
 // provider/model fallback, no placeholder images.

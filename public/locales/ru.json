@@ -719,7 +719,6 @@
   "ui.bgProviderForm.luu-provider": "💾 Сохранить провайдера",
   "ui.bgProviderForm.nha-cung-cap": "Провайдер",
   "ui.bgSize.1024-1024-vuong": "1024×1024 — квадрат",
-  "ui.bgSize.1024-1536-doc-nhu-app": "1024×1536 — вертикальный (как в образце)",
   "ui.bgSize.1536-1024-ngang": "1536×1024 — гор.",
   "ui.bgStyleChips.khac": "✏️ Другое",
   "ui.brandAiSub.align-chu-chuan-timing-that": "align (точный текст + реальный тайминг)",
@@ -2181,5 +2180,6 @@
   "ui.wmSource.ten-kenh": "Название канала",
   "ui.wmSpeed.cham-75s-vong": "Медленно — 75 с/круг",
   "ui.wmSpeed.rat-cham-120s-vong": "Очень медленно — 120 с/круг",
-  "ui.wmSpeed.vua-45s-vong": "Средне — 45 с/круг"
+  "ui.wmSpeed.vua-45s-vong": "Средне — 45 с/круг",
+  "ui.bgSize.1024-1536-doc": "1024×1536 — вертикальный"
 }

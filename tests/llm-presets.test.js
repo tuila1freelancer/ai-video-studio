@@ -169,7 +169,7 @@ test('an unknown preset id is safe', () => {
 });
 
 // ---- the routes the panel talks to ----
-// Source-anchored, like p42-route-parity: mounting the router for real would need the whole
+// Source-anchored, like p42-routes: mounting the router for real would need the whole
 // server fixture, and everything with logic is covered functionally
 // above and below this block.
 

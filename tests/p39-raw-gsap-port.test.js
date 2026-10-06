@@ -60,10 +60,10 @@ test('P39 pillar 2: the prompt teaches raw GSAP, not an FX-only ban', () => {
 });
 
 test('P39 pillar 3: threshold tables are byte-exact per ratio, and scale a non-standard canvas', () => {
-  // 4:5 reference integers (1080x1350)
+  // 4:5 table integers (1080x1350)
   const v45 = viewportBlock(1080, 1350, true);
   assert.ok(v45.includes('SIDE_PADDING=65px') && v45.includes('BOTTOM_PADDING=105px') && v45.includes('CARD_MAX_W=820px'), '4:5 table');
-  // 1:1 reference integers (1080x1080)
+  // 1:1 table integers (1080x1080)
   const v11 = viewportBlock(1080, 1080, true);
   assert.ok(v11.includes('SIDE_PADDING=70px') && v11.includes('SAFE_CENTER_W=740px'), '1:1 table');
   // a half-size 16:9 canvas scales the 90px side padding to ~45px (proportional, still correct)

@@ -67,7 +67,7 @@ export function contrastRatio([r1, g1, b1], [r2, g2, b2]) {
   const L1 = lum(r1, g1, b1), L2 = lum(r2, g2, b2);
   return (Math.max(L1, L2) + 0.05) / (Math.min(L1, L2) + 0.05);
 }
-// Telemetry-junk pattern (mirrors the parity audit): snake_case tokens, code calls,
+// Telemetry-junk pattern: snake_case tokens, code calls,
 // file suffixes — leftover dev text that must never appear on screen.
 const JUNK_RE = /\b[A-Za-z][A-Za-z0-9]*(?:_[A-Za-z0-9]+)+\b|\b[a-z_][\w]*(?:\.[a-z_][\w]*)+\s*\([^)]*\)|\b[\w-]+\.(?:exe|sh|js|ts|py|json|dll|bat|cfg|log|sys)\b/;
 
@@ -198,9 +198,9 @@ const PROBE = `(() => {
         break; // only the topmost relevant element decides this probe point
       } }
     if(cov>=3) occluded.push({txt:(n.el.textContent||'').trim().slice(0,20),by:coverBy}); }
-  // hero-instrument density (reference caliber): the biggest crafted cluster's part count —
-  // a slot/container holding many visible text/painted/svg children. Mirrors the parity
-  // checklist's (b) so the codegen loop can be re-asked toward the 8-20-part doctrine.
+  // hero-instrument density: the biggest crafted cluster's part count — a slot/container
+  // holding many visible text/painted/svg children, so the codegen loop can be re-asked toward
+  // the 8-20-part doctrine.
   let heroParts=0;
   for(const el of cam.querySelectorAll('div,section,figure')){
     if(el.closest('.hf-far'))continue;

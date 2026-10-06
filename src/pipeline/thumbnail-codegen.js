@@ -38,10 +38,9 @@ import { langName, langAdjective, DEFAULT_LANG } from '../util/lang.js';
 import { lang as langRow } from '../i18n/languages.js';
 
 import { m, tp } from '../i18n/t.js';
-// Layout budgets, ported from the reference app. The old prompt asked for percentages ("headline
-// >=55% of the width") and the model reinterpreted them differently every run — two good designs
-// and two collisions out of four. The reference hands the model ABSOLUTE PIXEL ceilings per ratio
-// and tells it to use them directly, which is why its output is consistent.
+// Layout budgets. The old prompt asked for percentages ("headline >=55% of the width") and the
+// model reinterpreted them differently every run — two good designs and two collisions out of
+// four. ABSOLUTE PIXEL ceilings per ratio, used directly, make the output consistent.
 const THUMB_LAYOUT = {
   '9:16': {
     w: 1080, h: 1920, label: 'vertical, TikTok/Reels',

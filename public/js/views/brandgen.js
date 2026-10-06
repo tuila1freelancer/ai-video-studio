@@ -1,7 +1,6 @@
-// Brand Asset generator — faithful clone of the reference app's page (P27):
-// emotion list via AI or manual, batch-3 concurrent generation with stop/resume on a kept
-// done-index, per-item log lines, live result grid, copy-to-brand. Plus (ours): the
-// image-edit provider + model + size are picked RIGHT HERE and persist to AI settings;
+// Brand Asset generator (P27): emotion list via AI or manual, batch-3 concurrent generation
+// with stop/resume on a kept done-index, per-item log lines, live result grid, copy-to-brand.
+// The image-edit provider + model + size are picked RIGHT HERE and persist to AI settings;
 // API keys never live in the browser — provider mutations go through dedicated routes.
 import { $, $$, el, esc } from '../ui/dom.js';
 import { toast } from '../ui/toast.js';

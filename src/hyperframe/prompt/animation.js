@@ -1,9 +1,9 @@
 // The animation spec and timeline skeleton (P37/P39) in the tl.*/FX.* vocabulary, and the creative-libraries block (P40).
 import { advertisedLibs } from '../../animation/libs.js';
 
-// P37/P39 (reference-parity): the reference app hands the model EXACT GSAP values (its
-// {{ANIMATION_SPEC}} + {{TIMELINE_SKELETON}} blocks), not just doctrine — that concreteness is
-// most of why its scenes land cleaner. We emit the same, in the `tl.*`/`FX.*` vocabulary (raw
+// P37/P39: the model is handed EXACT GSAP values (an animation spec + a timeline skeleton), not
+// just doctrine — that concreteness is most of why scenes land clean. Emitted in the
+// `tl.*`/`FX.*` vocabulary (raw
 // GSAP timeline authoring — standalone `gsap.to` still freezes, so motion goes on tl), derived
 // from the scene's cinematic direction + motion signature + the real beat table.
 const CAMERA_MOVE = {

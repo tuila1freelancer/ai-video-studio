@@ -107,7 +107,7 @@ function syntaxCheck(spec, guide, { w, h, duration }) {
   new Function('gsap', 'tl', 'S', 'rng', tpl.script); // throws SyntaxError on bad JS
 }
 
-// Reference-app mode blocks (its #33 / #68), adapted to our guide-locked stage.
+// Mode blocks for the codegen prompt, bound to the guide-locked stage.
 export function consistentScenesBlock(guide) {
   return `CONSISTENT SCENES MODE (hard):
 - Scene surfaces stay on the guide background ${guide.palette.bg} (panels may use ${guide.palette.bg2}) — never invent another backdrop tone.

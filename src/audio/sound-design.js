@@ -1,4 +1,4 @@
-// LLM sound design — reference-app parity (its prompt #95): ONE call reads the finished
+// LLM sound design: ONE call reads the finished
 // video's cue sheet (absolute SRT times) plus the user's BGM/SFX library and returns a
 // plan: one background track + SFX placed at meaningful moments. Everything is validated
 // and clamped deterministically here; any failure (offline, bad JSON, empty library)

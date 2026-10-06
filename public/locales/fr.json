@@ -719,7 +719,6 @@
   "ui.bgProviderForm.luu-provider": "💾 Enregistrer le fournisseur",
   "ui.bgProviderForm.nha-cung-cap": "Fournisseur",
   "ui.bgSize.1024-1024-vuong": "1024×1024 — Carré",
-  "ui.bgSize.1024-1536-doc-nhu-app": "1024×1536 — Portrait (style app de référence)",
   "ui.bgSize.1536-1024-ngang": "1536×1024 — Paysage",
   "ui.bgStyleChips.khac": "✏️ Autre",
   "ui.brandAiSub.align-chu-chuan-timing-that": "aligner (texte exact + timing réel)",
@@ -2181,5 +2180,6 @@
   "ui.wmSource.ten-kenh": "Nom de la chaîne",
   "ui.wmSpeed.cham-75s-vong": "Lent — 75s/tour",
   "ui.wmSpeed.rat-cham-120s-vong": "Très lent — 120s/tour",
-  "ui.wmSpeed.vua-45s-vong": "Moyen — 45s/tour"
+  "ui.wmSpeed.vua-45s-vong": "Moyen — 45s/tour",
+  "ui.bgSize.1024-1536-doc": "1024×1536 — Portrait"
 }

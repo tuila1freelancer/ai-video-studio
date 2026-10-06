@@ -39,7 +39,7 @@ export function guideV2Block(guide) {
   return parts.length ? `\n${parts.join('\n')}` : '';
 }
 
-// Overlay-mode doctrine (the reference app's 19 KB overlay prompt distilled): the scene
+// Overlay-mode doctrine: the scene
 // composites onto REAL FOOTAGE via colorkey, so the design rules flip from "build a stage"
 // to "decorate a living picture without hiding it".
 export function overlayBlock({ edit = false } = {}) {
@@ -56,7 +56,7 @@ export function overlayBlock({ edit = false } = {}) {
 - Per-beat protocol is unchanged (one keyword enters on its word, holds alive, exits before the next; position rotation; final climax + callback) — but keep each beat's element NEAR the edges/thirds, never parked dead-center.`;
 }
 
-// Script-specific typography rules (reference-app per-language textRule parity): a script whose
+// Script-specific typography rules (per-language textRule): a script whose
 // marks leave the line box clips without extra line-height.
 //
 // Dispatched on the video's DECLARED language where there is one, and on the narration only as a

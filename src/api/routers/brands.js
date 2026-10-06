@@ -23,7 +23,7 @@ export function mount(r) {
     res.json({ files: out });
   });
 
-  // ---- brand gen (P27 — reference-app clone; prompts verbatim, ×10 no-fallback) ----
+  // ---- brand gen (P27 — pinned prompts, ×10 no-fallback) ----
   r.get('/brands', async (req, res) => {
     // Folders on disk count too — the user may simply have made one in Finder (P40).
     res.json({ brands: brandFolders() });

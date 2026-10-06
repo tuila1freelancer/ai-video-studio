@@ -1,9 +1,9 @@
-// Layout doctrine: ratio class, the reference app's hard-threshold tables (P38/P39) and the per-ratio distribution rules with the zone budget (P41).
+// Layout doctrine: ratio class, the hard-threshold tables (P38/P39) and the per-ratio distribution rules with the zone budget (P41).
 
-// P38 (reference-parity layout): the reference app does NOT balance layout with prose — it
-// injects EXACT px thresholds per ratio and MANDATES using them directly in code, plus per-ratio
-// distribution rules. That concreteness is what keeps its frames balanced and non-center-clumped.
-// We emit the same, computed from the real canvas so any aspect gets correct bounds. The caption
+// P38: layout is not balanced with prose. The prompt carries EXACT px thresholds per ratio and
+// MANDATES using them directly in code, plus per-ratio distribution rules — that concreteness is
+// what keeps frames balanced and non-center-clumped. Computed from the real canvas so any aspect
+// gets correct bounds. The caption
 // band matches the validate.js geometry gate (bottom ~20%).
 export function ratioClass(w, h) {
   const r = w / h;
@@ -12,11 +12,10 @@ export function ratioClass(w, h) {
   if (r >= 0.72) return '4:5';
   return '9:16';
 }
-// P39 (raw-GSAP reference port): the reference app injects HARDCODED INTEGER threshold TABLES per
-// aspect ratio — not formulas — and mandates using them verbatim. That concreteness is most of why
-// its frames land balanced. We ship the SAME integer tables (at the reference resolutions the values
-// are byte-identical; a non-standard canvas scales them proportionally so any size stays correct).
-const REF_THRESHOLDS = {
+// P39: HARDCODED INTEGER threshold TABLES per aspect ratio — not formulas — that the model must use
+// as written. At each table's base resolution the values are exact; a non-standard canvas scales
+// them proportionally so any size stays correct.
+const RATIO_THRESHOLDS = {
   '16:9': { rw: 1920, rh: 1080, side: 90, top: 70, bottom: 90, textW: 980, heroW: 920, cardMin: 520, cardMax: 760, subjectH: 450, textBlockH: 300, safeCW: 1320, safeCH: 620, gap: 80 },
   '9:16': { rw: 1080, rh: 1920, side: 70, top: 90, bottom: 130, textW: 830, heroW: 810, cardMin: 620, cardMax: 780, subjectH: 990, textBlockH: 360, safeCW: 760, safeCH: 980, gap: 36 },
   '1:1': { rw: 1080, rh: 1080, side: 70, top: 70, bottom: 90, textW: 760, heroW: 730, cardMin: 520, cardMax: 700, subjectH: 700, textBlockH: 280, safeCW: 740, safeCH: 740, gap: 32 },
@@ -24,8 +23,8 @@ const REF_THRESHOLDS = {
 };
 export function viewportBlock(w, h, captionsOn) {
   const cls = ratioClass(w, h);
-  const T = REF_THRESHOLDS[cls] || REF_THRESHOLDS['16:9'];
-  const sx = w / T.rw, sy = h / T.rh; // 1.0 at the reference resolution; scales any other canvas
+  const T = RATIO_THRESHOLDS[cls] || RATIO_THRESHOLDS['16:9'];
+  const sx = w / T.rw, sy = h / T.rh; // 1.0 at the table's base resolution; scales any other canvas
   const X = (v) => Math.round(v * sx), Y = (v) => Math.round(v * sy);
   const sideP = X(T.side), topP = Y(T.top), bottomP = Y(T.bottom);
   const contentMaxY = h - bottomP;
@@ -49,7 +48,7 @@ export function viewportBlock(w, h, captionsOn) {
   ].join('\n');
 }
 
-// Per-ratio distribution rules (reference-app parity: its RULES_FOR_<ratio> blocks). A weak
+// Per-ratio distribution rules. A weak
 // model's default gravity is center-stack; these push the composition to fill the frame's real
 // shape — a wide frame spreads horizontally, a tall frame stacks in reading order.
 export function ratioRulesBlock(w, h) {
