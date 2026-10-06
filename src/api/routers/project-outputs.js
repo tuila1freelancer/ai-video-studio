@@ -85,7 +85,7 @@ function mountThumbnail(r) {
   });
 
   // Edit the thumbnail BY INSTRUCTION (P42 — reference `/thumbnail/edit-html`). Re-designing
-  // throws away everything the owner liked; this changes only what they asked for.
+  // throws away everything the user liked; this changes only what they asked for.
   r.post('/projects/:id/thumbnail/edit-html', async (req, res) => {
     try {
       const p = DB.getProject(req.params.id);
@@ -116,7 +116,7 @@ function mountThumbnail(r) {
 function mountCoverVersions(r) {
   // Re-design the platform covers. They used to be generated once, inside finalize, and never
   // again — so a bad cover set could only be fixed by re-rendering the whole video. Seeding from
-  // the thumbnail the owner already approved means the six canvases inherit a design they liked
+  // the thumbnail the user already approved means the six canvases inherit a design they liked
   // instead of six fresh rolls of the dice.
   r.post('/projects/:id/covers/regen', async (req, res) => {
     try {
@@ -134,7 +134,7 @@ function mountCoverVersions(r) {
       const size = ratioToSize(p.aspect_ratio || '16:9');
       const fragments = seedHtml ? { [orientationOf(size)]: seedHtml } : {};
       // `only: ['youtube']` redoes ONE ratio. Redesigning all six because one is wrong throws away
-      // five the owner may already be happy with — and costs six generations to fix one.
+      // five the user may already be happy with — and costs six generations to fix one.
       const only = Array.isArray(req.body?.only) ? req.body.only.filter(Boolean) : null;
       const sizes = only?.length ? COVER_SIZES.filter((s) => only.includes(s.id)) : COVER_SIZES;
       if (!sizes.length) return res.status(400).json({ error: tp`không có khổ nào khớp: ${only?.join(', ')}` });
@@ -184,7 +184,7 @@ function mountCoverVersions(r) {
   });
 
   // Drop a version from the list. The file stays on disk: deleting a row is tidying the shelf,
-  // not destroying an export the owner may have already posted somewhere.
+  // not destroying an export the user may have already posted somewhere.
   r.delete('/projects/:id/thumbnails/:tid', (req, res) => {
     const p = DB.getProject(req.params.id);
     if (!p) return res.status(404).json({ error: 'not found' });
@@ -198,7 +198,7 @@ function mountCoverVersions(r) {
 /** Export, open, repurpose, dub — actions on a finished project. */
 function mountProjectActions(r) {
   /**
-   * Copy the platform covers somewhere the owner can actually use them.
+   * Copy the platform covers somewhere the user can actually use them.
    *
    * They are already written into the project's output folder, so this is not "download" in the
    * browser sense — it is "put a tidy, clearly-named set where I am about to upload from". The
@@ -230,7 +230,7 @@ function mountProjectActions(r) {
         copyFileSync(c.path, join(outDir, name));
         files.push(name);
       }
-      // land the owner in the folder they just filled — a server answers with the path instead
+      // land the user in the folder they just filled — a server answers with the path instead
       if (!isHeadless()) revealInFileManager(outDir);
       res.json({ ok: true, dir: outDir, files });
     } catch (e) { res.status(500).json({ error: e.message }); }
@@ -267,7 +267,7 @@ function mountProjectActions(r) {
   });
 
   // Dub: the same video in another language. Creates a project and stops — running it is the
-  // owner's own click, like every other paid path (P16).
+  // user's own click, like every other paid path (P16).
   r.post('/projects/:id/dub', async (req, res) => {
     try {
       const out = await dubProject(req.params.id, {

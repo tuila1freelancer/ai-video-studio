@@ -38,7 +38,7 @@ test('a project can refuse the channel logo for itself', () => {
 
 test('an explicit finalOverlay never falls back to the legacy placement', () => {
   // The legacy branch exists so pre-stamp configs keep their logo. It must not resurrect a
-  // stamp the owner just switched off — which needs `finalOverlay !== undefined` to short it.
+  // stamp the user just switched off — which needs `finalOverlay !== undefined` to short it.
   const legacy = { brandKit: { logo: { assetPath: '/logo.png', sizePct: 8.5 }, placement: 'always' } };
   assert.ok(resolveConcatLogo(legacy, SIZE), 'no finalOverlay key at all → migrate');
   assert.equal(
@@ -183,7 +183,7 @@ test('anything else pays for the full encode', () => {
   assert.equal(planConcat({ fp, prev: null, prevPath: null, videoFilter: true }).tier, 'encode');
 });
 
-test('every tier has a line the owner will actually see', () => {
+test('every tier has a line the user will actually see', () => {
   for (const t of ['skip', 'audio', 'copy', 'encode']) {
     assert.ok(tierLog(t)?.length > 8, `${t} announces itself`);
   }

@@ -1,5 +1,5 @@
 // LLM sound design — reference-app parity (its prompt #95): ONE call reads the finished
-// video's cue sheet (absolute SRT times) plus the owner's BGM/SFX library and returns a
+// video's cue sheet (absolute SRT times) plus the user's BGM/SFX library and returns a
 // plan: one background track + SFX placed at meaningful moments. Everything is validated
 // and clamped deterministically here; any failure (offline, bad JSON, empty library)
 // returns null and the caller keeps the deterministic legacy behavior (ambient bed +
@@ -92,7 +92,7 @@ export async function planSoundDesign({ scenes, lossBeforeScene, bgm = [], sfx =
   ].join('\n\n');
   // Measured on one real video: about one call in three comes back with names that match
   // nothing in the library, and a silent fall-through ships a video with no music and no SFX
-  // even though the owner asked for both. One cheap call, so ask again.
+  // even though the user asked for both. One cheap call, so ask again.
   for (let attempt = 1; attempt <= PLAN_TRIES; attempt++) {
     try {
       const reply = await chat([

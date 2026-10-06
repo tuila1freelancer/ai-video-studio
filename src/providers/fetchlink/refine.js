@@ -32,7 +32,7 @@ const keptShare = (blocks, idx) => {
  * this file finds the right REGION, but inside that region every site has its own furniture — an
  * author bio, a newsletter box, "read more" tiles, a subscription pitch, a photo credit, a related
  * rail rendered as ordinary paragraphs. No pattern list survives contact with the next site, and
- * the owner is right that a pattern list is what this was.
+ * the user is right that a pattern list is what this was.
  *
  * The model CLASSIFIES; it never rewrites. It is shown a numbered preview of each block and
  * answers with the ranges that are the article body, so the text that ships is the ORIGINAL text,

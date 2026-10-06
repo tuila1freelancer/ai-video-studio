@@ -234,7 +234,7 @@ export function slotTimeDialog(slot) {
 
 /**
  * Plan-my-week dialog: fill the coming days with the best pending suggestions.
- * Creates SLOTS only (owner confirms the whole plan here) — never starts a pipeline.
+ * Creates SLOTS only (user confirms the whole plan here) — never starts a pipeline.
  */
 export function planWeekDialog({ times = null } = {}) {
   const prefTimes = (times && times.length ? times : ['08:00']).join(', ');
@@ -309,7 +309,7 @@ export function addRecurrenceDialog() {
 }
 
 /**
- * Full owner flow for a pending suggestion: sheet → API call → toast.
+ * Full user flow for a pending suggestion: sheet → API call → toast.
  * Returns true when something was created/changed (callers refresh their views).
  */
 export async function runSuggestionAction(row, act, { due = null } = {}) {
@@ -330,7 +330,7 @@ export async function runSuggestionAction(row, act, { due = null } = {}) {
     if (mode === 'now') {
       const r = await api.post(`/topics/${row.id}/accept`, { config: picked.config, title: picked.title || null });
       toast('Đã đưa vào hàng đợi sản xuất 🎬', 'success');
-      // P34: land the owner on the new project — the journal narrates from second one
+      // P34: land the user on the new project — the journal narrates from second one
       if (r?.projectId) { closeModal('#autopilotModal'); openProject(r.projectId); }
     } else {
       await api.post(`/topics/${row.id}/schedule`, { dueAt: picked.dueAt, config: picked.config, title: picked.title || null });

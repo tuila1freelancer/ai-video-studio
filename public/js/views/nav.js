@@ -74,7 +74,7 @@ export function switchPage(p) {
 /**
  * Tool status: the detail in AI Setting, and nothing in the topbar unless something is wrong.
  *
- * Four permanent green dots told the owner what they already knew every second of every day, and
+ * Four permanent green dots told the user what they already knew every second of every day, and
  * the row is the scarcest space in the app. Deleting them outright would have been worse though —
  * a missing Chrome makes every thumbnail and every caption measurement fail, and the only clue
  * would have been the failure itself. So silence is the normal state and a real gap still shouts.

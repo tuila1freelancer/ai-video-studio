@@ -27,9 +27,9 @@ export function bearerOf(req) {
 /**
  * Is a token required at all?
  *
- * Two ways in: the deployment was started as a server, or the owner turned agent access on in the
+ * Two ways in: the deployment was started as a server, or the user turned agent access on in the
  * app. The second is what makes an installed copy safe to hand an agent — without it every process
- * on the machine is the owner, and nothing is revocable.
+ * on the machine is the user, and nothing is revocable.
  */
 export function authRequired() {
   return isServerMode() || agentEnabled();

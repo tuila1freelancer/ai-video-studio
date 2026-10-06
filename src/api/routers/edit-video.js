@@ -1,4 +1,4 @@
-// Edit-video lane: quick cut, standalone transcription, motion graphics onto the owner's own footage (P40).
+// Edit-video lane: quick cut, standalone transcription, motion graphics onto the user's own footage (P40).
 import { existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import * as DB from '../../db/index.js';
@@ -41,7 +41,7 @@ export function mount(r) {
       const { segments } = await transcribeWords(src, { language, granularity: 'segment' });
       let cues = segments;
       if (req.body?.repair !== false) {
-        // 'auto' means the owner did not say; read it off the transcript rather than assuming
+        // 'auto' means the user did not say; read it off the transcript rather than assuming
         // Vietnamese, which is what silently mangled every non-Vietnamese import.
         const repairLang = language === 'auto' ? majorityLang(segments.map((c) => c.text)) || DEFAULT_LANG : language;
         cues = await repairTranscript(segments, { language: repairLang, llm: DB.aiSettings().llm });
@@ -50,7 +50,7 @@ export function mount(r) {
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
-  // ---- edit video (P40): motion graphics onto footage the owner already has ----
+  // ---- edit video (P40): motion graphics onto footage the user already has ----
   // Creates a normal project carrying config.editVideo, then starts it through the ordinary
   // queue — so stop/resume/re-render/the job ledger all work exactly as for a scripted video.
   r.post('/edit-video/start', async (req, res) => {

@@ -1,11 +1,11 @@
 // What would this edit actually cost?
 //
 // The app already knew. `renderFingerprint` and `ttsFingerprint` can say, exactly, which scenes a
-// config change invalidates — they just were never asked before the owner committed to it. So
+// config change invalidates — they just were never asked before the user committed to it. So
 // changing a subtitle font either finished in a minute or took an hour, and the only way to find
 // out which was to start it and watch.
 //
-// This asks first, and answers in the shape the owner thinks in: how many scenes, how long, and
+// This asks first, and answers in the shape the user thinks in: how many scenes, how long, and
 // whether the whole thing is just a re-join.
 import * as DB from '../../db/index.js';
 import { ttsFingerprint, renderCurrent, fpCurrent } from '../../pipeline/fingerprint.js';
@@ -19,7 +19,7 @@ import { m, tp } from '../../i18n/t.js';
 // there is ONE place to add a key when a new final-stage setting appears. The copy that used to
 // live here had already drifted: it was missing `enableSubtitles` and `platformCovers`.
 const SUB_KEY = /^sub(?!titleLane$)/;
-/** The name the owner actually sees for a config key, so the plan does not read like a diff.
+/** The name the user actually sees for a config key, so the plan does not read like a diff.
  *  Resolved per call, never at import — the interface language can change while the app runs. */
 const keyLabel = (k) => ({
   transitions: m('hiệu ứng chuyển cảnh'), transitionStyle: m('kiểu chuyển cảnh'),
@@ -76,7 +76,7 @@ export function planChanges(projectId, nextConfig = {}) {
   // Both halves used to read `project.config`, and both were wrong about branding. finalize
   // resolves brand identity LIVE from the channel (unless the project overrode it), so a logo
   // edited in the Brand Kit never appears in either snapshot — and the plan answered "không có
-  // gì thay đổi" at the exact moment the owner most needed to be told there was work to do.
+  // gì thay đổi" at the exact moment the user most needed to be told there was work to do.
   //
   // BEFORE is the config of the last non-variant export, which finalize records AFTER resolving
   // the live brand kit and the concat logo: it is literally what was assembled. A variant is a
@@ -127,7 +127,7 @@ export function planChanges(projectId, nextConfig = {}) {
   const joinReasons = [
     logoMoved && (logoAfter ? m('đóng dấu logo') : m('bỏ logo')),
     wmMoved && (wmAfter?.enabled ? m('đổi watermark') : m('bỏ watermark')),
-    // …in the owner's words. `đổi concatEncoder` is a diff line, not a reason.
+    // …in the user's words. `đổi concatEncoder` is a diff line, not a reason.
     ...concatChanged.filter((k) => k !== 'logo' && k !== 'brandKit').map((k) => tp`đổi ${keyLabel(k)}`),
     subMoved.length && tp`đổi phụ đề (${subMoved.length} thiết lập, in ở bước cuối)`,
     (ttsStale.length || renderStale.length) && m('ghép lại sau khi dựng cảnh'),
@@ -147,7 +147,7 @@ export function planChanges(projectId, nextConfig = {}) {
     totalSec: items.reduce((a, i) => a + i.seconds, 0),
     measured,
     concatOnly,
-    // what to hand POST /render once the owner says yes
+    // what to hand POST /render once the user says yes
     mode: renderStale.length || ttsStale.length ? 'all' : 'concat',
     sceneIds: renderStale.map((s) => s.id),
     // the master fade is the one thing standing between a concat-only edit and a stream copy

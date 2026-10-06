@@ -1,5 +1,5 @@
 // The cost meter writes est_cost into the usage table permanently, so a matcher that misses
-// is not a cosmetic bug — it is a wrong number the owner can never recover. pricing.js is pure
+// is not a cosmetic bug — it is a wrong number the user can never recover. pricing.js is pure
 // and had no test at all; these are functional, no DB and no network.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -54,7 +54,7 @@ test('a local model bills nothing; a free TIER still bills its paid rate', () =>
   assert.equal(llm('llama-3.3-70b', 'ollama'), 0);
   assert.equal(llm('qwen3-8b', 'lmstudio'), 0);
   // Groq's free tier is a quota, not a price — pretending it is free would understate the
-  // moment the owner crosses it.
+  // moment the user crosses it.
   assert.ok(llm('llama-3.1-8b-instant', 'groq') > 0);
 });
 

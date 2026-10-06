@@ -15,7 +15,7 @@ import { m, tp } from '../../i18n/t.js';
  */
 export async function buildSoundtrack({ projectId, project, config, scenes, renderDir, expectDur, lossBeforeScene }) {
   // LLM sound design (reference-app parity, toggle config.soundDesign): ONE call picks a
-  // BGM from the owner's library and places SFX by the cue sheet. Anything short of a
+  // BGM from the user's library and places SFX by the cue sheet. Anything short of a
   // valid plan (offline, empty library, bad reply) → sdPlan stays null and the
   // deterministic legacy audio below ships unchanged.
   let sdPlan = null;
@@ -53,7 +53,7 @@ export async function buildSoundtrack({ projectId, project, config, scenes, rend
     }
   }
 
-  // SFX bed: LLM-planned events (when present) + the owner's per-scene picks from Scene
+  // SFX bed: LLM-planned events (when present) + the user's per-scene picks from Scene
   // Studio (scene.props.audio = {sfx, sfxGain, sfxAt} — an explicit pick always plays) +
   // auto whooshes on chapter transitions (autoSfx gate; skipped when the LLM plan owns
   // emphasis). Any failure just skips SFX.

@@ -44,7 +44,7 @@ const MIGRATIONS = [
   {
     id: 3,
     name: 'scene-gate-approval',
-    // Scene gate (visuals-first pipeline): timestamp of the owner's explicit "scenes look
+    // Scene gate (visuals-first pipeline): timestamp of the user's explicit "scenes look
     // good — go voice + render" approval. NULL = not approved; a project with
     // config.sceneGate holds at status 'scenes' after B5 until this is set. Durable so a
     // crash/auto-resume AFTER approval never re-holds, and one BEFORE approval always
@@ -98,9 +98,9 @@ const MIGRATIONS = [
     name: 'durable-stop-request',
     // "Dừng" has to outlive the process. The stop signal used to be a Set in module memory,
     // so quitting the app erased it — and boot recovery, seeing a job still marked 'running',
-    // requeued it and carried on rendering the video the owner had just stopped.
+    // requeued it and carried on rendering the video the user had just stopped.
     //
-    // Timestamp, not a boolean, so the journal can say WHEN the owner asked. NULL means no
+    // Timestamp, not a boolean, so the journal can say WHEN the user asked. NULL means no
     // stop is pending; it is cleared the moment a run is started again, and the moment a run
     // settles as paused (the stop has been honoured).
     up(db) {

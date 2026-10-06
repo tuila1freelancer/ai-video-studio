@@ -38,7 +38,7 @@ function mountAssistant(r) {
       res.json(await suggestTopics({ channelId: channel?.id, niche: String(req.body?.niche || ''), count: Math.min(12, parseInt(req.body?.count, 10) || 8), ai: aiSettingsFor(channel), sources }));
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
-  // suggestion history + owner decisions (accept is the ONLY route that starts a pipeline,
+  // suggestion history + user decisions (accept is the ONLY route that starts a pipeline,
   // and only for the explicitly clicked suggestion)
   r.get('/topics/history', (req, res) => {
     const channel = channelFor(req);
@@ -112,7 +112,7 @@ function mountCalendar(r) {
     } catch (e) { res.status(400).json({ error: e.message }); }
   });
   r.delete('/calendar/recurrences/:id', (req, res) => res.json({ ok: DB.deleteRecurrence(req.params.id) > 0 }));
-  // plan-my-week: fill the coming days with pending suggestions — SLOTS only, owner-confirmed
+  // plan-my-week: fill the coming days with pending suggestions — SLOTS only, user-confirmed
   r.post('/calendar/plan', async (req, res) => {
     try {
       const b = req.body || {};

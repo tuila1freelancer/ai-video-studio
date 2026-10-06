@@ -12,7 +12,7 @@ import { m, tp } from '../../i18n/t.js';
 export async function gateProgram({ projectId, dir, config, res, mastered, expectDur }) {
   // ---- B8: final integrity gate — a cheap stream/duration check on the joined video.
   // P38: the heavy per-frame QC (black/white-frame + dead-air scanning, scene-attributable
-  // re-render, and visual quality-tier surfacing) is REMOVED — the owner dropped the "cảnh lỗi"
+  // re-render, and visual quality-tier surfacing) is REMOVED — the user dropped the "cảnh lỗi"
   // QC as redundant, and the reference app ships none of it. A broken JOIN still surfaces here.
   if (config.qcGate !== false) {
     op(projectId, m('🔬 Kiểm tra video thành phẩm (stream + thời lượng)…'));

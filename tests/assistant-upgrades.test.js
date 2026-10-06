@@ -62,7 +62,7 @@ test('P34 source pins: sheet fixes + accept path + promote restore + estimate-co
     'durationMode applies ONLY with an explicit duration pick (the clobber bug)');
   assert.match(sheet, /data-a="gate"/, 'script-approval gate checkbox exists');
   assert.match(sheet, /config\.sceneGate = /, 'gate reaches the request config');
-  assert.match(sheet, /openProject\(r\.projectId\)/, 'accept lands the owner on the new project');
+  assert.match(sheet, /openProject\(r\.projectId\)/, 'accept lands the user on the new project');
   assert.match(sheet, /estimate-cost/, 'cost preview wired');
   const svc = sourceOf('src/api/services/assistant.js');
   assert.match(svc, /topics: \[row\.topic\.trim\(\)\]/, 'accept feeds the researched topic to B2');
@@ -74,5 +74,5 @@ test('P34 source pins: sheet fixes + accept path + promote restore + estimate-co
   assert.equal((routes.match(/r\.post\('\/estimate'/g) || []).length, 1, 'the duration-estimate route is not shadowed');
   assert.equal((routes.match(/r\.post\('\/estimate-cost'/g) || []).length, 1, 'the cost route exists once');
   const scriptStage = sourceOf('src/pipeline/stages/script.js');
-  assert.match(scriptStage, /config\.titleOverride \|\| script\.title/, 'owner-picked title beats the engine title');
+  assert.match(scriptStage, /config\.titleOverride \|\| script\.title/, 'user-picked title beats the engine title');
 });

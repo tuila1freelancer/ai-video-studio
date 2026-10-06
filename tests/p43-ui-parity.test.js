@@ -11,7 +11,7 @@ import { sourceOf, indexHtml } from './_source.mjs';
 const SCENES = [{ visual_prompt: '[ROLE] hook' }, { visual_prompt: '[ROLE] proof' }, { visual_prompt: '[ROLE] payoff' }, { visual_prompt: '[ROLE] cta' }];
 const plan = (style) => planTransitions({ scenes: SCENES, clipCount: 4, style }).map((t) => t.type);
 
-test('P43: the owner can name ONE transition look, or keep the storytelling doctrine', () => {
+test('P43: the user can name ONE transition look, or keep the storytelling doctrine', () => {
   // 'auto' is the default and must keep the role-driven plan exactly as it was
   assert.deepEqual(plan('auto'), ['fadeblack', 'zoomin', 'fadeblack'], 'the doctrine is untouched');
   assert.deepEqual(plan(undefined), ['fadeblack', 'zoomin', 'fadeblack'], 'and it is what you get by default');
@@ -52,7 +52,7 @@ test('P43: a dropped file is routed by WHAT IT IS, and nothing vanishes silently
   assert.deepEqual(k.fonts, ['brand.otf']);
   assert.deepEqual(k.unknown, ['notes.txt'], 'an unsupported file is reported, not dropped on the floor');
   const dd = sourceOf('public/js/features/dragdrop.js');
-  assert.match(dd, /bỏ qua \$\{kinds\.unknown\.length\} file không hỗ trợ/, 'and the owner is told');
+  assert.match(dd, /bỏ qua \$\{kinds\.unknown\.length\} file không hỗ trợ/, 'and the user is told');
   // dragenter/leave fire per element — without depth counting the overlay flickers across the page
   assert.match(dd, /depth = Math\.max\(0, depth - 1\)/);
   assert.match(sourceOf('public/js/main.js'), /initDragDrop\(\)/, 'wired into the app');
@@ -62,7 +62,7 @@ test('P43: capabilities that existed only as routes are now reachable in the UI'
   // "Sửa HTML với AI" — POST /scenes/:id/edit-html shipped long ago and nothing ever called it
   const ss = sourceOf('public/js/features/scene-studio.js');
   assert.match(ss, /api\.post\(`\/scenes\/\$\{cur\.id\}\/edit-html`, \{ prompt \}\)/, 'the AI edit lane is wired');
-  assert.match(ss, /htmlLoaded = false;/, 'and the editor reloads so the owner sees the result');
+  assert.match(ss, /htmlLoaded = false;/, 'and the editor reloads so the user sees the result');
   assert.ok(indexHtml().includes('id="ssEditPrompt"'));
 
   // the Facebook Page registry (P42) had no UI at all

@@ -43,9 +43,9 @@ export async function renderScenePage(opts) {
       const init = await withTimeout(page.evaluate('window.__init()'), 20000, '__init');
       if (init && init.tplErr) logger.warn(tp`Cảnh animation: script template lỗi (chỉ render CSS): ${init.tplErr}`);
       if (init && init.fontMiss && init.fontMiss.length) {
-        // Never a silent substitute — the owner picked these families explicitly. This probe has
+        // Never a silent substitute — the user picked these families explicitly. This probe has
         // existed since P30 and only ever reached logger.warn, which is to say: nowhere the
-        // owner looks. It is the same shape as the wrong-language warning that let 22 scenes
+        // user looks. It is the same shape as the wrong-language warning that let 22 scenes
         // ship in the wrong language, so it now travels back to the caller and onto the run log.
         fontMiss = init.fontMiss;
         const msg = tp`⚠ font không nạp được, trình duyệt sẽ thay bằng font khác: ${fontMiss.join(', ')} — kiểm tra Thư viện → Font chữ`;

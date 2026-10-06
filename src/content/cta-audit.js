@@ -1,5 +1,5 @@
 // P33 — CTA/farewell discipline detector (deterministic, no LLM, no I/O).
-// The owner's contract: a video carries AT MOST one soft CTA mid-flow (~30%) + one closing
+// The user's contract: a video carries AT MOST one soft CTA mid-flow (~30%) + one closing
 // CTA in the final scene, and NEVER a farewell ("hẹn gặp lại", "cảm ơn đã xem") before the
 // end. Batched generation used to close every 25-scene batch with its own CTA block — the
 // prompts now forbid it (master-script CTA PLAN) and THIS module enforces it: the scorer

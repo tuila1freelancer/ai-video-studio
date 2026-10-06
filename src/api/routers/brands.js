@@ -25,7 +25,7 @@ export function mount(r) {
 
   // ---- brand gen (P27 — reference-app clone; prompts verbatim, ×10 no-fallback) ----
   r.get('/brands', async (req, res) => {
-    // Folders on disk count too — the owner may simply have made one in Finder (P40).
+    // Folders on disk count too — the user may simply have made one in Finder (P40).
     res.json({ brands: brandFolders() });
   });
   // Brand folder rename / delete (P42 — reference PUT /brands/rename, DELETE /brands/:name).

@@ -5,7 +5,7 @@
 // that every metadata check in the app agreed was fine. The lesson was to verify by artifact, not
 // by row, and that is the check this exists to make routine.
 //
-// It reports. It never edits. A scan that quietly "fixed" things would put the owner back where
+// It reports. It never edits. A scan that quietly "fixed" things would put the user back where
 // they started: unable to tell what the video actually contains.
 import { existsSync } from 'node:fs';
 import * as DB from '../../db/index.js';
@@ -93,7 +93,7 @@ export function qcScan(projectId) {
     for (const t of narrWords ? screenText(scene) : []) {
       if (textLanguageLeak(t, narrWords, lang)) {
         add(scene, 'wrong-language', tp`chữ trên màn có vẻ không phải ${langName(lang)}: "${t.slice(0, 40)}"`);
-        break; // one report per scene is enough to send the owner to look
+        break; // one report per scene is enough to send the user to look
       }
     }
 

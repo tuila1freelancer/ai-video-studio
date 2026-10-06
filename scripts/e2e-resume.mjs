@@ -13,8 +13,8 @@ if (!process.env.AVS_DATA_DIR) { console.error('[e2e-resume] AVS_DATA_DIR is req
 
 function log(...a) { console.log('[e2e-resume]', ...a); }
 
-// AVS_HF_MODEL: the no-fallback contract's owner remedy — before resuming, point the
-// project's codegen at a stronger PRIMARY model (this is a config change the owner would
+// AVS_HF_MODEL: the remedy the no-fallback contract leaves the user — before resuming, point the
+// project's codegen at a stronger PRIMARY model (this is a config change the user would
 // make in the UI, not a silent fallback). Applied via the DB before the server boots.
 if (process.env.AVS_HF_MODEL) {
   const DB = await import('../src/db/index.js');

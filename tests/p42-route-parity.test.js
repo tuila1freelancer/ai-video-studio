@@ -117,7 +117,7 @@ test('P42: the LLM endpoint and the local voice engine can be checked/installed 
   assert.match(routes, /maxTokens: 8/, 'the check costs a token, not a paragraph');
   assert.match(routes, /r\.post\('\/tts\/server\/install'/);
   assert.match(routes, /'-m', 'pip', 'install', '--upgrade', 'supertonic'/);
-  assert.match(routes, /EXPLICIT button, never automatic/, 'installing on the owner\'s machine is never implicit');
+  assert.match(routes, /EXPLICIT button, never automatic/, 'installing on the user\'s machine is never implicit');
   const settings = sourceOf('public/js/features/settings.js');
   assert.match(settings, /btnTestLlm/);
   assert.match(settings, /ttsSrvInstall/);

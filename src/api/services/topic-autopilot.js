@@ -1,7 +1,7 @@
 // Topic autopilot — turn trend signals + the channel's Show Bible into channel-voiced
 // Vietnamese topic PROPOSALS, deduped against everything the channel already made,
 // already scheduled, or explicitly dismissed. Proposals are DATA: every batch is
-// persisted to topic_suggestions and the owner picks which ones become videos —
+// persisted to topic_suggestions and the user picks which ones become videos —
 // nothing here starts a paid pipeline on its own.
 import * as DB from '../../db/index.js';
 import { chatJson, llmEnabled } from '../../providers/llm.js';

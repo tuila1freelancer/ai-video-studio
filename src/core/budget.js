@@ -13,7 +13,7 @@ export function budgetSettings() {
     perChannelDayUsd: +b.perChannelDayUsd || 0,
     perChannelDayVideos: +b.perChannelDayVideos || 0,
     // Off by default: the existing behaviour is to DOWNGRADE at the cap, and turning a soft
-    // guardrail into a hard stop must be something the owner asked for.
+    // guardrail into a hard stop must be something the user asked for.
     hardStop: b.hardStop === true,
   };
 }
@@ -25,7 +25,7 @@ export function budgetState(projectId) {
   return { capped: spent >= cap, cap, spent };
 }
 
-/** Local midnight — a daily cap the owner can reason about, not a rolling 24 hours. */
+/** Local midnight — a daily cap the user can reason about, not a rolling 24 hours. */
 function startOfDay(now = Date.now()) {
   const d = new Date(now);
   return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();

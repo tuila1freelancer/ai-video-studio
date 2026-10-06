@@ -120,7 +120,7 @@ export function gatherConfig() {
     // config merge while the panel shows target mode.
     durationMode: $('#cfgDurMode')?.value === 'auto' ? 'auto' : 'target',
     transitions: $('#cfgTrans').checked,
-    // P43: the owner can name ONE look for the whole video; 'auto' keeps the role doctrine
+    // P43: the user can name ONE look for the whole video; 'auto' keeps the role doctrine
     transitionStyle: $('#cfgTransStyle')?.value || 'auto',
     autoBgm: $('#cfgBgmAuto').checked,
     generateMetadata: $('#cfgMeta').checked,
@@ -137,7 +137,7 @@ export function gatherConfig() {
   };
 }
 export function applyConfig(cfg = {}) {
-  // Populating the panel is not the owner editing it. Without this, every channel switch and
+  // Populating the panel is not the user editing it. Without this, every channel switch and
   // every preset click would fire the subtitle autosave and write the config that was just
   // loaded straight back — harmless on the way out, but it makes the "đã lưu" line lie about
   // what happened, and one crossed wire away from a channel saving another channel's look.

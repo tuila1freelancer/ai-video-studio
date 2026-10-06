@@ -120,7 +120,7 @@ export function initStudio() {
     $('#srcToggle').textContent = box.classList.contains('hidden') ? t('ui.srcDoc.xem', null, 'Xem') : m('Ẩn');
   });
   $('#srcClear')?.addEventListener('click', () => setSourceDoc(null));
-  // An edit is the owner's decision about what the video is written from, so it has to be what
+  // An edit is the user's decision about what the video is written from, so it has to be what
   // the pipeline receives — not a display copy of something the server will re-fetch anyway.
   $('#srcText')?.addEventListener('input', () => {
     if (state.sourceDoc) state.sourceDoc.text = $('#srcText').value;

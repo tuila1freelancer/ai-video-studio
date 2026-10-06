@@ -1,4 +1,4 @@
-// The Brand Kit logo upload was broken in THREE independent ways at once, and the owner's report
+// The Brand Kit logo upload was broken in THREE independent ways at once, and the user's report
 // — "I click upload and nothing even opens to pick a file" — pointed at the one that mattered
 // most, which was not in the web app at all.
 import './_env.mjs';
@@ -33,13 +33,13 @@ test('logo: a failed upload is reported, never swallowed', () => {
   assert.match(handler, /catch \(err\) \{\s*toast\(`✖ Không tải được logo: \$\{err\.message\}`/);
   assert.ok(!/if \(r\.error\) return toast/.test(handler), 'the unreachable branch is gone');
   // a file input does not re-fire 'change' for the same value, so a retry after a failure needs
-  // the value cleared — otherwise the owner must pick a different file to try again
+  // the value cleared — otherwise the user must pick a different file to try again
   assert.match(handler, /finally \{[\s\S]*e\.target\.value = ''/);
   // and the editor must be open, or brandDraft is null and the assignment throws
   assert.match(handler, /if \(!state\.brandDraft\) throw new Error/);
 });
 
-test('logo: the formats a Mac owner actually has are accepted, not refused', () => {
+test('logo: the formats a Mac user actually has are accepted, not refused', () => {
   // HEIC is the default for macOS screenshots and iPhone photos; the picker offered image/* and
   // the server then rejected exactly those files.
   for (const ext of ['.png', '.jpg', '.jpeg', '.webp', '.svg', '.gif']) {

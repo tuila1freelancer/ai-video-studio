@@ -121,7 +121,7 @@ export async function publishCurrent() {
 // ngay" is SCHEDULED a few minutes out rather than going live, mirroring the YouTube staging
 // default: a publish is never accidentally public.
 async function publishToFacebook() {
-  // P43: show the owner the EXACT post text and let them edit it, and let them pick when it goes
+  // P43: show the user the EXACT post text and let them edit it, and let them pick when it goes
   // live — a privacy menu cannot fix a typo in a caption nobody ever saw.
   const md = state.current?.metadata || {};
   let caption = md.captions?.facebook || md.description || '';

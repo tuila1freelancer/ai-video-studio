@@ -1,7 +1,7 @@
-// Assistant actions — the OWNER's explicit decisions on persisted topic suggestions.
+// Assistant actions — the user's explicit decisions on persisted topic suggestions.
 // acceptSuggestion is the only function here that starts a (paid) pipeline, and it runs
 // solely from a confirmed click in the UI; scheduleSuggestion/planWeek only create
-// calendar slots (data) that the scheduler promotes at the owner-chosen time.
+// calendar slots (data) that the scheduler promotes at the user-chosen time.
 import * as DB from '../../db/index.js';
 import { startBatch } from './batch.js';
 import { chatJson, llmEnabled } from '../../providers/llm.js';
@@ -14,7 +14,7 @@ function loadPending(id) {
   return row;
 }
 
-/** Owner clicked "make it now": create the project (with reviewed config) and mark the row.
+/** User clicked "make it now": create the project (with reviewed config) and mark the row.
  *  P34: the RESEARCHED topic always feeds B2; a picked click-title is display metadata
  *  (config.titleOverride) — it must never replace the topic the script engine writes from. */
 export function acceptSuggestion(id, { config = {}, title = null, channelId = null, actor = null } = {}) {
@@ -29,7 +29,7 @@ export function acceptSuggestion(id, { config = {}, title = null, channelId = nu
   return { projectId: projects[0] };
 }
 
-/** Owner scheduled it: create a calendar slot carrying the reviewed config. No job here. */
+/** User scheduled it: create a calendar slot carrying the reviewed config. No job here. */
 export function scheduleSuggestion(id, { dueAt, config = {}, title = null } = {}) {
   const row = loadPending(id);
   const request = {
@@ -43,8 +43,8 @@ export function scheduleSuggestion(id, { dueAt, config = {}, title = null } = {}
 }
 
 /**
- * Fill the coming days with pending suggestions (best viral score first) at the owner's
- * preferred times. Creates SLOTS ONLY — the owner confirmed the whole plan in one dialog,
+ * Fill the coming days with pending suggestions (best viral score first) at the user's
+ * preferred times. Creates SLOTS ONLY — the user confirmed the whole plan in one dialog,
  * and each slot promotes at its due time exactly like a hand-made one.
  */
 export function planWeek({ channelId = null, days = 7, perDay = 1, times = ['08:00'], startAt = Date.now(), config = {}, topicIds = null } = {}) {

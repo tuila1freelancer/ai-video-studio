@@ -3,7 +3,7 @@ import { icon } from '../ui/icons.js';
 import { m } from '../i18n.js';
 
 // Pipeline progress engine: weighted B2→B7 percent + step badges + current-op line + log.
-// Scenes-first order: visuals (b5) run BEFORE the voice (b34) so the owner can review the
+// Scenes-first order: visuals (b5) run BEFORE the voice (b34) so the user can review the
 // storyboard at the scene gate without spending TTS credits.
 // `n` is a getter: PIPE is built at import time, before the catalogue has been fetched.
 export const PIPE = [

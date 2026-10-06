@@ -119,7 +119,7 @@ function mountProjects(r) {
   });
 
   // What would this edit cost? The fingerprints have always known which scenes a config change
-  // invalidates; nobody asked them before the owner committed. Changing a subtitle font either
+  // invalidates; nobody asked them before the user committed. Changing a subtitle font either
   // took a minute or an hour and the only way to find out was to start it.
   r.post('/projects/:id/plan-changes', async (req, res) => {
     try {
@@ -166,7 +166,7 @@ function mountProjectEdits(r) {
 
   // Reuse another project's assets (P42 — reference `/projects/:id/copy-assets-from/:sourceId`).
   // The files are shared by PATH, not copied: both projects then point at the same media, which
-  // is what the owner means by "use the same pictures" and costs no disk.
+  // is what the user means by "use the same pictures" and costs no disk.
   r.post('/projects/:id/copy-assets-from/:sourceId', async (req, res) => {
     try {
       const p = DB.getProject(req.params.id), src = DB.getProject(req.params.sourceId);
@@ -202,7 +202,7 @@ function mountProjectMaintenance(r) {
   /**
    * What disappears if this project is deleted — asked BEFORE the confirmation is shown.
    *
-   * Deleting always removes the files now (owner's call), so the dialog has to name them. A
+   * Deleting always removes the files now (user's call), so the dialog has to name them. A
    * dialog that says "xoá dự án?" while quietly taking 4 GB of 4K clips is not a confirmation.
    */
   r.get('/projects/:id/footprint', (req, res) => {
@@ -247,7 +247,7 @@ function mountProjectMaintenance(r) {
     if (!at.length) return res.json({ ok: true, atRisk: 0, started: false });
     // `thumbnailAi: false` for THIS run only (configOverrides is never written back): finalize
     // redesigns the thumbnail and all six platform covers on every join, which on a repair means
-    // paying the LLM to replace artwork the owner may already have uploaded — measured at ~$0.09
+    // paying the LLM to replace artwork the user may already have uploaded — measured at ~$0.09
     // and 7 calls per video. Redrawing the clips must not redesign the cover.
     Pipeline.renderProject(p.id, {
       mode: 'scenes', sceneIds: at.map((x) => x.id), alsoJoin: true,

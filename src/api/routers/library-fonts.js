@@ -72,7 +72,7 @@ export function mount(r) {
 
 
   // ---- fonts: ONE list, and the bytes to prove it ----
-  // Every family the owner may pick, each with an honest source and a `ready` flag. A family
+  // Every family the user may pick, each with an honest source and a `ready` flag. A family
   // that has not been fetched renders as a substitute in both the preview and the video, so it
   // is listed as not-ready rather than silently offered as though it were there.
   r.get('/fonts/families', async (req, res) => {
@@ -84,7 +84,7 @@ export function mount(r) {
 
   // The actual @font-face bytes for ONE family, so the preview can draw in the real typeface
   // instead of whatever the browser falls back to. Base64 data URIs — same delivery the scene
-  // pages use, so what the owner previews is what the renderer will embed.
+  // pages use, so what the user previews is what the renderer will embed.
   r.get('/fonts/:family/css', async (req, res) => {
     try {
       const family = String(req.params.family || '');
@@ -102,7 +102,7 @@ export function mount(r) {
 
   // Everything a LANGUAGE needs, in one click. Same rule as the single-family route below: an
   // explicit action, never something a render does on its own — which is why it is a route the
-  // owner's language picker calls and not a step inside the pipeline.
+  // user's language picker calls and not a step inside the pipeline.
   //
   // A system family needs nothing fetched; only a downloadable one does. The reply says what it
   // did and what it could not, so the picker can be honest rather than optimistic.
@@ -126,7 +126,7 @@ export function mount(r) {
 
   // Fetch a catalogue family from Google Fonts. ALWAYS an explicit action: a render that reaches
   // out to the network is a render that can fail on a DNS hiccup, in the middle of work the
-  // owner is paying for.
+  // user is paying for.
   r.post('/fonts/:family/download', async (req, res) => {
     try {
       res.json(await downloadFamily(String(req.params.family || '')));

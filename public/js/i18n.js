@@ -57,7 +57,7 @@ async function load(code) {
 }
 
 /**
- * Fetch the owner's catalogue and paint the markup with it.
+ * Fetch the user's catalogue and paint the markup with it.
  *
  * `vi` needs no catalogue at all — the markup already says it — so the Vietnamese interface pays
  * neither a fetch nor a DOM walk.

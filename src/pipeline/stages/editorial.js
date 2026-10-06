@@ -102,7 +102,7 @@ export async function runEditorial(ctx) {
   // Never rewrite once downstream artifacts are bound to this text: after TTS (the voice
   // speaks it), after the timing seed (srt_json set — scenes-first order means visuals were
   // planned from this text on any resume past the seed, including animation templates whose
-  // on-screen words bake the script), after hyperframe codegen, or after the owner approved
+  // on-screen words bake the script), after hyperframe codegen, or after the user approved
   // the scenes at the gate. On a FIRST pass the seed hasn't run yet, so editorial still runs
   // — including for B2 two-stage pre-assigned plans, same as before the reorder.
   if (!scenes.length || project.scenes_approved_at

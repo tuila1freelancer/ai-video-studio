@@ -6,7 +6,7 @@
 //   node scripts/token.mjs revoke <id>
 //
 // A local command, because a token is the key to the whole API: handing one out is something the
-// owner does at the machine, never something the API can be talked into doing. This is the only way
+// user does at the machine, never something the API can be talked into doing. This is the only way
 // on a server. An installed app has no terminal, so its own window may ask for one too — under the
 // three locks in `src/api/routers/tokens.js`, one of which is that it is not a server.
 import { createApiToken, listApiTokens, revokeApiToken, SCOPES } from '../src/db/index.js';

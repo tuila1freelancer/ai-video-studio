@@ -31,7 +31,7 @@ export async function refreshFramePreview() {
   const t = +($('#framePreviewAt')?.value || 15);
   btn.disabled = true; note.textContent = m('⏳ Đang dựng khung thật…');
   try {
-    // the panel's LIVE values, not what is saved — the owner is previewing a change in progress
+    // the panel's LIVE values, not what is saved — the user is previewing a change in progress
     const cfg = encodeURIComponent(JSON.stringify(gatherConfig()));
     const url = `/api/projects/${state.current.id}/frame-preview?t=${t}&cfg=${cfg}`;
     const res = await fetch(url);

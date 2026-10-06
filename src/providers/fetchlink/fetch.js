@@ -73,7 +73,7 @@ export async function fetchLink(url, { llm = null, ai = true, onLog = null } = {
     siteName,
     chars: text.length,
     blocks: refined.blocks.length,
-    // what the structural pass offered before the model narrowed it — the owner can see the work
+    // what the structural pass offered before the model narrowed it — the user can see the work
     found: found.length,
     foundImages: candidates.length,
     ai: refined.ai,

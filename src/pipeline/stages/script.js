@@ -1,6 +1,6 @@
 // B2 — SCRIPT. Generate (or, on resume, reuse) the scene script for a project.
 // Default path is the MASTER SCRIPT ENGINE (src/content/master-script.js): one master prompt
-// turns a topic / a detailed owner script / a pasted scenes JSON / a fetched article (URL
+// turns a topic / a detailed user script / a pasted scenes JSON / a fetched article (URL
 // input → mode 'source': a NEW script FROM the material, never a polish of it) into the
 // canonical scenes JSON, whose per-scene 8-bracket visuals feed HyperFrame codegen directly
 // (the separate direction pass skips scenes that already carry [MAIN FOCUS]). The
@@ -27,7 +27,7 @@ export async function runScript(ctx) {
     step(projectId, 'b2', 'running', m('Tạo kịch bản'));
     DB.updateProject(projectId, { current_step: 'b2' });
     op(projectId, m('Đang tạo kịch bản…'));
-    // The source article: what the owner PULLED and looked at in the Studio wins over a fresh
+    // The source article: what the user PULLED and looked at in the Studio wins over a fresh
     // fetch. They may have edited it, the page may have changed since, and re-fetching would
     // quietly write the video from something they never saw. A pasted link with no visit to the
     // button still works — that is the second branch.
@@ -50,7 +50,7 @@ export async function runScript(ctx) {
     const memory = channel ? DB.getChannelMemory(channel.id) : null;
     // Master engine owns EVERY input shape. A fetched article rides along as `source`
     // (mode 'source': write a NEW script from the material — an article is research to
-    // write from, not the owner's wording to preserve, so it never takes the polish path).
+    // write from, not the user's wording to preserve, so it never takes the polish path).
     const useMaster = config.scriptEngine !== 'legacy';
     const script = await withRetry(
       () => (useMaster
@@ -64,8 +64,8 @@ export async function runScript(ctx) {
         : generateScript({ topic: project.topic, inputType: project.input_type, fetched, config, ai, memory })),
       { tries: 2, label: 'b2 script', onRetry: retryHook(projectId, 'b2'), fatal: notStopped },
     );
-    // P34: an explicit owner-picked title (assistant click-title) beats the engine's own — and so
-    // does a name typed into the topbar, which sets metadata.titleLocked. A project the owner has
+    // P34: an explicit user-picked title (assistant click-title) beats the engine's own — and so
+    // does a name typed into the topbar, which sets metadata.titleLocked. A project the user has
     // named must never be renamed underneath them, least of all by a regenerated script.
     const named = project.metadata?.titleLocked === true;
     project.title = named

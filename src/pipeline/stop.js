@@ -51,7 +51,7 @@ export function abortSignalFor(id) {
   return ac.signal;
 }
 
-/** Shutdown: every child process still running gets the same stop the owner would have sent. */
+/** Shutdown: every child process still running gets the same stop the user would have sent. */
 export function abortAll() {
   for (const [id, ac] of aborters) { stopped.add(id); if (!ac.signal.aborted) ac.abort(stopError()); }
 }

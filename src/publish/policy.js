@@ -55,7 +55,7 @@ export function assertPublishAllowed({ projectId, platform = 'youtube', privacy 
     const today = publishCountSince(channel?.id, startOfDay(now), platform);
     if (today >= policy.perDay) throw apiError('publish_daily_cap', m('đã đủ số video đăng trong ngày của kênh'), 409);
   }
-  // force is the owner's override, and it is recorded rather than silent (the caller journals it).
+  // force is the user's override, and it is recorded rather than silent (the caller journals it).
   if (policy.requireVerdict && verdict && verdict.publishable === false && !force) {
     const err = apiError('verdict_failed', m('video chưa đạt kiểm định — chưa thể đăng'), 409);
     err.reasons = verdict.reasons;

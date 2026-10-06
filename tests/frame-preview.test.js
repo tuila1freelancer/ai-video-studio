@@ -79,7 +79,7 @@ test('the frame is found through the timeline the concat actually assembled', ()
 });
 
 test('a missing font degrades to a note, never to a quiet substitution', () => {
-  // the preview must not block the owner, but a preview drawn in the wrong face is the exact
+  // the preview must not block the user, but a preview drawn in the wrong face is the exact
   // lie the feature exists to prevent — so it says so
   assert.match(service, /note = e\.message/);
   assert.match(service, /if \(!note \|\| isSystemFamily\(style\.font\)\)/);

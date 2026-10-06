@@ -58,8 +58,8 @@ test('ttsDurationBounds: floors keep short texts and CJK safe from false trips',
 // ---- the language a voice is chosen FOR (the French-video incident) ----
 //
 // B3+4 used to re-detect the language from each scene's own text. detectLang answers 'en' for
-// any unaccented Latin script, so a video the owner explicitly marked French resolved to 'en':
-// langVoices['fr'] was unreachable no matter what the owner pinned, the breath pad came from the
+// any unaccented Latin script, so a video the user explicitly marked French resolved to 'en':
+// langVoices['fr'] was unreachable no matter what the user pinned, the breath pad came from the
 // non-Vietnamese branch, and the TTS text normaliser was skipped. The declared language now
 // travels from resolveLang() all the way into the façade.
 
@@ -98,7 +98,7 @@ test('the declaration wins over whatever the scene text happens to look like', (
 // The Voice Picker writes a `lang:'multi'` choice into settings.tts.voiceId, and legacyVoice()
 // read that field back only for openai and elevenlabs. Choosing any Supertonic voice therefore
 // resolved to null → 'auto' → autoVoiceFor() → CATALOG[0], so every scene was synthesized with
-// M1 no matter which voice the owner clicked, with nothing anywhere saying so.
+// M1 no matter which voice the user clicked, with nothing anywhere saying so.
 
 test('a chosen voice survives for every provider, not just two of them', async () => {
   const { legacyVoice } = await import('../src/providers/voice/index.js');

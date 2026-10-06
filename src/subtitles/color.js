@@ -43,7 +43,7 @@ export function assAlpha(opacity) {
 /**
  * Black or white, whichever is legible on `hex`.
  *
- * The per-word highlight box is painted in the accent the owner already chose, so the text sitting
+ * The per-word highlight box is painted in the accent the user already chose, so the text sitting
  * in it needs a colour that contrasts — and asking for one more colour to keep in sync with the
  * accent is a setting that will be wrong more often than right.
  */

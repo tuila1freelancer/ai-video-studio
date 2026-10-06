@@ -16,7 +16,7 @@ import { viewportBlock } from '../src/hyperframe/prompt.js';
 // someone choose Groq. The requirement it encoded is unchanged: codegen must run on a strong
 // GEMINI model, because nothing else writes scene markup that renders. It is now resolved from
 // the configured provider instead of hardcoded, and an unrecognised endpoint still gets the
-// original value, so the owner's own install is untouched.
+// original value, so the user's own install is untouched.
 test('P39 pillar 3: a new project pins the codegen model its provider actually serves', () => {
   const settings = (llm) => DB.setSetting('ai', { ...DB.aiSettings(), llm });
 

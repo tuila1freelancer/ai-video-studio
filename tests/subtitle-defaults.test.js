@@ -80,7 +80,7 @@ test('turning subtitles off keeps the look, and turning them on brings it back',
 test('the two meaningful empties are choices and they persist', () => {
   // '' on the preset is "Tuỳ biến tay"; '' on the case is "theo bộ mẫu". Dropping them as blanks
   // would make custom subtitles impossible to keep — the card would show selected and the video
-  // would come out styled by the preset the owner had just left.
+  // would come out styled by the preset the user had just left.
   const ch = channel();
   saveSubtitleDefaults(ch.id, LOOK);
   saveSubtitleDefaults(ch.id, { subtitlePreset: '', subtitleTextCase: '' });
@@ -101,7 +101,7 @@ test('the default preset cannot shadow what was just saved', () => {
   assert.equal(presetUpdated, true);
   assert.equal(DB.getPreset(def.id).config.subtitleFont, 'Anton');
   assert.equal(DB.getPreset(def.id).config.fps, 24, 'the rest of the preset is left alone');
-  assert.equal(DB.getPreset(other.id).config.subtitleFont, 'Oswald', 'a preset the owner picks by hand is not rewritten');
+  assert.equal(DB.getPreset(other.id).config.subtitleFont, 'Oswald', 'a preset the user picks by hand is not rewritten');
   assert.equal(resolveProjectConfig({
     channel: DB.getChannel(ch.id), preset: DB.defaultPresetFor(ch.id),
   }).subtitleFont, 'Anton');
@@ -111,7 +111,7 @@ test('the panel saves as it is edited, and cannot save while it is being populat
   const cfg = sourceOf('public/js/views/config.js');
   assert.match(cfg, /saveSubtitleDefaults\(\)/, 'the controls call it');
   assert.match(cfg, /if \(applying \|\| !state\.activeChannel\) return;/,
-    'populating the panel is not the owner editing it');
+    'populating the panel is not the user editing it');
   assert.match(cfg, /applying = true;\s*\n\s*try \{ applyConfigInner\(cfg\); \} finally \{ applying = false; \}/);
   // the on/off switch is deliberately in the autosave list — "tắt phụ đề" is a decision too
   assert.match(cfg, /'#cfgSub', '#cfgSubFont', '#cfgSubSize', '#cfgSubCase', '#cfgSubPos', '#cfgSubMode', '#cfgSubChunk', '#cfgSubWords'\]\s*\n\s*\.forEach\(\(id\) => \$\(id\)\?\.addEventListener\('change', \(\) => saveSubtitleDefaults\(\)\)\);/);
@@ -125,7 +125,7 @@ test('the panel saves as it is edited, and cannot save while it is being populat
 
 test('the panel starts on the channel it is pointed at', () => {
   // Nothing loaded the active channel's config at boot, and "video mới" left the previous
-  // project's settings in the form — so a saved channel look was invisible until the owner
+  // project's settings in the form — so a saved channel look was invisible until the user
   // switched channels and back, and one edit later the panel's version won.
   const st = sourceOf('public/js/state.js');
   assert.match(st, /export function channelDefaults\(\)/);

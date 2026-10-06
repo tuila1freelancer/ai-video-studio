@@ -10,7 +10,7 @@ const DEFAULT_PROVIDERS = ['edge', 'say', 'vbee', 'larvoice']; // keyless/offlin
  * so a provider missing from this list renders a chip that filters to an empty list — measured:
  * ElevenLabs / OpenAI / Supertonic each showed 0 voices while their chip sat there looking live.
  * A provider is included when its catalog costs nothing to fetch (local or keyless) OR when the
- * owner has actually configured a key for it — a keyed provider with no key is the one case
+ * user has actually configured a key for it — a keyed provider with no key is the one case
  * where staying out is right, and the UI drops its chip instead of showing an empty list.
  */
 export function catalogProviders(ttsSettings, listProviders, providerConfig) {

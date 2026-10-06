@@ -84,7 +84,7 @@ test('the cap ends on a block boundary and says how much it left behind', () => 
   const cut = joinCapped(blocks, 120);
   assert.equal(cut.text, `${'a'.repeat(50)}\n${'b'.repeat(50)}`);
   assert.equal(cut.truncated, true);
-  assert.equal(cut.dropped, 1, 'the caller can tell the owner what was dropped');
+  assert.equal(cut.dropped, 1, 'the caller can tell the user what was dropped');
 });
 
 test('image URLs are resolved against the page, not required to be absolute already', () => {

@@ -1,7 +1,7 @@
 // The thumbnail panel.
 //
 // The server has been able to re-design, AI-edit and re-render a thumbnail for a long time; the
-// UI never called any of it, so from the owner's chair the feature did not exist. It also kept
+// UI never called any of it, so from the user's chair the feature did not exist. It also kept
 // exactly one design, which made "try something else" a one-way door. This panel is the missing
 // half: every version a project has ever had, and four ways to make the next one.
 import { $, esc } from '../ui/dom.js';
@@ -12,7 +12,7 @@ import { confirmDialog, openDialog, promptDialog } from '../ui/dialog.js';
 import { m, tp } from '../i18n.js';
 import { fmtDate } from '../ui/format.js';
 
-// Mirrors COMPOSITIONS in src/pipeline/thumbnail-codegen.js — the owner picks a layout brief
+// Mirrors COMPOSITIONS in src/pipeline/thumbnail-codegen.js — the user picks a layout brief
 // instead of re-rolling the same idea and hoping for a different one.
 // Called, not const: the catalogue lands after module evaluation, and only a literal m('…') is extractable.
 const layouts = () => [
@@ -112,7 +112,7 @@ function coverItem(c) {
   </figure>`;
 }
 
-/** One ratio, or all six. Redoing all six to fix one throws away five the owner may like. */
+/** One ratio, or all six. Redoing all six to fix one throws away five the user may like. */
 async function regenCovers(which) {
   const p = state.current;
   const all = which === '*';
@@ -164,7 +164,7 @@ async function regen() {
   } catch (e) { toast(e.message || m('Dựng không được'), 'err'); }
 }
 
-/** Edit by instruction — keeps everything the owner already liked. */
+/** Edit by instruction — keeps everything the user already liked. */
 async function editByAi() {
   const p = state.current;
   const prompt = await promptDialog({

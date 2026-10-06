@@ -6,7 +6,7 @@
 // text, which broke ten of these at once the first time it happened.
 //
 // So the wrappers come off before matching: `m('…')` and `tp\`…\`` read as the plain string and the
-// plain template they stand for, and an assertion goes on quoting the sentence the owner sees.
+// plain template they stand for, and an assertion goes on quoting the sentence the user sees.
 //
 // The second thing that breaks these tests is a file being SPLIT. `RELOCATED` maps a path that no
 // longer holds everything it used to onto the files it became, in their original top-to-bottom

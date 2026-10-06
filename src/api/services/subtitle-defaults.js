@@ -2,7 +2,7 @@
 //
 // Until now the subtitle style lived only in the project being edited. Getting it onto the next
 // video meant finding a save icon inside the channel-management dialog, which wrote the WHOLE
-// panel over the channel — so the owner re-picked the font for every video, or overwrote settings
+// panel over the channel — so the user re-picked the font for every video, or overwrote settings
 // they never meant to touch. Editing a channel's subtitles now saves them for that channel,
 // automatically.
 //
@@ -15,7 +15,7 @@
 //   populated yet (the font picker is empty until the registry loads) is DROPPED rather than
 //   written as a blank. That is also what makes the on/off switch safe: turning subtitles off
 //   sends `enableSubtitles: false` and leaves every style key exactly as it was, so turning them
-//   back on restores the look the owner had.
+//   back on restores the look the user had.
 import * as DB from '../../db/index.js';
 
 import { m } from '../../i18n/t.js';
@@ -23,7 +23,7 @@ import { m } from '../../i18n/t.js';
  * What counts as a subtitle setting, and what counts as a real value for it.
  *
  * The empties are deliberate and not uniform: `subtitlePreset: ''` means "tuỳ biến tay" and
- * `subtitleTextCase: ''` means "theo bộ mẫu" — both are choices the owner can make and both must
+ * `subtitleTextCase: ''` means "theo bộ mẫu" — both are choices the user can make and both must
  * persist. An empty FONT or COLOUR is not a choice, it is a control that has not loaded.
  */
 const bool = (v) => typeof v === 'boolean';
@@ -119,7 +119,7 @@ export function saveSubtitleDefaults(channelId, incoming = {}) {
   // The channel's DEFAULT preset is layered OVER channel.config for every new project
   // (routes: resolveProjectConfig({channel, preset: defaultPresetFor(...)})). A preset saved from
   // the whole panel months ago therefore carries a subtitle look too, and it would shadow what was
-  // just stored — the setting would appear to save and then not apply. Named presets the owner
+  // just stored — the setting would appear to save and then not apply. Named presets the user
   // picks by hand are left alone; this is only the one that applies itself.
   const def = DB.defaultPresetFor(channelId);
   const preset = def ? DB.updatePreset(def.id, { config: { ...(def.config || {}), ...patch } }) : null;

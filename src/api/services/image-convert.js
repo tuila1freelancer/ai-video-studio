@@ -1,8 +1,8 @@
-// Bring an owner-supplied image into a format the renderer can actually use.
+// Bring a user-supplied image into a format the renderer can actually use.
 //
 // The old logo upload accepted png/jpg/webp/svg and rejected everything else with a 400. On a Mac
 // that is a trap: screenshots and photos out of Photos are HEIC, and the file picker offers
-// image/* — so the owner picks a perfectly good image and the app says no. Converting is both
+// image/* — so the user picks a perfectly good image and the app says no. Converting is both
 // friendlier and strictly more capable than refusing.
 import { spawn } from 'node:child_process';
 import { existsSync, unlinkSync, statSync } from 'node:fs';
@@ -31,7 +31,7 @@ function run(bin, args) {
  * Two engines because neither covers everything: ffmpeg reads bmp/tiff/avif/ico but the vendored
  * build has no HEIC decoder; macOS `sips` reads HEIC/HEIF natively. sips is tried first for the
  * Apple formats and ffmpeg is the fallback, so a machine without sips still gets everything else.
- * The source file is removed on success — it is a multer temp upload, not the owner's original.
+ * The source file is removed on success — it is a multer temp upload, not the user's original.
  */
 export async function toPng(src, dest, ext) {
   if (!CONVERTIBLE.has(ext)) throw new Error(tp`không đọc được ảnh định dạng ${ext.replace('.', '') || m('không rõ')}`);

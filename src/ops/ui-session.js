@@ -1,7 +1,7 @@
 // How the app's own window gets in once tokens are enforced.
 //
 // Turning on agent access means the API asks every caller for a token — including the window the
-// owner is looking at. It cannot be asked to paste one: it is the app. So the launcher mints a
+// user is looking at. It cannot be asked to paste one: it is the app. So the launcher mints a
 // one-boot nonce, passes it in the environment (never on a command line, where `ps` would print it),
 // and opens the window at `/?uikey=<nonce>`. That one request, from loopback only, trades the nonce
 // for a session cookie and redirects to a clean URL.

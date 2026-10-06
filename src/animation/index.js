@@ -128,7 +128,7 @@ export function buildSceneHtml(scene, project, config, extras = {}) {
     tpl.css = `${tpl.css || ''}\n.hf-cam{zoom:${(w / plan.props.canvasW).toFixed(4)}}`;
   }
   // Overlay mode: scenes render on the solid key color and later composite onto the
-  // owner's footage — the hyperframe template already dropped its stage dressing via
+  // user's footage — the hyperframe template already dropped its stage dressing via
   // props.overlay (set at plan time below), and the page drops its own here.
   const overlayCfg = config.overlay?.enabled ? { key: config.overlay.key || '#050510' } : null;
   if (config.gsapFx === false) delete tpl.script; // safety valve: pure-CSS render
@@ -192,7 +192,7 @@ export function templateTimeScale(plannedDur, actualDur) {
 }
 
 // Brand-font override (config.fonts.display, layered per-channel/per-video through the
-// normal config chain): the owner's family leads the stack; the vendored Vietnamese-safe
+// normal config chain): the user's family leads the stack; the vendored Vietnamese-safe
 // families remain the fallback. Hyperframe scenes get it through their guide (drives
 // .hf-kw/.hf-kw2/.hf-stat-v); the kinetic-statement / chapter-break fallbacks through theme.font.
 export function brandFontStack(config) {
@@ -212,7 +212,7 @@ function applyBrandFont(plan, theme, config) {
   return { plan, theme };
 }
 
-// Direct-edit lane (Scene Studio): owner-authored markup/css/script in props.__custom
+// Direct-edit lane (Scene Studio): user-authored markup/css/script in props.__custom
 // replaces the TEMPLATE output only — page chrome (captions, brand layer, progress bar,
 // watermark) stays system-managed, so a hand edit can never break the video's identity.
 function applyCustomOverride(tpl, props) {
@@ -245,14 +245,14 @@ export function sceneTemplateSource(scene, project, config) {
 }
 
 // Render a full scene → mp4 (+ mid-frame preview jpeg). In overlay mode the keyed scene
-// then composites onto the owner's base footage (slice offset = the scene's start on the
+// then composites onto the user's base footage (slice offset = the scene's start on the
 // final timeline, so consecutive scenes ride one continuous shot).
 export async function renderAnimationScene(scene, project, config, { dir, progressStart, progressTotal, total, onProgress, onLog, signal } = {}) {
   const k = resRung(config.resolutionScale);
   const { w, h } = animSize(project.aspect_ratio, k); // PHYSICAL viewport (2560×1440 at 4/3, 4K at 2)
   const fps = parseInt(config.fps || 30, 10);
   const duration = Math.max(1.5, scene.duration || config.sceneDuration || 6);
-  // A family the owner NAMED has to exist before a single frame is drawn. Chrome substitutes
+  // A family the user NAMED has to exist before a single frame is drawn. Chrome substitutes
   // silently, so the alternative is 95 clips in the wrong typeface discovered by eye — the same
   // failure mode the burn path refuses, refused here too. Only explicit picks are fatal; a font
   // the codegen model invented inside its own CSS surfaces as a warning from the render itself.
@@ -288,7 +288,7 @@ export async function renderAnimationScene(scene, project, config, { dir, progre
       // P43: where the subject sits when the footage has to be cropped to the project ratio
       position: config.overlay.position || 'center',
       // P44: a slow push-in/pull-out on the footage, alternating direction per scene so a long
-      // stretch of one static shot never sits perfectly still. Off unless the owner asks.
+      // stretch of one static shot never sits perfectly still. Off unless the user asks.
       zoom: config.overlay.zoom ? { ...config.overlay.zoom, index: scene.idx } : null,
     });
     return { ...res, path: finalPath, preview: existsSync(previewPath) ? previewPath : null };

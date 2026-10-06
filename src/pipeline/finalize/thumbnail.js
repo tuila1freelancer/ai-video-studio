@@ -27,7 +27,7 @@ export async function packageCovers({ projectId, project, config, size, scenes, 
   checkStop(projectId); // an AI thumbnail is an LLM call plus a Chrome shot, up to three times
   let thumb = res.thumb;
   // A re-mix is not a new video. When the join kept the picture (audio-only or skip) and a cover
-  // already exists, designing a fresh one throws away the one the owner chose — it happened on an
+  // already exists, designing a fresh one throws away the one the user chose — it happened on an
   // audio repair and the replacement was worse. Packaging follows the picture, not the soundtrack.
   const keepCover = (res.tier === 'audio' || res.tier === 'skip')
     && !!project.thumb_path && existsSync(project.thumb_path);
@@ -47,7 +47,7 @@ export async function packageCovers({ projectId, project, config, size, scenes, 
     const thumbLlm = thumbAi.llm
       ? { ...thumbAi.llm, model: config.thumbnailModel || config.hyperframe?.model || thumbAi.llm.codegenModel || thumbAi.llm.model }
       : thumbAi.llm;
-    // The owner's own pictures are offered to the thumbnail designer too (P40) — the same
+    // The user's own pictures are offered to the thumbnail designer too (P40) — the same
     // {{asset:NAME}} contract the scenes use, so there is only one convention to learn.
     const { normalizeAssets } = await import('../brand-assets.js');
     const { heroMediaUri } = await import('../../util/asset-uri.js');
@@ -65,13 +65,13 @@ export async function packageCovers({ projectId, project, config, size, scenes, 
         language: resolveLang(config, scenes),
         variant: v, media: thumbMedia, llm: thumbLlm, onLog: (m) => logger.info(m, { projectId, stage: 'b7' }),
       }) : null;
-      // Keep the markup of the FIRST design: the owner can edit and re-render it later without
+      // Keep the markup of the FIRST design: the user can edit and re-render it later without
       // paying for another generation (POST /projects/:id/thumbnail/regen with { html }).
       if (v === 0 && ai?.fragment) thumbHtml = ai.fragment;
       const p = ai?.path || await buildThumbnail(thumbTitle, firstImg, nVar > 1 ? THUMB_SIZE : size, outPath, { guide, variant: v });
       if (p) {
         made.push(p);
-        // Each variant is a version the owner can come back to. Without this row the other two
+        // Each variant is a version the user can come back to. Without this row the other two
         // designs are just orphan files in the output folder with no way to pick them.
         try {
           DB.addThumbnail({

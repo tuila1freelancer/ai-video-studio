@@ -239,7 +239,7 @@ const PROBE = `(() => {
  */
 export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration = 6, beats = [], narration = '', captionsOn = true, overlay = false, language = '' }) {
   // P38: this gate now checks ONLY "the HTML is not broken" + "the layout is balanced" — the two
-  // things the owner asked to keep. The reference-caliber nudges (sparse / hero-density / beat-
+  // things the user asked to keep. The reference-caliber nudges (sparse / hero-density / beat-
   // adherence / dialogue-match), the flat-type check, the low-contrast gate + auto-repair, and the
   // mid-scene/ending liveness checks are all removed (the reference app ships none of them).
   if (!chromeAvailable()) return { ok: true, skipped: true, defects: [], warnings: [], langDefects: [] };
@@ -383,7 +383,7 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
     // LANGUAGE is returned SEPARATELY from geometry: the caller decides whether it blocks.
     // renderValidate is stateless and is also called by the manual scene-edit lane and by
     // repurpose, neither of which has an attempt loop — folding this into `defects` would
-    // start rejecting the owner's own edits.
+    // start rejecting the user's own edits.
     const badH = held(bad);
     if (badH.length) { const o = badH[0]; langDefects.push(`the on-screen text "${o.txt}" is in the wrong language — this video is in ${langName(narrLang)}, and EVERY readable word must be ${langAdjective(narrLang)}. Semantic (non-verbatim) keywords are fine; another language is not. Numbers, units and symbols are always allowed.`); }
     if (ovlH.length) { const o = ovlH[0]; warnings.push(`the texts "${o.a}" and "${o.b}" overlap each other at ${o.t.toFixed(1)}s (${Math.round(o.frac * 100)}% of the smaller box) — text must NEVER sit on top of other text; separate them spatially or stagger their timing so only one occupies that area at a time.`); }

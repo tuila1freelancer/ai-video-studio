@@ -8,7 +8,7 @@ import { openImageViewer } from './source.js';
 import { fmtBytes, fmtDate } from '../../ui/format.js';
 import { LANGS } from '../../ui/langs.js';
 
-// Caption tracks the owner can export. Named in the language itself, like the interface picker.
+// Caption tracks the user can export. Named in the language itself, like the interface picker.
 // i18n-exempt: endonyms — a language names itself, so the picker stays usable in any interface.
 
 // ---------------- final + meta ----------------
@@ -40,7 +40,7 @@ export function renderFinal() {
     if (sheet) sheet.href = '/api/projects/' + p.id + '/contact-sheet';
   }
 }
-// Publish ledger (P40): every attempt was recorded but never shown, so nothing told the owner
+// Publish ledger (P40): every attempt was recorded but never shown, so nothing told the user
 // whether a video had already gone out — or where. Rendered under the final-video toolbar.
 export async function renderPublishHistory() {
   const box = $('#pubHistory');

@@ -94,14 +94,14 @@ function scanModules(dir, bucket, ignore) {
 scanModules('public/js', 'browser', (f) => f.endsWith('views/guide.js'));   // the manual has its own catalogue
 // src/ is mostly LLM prompts and language data, which must stay Vietnamese — auditing those would
 // report the engine's own input as a defect. What IS audited is every module that describes the
-// app to its owner: the progress ticker, the error classes, the request services, and the two
+// app to its user: the progress ticker, the error classes, the request services, and the two
 // catalogues Settings renders (the TTS providers and the publishing targets).
 const SERVER_UI = /^src\/(?:pipeline\/progress|core\/errors|api\/services\/|providers\/voice\/|publish\/)/;
 scanModules('src', 'server', (f) => !SERVER_UI.test(f));
 
-// ---- 4. a server string in a position that REACHES the owner, in any language -------------------
+// ---- 4. a server string in a position that REACHES the user, in any language -------------------
 // The checks above ask whether a string looks Vietnamese. This one does not care: an English
-// sentence thrown as an error is exactly as untranslated to a Japanese owner as a Vietnamese one,
+// sentence thrown as an error is exactly as untranslated to a Japanese user as a Vietnamese one,
 // and the position it sits in — an HTTP error body, a thrown Error — already proves it is shown.
 {
   // Matched by KEY, not by value: `srv.not found` holds "không tìm thấy", so the English it was
@@ -151,8 +151,8 @@ scanModules('src', 'server', (f) => !SERVER_UI.test(f));
 const LABEL = {
   markup: 'public/index.html — text a person reads with no data-i18n key',
   browser: 'public/js — interface strings no catalogue can reach',
-  server: 'src — owner-facing strings no catalogue can reach',
-  serverAnyLang: 'src — errors the owner is shown, in any language, with no catalogue entry',
+  server: 'src — user-facing strings no catalogue can reach',
+  serverAnyLang: 'src — errors the user is shown, in any language, with no catalogue entry',
   catalogue: 'public/locales — catalogues out of step with vi.json',
 };
 let total = 0;

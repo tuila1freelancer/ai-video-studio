@@ -36,7 +36,7 @@ test('every setting the final assembly reads is classified as final-assembly wor
   assert.doesNotMatch(plan, /const CONCAT_KEYS = \[/, 'the drifted copy is gone');
 });
 
-test('the finished-video state is visible while the owner edits, not hidden behind a button', () => {
+test('the finished-video state is visible while the user edits, not hidden behind a button', () => {
   const pc = sourceOf('public/js/features/pending-changes.js');
   // ONE delegated listener over the whole config column: a setting added later inherits this,
   // which is precisely the property whose absence let the three-door version drift.
@@ -61,7 +61,7 @@ test('a cheap edit applies from the bar; an expensive one has to be looked at fi
 
 test('a stale answer never overwrites a fresh one', () => {
   // The panel fires on every keystroke and slider tick. Two ways an answer can be stale by the
-  // time it lands — the owner kept typing, or they opened a different project — and both lose.
+  // time it lands — the user kept typing, or they opened a different project — and both lose.
   const pc = sourceOf('public/js/features/pending-changes.js');
   assert.match(pc, /const mine = \+\+seq;/);
   assert.match(pc, /if \(mine !== seq \|\| state\.current\?\.id !== forProject\) return;/);

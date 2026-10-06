@@ -48,7 +48,7 @@ async function boot() {
     const { recoverZombieProjects, stopRequestedProjects } = await import('./db/index.js');
     const n = recoverZombieProjects();
     if (n) logger.info(`boot recovery: ${n} zombie 'running' project(s) → paused`);
-    // Re-arm any stop the owner asked for before the app was closed. requeueZombieJobs (below,
+    // Re-arm any stop the user asked for before the app was closed. requeueZombieJobs (below,
     // inside startScheduler) cancels those jobs outright; this covers the rest — anything that
     // does reach a checkpoint in this process stops at it instead of running to completion.
     const { hydrateStops } = await import('./pipeline/stop.js');
@@ -75,7 +75,7 @@ async function boot() {
   app.use('/api', (req, res, next) => (LARGE_BODY.test(req.path) ? jsonLarge : jsonSmall)(req, res, next));
   app.use('/api', express.urlencoded({ extended: true, limit: '2mb' }));
   // No CORS header: both shells and the browser load the UI from this very origin, and a
-  // wildcard let any web page the owner visited call DELETE /api/projects.
+  // wildcard let any web page the user visited call DELETE /api/projects.
 
   mountRoutes(app, { version: VERSION });
   app.use('/api', errorHandler);
@@ -105,7 +105,7 @@ async function boot() {
   // into an uncaughtException before our listener is ever reached (verified — the whole point of
   // the handler is lost). Listeners fire in registration order, so ours must be registered first.
   hub.attach(server);
-  // The owner's interface language, restored before anything can produce a message in it.
+  // The user's interface language, restored before anything can produce a message in it.
   try { setUiLang(getSetting('uiLang')); } catch { /* first boot, no settings row yet */ }
   const HOST = host();
   server.listen(PORT, HOST, () => {

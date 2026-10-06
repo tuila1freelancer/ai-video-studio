@@ -101,7 +101,7 @@ test('ui: a catalogue is consistent with the source, and never stale', () => {
   }
 });
 
-// The languages the owner has declared finished. A code moves in here when its catalogue is
+// The languages the user has declared finished. A code moves in here when its catalogue is
 // complete, and from then on a missing key is a build failure rather than a fallback.
 const SHIPPED = LANG_CODES;
 

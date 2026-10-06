@@ -2,7 +2,7 @@
 //
 // This is a single-user desktop app: one person, one machine, one interface language. So there is
 // no request-scoped locale and no Accept-Language negotiation — the server simply knows which
-// language the owner set, the same way it knows which voice they picked.
+// language the user set, the same way it knows which voice they picked.
 //
 // Catalogues are the SAME files the browser fetches (public/locales/<code>.json), so a string can
 // never be translated on one side of the wire and not the other, and there is exactly one file to
@@ -24,7 +24,7 @@ function catalogue(code) {
   return data;
 }
 
-/** Set the interface language. Called at boot and whenever the owner changes it. */
+/** Set the interface language. Called at boot and whenever the user changes it. */
 export function setUiLang(code) {
   current = isSupported(code) ? String(code).toLowerCase() : DEFAULT_LANG;
   // Drop the parsed catalogues too. They are keyed by language so switching would not strictly
@@ -40,7 +40,7 @@ export function uiLang() { return current; }
 /**
  * Translate a key, filling `{name}` placeholders.
  *
- * Falls back through the owner's language → English → the key itself. Returning the KEY rather
+ * Falls back through the user's language → English → the key itself. Returning the KEY rather
  * than an empty string is deliberate: a missing translation should look obviously wrong in the
  * interface, not silently blank a button.
  */
@@ -50,7 +50,7 @@ export function t(key, params = null, code = null) {
   // untranslated one must show the sentence, never the literal "srv.…".
   const self = k.startsWith('srv.') ? k.slice(4) : k;
   // `code` is the caller's language for THIS reply only — an agent may ask for English while the
-  // owner's interface stays Vietnamese. Absent, the interface language answers as it always did.
+  // user's interface stays Vietnamese. Absent, the interface language answers as it always did.
   const want = code && isSupported(code) ? String(code).toLowerCase() : current;
   const s = catalogue(want)[k] ?? catalogue('en')[k] ?? self;
   if (!params) return s;

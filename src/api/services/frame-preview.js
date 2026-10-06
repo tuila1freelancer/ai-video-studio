@@ -56,7 +56,7 @@ function sceneAt(project, scenes, t) {
 /**
  * @param {string} projectId
  * @param {{t?:number, overrides?:object}} opts `overrides` is a config patch — the panel's live
- *   values, before anything is saved, so the owner sees the change they are still making.
+ *   values, before anything is saved, so the user sees the change they are still making.
  * @returns {Promise<{buffer:Buffer, t:number, note:string|null}>}
  */
 export async function framePreview(projectId, { t = 1.5, overrides = {} } = {}) {
@@ -77,7 +77,7 @@ export async function framePreview(projectId, { t = 1.5, overrides = {} } = {}) 
   // On the final lane the clips are rendered without captions and the logo is stamped at concat
   // (animation/index.js captionsOff, render.js), so `project.video_path` ALREADY CARRIES BOTH.
   // Reading a frame from it and drawing the caption again put two subtitles on the screen — the
-  // burned one and the one being previewed — which is exactly what the owner reported. The logo
+  // burned one and the one being previewed — which is exactly what the user reported. The logo
   // was doubled too; it only looked fine because the two landed on the same pixels, so any change
   // to logo position or size showed two of them.
   //
@@ -115,7 +115,7 @@ export async function framePreview(projectId, { t = 1.5, overrides = {} } = {}) 
     try {
       ({ fontsDir, file: fontFile } = prepareBurnFontDir(style.font, style.weight, dir));
     } catch (e) {
-      // A preview must never be the thing that stops the owner working. It does have to say so:
+      // A preview must never be the thing that stops the user working. It does have to say so:
       // a preview drawn in a substitute font is exactly the lie this feature exists to prevent.
       note = e.message;
     }

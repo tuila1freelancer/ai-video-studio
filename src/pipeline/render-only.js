@@ -43,7 +43,7 @@ export async function renderOnly(projectId, { mode = 'all', sceneIds = [], confi
     // name shadows it inside the whole function. The render loop then calls a boolean.
     // A subset normally stops at the clips: picking scenes by hand means inspecting them next.
     // `join` is for the caller that already knows the whole list it wants and wants the video at
-    // the end of it — two queued jobs would give the owner two progress bars and a window in
+    // the end of it — two queued jobs would give the user two progress bars and a window in
     // between where the video on disk is a mix of repaired and unrepaired clips.
     const doJoin = mode !== 'scenes' || alsoJoin;
     // Scenes-first order: an unvoiced scene only carries an ESTIMATED duration — rendering
@@ -72,7 +72,7 @@ export async function renderOnly(projectId, { mode = 'all', sceneIds = [], confi
     // is the same predicate the pipeline's own resume uses, and finalize uses it again to decide
     // which clips to repair before burning captions. This path simply never asked.
     //
-    // Two things make a clip stale, and they are exactly the two the owner named:
+    // Two things make a clip stale, and they are exactly the two the user named:
     //   voice — both re-voice paths (stages/tts.js, regen.js) already NULL `video_path` with the
     //           comment "the clip carries the old voice", so a re-voiced scene has no clip to keep
     //   HTML  — a new spec/template/props moves `renderFingerprint`, which is what renderCurrent
@@ -101,7 +101,7 @@ export async function renderOnly(projectId, { mode = 'all', sceneIds = [], confi
         : tp`♻️ Tất cả ${scenes.length} cảnh đều cần dựng lại`);
       // "Render + Ghép" does not run TTS. A scene whose LINE was edited but never re-voiced would
       // therefore be skipped here and sound unchanged in the finished video — correctly, since its
-      // clip still matches the audio on disk, but silently. Say it, or the owner reads a no-op as
+      // clip still matches the audio on disk, but silently. Say it, or the user reads a no-op as
       // a bug.
       const channel = DB.channelOf(projectId);
       const ai = aiSettingsFor(channel);
@@ -147,13 +147,13 @@ export async function renderOnly(projectId, { mode = 'all', sceneIds = [], confi
       op(projectId, m('⏭️ Bỏ qua ghép — còn cảnh chưa có lồng tiếng; hoàn tất lồng tiếng rồi ghép sau'));
     } else if (doJoin) {
       // mode:'concat' skips the scene loop above entirely, so without this the "ghép lại" path
-      // reached finalize without ever having asked whether the owner still wanted it.
+      // reached finalize without ever having asked whether the user still wanted it.
       checkStop(projectId);
       await finalize(projectId, { dir, size, config, variantName });
     }
     checkStop(projectId);
     // A render during a hold (scene gate 'scenes' / review gate 'review') must not destroy
-    // the hold: 'done' here would let the owner think the video finished prematurely.
+    // the hold: 'done' here would let the user think the video finished prematurely.
     const endStatus = ['scenes', 'review'].includes(project.status) ? project.status
       : (doJoin && stillUnvoiced ? 'paused' : 'done');
     DB.updateProject(projectId, { status: endStatus });

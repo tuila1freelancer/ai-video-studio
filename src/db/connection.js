@@ -144,7 +144,7 @@ CREATE TABLE IF NOT EXISTS scene_takes (
 CREATE INDEX IF NOT EXISTS idx_takes_scene ON scene_takes(scene_id, kind, created_at);
 -- Every export this project has produced. finalize already wrote a new timestamped file each
 -- time and never deleted the old one, so the history was on disk and invisible; this is the
--- index that makes it something the owner can look at and go back to.
+-- index that makes it something the user can look at and go back to.
 CREATE TABLE IF NOT EXISTS renders (
   id TEXT PRIMARY KEY,
   project_id TEXT NOT NULL,

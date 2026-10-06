@@ -1,4 +1,4 @@
-// Owner-uploaded brand fonts (library kind 'font', files under DIRS.font). They join the
+// User-uploaded brand fonts (library kind 'font', files under DIRS.font). They join the
 // vendored set at page-build time as an EXTRA @font-face block — vendor/fonts/fonts.css
 // (repo asset, byte-budgeted) is never touched. Family name = the library item's name
 // minus extension, so "MyBrand.ttf" becomes font-family 'MyBrand'.
@@ -20,7 +20,7 @@ export function familyOf(row) {
   return basename(row.name || row.filename, extname(row.name || row.filename)).replace(/[^\w \-]/g, '').trim() || 'CustomFont';
 }
 
-/** Family names the owner has uploaded — the scan set a scene page filters against. */
+/** Family names the user has uploaded — the scan set a scene page filters against. */
 export function uploadedFamilies() {
   return userFontRows().map(familyOf);
 }
@@ -50,7 +50,7 @@ export function userFontsCss(families) {
   return css;
 }
 
-/** Every family the owner can pick from: vendored (fonts.css) + uploaded. */
+/** Every family the user can pick from: vendored (fonts.css) + uploaded. */
 export function fontFamilies() {
   const vendored = [];
   try {

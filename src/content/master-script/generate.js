@@ -107,7 +107,7 @@ function ctaNoteFor({ from, to, ctaPlan, closes, mode, bridgeOut = '' }) {
     // A channel's closing CTA is fixed wording its audience hears every video. Telling the model
     // to write "ONE natural closing line (subscribe)" in polish mode is an invitation to rewrite
     // it — measured twice: the model dropped "ấn thích"/"chia sẻ video" and invented a promise of
-    // upcoming videos the owner had explicitly banned.
+    // upcoming videos the user had explicitly banned.
     lines.push(mode === 'script'
       ? `- CTA PLAN: the video ENDS in this span. The owner's closing block — the summary AND the call-to-action — is FINAL COPY. Reproduce every sentence of it VERBATIM, in order, splitting across scenes only where it must. Do NOT rephrase it, do NOT shorten it, do NOT add a subscribe line or a sign-off of your own, and do NOT promise future videos. Dropping or rewording any part of it is the single worst failure you can make here.`
       : `- CTA PLAN: the video ENDS in this span — the final scene resolves the opening gap, then ONE natural closing line (subscribe). No other CTA in this span${softIn ? ' beyond the two planned ones' : ''}.`);
@@ -137,7 +137,7 @@ ${from > 1 ? '- Do NOT re-open the video: no new greeting, no re-introduction.' 
  */
 async function generateSpan({ common, from, to, targetCount, label, tail, closes, slice, topicText }) {
   const expect = to - from + 1;
-  // whole-video 'script' calls keep the owner's raw text (paragraph breaks help the model);
+  // whole-video 'script' calls keep the user's raw text (paragraph breaks help the model);
   // batch/sub-spans take their word-balanced share of the sentence partition.
   const input = slice ? (from === 1 && to === targetCount ? topicText : slice(from, to)) : topicText;
   if (slice && !input) {
@@ -192,14 +192,14 @@ export async function generateMasterScenes({ input, source = null, config = {}, 
   }
 
   // 'source' (fetched article) outranks the word-count sniff: a long article is research
-  // material for a NEW script, never a detailed owner script to polish.
+  // material for a NEW script, never a detailed user script to polish.
   // countWords, not whitespace: a 5,000-character Chinese script has no spaces in it at all, so
-  // the whitespace count was 1, it fell under the floor, and the owner's script was routed to
+  // the whitespace count was 1, it fell under the floor, and the user's script was routed to
   // 'topic' mode and rewritten from scratch.
   const ownerWords = countWords(text, language);
   const mode = sourceText ? 'source' : ownerWords >= SCRIPT_MODE_MIN_WORDS ? 'script' : 'topic';
   const plan = planScenes({ videoDuration: config.videoDuration, sceneDuration: config.sceneDuration, language });
-  // 'script' mode: the owner's content decides the length — the duration target does not.
+  // 'script' mode: the user's content decides the length — the duration target does not.
   const targetCount = mode === 'script'
     ? Math.max(1, Math.min(400, Math.round(ownerWords / plan.wordsPerScene)))
     : plan.sceneCount;
@@ -226,7 +226,7 @@ export async function generateMasterScenes({ input, source = null, config = {}, 
   // pinned outline (set below for batched topic/source) keeps batch 2+ on batch 1's arc.
   const ctaPlan = ctaPlanFor(targetCount);
   const common = { mode, plan, language, guide, memory, assets, llm, onLog, sourceDoc, ctaPlan, outline: null };
-  // 'script' mode hands every span its word-balanced share of the owner's text; the shared
+  // 'script' mode hands every span its word-balanced share of the user's text; the shared
   // cut points guarantee batch (and split) boundaries never drop or repeat a sentence.
   const slice = mode === 'script' ? sourceSlicer(splitSentences(text, language), targetCount, language) : null;
 

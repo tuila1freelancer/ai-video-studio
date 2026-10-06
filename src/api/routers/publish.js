@@ -85,7 +85,7 @@ export function mount(r) {
       res.json(await getPublisher('facebook').extendToken({ ...(req.body || {}), pageId: req.params.pageId }));
     } catch (e) { res.status(400).json({ error: e.message }); }
   });
-  // Which projects already went out — so the grid can badge them instead of the owner guessing.
+  // Which projects already went out — so the grid can badge them instead of the user guessing.
   r.get('/publish/published-ids', (req, res) => res.json({ ids: DB.publishedProjectIds() }));
 
   r.post('/publish/facebook/disconnect', async (req, res) => {
@@ -116,7 +116,7 @@ export function mount(r) {
       const recId = DB.recordPublish({ projectId: p.id, platform: pub.id, privacy });
       const out = await pub.upload({
         // a platform-shaped caption (P42) outranks the generic description when one was written
-        // P43: a caption/title typed in the publish dialog is the owner's final word — it outranks
+        // P43: a caption/title typed in the publish dialog is the user's final word — it outranks
         // the stored platform caption, which outranks the generic description.
         videoPath: p.video_path,
         title: String(req.body?.title || '').trim() || md.title || p.title,

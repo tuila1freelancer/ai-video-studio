@@ -20,7 +20,7 @@ loads the UI in headless Chrome with the network log attached, and reports:
   with real data; `idle-done` — after the idle-time catalogues (voices, presets, fonts) landed;
 - the heaviest responses (a file response names its file) and the slowest ones by wall time.
 
-The database snapshot is the owner's real one (105 projects, 3,877 scenes at the time of writing),
+The database snapshot is the user's real one (105 projects, 3,877 scenes at the time of writing),
 so the numbers describe the app as it is actually used, not an empty install.
 
 ## Baseline — before the refactor (2026-09-17, commit `fe04e7f`)

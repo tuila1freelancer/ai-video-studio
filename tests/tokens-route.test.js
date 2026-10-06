@@ -62,7 +62,7 @@ test('with agent access on, an agent holding admin still cannot mint itself a su
     assert.equal((await asAgent.json()).code, 'forbidden');
 
     const asWindow = await post(base, { name: 'from the window' }, { Cookie: `avs_token=${uiSessionToken()}` });
-    assert.equal(asWindow.status, 200, 'the window is how the owner gets one at all');
+    assert.equal(asWindow.status, 200, 'the window is how the user gets one at all');
 
     const listing = await (await fetch(`${base}/tokens`, { headers: { Cookie: `avs_token=${uiSessionToken()}` } })).json();
     assert.ok(!listing.tokens.some((t) => t.id.startsWith('sys')), 'the window never offers its own session for revoking');

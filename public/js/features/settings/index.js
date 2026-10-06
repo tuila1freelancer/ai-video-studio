@@ -83,7 +83,7 @@ export function openSettings() { $('#settingsModal').classList.add('open'); }
  *
  * The scroll is set on the modal itself. `scrollIntoView` on the switch does nothing useful — the
  * checkbox is visually replaced and has a zero-sized box — and the panel is the last section of a
- * long form, so landing at the top means the owner has to go looking for what they just asked for.
+ * long form, so landing at the top means the user has to go looking for what they just asked for.
  */
 export function openAgentPanel() {
   openSettings();
@@ -117,7 +117,7 @@ export async function loadSettings() {
   $('#setLlmOn').checked = !!settings.llm?.enabled;
   $('#setLlmPreset').value = settings.llm?.preset || inferPresetId(settings.llm?.baseUrl);
   if (!$('#setLlmPreset').value) $('#setLlmPreset').value = 'custom'; // a preset we no longer ship
-  // Every provider the owner has ever configured, plus the active one — whose credentials live
+  // Every provider the user has ever configured, plus the active one — whose credentials live
   // at the top level because that is what the LLM lane actually reads.
   forgetShownPreset();
   state.llmAccounts = { ...(settings.llm?.accounts || {}) };
@@ -151,7 +151,7 @@ async function saveSettings() {
       model: $('#setLlmModel').value.trim(),
       codegenModel: $('#setLlmCodegenModel').value.trim(),
       apiKey: $('#setLlmKey').value,
-      // …and every other provider the owner has set up keeps its own credentials, so
+      // …and every other provider the user has set up keeps its own credentials, so
       // switching back to one is instant instead of a trip to a dashboard for a new key.
       accounts: llmAccountsForSave(),
     },

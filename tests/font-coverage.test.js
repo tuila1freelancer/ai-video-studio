@@ -1,7 +1,7 @@
 // A claim about a font file, checked against the font file.
 //
 // `registry.js` lists the scripts each family serves, by hand, and that list decides which faces
-// the owner is offered for a language. It was wrong — and a wrong entry here is invisible: the
+// the user is offered for a language. It was wrong — and a wrong entry here is invisible: the
 // renderer substitutes and ships. So the claim is now checkable, by reading the cmap.
 import './_env.mjs';
 import test from 'node:test';
@@ -50,7 +50,7 @@ test('the Vietnamese probe leads with the stacked marks', () => {
 
 test('every script the registry offers is one the file can actually draw', () => {
   // The check that would have caught Archivo Black on the day it was added. It runs over whatever
-  // is on disk, so a future vendored family, or one of the owner's own uploads, is covered too.
+  // is on disk, so a future vendored family, or one of the user's own uploads, is covered too.
   const faces = allFaces();
   const lib = fontLibrary();
   for (const f of lib) {

@@ -1,7 +1,7 @@
 // The left rail became a topbar, and a project can finally be named.
 //
 // Both are UI changes, so most of this reads source text — but the one thing that is NOT cosmetic
-// gets a real assertion: a project the owner has named must never be renamed underneath them.
+// gets a real assertion: a project the user has named must never be renamed underneath them.
 import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -71,7 +71,7 @@ test('the topbar sheds in a fixed order and never loses a control', () => {
 });
 
 test('tool status is silent until a tool is actually missing', () => {
-  // Four permanent green dots told the owner what they already knew, in the scarcest space in the
+  // Four permanent green dots told the user what they already knew, in the scarcest space in the
   // app. Deleting them outright would have been worse: a missing Chrome breaks every thumbnail
   // and every caption measurement, and the failure would have been the only clue.
   const html = indexHtml();

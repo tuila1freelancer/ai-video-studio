@@ -71,7 +71,7 @@ test('a flaky sound-design plan is re-asked, and the fallback is real music not 
   assert.ok(iPick > 0 && iBed > iPick, 'the library is tried BEFORE the synthetic bed');
 });
 
-test('an audio-only re-join keeps the cover the owner chose', () => {
+test('an audio-only re-join keeps the cover the user chose', () => {
   // Re-mixing music re-designed the thumbnail and all six platform covers, replacing a clean
   // hand-picked design with a worse one. Packaging follows the picture, not the soundtrack.
   const fin = sourceOf('src/pipeline/stages/finalize.js');

@@ -9,7 +9,7 @@
 // for why a dip and not a dissolve — it was measured on real adjacent clips, not chosen by taste.
 const ROLE_RE = /\[ROLE\]\s*(\w+)/i;
 // User-pickable transition styles (P43). 'auto' keeps the storytelling doctrine below — the
-// default, and still the best answer — but the owner can now name one look for the whole video
+// default, and still the best answer — but the user can now name one look for the whole video
 // the way the reference app lets him, or 'varied' to rotate deterministically. Every value is a
 // real ffmpeg xfade transition, verified against the vendored build.
 /**
@@ -55,7 +55,7 @@ const VARIED_CYCLE = ['fade', 'dissolve', 'slideleft', 'circleopen', 'smoothleft
  */
 export function planTransitions({ scenes, clipCount, nIntro = 0, nOutro = 0, legacyDur = 0.4, softDur = 0.35, style = 'auto' }) {
   const n = Math.max(0, clipCount - 1);
-  // An explicit style overrides the role doctrine entirely: the owner asked for ONE look.
+  // An explicit style overrides the role doctrine entirely: the user asked for ONE look.
   if (style && style !== 'auto') {
     if (style === 'none') return Array.from({ length: n }, () => ({ type: 'cut', dur: 0 }));
     if (style === 'varied') {

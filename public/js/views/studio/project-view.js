@@ -42,7 +42,7 @@ export async function createAndStart() {
   try {
     resetProgress();
     const config = gatherConfig();
-    // Carry the article the owner actually looked at (and may have edited). Without it the stage
+    // Carry the article the user actually looked at (and may have edited). Without it the stage
     // re-fetches the URL and writes from whatever the site serves at that second instead.
     if (state.sourceDoc?.text?.trim()) {
       const d = state.sourceDoc;
@@ -70,7 +70,7 @@ export async function openProject(id) {
   loadJournal(id);         // full persisted history (REST) — fire-and-forget
   applyConfig(project.config || {});
   // …including the article this video was written from, so reopening it shows the material rather
-  // than leaving the owner to guess which link it came from.
+  // than leaving the user to guess which link it came from.
   setSourceDoc(project.config?.sourceDoc || null);
   // A different project has a different idea of what is pending — the previous answer describes
   // somebody else's video and must not survive the switch.
@@ -94,7 +94,7 @@ async function syncTypesetButton(p) {
   if (!['done', 'paused', 'review'].includes(p.status)) return;
   try {
     const r = await api.get(`/projects/${p.id}/typeset-scan`);
-    if (state.current?.id !== p.id || !r?.atRisk) return; // the owner may have moved on
+    if (state.current?.id !== p.id || !r?.atRisk) return; // the user may have moved on
     btn.innerHTML = `${icon('subtitles', 14)} ${tp`Sửa lỗi tiếng Việt (${r.atRisk} cảnh)`}`;
     btn.classList.remove('hidden');
   } catch { /* a scan that cannot run must not break the panel */ }

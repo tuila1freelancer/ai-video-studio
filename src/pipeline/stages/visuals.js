@@ -93,9 +93,9 @@ export async function runVisuals(ctx) {
   const hfConsistent = config.hyperframe?.consistent === true;
   // Concurrency 2: each codegen now also renders (renderValidate) on the shared headless
   // browser — 2 keeps throughput up without thrashing Chrome with too many parallel pages.
-  // Scene-gate freeze: once the owner approved the storyboard, EVERY scene that carries a
+  // Scene-gate freeze: once the user approved the storyboard, EVERY scene that carries a
   // plan is kept verbatim — without this, a scene would re-enter codegen on the continue
-  // run and silently replace visuals the owner just signed off on.
+  // run and silently replace visuals the user just signed off on.
   const approved = !!DB.getProject(projectId).scenes_approved_at;
   // NO-FALLBACK CONTRACT (P25): a scene the primary model cannot build
   // in 10 attempts FAILS LOUDLY — no fallback model, no heuristic template. Failures are
@@ -120,7 +120,7 @@ export async function runVisuals(ctx) {
         creativeDirection: config.hyperframe?.direction, captionsOn: config.enableSubtitles !== false,
         hookVisual: sc.idx > 0 ? hookVisual : '',
         consistent: hfConsistent, imageFullAssets: mediaFor(sc),
-        // 'edit' tells the codegen the footage is the owner's OWN video (its own captions/titles
+        // 'edit' tells the codegen the footage is the user's OWN video (its own captions/titles
         // are already burned in) — plain overlay stays B-roll under a narrated scene.
         overlay: config.overlay?.enabled === true ? (config.overlay.mode === 'edit' ? 'edit' : true) : false,
         diversitySalt: hash32(String(projectId)), // P31: signature rotation differs per video

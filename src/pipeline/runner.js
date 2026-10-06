@@ -40,7 +40,7 @@ export async function runPipeline(projectId, { resume = false, _auto = 0 } = {})
   jlog(projectId, { kind: 'status', msg: resume ? m('▶ Tiếp tục pipeline') : m('🚀 Bắt đầu pipeline') });
 
   try {
-    // EDIT VIDEO (P40): the owner's own file IS the content, so there is no script and no TTS —
+    // EDIT VIDEO (P40): the user's own file IS the content, so there is no script and no TTS —
     // transcribe, cut, then rejoin the ordinary visuals/render/finalize stages. Routed here (not
     // as a separate job kind) so stop, resume, the job ledger and the error taxonomy below all
     // apply unchanged.
@@ -69,7 +69,7 @@ export async function runPipeline(projectId, { resume = false, _auto = 0 } = {})
     await runVisuals(ctx);                                  // B5
 
     // Scene gate: with config.sceneGate the run holds at a DISTINCT 'scenes' status after
-    // visuals, BEFORE any TTS credit is spent — the owner reviews/edits every scene, then
+    // visuals, BEFORE any TTS credit is spent — the user reviews/edits every scene, then
     // POST /projects/:id/approve-scenes stamps scenes_approved_at and resumes. Same clean-
     // return pattern as the review gate below: never 'paused' (P13 must not mistake a hold
     // for a crash) and never the error path (P10 auto-resume can never skip the gate).
@@ -105,7 +105,7 @@ export async function runPipeline(projectId, { resume = false, _auto = 0 } = {})
 
     if (config.autoConcat !== false) await finalize(projectId, { dir, size, config }); // B7 + B8
     // Between the join and 'done' there used to be no checkpoint at all, so a stop that arrived
-    // during the last stages was simply overwritten by success: the owner pressed Dừng, waited,
+    // during the last stages was simply overwritten by success: the user pressed Dừng, waited,
     // and watched the video finish anyway.
     checkStop(projectId);
     if (config.generateMetadata !== false) await runMetadata(ctx);
@@ -125,7 +125,7 @@ export async function runPipeline(projectId, { resume = false, _auto = 0 } = {})
     if (e.stopped) {
       DB.updateProject(projectId, { status: 'paused' });
       // The durable flag has done its job the moment the run settles as paused. Leaving it set
-      // would make the next boot cancel a job the owner had since started again.
+      // would make the next boot cancel a job the user had since started again.
       DB.clearStopRequest(projectId);
       hub.toProject(projectId, { type: 'status', status: 'paused' });
       logger.warn(m('⏹ Đã dừng theo yêu cầu của bạn'), { projectId, kind: 'status' });

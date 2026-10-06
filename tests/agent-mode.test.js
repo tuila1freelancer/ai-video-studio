@@ -11,7 +11,7 @@ import { errorHandler } from '../src/api/http.js';
 import { existsSync } from 'node:fs';
 import { isAbsolute, join } from 'node:path';
 
-test('agent access is off until the owner turns it on, and it survives a restart', () => {
+test('agent access is off until the user turns it on, and it survives a restart', () => {
   assert.deepEqual(agentMode(), { enabled: false, since: null });
   assert.equal(authRequired(), false, 'a desktop app with nobody to answer to asks for nothing');
   const on = setAgentMode({ enabled: true });
@@ -41,7 +41,7 @@ test('with agent access on, an agent needs a token and the app window still gets
     // The window's own session, as the cookie the launcher handshake sets.
     const session = uiSessionToken();
     const asWindow = await fetch(`${base}/projects`, { headers: { Cookie: `avs_token=${session}` } });
-    assert.equal(asWindow.status, 200, 'the owner is never locked out of their own app');
+    assert.equal(asWindow.status, 200, 'the user is never locked out of their own app');
 
     const agent = DB.createApiToken({ name: 'an agent', scopes: ['read'] });
     const asAgent = await fetch(`${base}/projects`, { headers: { Authorization: `Bearer ${agent.token}` } });
@@ -104,7 +104,7 @@ test('the panel a person actually uses carries the switch, the tokens and the ca
   assert.match(js, /const \{ settings, budget, agent \} = await api\.get\('\/settings'/);
   assert.match(js, /loadAgent\(agent\);/, 'the panel reads the block the server actually sends');
   assert.match(js, /claude mcp add avs -- \$\{q\(info\.node\)\} \$\{q\(info\.kit\.mcp\)\} --token \$\{token\}/,
-    'the command printed for the owner is built from this machine, not from a README');
+    'the command printed for the user is built from this machine, not from a README');
   assert.ok(!/--url/.test(js.slice(js.indexOf('mcpCommand'), js.indexOf('function renderCommand'))),
     'and it pins no URL: the port changes every launch');
 });

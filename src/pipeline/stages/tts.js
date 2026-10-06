@@ -45,11 +45,11 @@ export async function runTts(ctx) {
     step(projectId, 'b34', 'done', m('không lời'));
     return;
   }
-  // MISSING-VOICE WARNING. langVoices is how the owner pins a voice per language; when the
+  // MISSING-VOICE WARNING. langVoices is how the user pins a voice per language; when the
   // video's language has no entry, resolveTarget silently falls through to the default provider
   // — which is how three English-narrated scenes ended up read by a Vietnamese voice. Warn, never
   // block: an offline install and a keyless setup must both still be able to make a video.
-  // THE language of this video — declared by the owner, or the majority of what the scenes
+  // THE language of this video — declared by the user, or the majority of what the scenes
   // actually say. Every scene is voiced, padded and captioned in it; a per-scene re-detection
   // would let one short line drag the whole video onto another voice.
   const videoLang = resolveLang(config, scenes);

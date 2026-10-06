@@ -17,7 +17,7 @@ const scene = (over = {}) => ({ id: 's1', idx: 0, template: 'hyperframe', props:
 /** A scene as it looks right after a render: clip on disk, stamped with what it was made from. */
 const stamped = (sc, config) => ({ ...sc, video_path: '/tmp/clip.mp4', fp: fpStamp(sc, 'render', renderFingerprint(sc, { config, project: PROJECT })) });
 
-test('the predicate answers the two questions the owner asked', () => {
+test('the predicate answers the two questions the user asked', () => {
   const cfg = PROJECT.config;
   const done = stamped(scene(), cfg);
   assert.equal(renderCurrent(done, { config: cfg, project: PROJECT }, cfg).ok, true, 'nothing moved → keep it');

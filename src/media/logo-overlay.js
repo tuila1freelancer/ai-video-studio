@@ -35,11 +35,11 @@ export function logoRect({ cxPct, cyPct, wPct }, { W, H, logoW, logoH }) {
  * The version of this that lived inline in finalize only ever ASSIGNED a logo (`if (bkLogo &&
  * !config.logo?.path)`) — it had no way to say "no". Turning the stamp off in the Brand Kit
  * therefore did nothing to a project that had already resolved one, which is the behaviour the
- * owner reported: the toggle moves, the logo stays. The decision has to be re-made from scratch
+ * user reported: the toggle moves, the logo stays. The decision has to be re-made from scratch
  * on every concat, and "off" has to be one of the answers.
  *
  * Precedence, most specific first:
- *   1. `config.logo === null`            → the owner turned it off for THIS video
+ *   1. `config.logo === null`            → the user turned it off for THIS video
  *   2. `config.logo.enabled === false`   → same, spelled as a flag
  *   3. `config.logo.path`                → a per-project override, used as given
  *   4. brand kit `finalOverlay.enabled`  → the normal channel stamp
@@ -68,7 +68,7 @@ export function resolveConcatLogo(config, size = { w: 1920, h: 1080 }) {
   const fov = resolveFinalOverlay(bk.finalOverlay);
   if (fov) return { path: bkLogo, ...fov };
   // An explicit `finalOverlay: {enabled: false}` means OFF — never fall through to the legacy
-  // branch and resurrect the stamp the owner just switched off.
+  // branch and resurrect the stamp the user just switched off.
   if (bk.finalOverlay !== undefined) return null;
 
   // Configs saved before the whole-video stamp existed: per-scene placement + a logo, no

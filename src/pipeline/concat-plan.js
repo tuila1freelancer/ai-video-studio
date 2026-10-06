@@ -29,7 +29,7 @@ const digest = (o) => createHash('sha1').update(JSON.stringify(o)).digest('hex')
  * This list lives here, next to the fingerprint that consumes their effects, because it has one
  * job: to be complete. Every key on it means "editing this costs one concat instead of ninety-five
  * renders", and a key MISSING from it means the opposite of a wrong estimate — it means the change
- * queue reports "không có gì thay đổi" and the owner cannot apply the edit at all.
+ * queue reports "không có gì thay đổi" and the user cannot apply the edit at all.
  *
  * That is not hypothetical. `enableSubtitles` was absent, and it is what finalize checks before
  * burning captions (`config.subtitleLane === 'final' && config.enableSubtitles !== false`), so
@@ -131,7 +131,7 @@ export function needsVideoFilter({ logo, watermark, assText, transitions, master
  * @param {{video?:string,audio?:string,all?:string}|null} a.prev the one that made `prevPath`
  * @param {string|null} a.prevPath the existing final video, if any
  * @param {boolean} a.videoFilter from needsVideoFilter
- * @param {boolean} [a.allowSkip] false during the first finalize of a run the owner asked for
+ * @param {boolean} [a.allowSkip] false during the first finalize of a run the user asked for
  * @returns {{tier:'skip'|'audio'|'copy'|'encode', why:string}}
  */
 export function planConcat({ fp, prev, prevPath, videoFilter, allowSkip = true }) {
@@ -148,7 +148,7 @@ export function planConcat({ fp, prev, prevPath, videoFilter, allowSkip = true }
   return { tier: 'encode', why: m('cần dựng lại hình') };
 }
 
-/** One line for the owner's log, per tier. Built per call — the interface language can change. */
+/** One line for the user's log, per tier. Built per call — the interface language can change. */
 export function tierLog(tier) {
   return {
     skip: m('⏭️ Không có gì thay đổi — giữ nguyên video đã xuất'),

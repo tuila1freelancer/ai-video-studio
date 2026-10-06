@@ -36,7 +36,7 @@ export async function finalize(projectId, { dir, size, config: given, variantNam
   DB.updateProject(projectId, { current_step: 'b7' });
   const project = DB.getProject(projectId);
   // This run's own copy, dressed with the live brand kit, logo and watermark — the caller's object
-  // is never mutated, so the stages after the join keep seeing what the owner configured.
+  // is never mutated, so the stages after the join keep seeing what the user configured.
   const config = await dressConfig({ projectId, config: given, size });
   project.outputDir = resolveOutputDir(projectId, config, dir);
   const renderDir = join(dir, 'render');
@@ -65,7 +65,7 @@ export async function finalize(projectId, { dir, size, config: given, variantNam
   // nothing about the per-join clamp — and, worse, nothing about whether the transitions run at
   // all. `transPlan` is built unconditionally here while the renderer used to skip the whole xfade
   // branch above 24 clips, so on every long video each sound effect was placed 0.2s × k early:
-  // forty seconds of drift by scene 200, on the videos the owner actually publishes.
+  // forty seconds of drift by scene 200, on the videos the user actually publishes.
   // planOffsets replays the concat's own arithmetic, so it is right in both cases.
   const sceneStarts = planOffsets(scenes.map((s) => s.duration || 0), transPlan).starts;
   const lossBeforeScene = (k) => {

@@ -1,5 +1,5 @@
 // TTS façade — resolves language → (provider, voice) → synthesizes with a robust fallback chain.
-// The language is the CALLER's to declare (opts.lang): the pipeline already knows what the owner
+// The language is the CALLER's to declare (opts.lang): the pipeline already knows what the user
 // picked, and sniffing the text instead answered 'en' for every unaccented Latin script, so a
 // French video could never reach langVoices['fr']. Detection stays only for callers that have
 // nothing to declare — a voice preview, a one-off snippet.

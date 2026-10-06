@@ -1,7 +1,7 @@
 // End-to-end test driver — boot the server, run a fully configured HyperFrame project, report timings.
 // Usage: node test-drive.mjs '<topic>' <videoDuration> <aspectRatio> <timeoutMs> [ttsProvider]
 // ttsProvider defaults to 'app': the project carries NO tts override, so the run uses the
-// owner's in-app AI settings exactly (preferred provider, per-language voices, lexicon…).
+// user's in-app AI settings exactly (preferred provider, per-language voices, lexicon…).
 // Pass an explicit provider id (e.g. 'edge') only when a test must avoid paid credits.
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, statSync } from 'node:fs';

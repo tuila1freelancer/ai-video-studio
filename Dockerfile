@@ -86,7 +86,7 @@ ENV AVS_DIST=1 \
     # not a credential — the token itself is generated inside the container. Replace it after use.
     AVS_BOOTSTRAP_TOKEN_NAME=bootstrap
 # /data holds the database, the API tokens and every project: it MUST outlive the container, or
-# each restart is a new installation to the owner.
+# each restart is a new installation to the user.
 VOLUME ["/data"]
 RUN useradd --create-home --uid 10001 avs && mkdir -p /data && chown -R avs:avs /data /app
 USER avs

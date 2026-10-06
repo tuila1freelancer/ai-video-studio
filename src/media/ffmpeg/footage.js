@@ -1,4 +1,4 @@
-// The owner's own footage (P40/P43/P44): overlay composite with reframe bias, silence removal, auto zoom.
+// The user's own footage (P40/P43/P44): overlay composite with reframe bias, silence removal, auto zoom.
 import { spawn } from 'node:child_process';
 import { copyFile } from 'node:fs/promises';
 import { PATHS } from '../../config/paths.js';
@@ -7,12 +7,12 @@ import { ffmpeg } from './run.js';
 import { probeDuration, probeImageSize } from './probe.js';
 
 // Overlay-mode composite (reference-app parity): the scene clip's key color becomes
-// transparent and the motion graphics land on a slice of the owner's base footage. The
+// transparent and the motion graphics land on a slice of the user's base footage. The
 // slice offset wraps around the footage length so any video length works; footage shorter
 // than the scene is frozen on its last frame (tpad clone) rather than cut to black.
 // Scene AUDIO (the narration) is kept; the footage's own audio is dropped.
 // `exact` + `audioFrom:'footage'` switch this into EDIT-VIDEO mode (P40): the graphics belong to
-// one specific moment of the owner's own video, so the slice is taken at exactly `start` (never
+// one specific moment of the user's own video, so the slice is taken at exactly `start` (never
 // wrapped) and the ORIGINAL soundtrack is kept instead of a narration track.
 
 /**

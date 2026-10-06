@@ -81,7 +81,7 @@ export function mount(r) {
       if (!sc.audio_path || !existsSync(sc.audio_path)) return res.status(400).json({ error: 'cảnh chưa có audio' });
       const p = DB.getProject(sc.project_id);
       const channel = DB.channelOf(p.id);
-      // this scene's OWN text decides — resync runs after the owner edited that one line
+      // this scene's OWN text decides — resync runs after the user edited that one line
       const lang = declaredLang(p.config) || detectLang(sc.voice_text || '');
       const padMs = padMsFor(lang);
       const speechDur = Math.max(0.3, (sc.duration || 0) - padMs / 1000);

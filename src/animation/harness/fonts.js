@@ -1,4 +1,4 @@
-// Every @font-face the scene page can carry: the vendored set, the owner's uploads and the
+// Every @font-face the scene page can carry: the vendored set, the user's uploads and the
 // families fetched on request — and which of them a page actually references.
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -18,7 +18,7 @@ function parseFaces(css) {
   return out;
 }
 
-// Downloaded families are re-read rather than cached for the process lifetime: the owner can
+// Downloaded families are re-read rather than cached for the process lifetime: the user can
 // fetch one from the Library while the app is running, and the very next preview has to see it.
 let webCache = { stamp: '', blocks: [] };
 function webFaces() {

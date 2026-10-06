@@ -61,7 +61,7 @@ test('text case matches what the harness CSS would do', () => {
 test('the burn style inherits the DOM lane font SIZE, not the raw config number', () => {
   // The single most likely fidelity bug in this lane. assStyleFrom reports the config value
   // (80); the harness renders 80 × (min(w,h)/1080) × 0.72 = 58px. Burning at 80 would ship
-  // subtitles 38% bigger than every preview the owner ever saw.
+  // subtitles 38% bigger than every preview the user ever saw.
   const cfg = { subtitleFontSize: 80, subtitlePreset: 'bold-impact' };
   const cap = captionStyleFrom(cfg, theme, SIZE);
   const burn = burnStyleFrom(cfg, theme, SIZE);
@@ -81,7 +81,7 @@ test('the burn style names a number for every harness fallback', () => {
   assert.equal(burn.font, 'Be Vietnam Pro');
 });
 
-test('the owner font pick wins in the burn exactly as it does in the page', () => {
+test('the user font pick wins in the burn exactly as it does in the page', () => {
   const cfg = { subtitleFont: 'Anton', subtitlePreset: 'neon-glow' };
   assert.equal(burnStyleFrom(cfg, theme, SIZE).font, 'Anton', 'bare family — a CSS stack breaks libass');
   assert.equal(burnStyleFrom({ subtitlePreset: 'neon-glow' }, theme, SIZE).font, 'Montserrat');

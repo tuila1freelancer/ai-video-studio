@@ -60,7 +60,7 @@ export function mount(r) {
     res.json({ ok: true, guide });
   });
 
-  // Show Bible: owner-editable channel context + the anti-repeat topic ledger
+  // Show Bible: user-editable channel context + the anti-repeat topic ledger
   r.get('/channels/:id/memory', (req, res) => {
     if (!DB.getChannel(req.params.id)) return res.status(404).json({ error: 'not found' });
     res.json(DB.getChannelMemory(req.params.id));
@@ -90,7 +90,7 @@ export function mount(r) {
       const ext = (extname(req.file.originalname || '') || '.png').toLowerCase();
       const dir = join(ch.root_dir, 'library', 'logo');
       mkdirSync(dir, { recursive: true });
-      // A macOS owner's logo is very often a HEIC (screenshot / iPhone photo) or a GIF, and the
+      // A macOS user's logo is very often a HEIC (screenshot / iPhone photo) or a GIF, and the
       // file picker offers image/* — so refusing them read as "upload is broken". Anything the
       // renderer cannot use directly is CONVERTED to PNG instead of rejected.
       if (WEB_SAFE.has(ext)) {

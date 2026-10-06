@@ -2,9 +2,9 @@
 //
 // Chinese, Japanese and Thai are written with no spaces, so every whitespace count in this
 // codebase returned 1 for a whole paragraph. The worst consequence was not a wrong statistic:
-// SCRIPT_MODE_MIN_WORDS routes an input of ≥80 words to light-polish mode, where the owner's
+// SCRIPT_MODE_MIN_WORDS routes an input of ≥80 words to light-polish mode, where the user's
 // wording is the deliverable. A 5,000-character Chinese script counted as one word, fell under
-// the floor, and was routed to "topic" mode — which throws the owner's script away and writes a
+// the floor, and was routed to "topic" mode — which throws the user's script away and writes a
 // new video about it.
 import './_env.mjs';
 import test from 'node:test';
@@ -32,7 +32,7 @@ test('segment: space-separated languages count exactly as they always did', () =
   assert.equal(wordJoiner('zh'), '', 'rejoining Chinese words with spaces inserts gaps that are not there');
 });
 
-test('segment: an owner script in Chinese reaches the light-polish floor', () => {
+test('segment: a user script in Chinese reaches the light-polish floor', () => {
   // 40 sentences of real Chinese — unmistakably a detailed script, zero spaces in it.
   const script = '人工智能正在改变我们工作的方式。'.repeat(40);
   assert.ok(script.length > 500);

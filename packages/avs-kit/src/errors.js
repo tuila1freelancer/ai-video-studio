@@ -1,7 +1,7 @@
 // What went wrong, in terms an agent can act on.
 //
 // The engine answers every refusal with a stable `code`; this turns that code into a decision:
-// retry later, fix the configuration, stop spending, or tell the owner. Nothing here parses prose.
+// retry later, fix the configuration, stop spending, or tell the user. Nothing here parses prose.
 
 export class AvsError extends Error {
   constructor(message, { code = 'request_failed', status = 0, body = null } = {}) {

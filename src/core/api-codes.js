@@ -1,6 +1,6 @@
 // A stable machine word for every refusal the API makes.
 //
-// The sentences are for the owner and are translated on the way out; an agent must not branch on
+// The sentences are for the user and are translated on the way out; an agent must not branch on
 // prose in any language. Rather than rewrite 178 handlers, the code is derived at the edge from
 // what they already return: the few messages worth naming precisely are listed here — keyed by the
 // Vietnamese text, which is how this codebase has always keyed a server string — and everything

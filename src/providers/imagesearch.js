@@ -27,7 +27,7 @@ const httpUrl = (u) => (typeof u === 'string' && /^https?:\/\//i.test(u) ? u : n
  * Openverse matches the whole phrase, so length is fatal rather than merely unhelpful. Measured
  * against the live API on 2026-08-11: "large language model neural network" returns 0 results;
  * "large language model" returns 240; "language model" returns 240. The old ladder had two rungs —
- * the sharpest generated keyword, then the owner's words — and both are usually full phrases, so a
+ * the sharpest generated keyword, then the user's words — and both are usually full phrases, so a
  * search with perfectly good matches available fell all the way through to gradient placeholders.
  *
  * Titles get their site suffix cut first ("Large language model - Wikipedia"), because that suffix
@@ -94,7 +94,7 @@ export async function imageSearch(query, count = 6) {
   // placeholders and no way to find a picture at all. Commercial+modification licenses only, so
   // anything it returns is safe to put in a video.
   // Why the real search did not answer. Falling back to gradients is correct; doing it in silence
-  // is not — the owner sees six coloured squares and no reason, which reads as "there are no
+  // is not — the user sees six coloured squares and no reason, which reads as "there are no
   // pictures of this" rather than "the catalogue is throttling us, try again in a minute".
   let note = null;
   for (const term of searchTerms(query, keywords)) {

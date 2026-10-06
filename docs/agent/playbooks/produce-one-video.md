@@ -1,6 +1,6 @@
 # Playbook: produce one video
 
-**Goal.** A topic becomes a finished video, published or left for the owner to look at.
+**Goal.** A topic becomes a finished video, published or left for the user to look at.
 
 **Before you start.** A channel id. A token with `read` and `produce` (plus `publish` if you will
 upload). `GET /api/health` returns `ok` and `ops.state === 'running'`.
@@ -23,7 +23,7 @@ upload). `GET /api/health` returns `ok` and `ops.state === 'running'`.
 6. **Judge it.** `status: done` → `GET /api/projects/:id/verdict`. `publishable: false` means stop
    and report `reasons[]`; a `warning` is worth mentioning, not worth stopping for.
 7. **Publish, or leave it.** `POST /api/projects/:id/publish { privacy: 'private' }` unless the
-   owner's policy says otherwise. The channel policy may clamp the privacy, cap the day or refuse
+   user's policy says otherwise. The channel policy may clamp the privacy, cap the day or refuse
    outside its hours — each with its own code.
 8. **Report.** Project id, status, verdict score, cost (`verdict.cost.estCost`), and the URL if you
    published.
@@ -37,5 +37,5 @@ upload). `GET /api/health` returns `ok` and `ops.state === 'running'`.
 
 ## Done when
 
-The project is `done`, the verdict has no blockers, and either the video is published or the owner
+The project is `done`, the verdict has no blockers, and either the video is published or the user
 has been told where it is (`video_path`, downloadable through `GET /api/file?path=…`).

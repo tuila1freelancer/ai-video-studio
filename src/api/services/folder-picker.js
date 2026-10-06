@@ -1,4 +1,4 @@
-// The native "choose a folder" dialog, per OS. Resolves '' where there is none or the owner
+// The native "choose a folder" dialog, per OS. Resolves '' where there is none or the user
 // cancelled: the caller falls back to a typed path, so a missing picker never blocks an export.
 import { execFile } from 'node:child_process';
 

@@ -1,5 +1,5 @@
 // A finished video is a version, not a terminal state — and an edit says what it costs before
-// the owner pays for it.
+// the user pays for it.
 //
 // Three things used to make "change one thing on a finished video" impossible to reason about:
 // the resume button vanished on `done`, the brand kit was frozen at the snapshot taken when the
@@ -64,7 +64,7 @@ test('the fade is surfaced as the speed lever it is, not silently switched off',
   assert.match(plan, /fadeBlocksFastJoin/);
   const cp = sourceOf('public/js/features/changeplan.js');
   assert.match(cp, /gần như tức thì/, 'the offer is made');
-  assert.ok(!/masterFade: false/.test(cp), 'but never taken on the owner\'s behalf');
+  assert.ok(!/masterFade: false/.test(cp), 'but never taken on the user\'s behalf');
 });
 
 test('timing stats reject nonsense rather than poisoning every later estimate', () => {

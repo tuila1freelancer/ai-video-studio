@@ -45,7 +45,7 @@ test('lang: short stubs do not get a vote', () => {
 });
 
 test('lang: with nothing to go on at all, the answer is the named house default', () => {
-  assert.equal(DEFAULT_LANG, 'vi', 'the owner\'s main channel is Vietnamese');
+  assert.equal(DEFAULT_LANG, 'vi', 'the user\'s main channel is Vietnamese');
   assert.equal(resolveLang({}, []), DEFAULT_LANG);
   assert.equal(resolveLang(null), DEFAULT_LANG);
 });
@@ -258,7 +258,7 @@ test('lang: "ghép lại" concatenates instead of re-rendering the whole video',
   // The gate is now `renderPass && scenes.length`: 'concat' still skips the pool entirely, and so
   // does a render pass that found every clip already current — see incremental-render.test.js.
   assert.match(ro, /if \(renderPass && scenes\.length\) \{/, 'the render pool is gated');
-  assert.match(ro, /không render lại/, 'and the owner is told what it did');
+  assert.match(ro, /không render lại/, 'and the user is told what it did');
   // the unvoiced early-exit belongs to the RENDER path only — a fully-voiced project with clips
   // is perfectly concat-able
   assert.match(ro, /const unvoiced = renderPass \? scenes\.filter\(\(s\) => !s\.audio_path\) : \[\];/);

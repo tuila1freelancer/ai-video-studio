@@ -111,7 +111,7 @@ const POSITION_BOTTOM_PCT = { bot: 12, mid: 45, top: 80 };
 const ALIGN_H = { left: 1, center: 2, right: 3 };
 
 const num = (v) => (Number.isFinite(+v) && v !== '' && v != null ? +v : undefined);
-/** A length the owner typed against a 1080p frame, scaled onto the real one (as fontSizePx is). */
+/** A length the user typed against a 1080p frame, scaled onto the real one (as fontSizePx is). */
 const px1080 = (v, { w, h }) => {
   const n = num(v);
   return n == null ? undefined : Math.round(n * (Math.min(w, h) / 1080));
@@ -120,7 +120,7 @@ const px1080 = (v, { w, h }) => {
 /**
  * The controls that exist only on the burn lane: everything libass can express that the DOM
  * caption never had a CSS equivalent for, plus the fields that used to be derived from `effect`
- * and are now the owner's to set.
+ * and are now the user's to set.
  *
  * Every value here is `undefined` when unset, and every consumer falls back to exactly what it
  * computed before. That is the contract that lets 46 finished projects re-render unchanged: an
@@ -198,7 +198,7 @@ export function captionStyleFrom(config, theme, { w, h }) {
   const fontSizePx = c.subtitleFontSize
     ? Math.round(c.subtitleFontSize * (Math.min(w, h) / 1080) * 0.72)
     : undefined;
-  // P30: the owner's explicit font pick ALWAYS wins — before this, subtitleFont only
+  // P30: the user's explicit font pick ALWAYS wins — before this, subtitleFont only
   // reached the ASS burn path and the animation captions silently kept the page font.
   const fam = familyName(c.subtitleFont);
   const pickedStack = fam ? `'${fam}', -apple-system, sans-serif` : undefined;
@@ -241,7 +241,7 @@ export function captionStyleFrom(config, theme, { w, h }) {
 /**
  * Everything the FINAL-PASS burn needs, resolved through the same math the DOM lane uses.
  *
- * The two lanes have to agree or the app lies to the owner: they pick a style in a preview the
+ * The two lanes have to agree or the app lies to the user: they pick a style in a preview the
  * browser draws, and the burned video has to be that. The trap is font size — `assStyleFrom`
  * reports the raw config number (80) while the harness renders `80 × (min(w,h)/1080) × 0.72`
  * (58px at 1080p). Burning at 80 would ship subtitles 38% larger than every preview showed. So
@@ -273,7 +273,7 @@ export function burnStyleFrom(config, theme, { w, h }) {
     boxBg: cap.boxBg || null,
     // `cap` is the DOM lane's shape, and its no-preset branch is frozen: it returns only
     // {color, fontSizePx, mode} so old scene pages stay byte-identical (scene-page-golden). So it
-    // has no textCase to give when the owner picked "Tuỳ biến tay" — and reading it alone silently
+    // has no textCase to give when the user picked "Tuỳ biến tay" — and reading it alone silently
     // burned every manual video at 'original' while the panel's preview showed the chosen case.
     // `ass` resolves the same field straight from the config, which is what that branch is for.
     textCase: cap.textCase || ass.textCase || 'original',

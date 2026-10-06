@@ -134,7 +134,7 @@ export async function openQcScan() {
  *
  * Reads project.metadata.timeline, which the concat writes from the offsets it actually
  * assembled. Deriving it here from scene durations would be wrong by one crossfade per join,
- * and increasingly wrong the further into the video the owner clicks.
+ * and increasingly wrong the further into the video the user clicks.
  */
 export function initJumpToScene() {
   const video = $('#finalVideo');

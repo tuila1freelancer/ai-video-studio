@@ -15,7 +15,7 @@ import { stopError } from '../../pipeline/stop.js';
 // An abort is reported as a stop, not as a failure: the error carries `.stopped`, which is the
 // tag the orchestrator reads to settle the run as paused. Left as a plain AbortError it would be
 // classified as a crash, shown as "⛔ Pipeline lỗi", and — because it looks retryable — trigger
-// the automatic resume, restarting the very render the owner just stopped.
+// the automatic resume, restarting the very render the user just stopped.
 //
 // The filtergraph never travels as an argument. `ps -ax -o command` shows every argv of a running
 // process to any account on the machine, and our graph IS the transition doctrine — dip lengths,

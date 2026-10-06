@@ -62,14 +62,14 @@ const PROVIDER_PER_MTOK = {
   together: [['deepseek-v4-pro', [2.10, 4.40]]],
 };
 
-// A model running on the owner's own machine bills nothing. NOT the same as a free TIER
+// A model running on the user's own machine bills nothing. NOT the same as a free TIER
 // (Groq, Gemini): a quota is not a price, and those providers' paid rates are real.
 const LOCAL_PROVIDERS = new Set(['ollama', 'lmstudio']);
 
 // TTS: USD per 1k characters (elevenlabs ≈ creator tier); larvoice bills opaque credits,
 // carried through as credits (VND-denominated on their side) with no USD estimate.
 // The cloud three are their standard neural tiers at list price — the meter is an estimate the
-// owner sees before spending, not an invoice, and a wrong-by-half number is worth far more than
+// user sees before spending, not an invoice, and a wrong-by-half number is worth far more than
 // the 0 that an unlisted provider reports.
 const TTS_PER_KCHAR = {
   elevenlabs: 0.24, openai: 0.015,

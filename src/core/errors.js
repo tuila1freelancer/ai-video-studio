@@ -56,7 +56,7 @@ const RESOURCE = new RegExp([
   'ffmpeg exit 127', 'chrome.*not.*(found|available)', 'no space left', 'disk full',
 ].join('|'), 'i');
 
-/** The hint key for a class — resolved to the owner's language at the point it is shown. */
+/** The hint key for a class — resolved to the user's language at the point it is shown. */
 const HINT_KEY = {
   'rate-limit': 'error.hint.rateLimit',
   resource: 'error.hint.resource',

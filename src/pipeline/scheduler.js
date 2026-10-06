@@ -75,7 +75,7 @@ function settle(job, { status, error = null }) {
   DB.settleJob(job.id, status, error);
   hub.broadcast({ type: 'job', id: job.id, kind: job.kind, projectId: job.project_id, status });
   notifyWebhooks('job.settled', { jobId: job.id, kind: job.kind, projectId: job.project_id, status, error, actor: job.actor || null });
-  // a calendar-born video finished (or failed) — tell the owner which scheduled topic it was
+  // a calendar-born video finished (or failed) — tell the user which scheduled topic it was
   if (job.kind === 'pipeline') {
     try {
       const slot = DB.slotForProject(job.project_id);
@@ -91,7 +91,7 @@ function settle(job, { status, error = null }) {
 }
 
 // Content calendar: promote due slots into real projects + queued jobs — piggybacks the
-// scheduler tick (no second timer). Slot topics were chosen BY THE OWNER when scheduling.
+// scheduler tick (no second timer). Slot topics were chosen BY THE USER when scheduling.
 export function promoteDueSlots() {
   for (const slot of DB.dueSlots()) {
     try {

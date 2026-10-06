@@ -94,7 +94,7 @@ export function menuDialog({ title, items }) {
 }
 
 /**
- * Publish composer (P43): the reference app lets the owner see and EDIT the exact post text and
+ * Publish composer (P43): the reference app lets the user see and EDIT the exact post text and
  * title before anything goes out, and pick when it goes live. A menu of privacy levels does not
  * cover that — you cannot fix a typo in a caption you never saw.
  * @returns {Promise<{caption,title,when}|null>} `when` is unix SECONDS, or null for "now".

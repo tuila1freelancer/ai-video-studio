@@ -52,7 +52,7 @@ export function providerConfig(ttsSettings, pid) {
  * The modern slot is what fixes a real bug. The Voice Picker writes a multilingual voice into
  * `voiceId`, and this function only read `voiceId` for openai and elevenlabs — so choosing any
  * Supertonic voice returned null, fell through to 'auto', and every scene was synthesized with
- * M1 regardless of what the owner picked.
+ * M1 regardless of what the user picked.
  */
 export function legacyVoice(ttsSettings, pid) {
   const s = ttsSettings || {};

@@ -13,7 +13,7 @@ export const upload = multer({ dest: DIRS.uploads, limits: { fileSize: UPLOAD_MA
  * note, a platform's field labels.
  *
  * Explicitly per route, never blanket: `name` on a voice, a channel or a project is DATA, and
- * translating it would rename the owner's own things. These three endpoints describe the app to
+ * translating it would rename the user's own things. These three endpoints describe the app to
  * itself, so every string in them is interface text.
  */
 const CATALOGUE_FIELDS = new Set(['label', 'name', 'note', 'hint', 'placeholder']);

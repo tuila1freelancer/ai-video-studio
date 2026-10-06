@@ -1,5 +1,5 @@
 // Housekeeping for the two directories nothing else ever empties: data/tmp (frame previews,
-// asset URIs, waveforms) and data/uploads (multer's landing zone). Measured on the owner's
+// asset URIs, waveforms) and data/uploads (multer's landing zone). Measured on the user's
 // machine: 142 entries from three months back in tmp, 69 in uploads.
 import { readdir, rm, stat } from 'node:fs/promises';
 import { join } from 'node:path';

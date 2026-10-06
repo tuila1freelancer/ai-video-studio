@@ -9,7 +9,7 @@ import { m } from '../../i18n/t.js';
 
 /**
  * Returns a NEW object: the caller's config is never mutated, so the stages after the join (and
- * the runner's own context) keep seeing what the owner configured, not what this join added.
+ * the runner's own context) keep seeing what the user configured, not what this join added.
  * @param {{projectId:string, config:object, size:{w:number,h:number}}} args
  */
 export async function dressConfig({ projectId, config: given, size }) {

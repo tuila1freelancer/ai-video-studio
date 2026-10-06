@@ -30,7 +30,7 @@ test('a variant is recorded as an alternate cut, not as the video', () => {
   assert.match(fin, /if \(!variantName\) DB\.updateProject\(projectId, \{ video_path: res\.path/);
 });
 
-test('diffConfig is what the owner would call "what changed"', () => {
+test('diffConfig is what the user would call "what changed"', () => {
   assert.deepEqual(diffConfig({ a: 1 }, { a: 1 }), []);
   assert.deepEqual(diffConfig({ a: 1 }, { a: 2 }), ['a']);
   assert.deepEqual(diffConfig({}, { b: 1, a: 1 }), ['a', 'b'], 'sorted, and additions count');
@@ -58,7 +58,7 @@ test('a variant costs one join because every setting in it lives in the concat',
 
 test('the jump reads the timeline the concat wrote, never re-derives it', () => {
   // scene-duration sums are wrong by one crossfade per join, and increasingly wrong the further
-  // into the video the owner clicks — which is the failure this whole timeline exists to prevent
+  // into the video the user clicks — which is the failure this whole timeline exists to prevent
   const ac = sourceOf('public/js/features/aftercare.js');
   assert.match(ac, /state\.current\?\.metadata\?\.timeline/);
   assert.ok(!/reduce\(\(a, s\) => a \+ \(s\.duration/.test(ac), 'no hand-rolled offsets');

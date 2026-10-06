@@ -6,7 +6,7 @@ import { stripComments } from '../scripts/lib/msgid.mjs';
 
 // A translation resolved at IMPORT time is frozen in the source language for the life of the
 // process — and in the browser it is worse than frozen, because the catalogue is fetched AFTER the
-// module is evaluated, so the value is always Vietnamese no matter what the owner chose.
+// module is evaluated, so the value is always Vietnamese no matter what the user chose.
 //
 // The fix is always the same shape: make it a function, an arrow, or a getter, so the lookup
 // happens when the string is drawn. This test holds that line, because nothing about the mistake

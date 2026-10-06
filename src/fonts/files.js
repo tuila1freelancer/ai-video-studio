@@ -63,7 +63,7 @@ export function vendoredFaces() {
   return out;
 }
 
-/** The owner's own uploads (Library → Fonts). The family name lives on the DB row, not the file. */
+/** The user's own uploads (Library → Fonts). The family name lives on the DB row, not the file. */
 export function uploadedFaces() {
   const out = [];
   for (const row of userFontRows()) {
@@ -145,7 +145,7 @@ export function resolveFace(family, weight = 700) {
   if (!key) return null;
   const hits = allFaces().filter((f) => f.key === key);
   if (!hits.length) return null;
-  // an upload beats a vendored face of the same name — the owner put it there on purpose
+  // an upload beats a vendored face of the same name — the user put it there on purpose
   const uploaded = hits.filter((f) => f.source === 'uploaded');
   const pool = uploaded.length ? uploaded : hits;
   return pool.slice().sort((a, b) => Math.abs(a.weight - weight) - Math.abs(b.weight - weight))[0];

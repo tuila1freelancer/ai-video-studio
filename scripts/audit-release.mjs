@@ -88,7 +88,7 @@ for (const f of files) {
 note(leaks.length === 0, `không đọc được doctrine trong ${scanned} file`, leaks.join(' | '));
 
 // 6. The Agent Kit travels with the app, readable and keyless — it is the one part that is meant
-//    to be read. Absent, an owner who never cloned the repo has no way to point an agent here.
+//    to be read. Absent, a user who never cloned the repo has no way to point an agent here.
 const KIT = join(PAYLOAD, 'packages', 'avs-kit');
 const kitFiles = existsSync(KIT) ? walk(KIT) : [];
 note(existsSync(join(KIT, 'bin', 'avs-mcp.mjs')), 'Agent Kit có mặt trong payload', `${kitFiles.length} file`);

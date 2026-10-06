@@ -1,7 +1,7 @@
 // A fetched article is RESEARCH, and the app has to keep treating it as research.
 //
 // The engine already knew this — master-script.js: "a long article is research material for a NEW
-// script, never a detailed owner script to polish" — and picks its mode from the input type. The
+// script, never a detailed user script to polish" — and picks its mode from the input type. The
 // Studio was the thing breaking it: "Lấy thông tin" pasted the article into the topic box, which
 // turned a url input into a text input, which sent the whole thing down the polish path. The video
 // then narrated the article's own sentences instead of being written from them.
@@ -46,7 +46,7 @@ test('the article never goes back into the topic box', () => {
   }
 });
 
-test('what the owner saw is what the video is written from', () => {
+test('what the user saw is what the video is written from', () => {
   const studio = sourceOf('public/js/views/studio.js');
   // the panel is editable, and the edit is the thing that ships
   assert.match(studio, /if \(state\.sourceDoc\) state\.sourceDoc\.text = \$\('#srcText'\)\.value;/);
@@ -126,7 +126,7 @@ test('the search providers report something worth showing', () => {
 
 test('falling back to gradients says why it fell back', () => {
   // Seen live: Openverse answers 429 after a burst of queries, every rung of the ladder swallowed
-  // it, and the owner got six coloured squares with no explanation — indistinguishable from "there
+  // it, and the user got six coloured squares with no explanation — indistinguishable from "there
   // are no pictures of this".
   const provider = sourceOf('src/providers/imagesearch.js');
   assert.match(provider, /if \(res\.status === 429\) \{/);

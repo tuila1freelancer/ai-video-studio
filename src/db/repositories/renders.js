@@ -12,7 +12,7 @@ const parse = (r) => (r ? {
   changes: safeJson(r.changes, []) || [],
 } : null);
 
-/** Which config keys differ between two exports — what the owner would call "what changed". */
+/** Which config keys differ between two exports — what the user would call "what changed". */
 export function diffConfig(before = {}, after = {}) {
   const keys = new Set([...Object.keys(before || {}), ...Object.keys(after || {})]);
   return [...keys].filter((k) => JSON.stringify(before?.[k]) !== JSON.stringify(after?.[k])).sort();

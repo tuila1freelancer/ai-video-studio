@@ -1,6 +1,6 @@
 // P44 — the two ENGINE steps the route diff (P42) and the UI diff (P43) could not see, because
 // they are neither a route nor a button in the reference: silence removal and auto-zoom, both
-// applied automatically to the owner's own footage inside the edit-video lane.
+// applied automatically to the user's own footage inside the edit-video lane.
 // Pure/fast: the cut decision and the zoom expression are computed without ffmpeg.
 import './_env.mjs';
 import test from 'node:test';
@@ -128,7 +128,7 @@ test('P44: silence is cut BEFORE the transcript, and the whole project follows t
   assert.match(ev, /config\.overlay = \{ \.\.\.\(config\.overlay \|\| \{\}\), source: path \}/);
   assert.match(ev, /DB\.updateProject\(projectId, \{ config \}\)/, 'and it survives a resume');
   assert.match(ev, /existsSync\(out\) && config\.editVideo\.processed === out/, 'a resume reuses the cut file');
-  // a failure must never cost the owner the job
+  // a failure must never cost the user the job
   assert.match(ev, /— dùng video gốc/);
 });
 
@@ -141,6 +141,6 @@ test('P44: both switches reach the engine from the panel', () => {
   const ev = sourceOf('src/pipeline/edit-video.js');
   assert.match(ev, /zoom: config\.autoZoom \? \{ intensity: \+config\.autoZoomIntensity \|\| 0\.5 \} : null/);
   assert.match(sourceOf('src/animation/index.js'), /zoom: config\.overlay\.zoom \? \{ \.\.\.config\.overlay\.zoom, index: scene\.idx \} : null/);
-  // and neither is on by default — an owner who does not tick them gets the old render exactly
+  // and neither is on by default — a user who does not tick them gets the old render exactly
   assert.match(ev, /if \(!config\.removeSilence\) return src;/);
 });

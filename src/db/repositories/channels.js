@@ -29,7 +29,7 @@ let version = 0;
 export function channelsVersion() { return version; }
 
 /**
- * Where a channel's folder goes when the owner names none.
+ * Where a channel's folder goes when the user names none.
  *
  * AVS_CHANNELS_DIR is what a server sets — in a container the volume is mounted somewhere
  * deliberate and a home directory means nothing. Otherwise it is the place that operating system
@@ -151,7 +151,7 @@ export function updatePreset(id, fields) {
 export function deletePreset(id) { stmt('DELETE FROM channel_presets WHERE id=?').run(id); }
 
 // ---- Show Bible / channel memory ----------------------------------------------------
-// One row per channel: an owner-editable "bible" block injected into script generation,
+// One row per channel: a user-editable "bible" block injected into script generation,
 // plus a rolling anti-repeat ledger of recent video topics (deterministic write-back —
 // runner appends after each finished video, best-effort).
 export function getChannelMemory(channelId) {

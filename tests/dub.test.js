@@ -94,5 +94,5 @@ test('dub: creating one never spends a credit on its own (P16)', () => {
   const routes = sourceOf('src/api/routes.js');
   const route = routes.slice(routes.indexOf("r.post('/projects/:id/dub'"), routes.indexOf("r.post('/projects/:id/dub'") + 700);
   assert.ok(!/runPipeline|enqueue|startProject/.test(route),
-    'the dub route must create the project and stop — running it is the owner\'s own click');
+    'the dub route must create the project and stop — running it is the user\'s own click');
 });

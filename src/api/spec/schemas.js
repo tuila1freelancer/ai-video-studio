@@ -6,7 +6,7 @@ export const SCHEMAS = {
     required: ['code', 'error'],
     properties: {
       code: { type: 'string', description: 'Stable machine word. Branch on this, never on `error`.' },
-      error: { type: 'string', description: "Short reason, in the owner's language unless ?lang= says otherwise." },
+      error: { type: 'string', description: "Short reason, in the user's language unless ?lang= says otherwise." },
       message: { type: 'string' },
       hint: { type: 'string' },
     },

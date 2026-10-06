@@ -2,7 +2,7 @@
 //
 // The app has always been able to work this out: renderFingerprint and ttsFingerprint know
 // exactly which scenes a config change invalidates. They were just never asked until after the
-// owner had committed, so editing a subtitle font either took a minute or an hour and the only
+// user had committed, so editing a subtitle font either took a minute or an hour and the only
 // way to find out was to start it and watch.
 //
 // Two rules this panel keeps:
@@ -78,7 +78,7 @@ export async function openChangePlan() {
       toast('▶️ Đã bắt đầu áp dụng thay đổi', 'success');
       host.classList.remove('open');
       // A re-render that reports nothing is indistinguishable from one that never started, and
-      // the owner may well have launched this from the Brand Kit dialog with the pipeline screen
+      // the user may well have launched this from the Brand Kit dialog with the pipeline screen
       // nowhere in sight. Show the log; it is already live over the websocket.
       switchPage('studio');
       showJournal();
@@ -102,7 +102,7 @@ export async function openChangePlan() {
  * project had quietly become an apply-changes button. This asks at the moment of the edit, and
  * hands over to the cost table rather than starting anything on its own.
  *
- * @param {string} reason what the owner just did, in their own terms
+ * @param {string} reason what the user just did, in their own terms
  * @returns {Promise<boolean>} whether the change queue was opened
  */
 export async function offerRerender(reason) {

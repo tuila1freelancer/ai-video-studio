@@ -65,7 +65,7 @@ test('a logo edited on the channel is work the plan can see', () => {
   assert.deepEqual(planChanges(p.id, { subtitleLane: 'final', masterFade: false }).items, [],
     'nothing has moved yet');
 
-  // the owner turns the stamp on in the Brand Kit — which lives on the CHANNEL, and never
+  // the user turns the stamp on in the Brand Kit — which lives on the CHANNEL, and never
   // touches the project config the plan used to compare
   DB.updateChannel(ch.id, {
     config: {
@@ -93,7 +93,7 @@ test('the plan compares against the file it actually made, not a variant of it',
   assert.deepEqual(planChanges(p.id, { logo: { path: '/tmp/l.png', wPct: 0.1 }, masterFade: false }).items, []);
 });
 
-test('every place the owner edits a logo or a subtitle offers the re-render', () => {
+test('every place the user edits a logo or a subtitle offers the re-render', () => {
   assert.match(sourceOf('public/js/features/brandkit.js'),
     /await offerRerender\('Đã đổi nhận diện thương hiệu của kênh'\);/);
   assert.match(indexHtml(), /id="btnSubApply"/);
@@ -106,7 +106,7 @@ test('every place the owner edits a logo or a subtitle offers the re-render', ()
   assert.match(cp, /if \(ok\) await openChangePlan\(\);/);
 });
 
-test('starting the work puts the live log in front of the owner', () => {
+test('starting the work puts the live log in front of the user', () => {
   const cp = sourceOf('public/js/features/changeplan.js');
   assert.match(cp, /switchPage\('studio'\);\s*\n\s*showJournal\(\);/);
   const jr = sourceOf('public/js/features/journal.js');

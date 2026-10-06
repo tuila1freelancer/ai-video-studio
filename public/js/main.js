@@ -41,7 +41,7 @@ async function init() {
     api.seed('/settings', { settings: boot.settings, uiLang: boot.uiLang, agent: boot.agent, budget: boot.budget });
     api.seed('/health', { ok: true, deps: boot.deps });
   }
-  // Paint the interface in the owner's language BEFORE any view patches a label, or the boot-time
+  // Paint the interface in the user's language BEFORE any view patches a label, or the boot-time
   // label writes in studio.js and nav.js would overwrite the translation with Vietnamese.
   try {
     if (catalogueP && (!boot || boot.uiLang === hint)) await catalogueP;
@@ -75,7 +75,7 @@ async function init() {
   await loadChannelPresets(boot && boot.activeChannel === state.activeChannel ? { presets: boot.presets } : null);
   // Start the panel on the active channel's own settings. Nothing did this before: the form
   // opened on the markup defaults, so a channel that had chosen its subtitle font, aspect ratio
-  // and voice showed none of them until the owner switched channels and back.
+  // and voice showed none of them until the user switched channels and back.
   applyConfig(channelDefaults());
   refreshBrandSummary();
   updateEstimate();

@@ -2,7 +2,7 @@
 //
 // Three answers to "which fonts exist?" used to be in circulation: ten hard-coded <option>s in
 // index.html (two of which existed nowhere else), eight families inlined into every scene page
-// whether referenced or not, and exactly two loaded by the app's own UI. The owner could pick
+// whether referenced or not, and exactly two loaded by the app's own UI. The user could pick
 // Anton, watch the preview fall back to system sans-serif, and have no way to tell whether the
 // video would differ.
 import './_env.mjs';
@@ -56,7 +56,7 @@ test('the library reports an honest status per family', () => {
   assert.equal(byName.get('Bebas Neue')?.ready, false);
 });
 
-test('language decides which faces the owner is shown first', () => {
+test('language decides which faces the user is shown first', () => {
   assert.equal(scriptForLanguage('vi'), 'vietnamese');
   assert.equal(scriptForLanguage('ja'), 'japanese');
   assert.equal(scriptForLanguage('ar'), 'arabic');
@@ -158,7 +158,7 @@ test('a family that has not been fetched is offered, not hidden', () => {
   assert.match(cfg, /downloadFont/);
 });
 
-test('an owner font named in the scene still reaches the page', () => {
+test('a user font named in the scene still reaches the page', () => {
   // uploads are matched by the family name on the DB row, not the filename on disk
   const page = buildScenePage({
     w: 1920, h: 1080, theme: { bg: '#000', bg2: '#111', ink: '#fff', font: "'Anton',sans-serif", mono: 'monospace', accents: ['#f00', '#0f0', '#00f'], glow: () => 'none', gradBar: '#fff', muted: '#888' },

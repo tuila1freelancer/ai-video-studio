@@ -144,7 +144,7 @@ export default {
         lang: LANGS.has(v.language) ? v.language : 'vi',
         locale: localeOf(v.language),
         gender: v.gender === 'female' ? 'f' : v.gender === 'male' ? 'm' : (v.gender || 'u'),
-        // i18n-exempt: cached into voices_cache — translating here would freeze the owner's language into the row.
+        // i18n-exempt: cached into voices_cache — translating here would freeze the user's language into the row.
         tags: v.voice_type === 'personal' ? ['của tôi'] : ['public'],
         previewUrl: v.preview_url || null, // ready-made sample — previewing costs no credit
         provider: 'larvoice',

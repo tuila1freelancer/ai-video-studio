@@ -53,7 +53,7 @@ function snapshotDataDir() {
     const src = join(ROOT, 'data', f);
     if (existsSync(src)) copyFileSync(src, join(dir, f));
   }
-  // The owner's thumbnail cache comes along, warm: a cold cache would charge every run twenty
+  // The user's thumbnail cache comes along, warm: a cold cache would charge every run twenty
   // ffmpeg encodes that a real boot only pays once.
   const thumbs = join(ROOT, 'data', 'tmp', 'thumbs');
   if (existsSync(thumbs)) cpSync(thumbs, join(dir, 'tmp', 'thumbs'), { recursive: true });

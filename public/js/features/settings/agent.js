@@ -22,7 +22,7 @@ async function hostInfo() {
 const q = (p) => (/[\s"]/.test(String(p)) ? `"${p}"` : String(p));
 
 /**
- * The line the owner pastes into their agent, with this machine's paths in it.
+ * The line the user pastes into their agent, with this machine's paths in it.
  * No `--url`: the port changes every boot, so the kit finds the running app by itself.
  */
 export function mcpCommand(info, token = '<TOKEN>') {

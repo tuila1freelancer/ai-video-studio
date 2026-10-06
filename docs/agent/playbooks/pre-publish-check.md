@@ -4,7 +4,7 @@
 
 1. `GET /api/projects/:id/verdict` — one call; it already reads the script audit, the typeset scan,
    the artifact scan, the join's integrity report and the cost.
-2. Read `publishable`. If `true`, publish at the privacy the owner asked for and stop here.
+2. Read `publishable`. If `true`, publish at the privacy the user asked for and stop here.
 3. If `false`, read `reasons[]` and act on the **codes**:
 
 | Code | Meaning | Action |
@@ -18,7 +18,7 @@
 | `video.vision_score` | a model looked at the frames and scored below the bar | report with `checks.video.vision.issues` |
 | `scenes.typeset_risk` (warning) | text may overflow somewhere | mention it; not a reason to hold |
 
-4. Never pass `force: true` to get past a refusal. It exists for the owner.
+4. Never pass `force: true` to get past a refusal. It exists for the user.
 5. If you re-render, wait for `done` and ask for a **fresh** verdict — an old one describes an old file.
 
 ## Optional: a model's eyes

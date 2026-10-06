@@ -110,7 +110,7 @@ test('an install that predates presets picks up its provider without touching se
 
 test('a value the user set explicitly always beats the catalogue', () => {
   // Gemini's OpenAI layer answers a json_object request with a bare fence, so the catalogue
-  // turns JSON mode off — and the owner can still turn it back on.
+  // turns JSON mode off — and the user can still turn it back on.
   assert.equal(withPreset({ preset: 'gemini' }).jsonMode, false);
   assert.equal(withPreset({ preset: 'gemini', jsonMode: true }).jsonMode, true);
   assert.equal(withPreset({ preset: 'groq', maxTokensCap: 4096 }).maxTokensCap, 4096);
@@ -199,7 +199,7 @@ test('the settings panel offers the picker without losing what it already had', 
     assert.ok(modal.includes(`id="${id}"`), `the picker needs #${id}`);
   }
   // a datalist, not a select: a select silently blanks a saved model it has no option for,
-  // which would downgrade an owner on a custom model the next time they pressed Save
+  // which would downgrade a user on a custom model the next time they pressed Save
   assert.match(modal, /id="setLlmModel" list="llmModelList"/);
   const js = sourceOf('public/js/features/settings.js');
   assert.match(js, /btnTestLlm/);                      // p42 depends on this
@@ -209,7 +209,7 @@ test('the settings panel offers the picker without losing what it already had', 
 
 // ---- one key per provider, remembered ----
 // Both bugs below actually happened while building this, and both destroy a real API key the
-// owner cannot get back from the app.
+// user cannot get back from the app.
 
 const { syncLlmAccounts } = await import('../src/api/routes.js');
 const { applyMaskedUpdate } = await import('../src/util/secrets.js');
@@ -300,7 +300,7 @@ async function capture(llm, opts = {}) {
 }
 
 test('an unrecognised endpoint sends exactly what it always sent', () => {
-  // The no-regression net for every module that goes through chat(): the owner's private proxy
+  // The no-regression net for every module that goes through chat(): the user's private proxy
   // and every test fixture in this repo live on this path.
   return capture({ baseUrl: 'http://fake.local', apiKey: 'k', model: 'fake-m' }).then((req) => {
     assert.equal(req.url, 'http://fake.local/chat/completions');

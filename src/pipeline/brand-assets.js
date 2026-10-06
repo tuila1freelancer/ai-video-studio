@@ -29,7 +29,7 @@ const ART = /\.(png|jpe?g|webp|gif|svg)$/i;
  * The brand folder's usable art. Returns [{ name, path, character }] — `name` is what the codegen
  * placeholder is keyed by, so it must stay exactly as stored.
  *
- * The DB rows are the assets uploaded or generated through the app; the FOLDER is what the owner
+ * The DB rows are the assets uploaded or generated through the app; the FOLDER is what the user
  * sees in Finder. Reading only the DB (as this did at first) made art dropped straight into the
  * folder invisible — the reference app reads the folder, and dropping files in is the obvious
  * thing to do. Both are unioned, DB rows winning on a name clash since they carry the real row.
@@ -51,7 +51,7 @@ export function brandCatalog(brandFolder = 'Default') {
   return [...seen.values()];
 }
 
-/** Brand folders the owner actually has: registered in the DB or simply present on disk. */
+/** Brand folders the user actually has: registered in the DB or simply present on disk. */
 export function brandFolders() {
   const out = new Set(DB.brandFolders() || []);
   try { for (const d of readdirSync(DIRS.brand, { withFileTypes: true })) if (d.isDirectory() && !d.name.startsWith('.')) out.add(d.name); }
@@ -75,7 +75,7 @@ export function brandFolderFor(config = {}) {
  * Project assets arrive in three shapes and only one of them used to survive: the UI pushes a
  * bare filesystem path (upload) or an `/api/file?path=…` URL (image search), while the master
  * script's asset list carries `{name, path}` objects. Filtering on `a.name && a.path` silently
- * dropped BOTH string shapes, so an asset the owner uploaded never reached a scene. Normalize
+ * dropped BOTH string shapes, so an asset the user uploaded never reached a scene. Normalize
  * every shape into `{name, path}`, keyed by a name a model can actually write.
  */
 export function normalizeAssets(list = []) {
@@ -106,7 +106,7 @@ export function normalizeAssets(list = []) {
  * (regen.js) paths so a regenerated scene keeps exactly the media the batch gave it. Names are
  * looked up across project uploads AND the brand folder; a project upload of the same name wins.
  * A scene may name an asset by its stored name OR by its bare filename — the master script sees
- * one and the owner's UI list may carry the other.
+ * one and the user's UI list may carry the other.
  * @returns {(scene) => ({name, uri, character}[]|null)}
  */
 export function sceneMediaResolver(config = {}, { heroMediaUri }) {

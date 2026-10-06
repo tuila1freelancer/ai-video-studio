@@ -27,7 +27,7 @@ function jaccard(a, b) {
   return inter / (a.size + b.size - inter);
 }
 
-/** The last `n` meaningful tokens of the owner's script — the closing block, checked on its own. */
+/** The last `n` meaningful tokens of the user's script — the closing block, checked on its own. */
 function tailTokens(source, n, code) {
   const all = String(source || '').trim().split(/\s+/);
   return tokenSet(all.slice(-Math.max(1, n)).join(' '), code);
@@ -127,7 +127,7 @@ export function validateScenesJson(raw, { mode = 'topic', plan = null, source = 
     defects.push({ code: 'WORD_BUDGET', detail: `mean words/scene far above the ~${plan.wordsPerScene} budget` });
   }
 
-  // POLISH_FLOOR ('script' mode): the owner's wording must survive. Per scene ≥60% of its
+  // POLISH_FLOOR ('script' mode): the user's wording must survive. Per scene ≥60% of its
   // tokens must come from the source (up to 2 fully-new scenes are allowed — the added CTAs),
   // and ≥70% of the source's tokens must reappear somewhere in the output (nothing dropped).
   if (mode === 'script' && source && scenes.length) {

@@ -40,14 +40,14 @@ export async function generateScript({ topic, inputType, fetched, config, ai, me
   const title = ((fetched && fetched.title) || (firstSentence.length > 6 ? firstSentence : topic) || 'Video mới').slice(0, 64);
 
   // 1b) auto-duration mode: a DETAILED pasted/fetched script is the deliverable — keep the
-  // owner's words verbatim (never rewritten, never compressed to a target length); the
+  // user's words verbatim (never rewritten, never compressed to a target length); the
   // video's duration follows the content. The LLM only decorates (title/visuals/keywords).
   // Too little text to be a real script → fall through to target mode.
   if (config.durationMode === 'auto' && sourceText.trim().split(/\s+/).filter(Boolean).length >= 80) {
     return verbatimScript(sourceText, { title, wordsPerScene, language, llm });
   }
 
-  // assistant-accepted topics carry the angle the owner approved — the script must honor it
+  // assistant-accepted topics carry the angle the user approved — the script must honor it
   const angleLine = config.assistantBrief?.angle ? `\nMANDATORY angle for this video: ${config.assistantBrief.angle}` : '';
 
   // 2) LLM path — two-stage for long videos (outline → detailed chapters), single call for short.
@@ -103,14 +103,14 @@ Content:\n${sourceText.slice(0, 6000)}`;
   // 3) offline deterministic (with chapter structure for long videos)
   const off = offlineScript(sourceText, { title, sceneCount, wordsPerScene, structure: videoDuration >= 240, language });
   // Honor the ordered duration offline too: a long source must not balloon the scene count
-  // (auto mode is the verbatim path — reaching here means the owner asked for a TARGET).
+  // (auto mode is the verbatim path — reaching here means the user asked for a TARGET).
   if (off.scenes.length > sceneCount * 1.25) off.scenes = off.scenes.slice(0, Math.max(1, Math.round(sceneCount * 1.25)));
   return off;
 }
 
-// Auto-duration verbatim mode: sentence-pack the owner's script into scenes WITHOUT touching
+// Auto-duration verbatim mode: sentence-pack the user's script into scenes WITHOUT touching
 // a single word, then (LLM on) one bounded decoration pass for title/visualPrompt/keywords.
-// Decoration failure degrades to the offline heuristics — the owner's text always survives.
+// Decoration failure degrades to the offline heuristics — the user's text always survives.
 async function verbatimScript(sourceText, { title, wordsPerScene, language, llm }) {
   // NOT splitSentences: its length>1 filter drops one-char fragments — verbatim mode must
   // preserve the paste exactly, so keep every non-empty piece.

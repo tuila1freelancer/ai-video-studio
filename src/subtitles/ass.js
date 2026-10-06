@@ -5,7 +5,7 @@
 // burns the captions once, onto the assembled program — so a subtitle edit costs one concat
 // instead of one render per scene.
 //
-// The bar this module has to clear is fidelity: the owner picks a style in a preview that is
+// The bar this module has to clear is fidelity: the user picks a style in a preview that is
 // drawn by the browser, and the burned result has to be the same thing. So every number here is
 // derived from the SAME resolver the DOM lane uses (`burnStyleFrom` in ./presets.js), and the
 // karaoke behaviour reproduces the harness CSS word-for-word rather than using ASS's own
@@ -110,7 +110,7 @@ function borderFor(style) {
       case 'glow':
       default:
         // libass has no blur in the STYLE, but `\blur` is a real override tag — a soft halo line
-        // is emitted separately (glowLine) when the owner asks for one. The style itself keeps the
+        // is emitted separately (glowLine) when the user asks for one. The style itself keeps the
         // wide-outline approximation so an unset config renders exactly as it always has.
         return { borderStyle: 1, outline: Math.max(2, Math.round(fs * 0.05)), shadow: Math.max(2, Math.round(fs * 0.05)) };
     }
@@ -271,7 +271,7 @@ function karaokeLines(cue, style, ctx) {
   const base = toAssColor(style.baseColor);
   const act = toAssColor(style.color);
   const fade = fadeTag(style);
-  // `.capw.past = .95, .capw.fut = .4` — the harness CSS, now the owner's to move. Progressive
+  // `.capw.past = .95, .capw.fut = .4` — the harness CSS, now the user's to move. Progressive
   // reveal is the same dial taken to its end: an unspoken word at zero opacity has not appeared.
   const dimRead = style.dimRead ?? 0.95;
   const dimUnread = style.reveal ? 0 : (style.dimUnread ?? 0.4);

@@ -1,10 +1,10 @@
-// Deterministic repairs: the owner's closing block, loan words, the opening sentence, and the defect-driven repair pass (P18).
+// Deterministic repairs: the user's closing block, loan words, the opening sentence, and the defect-driven repair pass (P18).
 import { splitSentences } from '../../providers/llm.js';
 
 import { tokenSet } from './validate.js';
 
 /**
- * The owner's closing block — the final `### ` section of the script, else its last 60 words.
+ * The user's closing block — the final `### ` section of the script, else its last 60 words.
  * This is the text the model keeps rewriting, and it is the one part we can put back exactly,
  * because it is sitting right there in the source.
  */
@@ -20,7 +20,7 @@ export function closingBlock(source) {
 // The channel's substitution table (Courses/Khoa-AI-100-Bai/04-MAU-KICH-BAN.md §1). The voice
 // reads what is typed, so an English word in the narration is a word the audience hears in a
 // language the video is not in. Four of these reached a finished script — including one that
-// named a product the owner never mentioned — so the swap is deterministic rather than a rule
+// named a product the user never mentioned — so the swap is deterministic rather than a rule
 // the model is asked to remember. Product names are absent on purpose: those stay as they are.
 const LOAN_WORDS = [
   ['prompt', 'câu lệnh'], ['framework', 'quy trình'], ['workflow', 'quy trình'],
@@ -47,7 +47,7 @@ export function swapLoanWords(text) {
 }
 
 /**
- * The owner's FIRST spoken sentence — the hook. Retention is decided in the opening seconds,
+ * The user's FIRST spoken sentence — the hook. Retention is decided in the opening seconds,
  * and this is the one line written for exactly that job.
  */
 export function openingSentence(source) {
@@ -60,7 +60,7 @@ export function openingSentence(source) {
 }
 
 /**
- * Put the owner's opening sentence back. On the first run under the new hook rules the model
+ * Put the user's opening sentence back. On the first run under the new hook rules the model
  * swapped a cold open — a line of dialogue in a meeting room — for a generic "many people tend
  * to..." sentence, which is the shape those rules exist to ban, and the video lost its first
  * three seconds.
@@ -77,7 +77,7 @@ function repairOpening(scenes, source, code) {
 }
 
 /**
- * Put the owner's closing block back, one sentence per trailing scene. Three videos in a row
+ * Put the user's closing block back, one sentence per trailing scene. Three videos in a row
  * ended on wording the channel never approved: the re-ask alone does not fix it, and the text
  * is known, so this repairs rather than complains.
  */

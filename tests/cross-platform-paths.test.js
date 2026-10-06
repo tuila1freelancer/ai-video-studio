@@ -39,9 +39,9 @@ test('cross-platform: resolving for another platform never throws, even with an 
 
 // The closing block is the part the polish pass silently rewrites: measured twice on real runs,
 // the model dropped "ấn thích"/"chia sẻ video" from a fixed CTA and invented a promise of upcoming
-// videos the owner had banned. Overall coverage cannot catch it — losing the whole ending of a
+// videos the user had banned. Overall coverage cannot catch it — losing the whole ending of a
 // 2,500-word script barely moves the number — so the tail is guarded on its own.
-test('master script: polish mode is told the owner closing is final copy', async () => {
+test('master script: polish mode is told the user closing is final copy', async () => {
   const src = sourceOf('src/content/master-script.js');
   assert.match(src, /is FINAL COPY/, 'polish mode must declare the closing block untouchable');
   assert.match(src, /do NOT add a subscribe line/, 'the old "(subscribe)" instruction invited the rewrite');

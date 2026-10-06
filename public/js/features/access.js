@@ -1,5 +1,5 @@
 // The token screen, for a page that is not the app's own window: a server-mode instance opened in a
-// browser, or a browser tab pointed at a desktop app whose owner has turned agent access on. The API
+// browser, or a browser tab pointed at a desktop app with agent access turned on. The API
 // answers 401 until a token is pasted, so the interface asks for one instead of filling the console
 // with failures behind a blank page.
 //

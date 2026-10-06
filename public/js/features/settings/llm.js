@@ -39,7 +39,7 @@ export async function loadLlmPresets() {
 const normUrl = (u) => String(u || '').trim().toLowerCase().replace(/\/+$/, '').replace(/\/chat\/completions$/, '');
 
 // An install that predates the picker saved a base URL and nothing else. Recognise it rather
-// than dropping the owner into "Tuỳ chỉnh" and making them re-pick what they already have.
+// than dropping the user into "Tuỳ chỉnh" and making them re-pick what they already have.
 export function inferPresetId(baseUrl) {
   const key = normUrl(baseUrl);
   if (!key) return 'custom';
@@ -112,7 +112,7 @@ export function renderLlmPreset() {
 
   // HyperFrame writes the scene graphics as code and only Gemini writes markup that renders.
   // Codegen also runs with no fallback, so a provider without Gemini does not degrade — it
-  // fails ten attempts deep, mid-render, naming a model the owner never chose. This is the one
+  // fails ten attempts deep, mid-render, naming a model the user never chose. This is the one
   // place the app can say so before that happens.
   const hasGemini = /gemini/i.test(acc.codegenModel || p?.codegenModel || '');
   $('#llmCodegenWarn').innerHTML = hasGemini
@@ -136,7 +136,7 @@ export function renderLlmPreset() {
   setModelSuggestions(p?.models || []);
 }
 
-// A datalist, not a select: a suggestion list must never stop the owner typing a model the
+// A datalist, not a select: a suggestion list must never stop the user typing a model the
 // app has not heard of — and a select would silently blank a saved value it has no option for.
 function setModelSuggestions(models) {
   // `mo`, not `m`: the parameter must not shadow the m() the free-price branch calls.

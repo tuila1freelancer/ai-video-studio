@@ -2,17 +2,17 @@
 
 Two shapes, same engine. Pick by where the work should happen, not by which sounds more modern.
 
-| | **A — the owner's Mac** | **B — a container** |
+| | **A — the user's Mac** | **B — a container** |
 |---|---|---|
 | What runs | the built `.app`, or `npm start` behind a launch agent | `avs:latest` from this repository's Dockerfile |
 | Source exposure | none: it never leaves the machine | encrypted bytecode only; the key is inside a compiled launcher |
 | Voices, fonts, Chrome | macOS `say`, the machine's fonts, Chrome for Testing | Edge/paid TTS only, Noto faces, Chromium |
-| Best for | one owner, several channels, agents on the same machine or over Tailscale | a VPS, or handing the engine to someone else to host |
+| Best for | one user, several channels, agents on the same machine or over Tailscale | a VPS, or handing the engine to someone else to host |
 
 Both are driven the same way: `AVS_MODE=server`, a bearer token per agent, and the kit
 (`packages/avs-kit`). The contract is in [`docs/agent`](../agent/README.md).
 
-There is a third shape that needs no deployment at all: **the installed app on the owner's own
+There is a third shape that needs no deployment at all: **the installed app on the user's own
 machine**. AI Setting → Agent (MCP) turns on the same token check on loopback, mints the token and
 prints the command; the kit travels inside the bundle and finds the app by itself. That is the right
 answer for one person with agents on their own machine, and it is what the customer-facing manual
@@ -57,7 +57,7 @@ with a new key would reuse the bytecode layer encrypted with the old one and the
 to decrypt itself. Pass a fresh one every build.
 
 **`/data` must be a real volume.** It holds the database, the API tokens and every project. A
-container without it is an empty installation to the owner on every restart.
+container without it is an empty installation to the user on every restart.
 
 Verify what shipped, not what the Dockerfile meant to ship:
 
@@ -107,7 +107,7 @@ a Japanese or Korean render before believing it.
 
 - A token is a bearer credential: anyone holding it can do what its scopes allow. Mint one per agent,
   bind it to a channel, and rotate it when an agent is retired.
-- The engine has no rate limiting and no audit of reads. It is built for the owner's own machines,
+- The engine has no rate limiting and no audit of reads. It is built for the user's own machines,
   not for the public internet — put it behind Tailscale, a VPN or an authenticating proxy.
 - Encrypted bytecode raises the cost of reading the source; it does not make it impossible. The key
   is inside the launcher, and anything running on someone else's machine can be disassembled. If the

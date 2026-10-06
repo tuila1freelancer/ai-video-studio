@@ -15,7 +15,7 @@ test('P40-C: supertonic joins the registry as a free, offline provider', () => {
   assert.equal(getProvider('supertonic').id, 'supertonic');
   const row = listProviders().find((p) => p.id === 'supertonic');
   assert.equal(row.free, true);
-  assert.equal(row.needsNetwork, false, 'runs on the owner\'s machine — nothing leaves it');
+  assert.equal(row.needsNetwork, false, 'runs on the user\'s machine — nothing leaves it');
   assert.ok(row.configSchema.some((f) => f.key === 'serverUrl'), 'server URL is configurable');
   assert.deepEqual(providerConfig({ providers: { supertonic: { speed: '1.2' } } }, 'supertonic'), { speed: '1.2' });
 });

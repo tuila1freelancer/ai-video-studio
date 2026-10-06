@@ -66,7 +66,7 @@ test('the transition graph is not capped at a clip count real videos exceed', ()
 });
 
 test('the fingerprint describes the join that will actually happen', () => {
-  // A plan the graph will not execute must not move the digest, or the owner pays for a re-encode
+  // A plan the graph will not execute must not move the digest, or the user pays for a re-encode
   // that produces identical pixels — which is exactly what changing the transition style did on a
   // capped video.
   const src = sourceOf('src/pipeline/render.js');

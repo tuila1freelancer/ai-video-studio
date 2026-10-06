@@ -23,7 +23,7 @@ const SERVER = join(ROOT, 'src', 'server.js');
 let child = null;
 let win = null;
 let tray = null;
-// One boot, one nonce: the window trades it for a session cookie so the owner never pastes a token
+// One boot, one nonce: the window trades it for a session cookie so the user never pastes a token
 // into their own app. Passed in the environment, never on a command line.
 const uiKey = randomUUID();
 

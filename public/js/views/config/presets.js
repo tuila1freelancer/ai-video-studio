@@ -73,7 +73,7 @@ export function wirePresetBar() {
  *
  * `src/subtitles/presets.js` is pure data shared with the render path, so it carries no
  * catalogue; the eight names it ships were Vietnamese in every language until this map put them
- * where `m()` can reach them. A preset the owner saved keeps the name they typed.
+ * where `m()` can reach them. A preset the user saved keeps the name they typed.
  */
 const BUILT_IN_NAMES = {
   'classic-karaoke': () => m('Karaoke Vàng'),

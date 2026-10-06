@@ -2,7 +2,7 @@
 //
 // An agent host is configured once and then runs for months. It cannot be configured with a URL,
 // because the app binds port 0 and gets a different one on every launch — a baked-in `--url` would
-// work until the owner restarts the app and then quietly stop. The app writes the URL it actually
+// work until the user restarts the app and then quietly stop. The app writes the URL it actually
 // bound into `server.url` in its data directory at every boot, so the honest answer is to read it.
 //
 // The candidates below are the places that file can be, per platform. Pure: what to look at is one

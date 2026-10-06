@@ -8,7 +8,7 @@ import { syncSubWeights, updateSubPreview } from './subtitle-studio.js';
 
 // Both pickers are built from /fonts/families, which is the app's ONE list. index.html used to
 // carry ten hard-coded <option>s, two of which (Arial, Impact) existed in neither the vendored
-// CSS nor the burn directory — so the owner could pick a font the renderer had never heard of
+// CSS nor the burn directory — so the user could pick a font the renderer had never heard of
 // and nothing anywhere said so.
 const SOURCE_MARK = { uploaded: '📤 ', downloaded: '⬇︎ ', system: '🖥 ', downloadable: '☁️ ' };
 const loadedFaces = new Set();
@@ -18,7 +18,7 @@ const loadedFaces = new Set();
  *
  * The old preview just set `fontFamily` and hoped. The app's own stylesheet only ever loaded
  * Lexend and JetBrains Mono, so picking Anton painted the system sans-serif and looked, to the
- * owner, exactly like a font that simply did not work.
+ * user, exactly like a font that simply did not work.
  */
 export async function ensureFontLoaded(family) {
   if (!family || loadedFaces.has(family)) return;
@@ -70,7 +70,7 @@ export function loadPickerFonts() {
   return Promise.all(families.filter((f) => f.ready && f.source !== 'system').slice(0, 12).map((f) => ensureFontLoaded(f.family)));
 }
 
-/** Fetch a catalogue family the owner picked but has not got yet. */
+/** Fetch a catalogue family the user picked but has not got yet. */
 export async function downloadFont(family) {
   const r = await api.post(`/fonts/${encodeURIComponent(family)}/download`, {});
   loadedFaces.delete(family);

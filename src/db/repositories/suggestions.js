@@ -1,6 +1,6 @@
 // Topic-suggestion history — every batch the assistant proposes is persisted here so the
-// owner can browse, restore, and never see a dismissed/used idea again. Rows are DATA:
-// status changes happen only on explicit owner actions (accept/schedule/dismiss/restore);
+// user can browse, restore, and never see a dismissed/used idea again. Rows are DATA:
+// status changes happen only on explicit user actions (accept/schedule/dismiss/restore);
 // nothing in this repository touches the pipeline.
 import db, { stmt } from '../connection.js';
 import { newId, safeJson } from '../../util/util.js';

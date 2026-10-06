@@ -1,6 +1,6 @@
 // How long this project's own work actually takes.
 //
-// The change-cost table is only useful if the numbers are the owner's, not a guess: scene
+// The change-cost table is only useful if the numbers are the user's, not a guess: scene
 // complexity, resolution and machine load move per-scene render time by several times over. An
 // exponential moving average over the project's own history converges fast and forgets a one-off
 // stall, which is all the accuracy an "about how long" question needs.

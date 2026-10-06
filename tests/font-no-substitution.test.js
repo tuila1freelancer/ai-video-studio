@@ -5,7 +5,7 @@
 // video in the wrong face, found by eye or not at all.
 //
 // The probe on the browser side has existed since P30 — and only ever reached `logger.warn`,
-// which is to say nowhere the owner looks. That is precisely the shape of the wrong-language
+// which is to say nowhere the user looks. That is precisely the shape of the wrong-language
 // warning that fired 22 times and still shipped 22 scenes in the wrong language. This file pins
 // the fix on both sides.
 import './_env.mjs';
@@ -48,12 +48,12 @@ test('…and a font that IS there does not', async () => {
   );
 });
 
-test('a substitution that slips through anyway reaches the owner, not a debug log', () => {
+test('a substitution that slips through anyway reaches the user, not a debug log', () => {
   const renderer = sourceOf('src/animation/renderer.js');
   assert.match(renderer, /fontMiss = init\.fontMiss/, 'the probe result is kept');
   assert.match(renderer, /opts\.onLog\?\.\(msg\)/, 'and travels back to the caller');
   assert.match(renderer, /duration: await probeDuration\(outPath\) \|\| duration, fontMiss/, 'and out with the result');
-  // every render entry point has to pass a channel the owner actually sees
+  // every render entry point has to pass a channel the user actually sees
   for (const f of ['src/pipeline/stages/render.js', 'src/pipeline/render-only.js', 'src/pipeline/stages/finalize.js']) {
     assert.match(sourceOf(f), /onLog: \(s\) => op\(projectId,/, `${f} forwards it to the run log`);
   }

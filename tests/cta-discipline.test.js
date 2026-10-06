@@ -193,5 +193,5 @@ test('P33 source pin: the shared head no longer force-feeds closing CTAs to batc
   assert.match(src, /partial = !!batchNote/, 'partial-span switch exists');
   assert.match(src, /enforceCtaFloor/, 'deterministic floor wired into the pipeline shape');
   assert.match(src, /generateOutline/, 'pinned outline for batched videos');
-  assert.match(src, /outline: null/, "script mode keeps the owner's arc (no outline)");
+  assert.match(src, /outline: null/, "script mode keeps the user's arc (no outline)");
 });

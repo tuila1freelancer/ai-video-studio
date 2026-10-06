@@ -19,7 +19,7 @@ const MARKER = /<!--#include "([^"]+)" -->/g;
  * @param {number} [depth]
  */
 export function expandIncludes(html, read, depth = 0) {
-  // i18n-exempt: a broken include is a build defect, thrown at boot, never shown to the owner
+  // i18n-exempt: a broken include is a build defect, thrown at boot, never shown to the user
   if (depth > 8) throw new Error('html-include: nesting too deep');
   return html.replace(MARKER, (m, rel) => {
     const clean = normalize(rel);

@@ -8,7 +8,7 @@
 // OS provides; the guide simply never asked.
 //
 // Deliberately system families and not a download: this runs inside a render, and the font store's
-// own rule is that a download is something the owner asked for, never something a paying job does
+// own rule is that a download is something the user asked for, never something a paying job does
 // on its own. Both macOS and Windows names are listed so a stack works on either.
 import { lang as langRow } from '../i18n/languages.js';
 

@@ -1,6 +1,6 @@
 // Translate the interface catalogue into every language the app offers.
 //
-// The owner chose machine translation plus automated checks over paid review, so the checks ARE
+// The user chose machine translation plus automated checks over paid review, so the checks ARE
 // the quality gate and they are strict. Every one of them exists because the failure it catches
 // is silent: a dropped {n} renders "Đã xoá {n} file" as "Deleted file"; a lost markdown marker
 // turns a bold word in the manual into literal asterisks; a German label 60% longer than its

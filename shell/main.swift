@@ -34,7 +34,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
   var backend: Process?
   var statusItem: NSStatusItem?
   // One boot, one nonce. The window trades it for a session cookie on its first request, so the
-  // owner never has to paste a token into their own app once agent access is on.
+  // user never has to paste a token into their own app once agent access is on.
   let uiKey = UUID().uuidString
   // Learned from the backend's own AVS_READY line rather than assumed. A fixed port meant a second
   // copy of the app silently loaded the FIRST copy's server (its own died with AVS_PORT_IN_USE and

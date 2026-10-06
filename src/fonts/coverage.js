@@ -1,7 +1,7 @@
 // Does this font FILE actually carry the script we say it does?
 //
 // `registry.js` declares a `scripts` list per family, by hand. That list is what puts a face in
-// front of the owner for a given language — and it was wrong: Archivo Black claimed Vietnamese and
+// front of the user for a given language — and it was wrong: Archivo Black claimed Vietnamese and
 // its file is missing 11 of 13 probe codepoints, so every tone-marked letter in a Vietnamese video
 // came out of whatever font the renderer fell back to. A claim about a file has to be CHECKED
 // against the file.

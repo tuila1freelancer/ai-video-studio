@@ -1,4 +1,4 @@
-// P40-E — edit video: motion graphics onto footage the owner already has. Pins the two things
+// P40-E — edit video: motion graphics onto footage the user already has. Pins the two things
 // that make the lane correct rather than merely present: the segments TILE the source exactly
 // (so every scene composites onto its own moment with no drift) and the footage keeps its own
 // audio. Pure/fast: no whisper, no browser, no ffmpeg, no LLM.
@@ -115,7 +115,7 @@ test('P40-E: the lane runs through the ordinary pipeline, so stop/resume/queue a
   assert.match(runner, /if \(isEditVideo\(config\)\)/, 'routed inside runPipeline, not as a second pipeline');
   const lane = sourceOf('src/pipeline/edit-video.js');
   assert.match(lane, /granularity: 'segment'/, 'decoding accuracy beats karaoke granularity when the transcript IS the content');
-  assert.match(lane, /autoBgm: false, soundDesign: false/, 'never mix our audio over the owner\'s');
+  assert.match(lane, /autoBgm: false, soundDesign: false/, 'never mix our audio over the user\'s');
   assert.match(lane, /if \(!existing\.length\)/, 'a resumed run does not re-transcribe');
 });
 

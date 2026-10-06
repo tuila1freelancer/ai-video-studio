@@ -16,7 +16,7 @@
 //   - A concat-only edit can be applied straight from the bar. It costs one join, spends no API
 //     credit, and writes a NEW file, so there is nothing to undo.
 //   - Anything that would re-render clips or re-voice scenes NEVER starts from here. That button
-//     opens the cost table, because spending money is the owner's decision, not a side effect of
+//     opens the cost table, because spending money is the user's decision, not a side effect of
 //     dragging a slider.
 import { $ } from '../ui/dom.js';
 import { api } from '../api.js';
@@ -52,7 +52,7 @@ function paint(plan) {
   bar.classList.remove('hidden');
   bar.classList.toggle('heavy', !!heavy.length);
   // The summary names the WORK, not the settings: "render lại 46 cảnh" is the number that decides
-  // whether the owner presses the button.
+  // whether the user presses the button.
   bar.querySelector('[data-pc-text]').innerHTML =
     `<b>${tp`${n} thay đổi chưa áp dụng`}</b> · ${fmtApprox(plan.totalSec)}`
     + `<span class="pc-why">${plan.items.map((i) => i.label).join(' · ')}</span>`
@@ -74,7 +74,7 @@ async function refresh() {
   const forProject = state.current.id;
   try {
     const plan = await api.post(`/projects/${forProject}/plan-changes`, { config });
-    // Two ways this answer can be stale by the time it lands, and both have to lose: the owner kept
+    // Two ways this answer can be stale by the time it lands, and both have to lose: the user kept
     // typing, or they opened a different project while it was in flight.
     if (mine !== seq || state.current?.id !== forProject) return;
     lastSent = key;

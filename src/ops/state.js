@@ -2,7 +2,7 @@
 //
 // An agent can be told to stop asking, but the queue keeps its own promises: batched videos,
 // calendar slots and requeued jobs all start themselves. Before a deploy, a provider outage or a
-// bill that is climbing too fast, the owner needs one switch that means "finish what is running and
+// bill that is climbing too fast, the user needs one switch that means "finish what is running and
 // start nothing new" — and it has to survive a restart, or the restart undoes it.
 import { getSetting, setSetting } from '../db/index.js';
 

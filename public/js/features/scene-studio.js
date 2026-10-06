@@ -25,7 +25,7 @@ export function initSceneStudio() {
   $('#ssVisualSave')?.addEventListener('click', () => withLock($('#ssVisualSave'), saveVisual));
   $('#ssHtmlApply')?.addEventListener('click', () => withLock($('#ssHtmlApply'), applyHtml));
   $('#ssHtmlReset')?.addEventListener('click', () => withLock($('#ssHtmlReset'), resetHtml));
-  // P43: POST /scenes/:id/edit-html existed but nothing in the UI ever called it — the owner had
+  // P43: POST /scenes/:id/edit-html existed but nothing in the UI ever called it — the user had
   // to hand-edit markup to change one word's colour.
   $('#ssEditAi')?.addEventListener('click', () => withLock($('#ssEditAi'), editHtmlWithAi));
   $('#ssReload')?.addEventListener('click', reloadPreview);

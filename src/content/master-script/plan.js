@@ -9,7 +9,7 @@ export const MIN_BRACKETS = 5;
 export const BATCH_TRIGGER = 30; // > this many target scenes → batched generation
 export const BATCH_SIZE = 25;
 // Inputs of at least this many words are a DETAILED SCRIPT (light-polish mode), not a topic.
-// Shared with stages/budget.js so "owner's words → duration follows content" uses the same line.
+// Shared with stages/budget.js so "user's words → duration follows content" uses the same line.
 export const SCRIPT_MODE_MIN_WORDS = 80;
 
 // ---------------------------------------------------------------- duration planner

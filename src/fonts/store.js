@@ -4,9 +4,9 @@
 //   <key>.css        base64 woff2 @font-face blocks — Chrome, for the scene pages and the preview
 //   <Family>-<w>.ttf static faces — libass, for the burn
 //
-// A download is always something the owner asked for. It never happens during a render: a render
+// A download is always something the user asked for. It never happens during a render: a render
 // that reaches out to the network is a render that can fail because a DNS server hiccupped, and
-// the failure would land in the middle of a job the owner is paying for. If a family is missing
+// the failure would land in the middle of a job the user is paying for. If a family is missing
 // at render time the answer is a loud error naming it, not an opportunistic fetch.
 import { mkdirSync, writeFileSync, renameSync, readdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';

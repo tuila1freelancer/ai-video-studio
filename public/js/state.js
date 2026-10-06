@@ -20,7 +20,7 @@ export function activeChannelBrand() {
  * The panel had no equivalent, and it showed: nothing loaded the channel's config at startup, and
  * "video mới" left the previous project's settings sitting in the form. The saved channel config
  * was still applied server-side, so the video came out right while the panel described a different
- * one — and the moment the owner touched anything, the panel's version won.
+ * one — and the moment the user touched anything, the panel's version won.
  */
 export function channelDefaults() {
   const ch = (state.channels || []).find((c) => c.id === state.activeChannel);

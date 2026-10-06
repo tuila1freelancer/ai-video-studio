@@ -34,7 +34,7 @@ export async function concatScenes(sceneVideos, project, {
   // computed half the width at half the fraction: measured on a finished 4K video, a stamp stored
   // at cx=0.936 (top right) was drawn at cx=0.468 — the middle of the frame — and the rect
   // predicted from the 1080 space framed it exactly. The edit-video lane is worse still: it
-  // composites onto the owner's own footage, whose size is nobody's ratio.
+  // composites onto the user's own footage, whose size is nobody's ratio.
   //
   // Captions deliberately keep using `size`. An ASS document declares its own PlayRes and libass
   // scales that space onto the frame, so the 1080-class coordinates render identically at 4K;
@@ -71,7 +71,7 @@ export async function concatScenes(sceneVideos, project, {
   const assText = ass?.text || null;
   // The EFFECTIVE plan, not the requested one. A plan the graph will not execute must not move the
   // fingerprint: while the clip cap was in force, changing the transition style on a long video
-  // moved fp.video, dropped the tier to `encode`, and bought the owner a full re-encode whose
+  // moved fp.video, dropped the tier to `encode`, and bought the user a full re-encode whose
   // output was pixel-identical. The fingerprint has to describe the video that will actually be
   // made, so anything gating the graph has to gate the hash too.
   const effPlan = useGraph ? plan : null;
@@ -105,7 +105,7 @@ export async function concatScenes(sceneVideos, project, {
   // The join is the longest single step in the app — up to a quarter of an hour on a full-length
   // video — and it said nothing at all while it ran, because the ffmpeg wrapper runs at
   // `-loglevel error`. "✂️ Ghép & mix…" and then silence is indistinguishable from a hang, which
-  // is the whole reason the owner asked for a live processing log.
+  // is the whole reason the user asked for a live processing log.
   //
   // `-progress pipe:1` makes ffmpeg write key=value blocks to stdout; `out_time_us` against the
   // programme duration is the percentage. They stay on the TICKER: progress.js deliberately keeps

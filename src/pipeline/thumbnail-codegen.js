@@ -218,7 +218,7 @@ body{font-family:${f.display || 'Be Vietnam Pro'},Arial,sans-serif;color:${p.ink
 
 /**
  * Rasterize a thumbnail FRAGMENT (already sanitized or hand-edited) through our own shell.
- * Split out so the owner can re-render an edited design without paying for another generation.
+ * Split out so the user can re-render an edited design without paying for another generation.
  * @returns {Promise<string|null>} the written image path.
  */
 export async function renderThumbnailFragment(fragment, { guide, size, outPath, media = [], language = DEFAULT_LANG, scale = COVER_SCALE } = {}) {
@@ -229,7 +229,7 @@ export async function renderThumbnailFragment(fragment, { guide, size, outPath, 
   return screenshotHtml(shell(applyThumbAssets(clean, media), { w, h, guide, language }), { w, h, outPath, scale });
 }
 
-/** The owner's own pictures, offered to the model by NAME (P40 — it was text+CSS only before). */
+/** The user's own pictures, offered to the model by NAME (P40 — it was text+CSS only before). */
 function assetBlock(media = []) {
   const list = (media || []).filter((m) => m?.name && m?.uri);
   if (!list.length) return '';
@@ -240,7 +240,7 @@ Use at most ONE, as the focal subject or a background layer under a dark gradien
 
 /**
  * Edit an EXISTING thumbnail design by instruction (P42), e.g. "làm tiêu đề to hơn và đổi sang
- * vàng, giữ nguyên phần còn lại". Re-designing from scratch loses everything the owner liked;
+ * vàng, giữ nguyên phần còn lại". Re-designing from scratch loses everything the user liked;
  * this returns the same markup with only the requested change applied.
  * @returns {Promise<string|null>} the edited fragment, or null when unusable.
  */
@@ -271,7 +271,7 @@ Reply with ONLY the complete edited <style> block and markup.` },
 /**
  * Design one thumbnail with the LLM and rasterize it.
  * @returns {Promise<{path,fragment}|null>} the written image + the markup that produced it (kept
- *   so the owner can edit and re-render it), or null when unavailable/unusable.
+ *   so the user can edit and re-render it), or null when unavailable/unusable.
  */
 /**
  * Cover art at every size a platform asks for.
@@ -320,7 +320,7 @@ export async function generateCoverSet({
       try {
         await renderThumbnailFragment(frags[orient], { guide, size: { w: s.w, h: s.h }, outPath, media });
         // `w`/`h` stay the PLATFORM spec — that is what the design was authored for and what the
-        // owner recognises. `px` is what is actually on disk, so the panel can say "2560×1440
+        // user recognises. `px` is what is actually on disk, so the panel can say "2560×1440
         // (2× của 1280×720)" instead of quietly disagreeing with the file.
         covers.push({
           id: s.id, label: s.label, w: s.w, h: s.h, orient, path: outPath,

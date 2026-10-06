@@ -69,7 +69,7 @@ export function recoverZombieProjects() {
 // ---- durable stop ----------------------------------------------------------------------
 // The in-process stop signal (pipeline/stop.js) dies with the process, and a job left
 // 'running' by a killed app is requeued at boot. Without a record on disk, quitting the app
-// mid-render ERASED the owner's decision to stop and the render resumed on the next launch.
+// mid-render ERASED the user's decision to stop and the render resumed on the next launch.
 //
 // The flag means "a stop was asked for and has not been honoured yet". It is cleared when a
 // run is deliberately started again, and when a run settles as paused.

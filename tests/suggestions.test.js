@@ -1,5 +1,5 @@
 // Suggestion-history invariants: persistence, lifecycle guards, dedupe contract, and the
-// owner decision services — all against a throwaway sqlite, offline, no paid calls.
+// user decision services — all against a throwaway sqlite, offline, no paid calls.
 import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';

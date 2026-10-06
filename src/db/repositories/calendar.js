@@ -1,4 +1,4 @@
-// Content calendar — scheduled slots the OWNER created. Due slots are promoted into real
+// Content calendar — scheduled slots the user created. Due slots are promoted into real
 // projects + pipeline jobs on the scheduler's existing tick (no second timer).
 import { stmt } from '../connection.js';
 import { newId, safeJson } from '../../util/util.js';
@@ -57,7 +57,7 @@ export function slotForProject(projectId) {
 
 // ---- recurring planning templates (fixed weekday+time production windows) ----
 // Recurrences are INERT: they prefill the plan-week dialog and render as empty windows the
-// owner fills with a picked suggestion. They never promote or create anything by themselves.
+// user fills with a picked suggestion. They never promote or create anything by themselves.
 export function addRecurrence({ channelId = null, weekday, time, config = {} }) {
   const wd = parseInt(weekday, 10);
   if (!(wd >= 0 && wd <= 6)) throw new Error(m('thứ trong tuần không hợp lệ'));

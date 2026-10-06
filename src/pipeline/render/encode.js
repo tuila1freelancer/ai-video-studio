@@ -31,7 +31,7 @@ export function ffProgress(total, onPct, passthrough) {
 
 /**
  * `quality` reproduces the reference app's master exactly (crf 18, preset medium, High@4.0) and
- * stays the default for anything the owner publishes.
+ * stays the default for anything the user publishes.
  *
  * `fast` is the same encoder at the same CRF with a cheaper preset — NOT the hardware encoder,
  * which was the obvious guess and measured worse on every axis. On 158s of real 1080p scene

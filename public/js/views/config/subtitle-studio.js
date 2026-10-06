@@ -27,7 +27,7 @@ const SUB_COLORS = ['#F7B500', '#FFFFFF', '#00E5FF', '#FF5252', '#69F0AE', '#FF8
  * out by hand four times over is thirty chances to miss one, so gather and restore are generated
  * from this table and the whitelist IS this table's keys.
  *
- * `off` is the value that means "not set": it is what the control reads when the owner has not
+ * `off` is the value that means "not set": it is what the control reads when the user has not
  * touched it, and it is emitted as `undefined` so the channel's own setting still wins the merge
  * (mergeConfigLayers skips only undefined — see gatherConfig below).
  *
@@ -76,7 +76,7 @@ export const SUB_FIELDS = [
   { k: 'subtitleFadeOut', el: '#cfgSubFadeOut', t: 'num', off: 0, out: '#cfgSubFoL' },
 ];
 
-/** What a field's control currently says, or `undefined` for "the owner has not set this". */
+/** What a field's control currently says, or `undefined` for "the user has not set this". */
 // Resolved once: every slider tick reads all 33 fields, and the group body is moved between the
 // column and the modal, never cloned, so the node stays the right node.
 const node = (f) => (f.node ||= $(f.el));
@@ -86,7 +86,7 @@ function readSubField(f) {
   if (!el) return undefined;
   if (f.t === 'bool') return el.checked ? true : undefined;
   // A colour input and an `off: null` slider both sit on a value that is not a decision, so what
-  // counts is whether the owner has touched them.
+  // counts is whether the user has touched them.
   if (f.t === 'color' || f.off === null) {
     if (el.dataset.set !== '1') return undefined;
     if (f.t === 'color') return el.value.toUpperCase();
@@ -166,7 +166,7 @@ export async function resetSubStudio() {
   toast('↺ Đã trả tinh chỉnh phụ đề về mặc định', 'success');
 }
 
-/** Every studio field the owner has actually set, plus the four-sided box padding. */
+/** Every studio field the user has actually set, plus the four-sided box padding. */
 export function gatherSubFields() {
   const out = {};
   for (const f of SUB_FIELDS) {
@@ -174,7 +174,7 @@ export function gatherSubFields() {
     if (v !== undefined) out[f.k] = v;
   }
   // Padding is one setting with four numbers, and it only means anything with a box: sending it
-  // otherwise would write a value the owner cannot see the effect of.
+  // otherwise would write a value the user cannot see the effect of.
   if (out.subtitleBox) {
     const side = (id) => Math.max(0, Math.min(200, +($(id)?.value ?? 0) || 0));
     out.subtitleBoxPadding = {
@@ -326,7 +326,7 @@ export function updateSubPreview() {
   const align = { bot: 'flex-end', mid: 'center', top: 'flex-start' }[pos] || 'flex-end';
 
   // The studio's own settings, at the same scale the preview draws text — 28% of the frame. A
-  // preview that ignored them is what let the reported bug live: it showed the owner's pick while
+  // preview that ignored them is what let the reported bug live: it showed the user's pick while
   // the renderer used something else, so it looked right until the video came out.
   const cfg = gatherSubFields();
   const k = fs / (+$('#cfgSubSize').value || 80); // the preview's own px-per-config-px
@@ -353,7 +353,7 @@ export function updateSubPreview() {
     : '';
 
   // A checkerboard, not a flat near-black: a dark caption box on a dark backdrop is invisible, and
-  // the box's opacity — a setting the owner can now change — cannot be judged against anything
+  // the box's opacity — a setting the user can now change — cannot be judged against anything
   // opaque. The squares make both readable at a glance.
   p.style.cssText = 'margin-top:8px;border-radius:8px;padding:12px;display:flex;'
     + 'background:#0d1018;background-image:linear-gradient(45deg,#191f2e 25%,transparent 25%,transparent 75%,#191f2e 75%),'

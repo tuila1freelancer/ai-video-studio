@@ -30,7 +30,7 @@ export function isLoopback(h) {
  *
  * The API answers to whoever reaches the port: the token decides WHO may call it,
  * never who is asking. Publishing that beyond loopback without the server lane's token check would
- * hand anyone on the network the owner's projects and provider keys, so it is refused at boot —
+ * hand anyone on the network the user's projects and provider keys, so it is refused at boot —
  * loudly, and before the port is open, rather than discovered later.
  *
  * @param {NodeJS.ProcessEnv} [env]

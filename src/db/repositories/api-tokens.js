@@ -1,7 +1,7 @@
 // Bearer tokens for the server lane: who may call the API, with which powers, over which channels.
 //
 // The secret half is shown once, at creation, and never stored — only its SHA-256. A token that
-// leaks out of the owner's notes cannot be recovered from this database, and a stolen database
+// leaks out of the user's notes cannot be recovered from this database, and a stolen database
 // yields no working token. Verification compares digests with timingSafeEqual, so a wrong token
 // takes the same time as a right one.
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';

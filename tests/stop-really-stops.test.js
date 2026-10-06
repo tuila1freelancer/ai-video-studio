@@ -2,7 +2,7 @@
 //
 // The bug, in one sentence: the stop signal was a Set in module memory, so quitting the app
 // erased it, and boot recovery — seeing a job row still marked 'running' — requeued the job and
-// carried on rendering the video the owner had just stopped. The second half was that B7 (the
+// carried on rendering the video the user had just stopped. The second half was that B7 (the
 // join) carried no checkpoint at all, so even without a restart the stop was simply discarded.
 import './_env.mjs';
 import test from 'node:test';
@@ -107,7 +107,7 @@ test('the stop signal reaches the child process, not just the next checkpoint', 
 });
 
 test('an aborted encode is reported as a stop, never as a crash', async () => {
-  // This distinction decides what the owner sees. A plain AbortError is classified as a
+  // This distinction decides what the user sees. A plain AbortError is classified as a
   // pipeline failure: "⛔ Pipeline lỗi" — and, looking retryable, it triggers the automatic
   // resume, restarting the render that was just stopped.
   const ac = new AbortController();
@@ -131,7 +131,7 @@ test('the join can be interrupted at every point it spends time', () => {
   const fin = sourceOf('src/pipeline/stages/finalize.js');
   // B7 had ZERO checkpoints. It contains, in order: clip repairs (one render each), the join,
   // the audio master, a QC decode and up to three AI thumbnails — the longest stretch in the
-  // app, and the one the owner is most likely to be watching when they give up on it.
+  // app, and the one the user is most likely to be watching when they give up on it.
   assert.match(fin, /checkStop\(projectId\);\n {2}step\(projectId, 'b7', 'running'/);
   assert.match(fin, /checkStop\(projectId\); \/\/ a repair pass/);
   assert.match(fin, /checkStop\(projectId\);\n {2}const res = await timed\(projectId, 'concat'/);
@@ -166,7 +166,7 @@ test('a stop noticed late still ends the run as stopped, not as done', () => {
 
   const ro = sourceOf('src/pipeline/render-only.js');
   // mode:'concat' skips the scene loop, so the "ghép lại" path reached finalize without ever
-  // asking whether the owner still wanted it.
+  // asking whether the user still wanted it.
   assert.match(ro, /checkStop\(projectId\);\s*\n\s*await finalize\(projectId/);
   assert.match(ro, /DB\.clearStopRequest\(projectId\);/);
 

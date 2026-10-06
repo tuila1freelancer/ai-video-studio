@@ -6,7 +6,7 @@
 // three separate mechanisms turned that into a visible defect:
 //
 //   · background-clip:text paints only inside the box, so the mark was never painted — this is
-//     the "ĐÀ NẴNG" frame the owner reported: the tilde on Ẵ simply absent, the grave on À cut flat
+//     the "ĐÀ NẴNG" frame the user reported: the tilde on Ẵ simply absent, the grave on À cut flat
 //   · two lines collided by 18–23px — "chữ đè lên nhau"
 //   · an overflow:hidden wrapper cut the mark off
 //

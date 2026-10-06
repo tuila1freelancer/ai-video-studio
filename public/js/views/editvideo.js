@@ -24,7 +24,7 @@ export function initEditVideo() {
     $('#evOut').innerHTML = `<video controls src="${fileUrl(r.path)}" style="max-width:340px;border-radius:8px;background:#000"></video><br><a class="btn success" download href="${fileUrl(r.path)}" style="margin-top:8px">${m('⬇ Tải')}</a>`;
     toast('Đã cắt ✓', 'success');
   });
-  // P40 — AI motion graphics onto the owner's own footage. The lane creates a normal project,
+  // P40 — AI motion graphics onto the user's own footage. The lane creates a normal project,
   // so once it starts the usual Studio view owns the progress, scenes and final video.
   $('#evEnhance')?.addEventListener('click', async () => {
     if (!state.evPath) return toast('Chọn video trước.', 'error');

@@ -10,7 +10,7 @@ import { sourceOf } from './_source.mjs';
 import { PLATFORMS, COVER_SIZES, platform, checkField, orientationOf } from '../src/publish/platforms.js';
 import { clampPlatforms } from '../src/providers/llm.js';
 
-test('every platform the owner publishes to has a spec', () => {
+test('every platform the user publishes to has a spec', () => {
   const ids = PLATFORMS.map((p) => p.id);
   assert.deepEqual(ids, ['youtube', 'shorts', 'tiktok', 'instagram', 'facebook', 'x', 'linkedin']);
   for (const p of PLATFORMS) {
@@ -99,7 +99,7 @@ test('cover art is captured at double the platform pixels, as a JPEG', () => {
     /2× của \$\{c\.w\}×\$\{c\.h\}/);
 });
 
-test('covers can be looked at, and put where the owner uploads from', () => {
+test('covers can be looked at, and put where the user uploads from', () => {
   const studio = sourceOf('public/js/views/studio.js');
   // the same viewer the image search uses — "is this actually good" is the same question
   assert.match(studio, /openImageViewer\(coverList\.map/);

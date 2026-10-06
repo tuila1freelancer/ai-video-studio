@@ -32,7 +32,7 @@ export function syncLlmAccounts(prev, next, incoming) {
     else delete accounts[id];
   };
   // (2) the provider being left behind, before the top level is overwritten. Skipped when the
-  // panel already sent a real key for it, which means the owner edited it deliberately.
+  // panel already sent a real key for it, which means the user edited it deliberately.
   const was = prev?.llm || {};
   if (was.preset && was.preset !== llm.preset && was.apiKey && !accounts[was.preset]?.apiKey) record(was.preset, was);
   record(llm.preset, llm);

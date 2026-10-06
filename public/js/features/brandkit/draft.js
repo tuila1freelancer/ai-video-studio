@@ -42,7 +42,7 @@ export function openBrandEditor() {
   const fo = bk.finalOverlay || null;
   const [W, H] = frameWH();
   // Legacy migration (pre-stamp configs): placement smart/always carried a per-scene logo —
-  // map its geometry onto the stamp so the owner's logo survives the smart-lane removal.
+  // map its geometry onto the stamp so the user's logo survives the smart-lane removal.
   const legacyStamp = !fo && bk.logo?.assetPath && bk.placement && bk.placement !== 'off';
   state.brandDraft = {
     channelName: bk.channelName || ch.name || '',

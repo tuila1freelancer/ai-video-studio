@@ -13,7 +13,7 @@ const prosodyValue = (v, lo, hi) => {
   return Number.isFinite(n) && n !== 0 ? Math.min(hi, Math.max(lo, n)) : null;
 };
 
-/** Wrap text in `<prosody>` when the owner asked for a rate or pitch change, else return it bare. */
+/** Wrap text in `<prosody>` when the user asked for a rate or pitch change, else return it bare. */
 export function ssmlProsody(inner, cfg = {}) {
   const rate = prosodyValue(cfg.rate, -50, 100);
   const pitch = prosodyValue(cfg.pitch, -24, 24);

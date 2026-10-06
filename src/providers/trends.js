@@ -1,7 +1,7 @@
 // Trend signals — dependency-free RSS/Atom pulls (same spirit as fetchlink): Google Trends
 // daily RSS + Google News search RSS by default, plus optional feed PACKS (curated VN
-// sources) and the owner's custom feeds. Never throws; every feed degrades to empty.
-// Results are DATA for the owner to pick from — nothing here auto-commits a pipeline.
+// sources) and the user's custom feeds. Never throws; every feed degrades to empty.
+// Results are DATA for the user to pick from — nothing here auto-commits a pipeline.
 
 function stripCdata(s) { return String(s || '').replace(/^<!\[CDATA\[|\]\]>$/g, '').trim(); }
 function decodeEntities(t) {
@@ -29,7 +29,7 @@ export function parseAtomTitles(xml) {
   return out.map(decodeEntities).filter((t) => t.length > 2);
 }
 
-// Curated dependency-free packs the owner can toggle in the assistant's source settings.
+// Curated dependency-free packs the user can toggle in the assistant's source settings.
 // 'reddit' is niche-driven: it expands to the subreddit named by the niche when it looks
 // like a subreddit token, otherwise it is skipped (no guessing).
 export const FEED_PACKS = {
@@ -89,7 +89,7 @@ function parseAny(xml, { skipFirst } = {}) {
 
 /**
  * @param {{geo?:string, niche?:string, packs?:string[], feeds?:{url:string,label?:string}[]}} opts
- *   niche: a topic query to bias news results; packs: FEED_PACKS keys; feeds: owner's custom RSS/Atom URLs
+ *   niche: a topic query to bias news results; packs: FEED_PACKS keys; feeds: user's custom RSS/Atom URLs
  * @returns {Promise<{title:string, source:string}[]>} up to ~40 signals, deduped
  */
 export async function fetchTrends({ geo = '', niche = '', packs = [], feeds = [], language = 'vi' } = {}) {

@@ -31,10 +31,10 @@ export function detectType() {
 // It used to: the button replaced the URL with `title + text`, which flipped detectInputType from
 // 'url' to 'text'. The master engine picks its mode from that (master-script.js) — a fetched
 // article is mode 'source', "write a NEW script from this research", while >=80 words of plain
-// text is mode 'script', "this is the owner's own script, keep >=90% of its wording". So pressing
+// text is mode 'script', "this is the user's own script, keep >=90% of its wording". So pressing
 // the button silently changed the product: instead of writing a video from the article, the app
 // narrated the article's own sentences, sliced up. Its own comment says so — "a long article is
-// research material for a NEW script, never a detailed owner script to polish" — the UI was the
+// research material for a NEW script, never a detailed user script to polish" — the UI was the
 // only thing breaking that rule. The URL stays in #topic; the article gets its own panel.
 export function setSourceDoc(doc) {
   state.sourceDoc = doc && doc.text ? doc : null;
@@ -102,7 +102,7 @@ export async function imageSearch() {
 }
 
 /**
- * Results the owner can actually LOOK at.
+ * Results the user can actually LOOK at.
  *
  * They were 46×46 squares whose only interaction was "click to download into assets" — no way to
  * see what a picture was before committing it to a video. Tiles are real thumbnails now, clicking

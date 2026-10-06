@@ -10,7 +10,7 @@ import { AvsClient } from '../packages/avs-kit/src/sdk.js';
 import { createMcpServer } from '../packages/avs-kit/src/mcp-server.js';
 
 // The whole lane, as an agent meets it: a real server process in SERVER MODE, a real token minted
-// the way the owner would mint one, and the kit driving it over HTTP. The in-process tests cover the
+// the way the user would mint one, and the kit driving it over HTTP. The in-process tests cover the
 // routes; this covers the things only a real boot has — the mode switch, the token, the refusal an
 // unauthenticated caller gets, and the fact that all of it survives being started by a stranger.
 //
@@ -45,7 +45,7 @@ const url = await new Promise((resolve, reject) => {
 
 test.after(() => { try { child.kill(); } catch { /* already gone */ } });
 
-test('the token the owner minted is the only way in', async () => {
+test('the token the user minted is the only way in', async () => {
   assert.match(TOKEN, /^avs_tok/, 'the CLI printed a token');
   const anonymous = new AvsClient({ url });
   const open = await anonymous.health();

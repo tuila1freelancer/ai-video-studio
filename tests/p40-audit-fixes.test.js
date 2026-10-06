@@ -29,7 +29,7 @@ test('P40: a paid voice can hold a pool of keys and rotate off an exhausted one'
   assert.deepEqual(keyPool({ token: 'a;b' }), { field: 'token', keys: ['a', 'b'] }, 'Vbee-style token field too');
   const tts = sourceOf('src/providers/tts.js');
   // rotation must only trigger on a credit/auth refusal — a bad voice id or a network blip is
-  // not a reason to burn through every key the owner has.
+  // not a reason to burn through every key the user has.
   assert.match(tts, /function keyExhausted\(e\)/);
   assert.match(tts, /if \(!keyExhausted\(e\) \|\| i === pool\.keys\.length - 1\) throw e;/);
 });
@@ -73,7 +73,7 @@ test('P40: named SEO styles reuse the shared styles table and never leave a run 
     'the panel sends the RESOLVED prompt, so deleting the row later cannot break a queued run');
 });
 
-test('P40: the thumbnail designer may use the owner\'s own pictures, safely', async () => {
+test('P40: the thumbnail designer may use the user\'s own pictures, safely', async () => {
   const { applyThumbAssets } = await import('../src/pipeline/thumbnail-codegen.js');
   const out = applyThumbAssets(
     '<img src="{{asset:a.jpg}}"><img src="{{asset:ghost.png}}"><b>{{asset:nope}}</b>',

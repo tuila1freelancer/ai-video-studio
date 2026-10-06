@@ -11,7 +11,7 @@ each other.
    the only guarantee that survives a mistake in your own code.
 3. **Read per channel.** `GET /api/projects?channel=…`, `GET /api/events?channel=…`,
    `POST /api/topics/suggest { channelId }`.
-4. **Expect company.** The owner may be producing in the app at the same time. Do not pause the queue
+4. **Expect company.** The user may be producing in the app at the same time. Do not pause the queue
    (`/api/ops/pause`) for a problem that affects only your channel — it stops theirs too.
 5. **Attribute.** Every job and journal line records the token that asked. Keep one token per agent
    rather than sharing one, or the record stops meaning anything.

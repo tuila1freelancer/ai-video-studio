@@ -157,7 +157,7 @@ function mountProviders(r) {
 
   // ---- local TTS server lifecycle (P40, Supertonic) ----
   // The self-hosted voice needs a process, not a key: report whether it is installed/running and
-  // let the owner start or stop it from the same panel that configures the provider.
+  // let the user start or stop it from the same panel that configures the provider.
   r.get('/tts/server/status', async (req, res) => {
     try {
       const cfg = (DB.aiSettings().tts?.providers?.supertonic) || {};
@@ -172,7 +172,7 @@ function mountProviders(r) {
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
   // Install the local voice engine from inside the app (P42 — reference `/tts/supertonic/install`).
-  // It runs pip on the owner's own machine, so it is an EXPLICIT button, never automatic, and the
+  // It runs pip on the user's own machine, so it is an EXPLICIT button, never automatic, and the
   // full output comes back so a failure is readable instead of mysterious.
   r.post('/tts/server/install', async (req, res) => {
     try {
@@ -204,7 +204,7 @@ function mountCatalogs(r) {
   });
 
   // ---- subtitle preset catalog for the UI gallery ----
-  // Ten built-ins plus whatever the owner has saved. A saved one is a whole SETTINGS BUNDLE, not
+  // Ten built-ins plus whatever the user has saved. A saved one is a whole SETTINGS BUNDLE, not
   // an id the resolver knows, so it travels with its config and the panel applies it on click —
   // which is also why it works on every channel rather than belonging to one.
   r.get('/subtitle-presets', async (req, res) => {

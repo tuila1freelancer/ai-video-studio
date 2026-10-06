@@ -42,7 +42,7 @@ test('a live route carries the code, and answers in the language asked for', asy
     const missing = await get('/projects/nope-there-is-no-such-project');
     assert.equal(missing.status, 404);
     assert.equal(missing.body.code, 'not_found', 'the agent branches on this, never on the sentence');
-    assert.equal(missing.body.error, 'không tìm thấy', 'the owner still reads Vietnamese');
+    assert.equal(missing.body.error, 'không tìm thấy', 'the user still reads Vietnamese');
     const english = await get('/projects/nope-there-is-no-such-project?lang=en');
     assert.equal(english.body.code, 'not_found');
     assert.equal(english.body.error, 'Not found');

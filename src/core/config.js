@@ -33,7 +33,7 @@ function isPlainObject(v) { return v != null && typeof v === 'object' && !Array.
 // keep their stored snapshot and any channel/preset/request value still wins.
 //
 // ai-providers amends it: this used to be the constant `ag/gemini-pro-agent`, which exists only
-// on the owner's own proxy — a guaranteed render failure once the provider picker let someone
+// on the user's own proxy — a guaranteed render failure once the provider picker let someone
 // choose Groq. The requirement is unchanged (measured against every other family, only Gemini
 // writes scene markup that renders), so a preset declares a codegen model ONLY when it genuinely
 // serves one. '' means "no opinion, use the general model" — exactly what the per-project field's

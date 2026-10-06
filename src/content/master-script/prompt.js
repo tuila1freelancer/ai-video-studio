@@ -45,7 +45,7 @@ export const LANG_VOICE_NOTES = column('voiceNote');
 
 /**
  * Build the ONE master prompt (messages array). mode 'topic' writes the whole video;
- * mode 'script' light-polishes + slices the owner's script; mode 'source' writes a NEW
+ * mode 'script' light-polishes + slices the user's script; mode 'source' writes a NEW
  * script from a fetched article (sourceDoc {title,text}). Batch calls append batchNote.
  */
 export function buildMasterPrompt({

@@ -4,7 +4,7 @@
 // them agreed. The subtitle picker offered ten hard-coded names in index.html — two of which
 // (Arial, Impact) appeared in neither the vendored CSS nor the burn directory. The scene page
 // inlined eight families into every single page whether it used them or not. The app's own UI
-// loaded exactly two. So the owner could choose Anton, watch the preview fall back to the system
+// loaded exactly two. So the user could choose Anton, watch the preview fall back to the system
 // sans-serif, and have no way to tell whether the video would be any different.
 //
 // Everything now derives from this file: what the picker offers, what the preview loads, what
@@ -22,7 +22,7 @@ import { vendoredFaces, uploadedFaces, isDownloaded, isSystemFamily, normFamily,
 import { coversScript, scriptsOf } from './coverage.js';
 
 /**
- * Script coverage, used to put the right families in front of the owner for the video's
+ * Script coverage, used to put the right families in front of the user for the video's
  * language rather than making them scroll past forty Latin faces to find a Thai one.
  */
 export const SCRIPTS = ['latin', 'vietnamese', 'cyrillic', 'greek', 'cjk-sc', 'cjk-tc', 'japanese', 'korean', 'arabic', 'thai', 'devanagari', 'hebrew'];
@@ -102,7 +102,7 @@ export function scriptForLanguage(lang) {
 }
 
 /**
- * Every family the owner may pick, with an honest status attached.
+ * Every family the user may pick, with an honest status attached.
  *
  * `ready` is the only thing that matters at the point of choosing: a downloadable family that
  * has not been fetched will render as a substitute in both the preview and the video, so the
@@ -149,7 +149,7 @@ export function fontLibrary() {
     if (entry.system || isSystemFamily(entry.family)) { push(entry.family, entry, { source: 'system', ready: true }); continue; }
     push(entry.family, entry, { source: 'downloadable', ready: false });
   }
-  // the owner's own uploads that are not in the catalogue at all
+  // the user's own uploads that are not in the catalogue at all
   for (const up of uploads) {
     if (BY_KEY.has(up.key)) continue;
     push(up.family, null, { source: 'uploaded', ready: true, burnable: up.burnable !== false });

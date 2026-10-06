@@ -1,7 +1,7 @@
 // Drag & drop onto the window (P43 — the reference app has this and we did not). Dropping a file
 // is the obvious gesture, and the alternative was hunting for the right hidden <input> every time.
 //
-// Where a file GOES is decided by what it is, not by where it lands, so the owner can drop
+// Where a file GOES is decided by what it is, not by where it lands, so the user can drop
 // anywhere on the window:
 //   image  → project assets (the same list the image search and upload button feed)
 //   video  → the "Sửa video" source, so the enhance flow is one drop away
@@ -84,7 +84,7 @@ export function initDragDrop() {
       }
       if (kinds.audio.length) {
         // a short file is a sound effect, a long one is background music — but we cannot read the
-        // duration here, so go by the folder the owner is looking at, defaulting to BGM.
+        // duration here, so go by the folder the user is looking at, defaulting to BGM.
         const kind = state.libKind === 'sfx' ? 'sfx' : 'bgm';
         const r = await uploadTo(`/library/${kind}`, files.filter((f) => AUD.test(f.name)));
         done.push(tp`${r.items?.length || 0} audio → thư viện ${kind.toUpperCase()}`);

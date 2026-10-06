@@ -11,7 +11,7 @@ import { topNouns } from './script.js';
 // consumer, and adds `platforms` with the full per-platform payload + pinnedComment.
 /**
  * @param {object} project
- * @param {string|null} stylePrompt owner-defined SEO style prefix
+ * @param {string|null} stylePrompt user-defined SEO style prefix
  * @param {{ai?:object, script?:string}} opts `script` = the narration this video actually
  *   contains. Without it the model can only riff on the title, which produced generic tags and
  *   descriptions promising things the video never says (P40 audit finding).

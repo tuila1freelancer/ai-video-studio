@@ -124,7 +124,7 @@ test('P16: assistant proposals never auto-start a paid pipeline', () => {
   assert.ok(!/enqueueJob|startBatch|startProject|pipeline\//.test(autopilot),
     'topic-autopilot must stay data-only');
   // planWeek and buildSeries create slots/suggestions; only acceptSuggestion (an explicit
-  // owner click) may reach startBatch
+  // user click) may reach startBatch
   const assistant = sourceOf('src/api/services/assistant.js');
   const afterPlan = assistant.slice(assistant.indexOf('export function planWeek'));
   assert.ok(!/enqueueJob|startBatch|startProject/.test(afterPlan),
@@ -136,14 +136,14 @@ test('P16: assistant proposals never auto-start a paid pipeline', () => {
     'POST /topics/suggest returns proposals, never projects');
 });
 
-test('P17: scene gate holds cleanly and only the explicit owner route approves it', () => {
+test('P17: scene gate holds cleanly and only the explicit user route approves it', () => {
   const runner = sourceOf('src/pipeline/runner.js');
   // hold pattern mirrors the review gate: distinct status + clean return (P13/P10 stay inert)
   assert.match(runner, /config\.sceneGate === true && !DB\.getProject\(projectId\)\.scenes_approved_at/, 'gate checks the durable approval stamp');
   assert.match(runner, /status:\s*'scenes'/, "hold uses the distinct 'scenes' status, never 'paused'");
   const gateBlock = runner.slice(runner.indexOf("config.sceneGate === true"), runner.indexOf('await runTts'));
   assert.match(gateBlock, /return;/, 'gate exits via a clean return, not the error path');
-  // the approval stamp has exactly one writer: the explicit owner route
+  // the approval stamp has exactly one writer: the explicit user route
   const routes = sourceOf('src/api/routers/pipeline.js');
   assert.match(routes, /approve-scenes/, 'explicit approve route exists');
   const writers = [runner, sourceOf('src/pipeline/scheduler.js'), sourceOf('src/pipeline/estimate.js'),
@@ -178,7 +178,7 @@ test('P18: master scenes JSON contract — no META_LEAK persisted, canonical exp
   assert.match(b2, /scenesJsonFromRows\(DB\.getProject\(projectId\), scenes\)/, 'artifact is rebuilt from persisted rows');
   // the export route serves the same canonical builder
   assert.match(sourceOf('src/api/routers/project-exports.js'), /scenes-json/, 'export route exists');
-  // owner's detailed script: duration follows content — the fitter must skip it
+  // user's detailed script: duration follows content — the fitter must skip it
   assert.match(sourceOf('src/pipeline/stages/budget.js'), /SCRIPT_MODE_MIN_WORDS\) return;/, 'budget fit never trims a pasted detailed script');
 });
 
@@ -273,7 +273,7 @@ test('P45: the agent lane is opt-in, scoped, channel-explicit and coded', () => 
   // app that was asked for neither still passes straight through.
   assert.match(auth, /return isServerMode\(\) \|\| agentEnabled\(\);/, 'the second door is the setting, nothing inferred');
   assert.match(auth, /if \(!authRequired\(\)\) \{[\s\S]{0,120}return next\(\);/, 'desktop keeps passing straight through');
-  assert.match(sourceOf('src/ops/agent-mode.js'), /s\.enabled === true/, 'and it is off unless the owner said otherwise');
+  assert.match(sourceOf('src/ops/agent-mode.js'), /s\.enabled === true/, 'and it is off unless the user said otherwise');
 
   // (2) the secret is never stored, and the comparison is constant-time.
   const tokens = sourceOf('src/db/repositories/api-tokens.js');

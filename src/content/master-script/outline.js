@@ -29,7 +29,7 @@ export function normalizeChapters(raw, targetCount) {
  * ONE planning call before any batch of a long topic/source video: throughline + spine +
  * batch-aligned chapters (goal/keyPoints/bridgeOut). Every batch then follows the SAME arc
  * instead of inventing its own. Best-effort: any failure returns null → legacy behavior
- * (the rolling tail alone), never a dead run. 'script' mode skips this — the owner's text
+ * (the rolling tail alone), never a dead run. 'script' mode skips this — the user's text
  * IS the arc and the word-balanced slicer already preserves it.
  */
 export async function generateOutline({ plan, language, llm, onLog, targetCount, topicText, sourceDoc, mode }) {

@@ -31,7 +31,7 @@ export async function runRender(ctx) {
     const r = await timed(projectId, 'render', () => renderAnimationScene(sc, project, config, {
       dir: join(dir, 'render'), progressStart: pp.offsets[sc.idx] || 0, progressTotal: pp.total, total: scenes.length,
       onProgress: (f) => { if (f >= 0.999 || Math.round(f * 4) !== Math.round((f - 0.01) * 4)) op(projectId, tp`🎬 Cảnh ${sc.idx + 1}/${scenes.length} · ${(f * 100).toFixed(0)}%`); },
-      // a substituted font used to reach logger.warn and nowhere the owner looks
+      // a substituted font used to reach logger.warn and nowhere the user looks
       onLog: (s) => op(projectId, tp`cảnh ${sc.idx + 1}: ${s}`),
       signal: abortSignalFor(projectId),
     }));

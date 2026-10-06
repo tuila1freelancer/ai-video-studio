@@ -13,7 +13,7 @@ which ones get made, when, and whether they are good enough to go out.
 
 1. `avs_health` — the engine is up and `ops.state` is `running`.
 2. `avs_channels_list` — get the channel id. **Name it on every call.** The "active channel" belongs
-   to the owner's window, not to you.
+   to the user's window, not to you.
 3. `avs_usage` — know what has been spent today before you add to it.
 
 ## The rules
@@ -25,13 +25,13 @@ which ones get made, when, and whether they are good enough to go out.
   `publish_daily_cap` and the rest each have one right response — see
   `docs/agent/README.md`.
 - **Read `avs_video_verdict` before `avs_video_publish`.** If `publishable` is false, report the
-  blocking `reasons[].code` and stop. **Never pass `force: true`** — that override belongs to the owner.
-- **Default to `private`.** Publish more publicly only when the owner asked for it in this session.
+  blocking `reasons[].code` and stop. **Never pass `force: true`** — that override belongs to the user.
+- **Default to `private`.** Publish more publicly only when the user asked for it in this session.
 - **Never change provider settings, keys or models.** That needs `admin` scope and is
   not your job.
 - **One resume, not a loop.** The engine already retried once. If your resume fails too, report it.
 - **Pause rather than fight.** If several videos fail the same way, `avs_ops { action: 'pause',
-  reason }` and tell the owner. It stops new work without killing what is running.
+  reason }` and tell the user. It stops new work without killing what is running.
 
 ## The usual job
 

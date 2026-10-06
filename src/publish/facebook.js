@@ -1,7 +1,7 @@
 // Facebook Page publisher (P40) — the reference app's only publish target, ported onto our
 // existing publisher contract so it sits beside YouTube instead of replacing it.
 //
-// Auth is a PAGE ACCESS TOKEN the owner pastes in (Meta's Graph API Explorer or their own app),
+// Auth is a PAGE ACCESS TOKEN the user pastes in (Meta's Graph API Explorer or their own app),
 // not an OAuth dance: the reference works the same way, and it keeps us out of app-review
 // territory for a desktop tool. The token lives in settings.publish.facebook.pageToken and is
 // masked at every egress by the *Token key-suffix rule (P14).
@@ -30,7 +30,7 @@ export function configured() { return !!cfg().pageId; }
 export function connected() { return !!(cfg().pageId && cfg().pageToken); }
 
 /**
- * Every Page the owner has connected. A Page token EXPIRES, and with a single-slot config a
+ * Every Page the user has connected. A Page token EXPIRES, and with a single-slot config a
  * silent expiry looks like "publishing is broken" — a registry lets each Page carry its own
  * token and its own expiry so the UI can say which one went stale (P42).
  */
@@ -121,7 +121,7 @@ async function graphError(res) {
 
 /**
  * Verify a token+page pair and remember it. Returns the Page's real name, which is the only
- * honest confirmation that the token belongs to the page the owner thinks it does.
+ * honest confirmation that the token belongs to the page the user thinks it does.
  */
 export async function connect({ pageId, pageToken } = {}) {
   const id = String(pageId || cfg().pageId || '').trim();

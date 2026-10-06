@@ -1,6 +1,6 @@
 // Server strings that reach the interface, keyed by their own Vietnamese text.
 //
-// An HTTP error body and a pipeline stage name are shown to the owner verbatim, so they need
+// An HTTP error body and a pipeline stage name are shown to the user verbatim, so they need
 // translating — but there are 58 of the first alone, and rewriting 58 call sites to pass a key
 // buys nothing a lookup at the egress does not. The Vietnamese string IS the key (the gettext
 // model): nothing at the call site changes, a string with no translation shows its Vietnamese,
@@ -30,12 +30,12 @@ function walk(dir, out = []) {
 // `error: '…'` and `message: '…'` in an HTTP body — anywhere.
 //
 // These take a string in ANY language, unlike the guesses further down. The position is already
-// proof that the owner is shown it, so there is nothing left to infer from the spelling — and
-// `error: 'not found'` is exactly as untranslated to a Japanese owner as a Vietnamese sentence is.
+// proof that the user is shown it, so there is nothing left to infer from the spelling — and
+// `error: 'not found'` is exactly as untranslated to a Japanese user as a Vietnamese sentence is.
 const PATTERNS = [
   /\b(?:error|message|hint)\s*:\s*'([^'\\]{4,200})'/g,
   /\b(?:error|message|hint)\s*:\s*"([^"\\]{4,200})"/g,
-  // A thrown Error reaches the owner the same way: the route catches it and answers
+  // A thrown Error reaches the user the same way: the route catches it and answers
   // `{ error: e.message }`, which the egress then translates by that very text. So the message
   // needs no wrapper at the throw site — only a key here.
   /\bthrow new Error\(\s*'([^'\\]{4,200})'/g,
@@ -47,7 +47,7 @@ const PATTERNS = [
 const READABLE = (t) => /[A-Za-zÀ-ỹ]/.test(t) && /\s/.test(t) && !/^[A-Z0-9_.:/-]+$/.test(t);
 
 // `label:`, `name:` and `note:` are interface text in a CATALOGUE and DATA everywhere else — a
-// voice's name, a channel's name, a project's name are the owner's own words. So these patterns
+// voice's name, a channel's name, a project's name are the user's own words. So these patterns
 // run only against the files that describe the app to itself.
 const CATALOGUE_FILES = /providers\/(voice\/|llm-presets)|publish\/platforms|subtitles\/presets|styleguide\/presets/;
 const CATALOGUE_PATTERNS = [
@@ -55,7 +55,7 @@ const CATALOGUE_PATTERNS = [
   /\b(?:label|note|placeholder)\s*:\s*"([^"\\]{3,200})"/g,
 ];
 // `name:` is interface text on a PROVIDER and a proper noun on a VOICE — "Duy Phương (Huế · nam)"
-// is that voice's actual name and must read the same to a Japanese owner picking it. The voice
+// is that voice's actual name and must read the same to a Japanese user picking it. The voice
 // modules carry both, so `name` is taken only from the files that describe no voices.
 const NAME_FILES = /providers\/llm-presets|publish\/platforms|subtitles\/presets/;
 const NAME_PATTERNS = [

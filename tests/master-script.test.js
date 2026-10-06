@@ -1,5 +1,5 @@
 // Master Script Engine — the ONE-master-prompt → canonical scenes JSON pipeline head.
-// The fixture is the owner's REAL factory output (55 scenes): it must trip the validator
+// The fixture is the user's REAL factory output (55 scenes): it must trip the validator
 // exactly where the real file is broken (CTA notes / hashtag line / thumbnail prompt read
 // aloud as scene voices, one visual stamped across all 55 scenes) — proving the gates work
 // on production data, not synthetic strawmen.
@@ -162,7 +162,7 @@ test('buildMasterPrompt (topic): plan-then-write + duration specs + persona + CT
   for (const b of VISUAL_BRACKETS) assert.ok(usr.content.includes(`[${b}]`), `doctrine lists [${b}]`);
 });
 
-test('buildMasterPrompt (script): light-edit contract embeds the owner script, no plan-then-write', () => {
+test('buildMasterPrompt (script): light-edit contract embeds the user script, no plan-then-write', () => {
   const plan = planScenes({ videoDuration: 60, sceneDuration: 7, language: 'vi' });
   const src = 'Đây là kịch bản chi tiết của chủ kênh, từng câu đã được viết sẵn để đọc.';
   const [, usr] = buildMasterPrompt({ mode: 'script', input: src, plan, language: 'vi' });
@@ -242,7 +242,7 @@ test('generateMasterScenes: offline topic + offline detailed script (verbatim se
   const script = await generateMasterScenes({ input: src, config: { videoDuration: 60, sceneDuration: 7 } });
   assert.equal(script.mode, 'script-offline');
   const joined = script.scenes.map((s) => s.voice).join(' ');
-  assert.ok(joined.includes('giữ nguyên từng chữ'), 'offline script mode keeps the owner words');
+  assert.ok(joined.includes('giữ nguyên từng chữ'), 'offline script mode keeps the user words');
 });
 
 // ---------------------------------------------------------------- orchestrator: fake LLM
@@ -373,7 +373,7 @@ test('generateMasterScenes (source, fake LLM): article → NEW script under the 
     assert.deepEqual(Object.keys(out.raw.scenes[0]), ['stt', 'voice', 'visual', 'assets'], 'same canonical shape as every other mode');
     assert.equal(out.title, 'RAG cho người mới');
     assert.deepEqual(out.thumbnail, payload.thumbnail);
-    assert.equal(bodies.length, 1, 'fresh wording must NOT trip POLISH_FLOOR (no re-ask) — the article is not the owner script');
+    assert.equal(bodies.length, 1, 'fresh wording must NOT trip POLISH_FLOOR (no re-ask) — the article is not the user script');
     const usr = bodies[0].messages[1].content;
     assert.ok(usr.includes('REWRITE, NEVER COPY'), 'rewrite doctrine rides in the prompt');
     assert.ok(usr.includes('PLAN THEN WRITE'), 'source keeps the topic plan-then-write scaffold');
@@ -381,7 +381,7 @@ test('generateMasterScenes (source, fake LLM): article → NEW script under the 
     assert.ok(usr.includes('RAG cho người mới bắt đầu'), 'article title present');
     assert.ok(usr.includes('công ty'), 'article content present');
     assert.ok(!usr.includes('LIGHT EDIT ONLY'), 'source must never take the polish contract');
-    assert.ok(!usr.includes("THE OWNER'S SCRIPT"), 'the article is research material, not the owner script');
+    assert.ok(!usr.includes("THE OWNER'S SCRIPT"), 'the article is research material, not the user script');
   } finally { globalThis.fetch = realFetch; }
 });
 
@@ -410,7 +410,7 @@ test('sourceSlicer: spans tile the source exactly — no sentence lost, none rep
   assert.equal(nested, slicer(1, 25), 'an adaptive re-split of a batch tiles that batch exactly');
 });
 
-// A faithful-polisher mock: echoes each call's owner-script slice back as scenes — the
+// A faithful-polisher mock: echoes each call's user-script slice back as scenes — the
 // strongest batching probe possible, because the final canonical JSON must then reconstruct
 // the ENTIRE source, in order, exactly once; any boundary drop/dup breaks the equality.
 // garbleOver/shortOver simulate output-window overflow for calls asked for more scenes.
@@ -509,8 +509,8 @@ test('a rewritten ending is REPAIRED from the source, not just complained about'
   ] };
   const fixed = repairScenesSpec(spec, [{ code: 'ENDING_REWRITTEN', detail: 'x' }], { source });
   const tail = fixed.scenes.map((s) => s.voice).join(' ');
-  assert.ok(tail.includes('các bạn hãy ấn thích giúp mình nhé'), 'the owner sentence is back');
-  assert.ok(tail.endsWith('Cảm ơn các bạn rất nhiều.'), 'and it ends on the owner wording');
+  assert.ok(tail.includes('các bạn hãy ấn thích giúp mình nhé'), 'the user sentence is back');
+  assert.ok(tail.endsWith('Cảm ơn các bạn rất nhiều.'), 'and it ends on the user wording');
   assert.ok(!tail.includes('Cảm ơn các bạn đã theo dõi'), 'the invented sign-off is gone');
   assert.equal(fixed.scenes[0].voice, 'Một đoạn nội dung bất kỳ ở giữa bài.', 'earlier scenes untouched');
 
@@ -557,7 +557,7 @@ test('a rewritten opening is REPAIRED from the source — the hook is not the mo
 
 test('loan words in a Vietnamese narration are swapped for the channel wording', async () => {
   // The voice reads what is typed. Four English words reached a finished script — prompt, email,
-  // deadline, and a product name the owner never mentioned — each caught by eye before the render.
+  // deadline, and a product name the user never mentioned — each caught by eye before the render.
   const { swapLoanWords, repairScenesSpec } = await import('../src/content/master-script.js');
 
   assert.equal(swapLoanWords('chỉnh sửa prompt và chờ'), 'chỉnh sửa câu lệnh và chờ');

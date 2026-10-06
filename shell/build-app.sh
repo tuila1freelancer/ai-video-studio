@@ -6,7 +6,7 @@
 #              build, and the only thing that has to change when JS changes is the running process.
 #   --dist     DISTRIBUTABLE — everything the app needs is copied inside the bundle: the Node
 #              runtime, production node_modules, the vendored ffmpeg. A dev bundle bakes absolute
-#              paths into the owner's checkout, so handing one to a customer ships them an app
+#              paths into the user's checkout, so handing one to a customer ships them an app
 #              that points at a folder they do not have.
 set -e
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -20,7 +20,7 @@ MODE="dev"
 # anything outside the app.
 AVS_PORT="${AVS_PORT:-0}"
 # Overridable so a release candidate can be built and smoke-tested without deleting the copy the
-# owner is using — the first thing this script does is `rm -rf` the target.
+# user is using — the first thing this script does is `rm -rf` the target.
 APP="${AVS_APP_PATH:-AI Video Studio.app}"
 VERSION="$(node -p "require('$ROOT/package.json').version")"
 
@@ -163,7 +163,7 @@ if [ "$MODE" = "dist" ]; then
     [ -d "vendor/$v" ] && cp -R "vendor/$v" "$APPDIR/vendor/$v"
   done
 
-  # The Agent Kit travels WITH the app: readable, dependency-free, and the only way an owner who
+  # The Agent Kit travels WITH the app: readable, dependency-free, and the only way a user who
   # never cloned the repo can point an agent at their own copy. Closed engine, open kit.
   mkdir -p "$APPDIR/packages"
   cp -R packages/avs-kit "$APPDIR/packages/avs-kit"

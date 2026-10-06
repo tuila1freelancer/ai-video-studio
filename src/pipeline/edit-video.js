@@ -206,7 +206,7 @@ export async function createEditVideoProject({ source, title = '', language = 'a
     // The footage already carries its own voice and music — never mix ours over it, and never
     // spend TTS credit: the narration is already in the file.
     autoBgm: false, soundDesign: false, enableSubtitles: config.enableSubtitles === true,
-    transitions: false, // cuts belong to the owner's edit, not to us
+    transitions: false, // cuts belong to the user's edit, not to us
     language,
   };
   return DB.createProject({

@@ -4,7 +4,7 @@
 // dropped one hop before the file was written.
 //
 // The panel's own preview is not evidence. It reads the DOM controls directly, so it renders the
-// owner's pick faithfully whether or not the renderer ever sees it — which is why "Kiểu chữ" looked
+// user's pick faithfully whether or not the renderer ever sees it — which is why "Kiểu chữ" looked
 // right in the panel and came out wrong in the video for as long as it did.
 import './_env.mjs';
 import test from 'node:test';
@@ -55,7 +55,7 @@ export function styleOf(ass) {
 
 test('KIỂU CHỮ reaches the burn with no preset selected', () => {
   // '' is what the panel sends for "Tuỳ biến tay" — a real choice, not an absent one. This is the
-  // exact configuration the owner reported: the preview showed HOA, the video did not.
+  // exact configuration the user reported: the preview showed HOA, the video did not.
   const cfg = { subtitlePreset: '', subtitleTextCase: 'uppercase' };
   assert.equal(burnStyleFrom(cfg, theme, SIZE).textCase, 'uppercase');
   const ass = assFor(cfg);
@@ -158,7 +158,7 @@ test('a length typed against 1080p scales onto the real frame', () => {
   assert.equal(at4k.Spacing, '16');
 });
 
-test('the weight the owner picks reaches the font resolver', () => {
+test('the weight the user picks reaches the font resolver', () => {
   // burnStyleFrom.weight is what prepareBurnFontDir uses to choose the .ttf that gets staged
   assert.equal(burnStyleFrom({ subtitleWeight: 400 }, theme, SIZE).weight, 400);
   assert.equal(burnStyleFrom({}, theme, SIZE).weight, 800, 'unchanged when unset');
@@ -166,7 +166,7 @@ test('the weight the owner picks reaches the font resolver', () => {
 
 // ------------------------------------------------------------------ colour, border, glow
 
-test('outline and shadow are the owner\'s, colour and width both', () => {
+test('outline and shadow are the user\'s, colour and width both', () => {
   const s = styleOf(assFor({
     subtitleOutlineColor: '#FF0000', subtitleOutlineWidth: 7,
     subtitleShadowColor: '#0000FF', subtitleShadowDepth: 9,

@@ -32,9 +32,9 @@ network.
 
 **1. Authenticate, and say which channel.** Every call carries `Authorization: Bearer avs_…`
 whenever the lane is open — in server mode from boot, and on a desktop installation from the moment
-the owner turns on AI Setting → Agent (MCP). Where the token comes from differs: on a server the
-owner mints it on the machine (`npm run token -- create --name my-agent --scopes
-read,produce,publish`), and in an installed app the owner mints it in that panel, which also prints
+the user turns on AI Setting → Agent (MCP). Where the token comes from differs: on a server the
+user mints it on the machine (`npm run token -- create --name my-agent --scopes
+read,produce,publish`), and in an installed app the user mints it in that panel, which also prints
 the exact command to add this server to an agent. You never mint your own — the route that mints
 refuses anyone but the app's own window, and refuses outright on a server. Scopes are `read`, `produce`, `publish`, `admin`; `admin` covers
 settings and channel writes and is not something a producing agent needs.
@@ -49,7 +49,7 @@ channel) on `POST /projects`, and an `Idempotency-Key` header on anything else t
 after a timeout then returns the first answer instead of making — and paying for — a second video.
 
 **3. Branch on `code`, never on prose.** Every refusal is `{ code, error, message }`. The words are
-the owner's language and may change; the code will not. Add `?lang=en` if you want the words in
+the user's language and may change; the code will not. Add `?lang=en` if you want the words in
 English for a log.
 
 **4. Read the feed, do not guess.** `GET /api/events?after=<id>` returns everything that happened
@@ -87,7 +87,7 @@ or `POST /projects/:id/resume`.
 | `channel_denied` / `channel_not_found` | that channel is not yours, or does not exist | list channels; fix the id |
 | `not_found` | no such project, scene or slot | stop; it is not coming back |
 | `gate_not_at_scenes` | approve-scenes on a run that is not holding | read the status first |
-| `budget_exceeded` | a hard cap was reached | stop spending; tell the owner |
+| `budget_exceeded` | a hard cap was reached | stop spending; tell the user |
 | `verdict_failed` | the video did not pass its own checks | read `reasons[]`; fix or leave it unpublished |
 | `publish_daily_cap` / `publish_outside_window` | the channel's own policy | try again later |
 | `publish_quota_exhausted` | the platform's daily API units are gone | try tomorrow |
@@ -97,11 +97,11 @@ or `POST /projects/:id/resume`.
 
 ## Rules an agent should keep
 
-- **Do not force.** `force: true` on publish skips the verdict. It exists for the owner, not for you.
+- **Do not force.** `force: true` on publish skips the verdict. It exists for the user, not for you.
 - **Check the budget before a batch.** `GET /api/usage`, and `POST /api/estimate-cost` for what the
   next one would cost.
-- **Do not change provider settings.** Keys, models and voices belong to the owner (`admin` scope).
+- **Do not change provider settings.** Keys, models and voices belong to the user (`admin` scope).
 - **Pause rather than fight.** If something is wrong across several videos, `POST /api/ops/pause`
   with a reason and say so — that stops the queue without losing what is running.
-- **Say who you are.** Every job and journal line records the token that asked; that is how the owner
+- **Say who you are.** Every job and journal line records the token that asked; that is how the user
   tells your work from theirs.

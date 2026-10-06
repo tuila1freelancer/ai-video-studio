@@ -84,7 +84,7 @@ export function detectLang(text) { return classifyLang(text).code; }
 /** Display names — used in prompts, so a model is told "English (US)", never the code "en". */
 export const LANG_NAME = column('name');
 
-/** Human name for a language code — for prompts and owner-facing messages. */
+/** Human name for a language code — for prompts and user-facing messages. */
 export function langName(code) { return LANG_NAME[code] || code || langRow(DEFAULT_LANG).name; }
 
 /**
@@ -98,7 +98,7 @@ export function langAdjective(code) { return langName(code).replace(/\s*\(.*\)$/
 export function padMsFor(code) { return langRow(code).padMs; }
 
 /**
- * The language the OWNER declared for this video, or null if they did not.
+ * The language the user declared for this video, or null if they did not.
  *
  * '' and 'auto' both mean "not declared" — and 'auto' is a value that genuinely reaches the DB
  * (createEditVideoProject writes it), so treating it as a language would be a real bug, not a

@@ -25,7 +25,7 @@
           },
           "error": {
             "type": "string",
-            "description": "Short reason, in the owner's language unless ?lang= says otherwise."
+            "description": "Short reason, in the user's language unless ?lang= says otherwise."
           },
           "message": {
             "type": "string"

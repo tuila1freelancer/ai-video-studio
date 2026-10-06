@@ -7,7 +7,7 @@
 //           then a deterministic sentence-trim backstop (whole sentences only — the scorer's
 //           truncation check must never re-flag what this pass wrote);
 //   under → one LLM enrich pass (LLM off: kept — a slightly short video beats padded filler).
-// Auto-duration mode and pasted-JSON scripts are the owner's words — never touched.
+// Auto-duration mode and pasted-JSON scripts are the user's words — never touched.
 import * as DB from '../../db/index.js';
 import { logger } from '../../util/log.js';
 import { chatJson, llmEnabled, LANG_WPS, wordsForSlot, splitSentences } from '../../providers/llm.js';
@@ -93,8 +93,8 @@ export async function runBudgetFit(ctx) {
     const lg = resolveLang(config, DB.getScenes(projectId));
     if (lg === 'ja' || lg === 'zh') return;          // no word boundaries — word math misfires
   }
-  if (project.input_type === 'json') return;         // owner-authored scenes — never cut
-  // Master engine 'script' mode: a pasted DETAILED script is the owner's words — the video's
+  if (project.input_type === 'json') return;         // user-authored scenes — never cut
+  // Master engine 'script' mode: a pasted DETAILED script is the user's words — the video's
   // duration follows the content (same doctrine as auto mode / pasted JSON), so the fitter
   // must never trim it toward a target. Same threshold the engine itself uses.
   if (config.scriptEngine !== 'legacy' && project.input_type !== 'url'

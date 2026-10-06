@@ -137,7 +137,7 @@ NEXT LINE: "${next.slice(0, 220)}"` },
 //   * it cannot work: the model must return the complete {css,html,script}, and re-linting that
 //     output rejected all 22 scenes ("touches the harness internal runtime", "spec too long").
 //     One violation the model invents anywhere in 24k characters loses the whole edit.
-//   * it should not work: the owner asked to keep the layout. Handing a model the layout and
+//   * it should not work: the user asked to keep the layout. Handing a model the layout and
 //     trusting it to return an identical one is a promise nobody can keep.
 // So the model only ever sees a LIST OF STRINGS and returns a list of strings. Everything else —
 // ids, classes, CSS, positions, GSAP timings — is untouched by construction, not by instruction.

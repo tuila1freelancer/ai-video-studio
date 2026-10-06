@@ -57,7 +57,7 @@ export function mount(r) {
     Pipeline.startProject(req.params.id, { resume: true, actor: req.actor }).catch((e) => logger.error(e.message, { projectId: req.params.id }));
     res.json({ ok: true });
   });
-  // Scene gate continue: the owner's EXPLICIT "scenes look good — voice + render" click.
+  // Scene gate continue: the user's EXPLICIT "scenes look good — voice + render" click.
   // Stamps scenes_approved_at (durable: a crash/auto-resume after this never re-holds) and
   // resumes the run past the gate into TTS. This is the ONLY writer of the stamp — nothing
   // automated ever sets it, so the gate can never auto-spend TTS credits.
@@ -65,7 +65,7 @@ export function mount(r) {
     const p = DB.getProject(req.params.id);
     if (!p) return res.status(404).json({ error: 'not found' });
     // Only a project actually holding at the gate may be approved — stamping any other
-    // status would permanently disarm a gate the owner never saw.
+    // status would permanently disarm a gate the user never saw.
     if (p.status !== 'scenes') return res.status(409).json({ error: 'dự án không ở bước duyệt cảnh' });
     DB.updateProject(p.id, { scenes_approved_at: Date.now() });
     Pipeline.startProject(p.id, { resume: true, actor: req.actor }).catch((e) => logger.error(e.message, { projectId: p.id }));

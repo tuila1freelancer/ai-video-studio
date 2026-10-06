@@ -1,6 +1,6 @@
 // Supertonic — a LOCAL, self-hosted neural TTS server (reference-app parity, P40).
 //
-// The owner installs it once (`pip install supertonic`) and this provider talks to the plain
+// The user installs it once (`pip install supertonic`) and this provider talks to the plain
 // HTTP API it serves on 127.0.0.1: POST /v1/tts { text, voice, lang, steps, speed,
 // response_format } → audio bytes. Nothing leaves the machine, there is no API key and no quota,
 // so it is the offline-capable counterpart to the SaaS voices.

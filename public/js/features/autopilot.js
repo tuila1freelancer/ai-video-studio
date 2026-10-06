@@ -1,6 +1,6 @@
 // Content assistant modal: ops overview (dashboard read-model), the pending suggestion
 // pool (persisted — a fresh "Gợi ý" run only adds ideas the pool doesn't already hold),
-// full lifecycle history, and the production calendar. The owner PICKS: every accept or
+// full lifecycle history, and the production calendar. The user PICKS: every accept or
 // schedule passes through the pre-create config sheet — nothing auto-commits a paid pipeline.
 import { $, $$, esc } from '../ui/dom.js';
 import { api, withLock } from '../api.js';

@@ -14,7 +14,7 @@ const VIETNAMESE = /[ạảầấẩẫậắằẳẵặẹẻẽệềếể�
  * The first version of this excluded the video-language picker, on the theory that a language is
  * listed by its own name. That is right for the INTERFACE picker — where someone who cannot read
  * the current language has to find their own — and it is built from hardcoded endonyms for exactly
- * that reason. The VIDEO-language picker is the opposite: the owner is choosing what to produce,
+ * that reason. The VIDEO-language picker is the opposite: the user is choosing what to produce,
  * and a Japanese interface should offer them ベトナム語, not Tiếng Việt.
  */
 export const NO_TRANSLATE = /^$/;
@@ -39,7 +39,7 @@ const ACCENTED_LATIN = /[\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u024F\u1E00-\u1EFF]/;
  * Keys whose value legitimately KEEPS Vietnamese in every language.
  *
  * The voice-search placeholder names two real voices as examples — "HoaiMy, Ngọc Huyền" — and a
- * Japanese owner looking for them has to read the names the picker actually shows. Listed one by
+ * Japanese user looking for them has to read the names the picker actually shows. Listed one by
  * one rather than loosened into a rule, so the next leftover Vietnamese word is still caught.
  */
 const KEEPS_VIETNAMESE = new Set(['ui.voicePickerModal.tim-ten-giong-vd-hoaimy']);

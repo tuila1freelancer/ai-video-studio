@@ -1,6 +1,6 @@
 // Where this copy of the app actually lives, so the interface can print a command that runs.
 //
-// The Agent panel has to show a line the owner can paste into their agent — and that line is an
+// The Agent panel has to show a line the user can paste into their agent — and that line is an
 // absolute path to a Node binary and an absolute path to the kit, both different on every machine
 // and on every layout (repo, macOS bundle, Windows bundle). The interface cannot guess any of it:
 // it is a browser page and the only thing that knows is the process serving it.
@@ -12,7 +12,7 @@ import { uiKey } from './ui-session.js';
 const first = (...candidates) => candidates.find((p) => p && existsSync(p)) || null;
 
 /**
- * A Node the owner can run the kit with.
+ * A Node the user can run the kit with.
  *
  * Bundled runtimes come first: `Resources/node/bin/node` beside the macOS payload, `node-win` beside
  * the Windows one. `process.execPath` is the honest fallback everywhere else — except under Electron,
@@ -35,7 +35,7 @@ export function kitPaths() {
   return existsSync(mcp) ? { dir, mcp, cli: join(dir, 'bin', 'avs.mjs') } : null;
 }
 
-/** What the interface needs to explain this installation to its owner. Paths, never secrets. */
+/** What the interface needs to explain this installation to its user. Paths, never secrets. */
 export function hostInfo() {
   return {
     platform: process.platform,
@@ -45,7 +45,7 @@ export function hostInfo() {
     node: nodeExecutable(),
     kit: kitPaths(),
     // Started by a shell, so a window session exists: turning agent access on will not lock the
-    // owner out. Started by hand, and the page asking this is a browser tab that will need a token.
+    // user out. Started by hand, and the page asking this is a browser tab that will need a token.
     launcher: Boolean(uiKey()),
   };
 }

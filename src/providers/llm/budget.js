@@ -35,7 +35,7 @@ export function wordsForSlot(sceneDuration, language) {
 
 // The word-budget line every script prompt carries — scenes must FILL their time slot,
 // and must never overflow it: overruns compound across scenes into a video far longer
-// than the owner asked for (the duration-adherence gate then has to cut).
+// than the user asked for (the duration-adherence gate then has to cut).
 export function wordBudgetNote(wordsPerScene, wps = 4.4) {
   return `each scene ${wordsPerScene - 3}–${wordsPerScene + 4} words, NO more (target ~${wordsPerScene}; TTS speaks ~${(+wps).toFixed(1)} words/second — write ENOUGH words, never stubby under ${wordsPerScene - 3}, never overflowing past ${wordsPerScene + 4}; ruthlessly cut every filler phrase like "as I said before", "well, actually"…)`;
 }

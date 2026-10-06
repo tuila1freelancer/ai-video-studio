@@ -63,7 +63,7 @@ test('fonts: the subtitle burn names a face for every script it can be asked to 
   }
   assert.equal(assStyleFrom({ language: 'th', subtitlePreset: 'classic-karaoke' }).font, 'Thonburi');
   assert.equal(assStyleFrom({ language: 'hi', subtitlePreset: 'classic-karaoke' }).font, 'Kohinoor Devanagari');
-  // An explicit pick by the owner still wins over the per-language default (P30).
+  // An explicit pick by the user still wins over the per-language default (P30).
   assert.equal(assStyleFrom({ language: 'th', subtitlePreset: 'classic-karaoke', subtitleFont: 'Anton' }).font, 'Anton');
 });
 

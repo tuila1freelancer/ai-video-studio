@@ -1,6 +1,6 @@
 // Final integrity gate (B8) — a lightweight check before a video may be called "done".
 // P38: the heavy per-frame visual QC (black/white-frame detection + dead-air silence scanning,
-// scene-attributable repair cycles, and per-scene quality tiers) is REMOVED — the owner asked to
+// scene-attributable repair cycles, and per-scene quality tiers) is REMOVED — the user asked to
 // drop the "cảnh lỗi" QC as redundant, and the reference app ships none of it. What survives is
 // cheap stream/duration integrity: a broken JOIN (missing stream, wildly wrong duration) is not
 // "visual QC", and codegen-time renderValidate already guarantees each scene is not-broken.

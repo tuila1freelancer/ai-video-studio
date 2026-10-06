@@ -78,7 +78,7 @@ around it, so:
  *
  * The clone is a normal project in every respect — it is started, resumed, reviewed and published
  * through the same pipeline as any other, and nothing here spends a credit. Actually running it is
- * the owner's explicit click, like every other paid path in this app (P16).
+ * the user's explicit click, like every other paid path in this app (P16).
  *
  * @returns {Promise<{project: object, scenes: number, language: string}>}
  */

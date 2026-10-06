@@ -3,7 +3,7 @@
 // Chinese, Japanese and Thai are written with no spaces between words. Every whitespace count in
 // this codebase therefore returned 1 for a whole paragraph of them, and the consequences were not
 // cosmetic: a 5,000-character Chinese script counted as ~1 word, fell under SCRIPT_MODE_MIN_WORDS,
-// was routed to "topic" mode and the owner's script was discarded and rewritten. The same
+// was routed to "topic" mode and the user's script was discarded and rewritten. The same
 // collapse silently broke the near-duplicate check, the polish floor, sentence-mode subtitles and
 // the beat extraction that drives the whole on-screen choreography.
 //
