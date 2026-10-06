@@ -14,7 +14,7 @@ test('cross-platform: /usr/bin/say is offered on macOS and nowhere else', () => 
   assert.ok(mac === null || mac === '/usr/bin/say');
 });
 
-test('cross-platform: the macOS reference bundle never leaks into a Windows candidate list', () => {
+test('cross-platform: no macOS bundle path leaks into a Windows candidate list', () => {
   const win = resolvePaths('win32', {});
   for (const [key, value] of Object.entries(win)) {
     assert.ok(!String(value || '').includes('.app/Contents'),

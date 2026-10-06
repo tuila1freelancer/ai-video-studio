@@ -1,5 +1,5 @@
-// Path allowlist for internal media serving (P15). A served path must sit inside data/,
-// the read-only reference app bundle, or a registered channel root — never anywhere else.
+// Path allowlist for internal media serving (P15). A served path must sit inside data/ or a
+// registered channel root — never anywhere else.
 import { resolve, sep } from 'node:path';
 import { DIRS } from '../../config/paths.js';
 import * as DB from '../../db/index.js';
@@ -9,7 +9,7 @@ let cache = { version: -1, roots: [] };
 function allowedRoots() {
   const version = DB.channelsVersion();
   if (cache.version !== version) {
-    cache = { version, roots: [resolve(DIRS.data), '/Applications/AI VIDEO Tool.app', ...DB.listChannels().map((c) => resolve(c.root_dir))] };
+    cache = { version, roots: [resolve(DIRS.data), ...DB.listChannels().map((c) => resolve(c.root_dir))] };
   }
   return cache.roots;
 }

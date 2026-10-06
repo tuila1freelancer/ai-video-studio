@@ -353,7 +353,6 @@ hermetic database) and the route-table test in `tests/api-routes.test.js` (178 r
 |---|---|
 | `scripts/determinism.mjs` | the same scene rendered twice is byte-identical |
 | `scripts/hf-qa.mjs` | a rendered scene meets its visual and timeline invariants |
-| `scripts/parity/` | an 8-item checklist scored against the reference app, plus a blind A/B builder |
 | `scripts/e2e-resume.mjs` | an interrupted project resumes to a valid MP4 |
 | `scripts/cta-audit.mjs` | a script's CTA map; non-zero exit on a discipline defect |
 | `scripts/audit-release.mjs` | the built `.app` contains no readable source |

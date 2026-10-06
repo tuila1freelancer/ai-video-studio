@@ -35,11 +35,6 @@ test('P25 no-fallback: B5 has no rescue lane — failures collect, the stage thr
   assert.match(b5, /status: 'error'/, 'failed scenes are marked error (props stay empty → resume regenerates them)');
 });
 
-test('P25 no-fallback: parity harness mirrors production (primary model only)', () => {
-  const run = src('scripts/parity/run.mjs');
-  assert.match(run, /delete ai\.llm\.modelFallback/);
-});
-
 test('P25 no-fallback: render heal never swaps a hyperframe scene to a template (P10 stays animation-only)', () => {
   const b6 = src('src/pipeline/stages/render.js');
   assert.match(b6, /sc\.template !== 'kinetic-statement' && sc\.template !== 'hyperframe'/, 'hyperframe scenes retry as-is');
