@@ -3,8 +3,7 @@ data/
 vendor/
 *.log
 .DS_Store
-# Local editor and tool settings
-.claude/
+# Local editor settings
 .vscode/
 .idea/
 # Build artefacts, including dist/private/*.map — the release sourcemap, which would undo the
