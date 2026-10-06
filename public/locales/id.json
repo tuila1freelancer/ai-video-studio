@@ -539,7 +539,6 @@
   "srv.⏳ Đã xếp vào hàng đợi sản xuất": "⏳ Masuk antrean produksi",
   "srv.⏳ Đã xếp vào hàng đợi sản xuất (video hẹn lịch)": "⏳ Masuk antrean produksi (video terjadwal)",
   "srv.⏸ Giữ ở cổng duyệt cảnh — chờ bạn duyệt storyboard rồi mới lồng tiếng": "⏸ Tertahan di gerbang review — tunggu persetujuan storyboard sebelum isi voice",
-  "srv.⏸ Đã dừng nhận việc: mọi tác vụ đang chạy đã xong": "⏸ Berhenti terima tugas: semua tugas berjalan selesai",
   "srv.⏹ Đã dừng render theo yêu cầu": "⏹ Render dihentikan sesuai permintaan",
   "srv.⏹ Đã dừng theo yêu cầu của bạn": "⏹ Dihentikan sesuai permintaanmu",
   "srv.▶ Tiếp tục pipeline": "▶ Lanjutkan pipeline",

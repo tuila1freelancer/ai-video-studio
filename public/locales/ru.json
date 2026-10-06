@@ -539,7 +539,6 @@
   "srv.⏳ Đã xếp vào hàng đợi sản xuất": "⏳ Добавлено в очередь сборки",
   "srv.⏳ Đã xếp vào hàng đợi sản xuất (video hẹn lịch)": "⏳ В очереди сборки (запланированное видео)",
   "srv.⏸ Giữ ở cổng duyệt cảnh — chờ bạn duyệt storyboard rồi mới lồng tiếng": "⏸ Ожидание утверждения раскадровки перед озвучкой",
-  "srv.⏸ Đã dừng nhận việc: mọi tác vụ đang chạy đã xong": "⏸ Прием задач остановлен: текущие процессы завершены",
   "srv.⏹ Đã dừng render theo yêu cầu": "⏹ Рендер остановлен по запросу",
   "srv.⏹ Đã dừng theo yêu cầu của bạn": "⏹ Остановлено по вашему запросу",
   "srv.▶ Tiếp tục pipeline": "▶ Продолжить конвейер",

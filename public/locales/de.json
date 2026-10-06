@@ -539,7 +539,6 @@
   "srv.⏳ Đã xếp vào hàng đợi sản xuất": "⏳ In Produktions-Warteschlange eingereiht",
   "srv.⏳ Đã xếp vào hàng đợi sản xuất (video hẹn lịch)": "⏳ In Produktions-Warteschlange eingereiht (geplantes Video)",
   "srv.⏸ Giữ ở cổng duyệt cảnh — chờ bạn duyệt storyboard rồi mới lồng tiếng": "⏸ Szenenprüfung pausiert — wartet auf Storyboard-Freigabe vor Vertonung",
-  "srv.⏸ Đã dừng nhận việc: mọi tác vụ đang chạy đã xong": "⏸ Auftragsannahme gestoppt: Laufende Aufgaben abgeschlossen",
   "srv.⏹ Đã dừng render theo yêu cầu": "⏹ Rendern wie angefordert gestoppt",
   "srv.⏹ Đã dừng theo yêu cầu của bạn": "⏹ Vorgang wie angefordert gestoppt",
   "srv.▶ Tiếp tục pipeline": "▶ Pipeline fortsetzen",

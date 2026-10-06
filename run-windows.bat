@@ -12,26 +12,26 @@ cd /d "%~dp0"
 
 where node >nul 2>nul
 if errorlevel 1 (
-  echo [X] Khong tim thay Node. Cai Node 22 tro len tai https://nodejs.org roi chay lai.
+  echo [X] Node.js not found. Install Node 22 from https://nodejs.org and run this again.
   pause
   exit /b 1
 )
 
 if not exist "node_modules\" (
-  echo [*] Cai dependency lan dau...
-  call npm install --omit=dev || (echo [X] npm install that bai & pause & exit /b 1)
+  echo [*] Installing dependencies (first run)...
+  call npm install --omit=dev || (echo [X] npm install failed & pause & exit /b 1)
 )
 
-echo [*] Khoi dong AI Video Studio...
+echo [*] Starting AI Video Studio...
 start "" /b node src\server.js
 
 rem The server prints AVS_READY with its port; give it a moment, then open the browser.
 timeout /t 6 /nobreak >nul
 for /f "usebackq tokens=*" %%u in (`type data\server.url 2^>nul`) do set AVS_URL=%%u
 if "%AVS_URL%"=="" set AVS_URL=http://127.0.0.1:8123
-echo [*] Mo %AVS_URL%
+echo [*] Opening %AVS_URL%
 start "" "%AVS_URL%"
 
 echo.
-echo Dong cua so nay se tat server.
+echo Closing this window stops the server.
 pause >nul

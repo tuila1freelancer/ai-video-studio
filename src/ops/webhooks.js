@@ -45,9 +45,9 @@ async function deliver(hook, kind, body, deliveryId) {
       });
       if (res.ok) return true;
       // 4xx is the receiver saying no; repeating it changes nothing.
-      if (res.status < 500) { logger.warn(`webhook ${kind} → ${res.status}, bỏ qua`); return false; }
+      if (res.status < 500) { logger.warn(`webhook ${kind} → ${res.status}, giving up`, { terminal: true }); return false; }
     } catch (e) {
-      if (attempt === BACKOFF_MS.length - 1) logger.warn(`webhook ${kind} thất bại: ${e.message}`);
+      if (attempt === BACKOFF_MS.length - 1) logger.warn(`webhook ${kind} failed: ${e.message}`, { terminal: true });
     }
     await sleep(BACKOFF_MS[attempt]);
   }
@@ -67,7 +67,7 @@ export function notifyWebhooks(kind, data = {}) {
     if (!hooks.length) return 0;
     const body = JSON.stringify({ event: kind, at: Date.now(), data });
     for (const hook of hooks) {
-      if (inflight >= MAX_INFLIGHT) { logger.warn(`webhook ${kind}: hàng đợi đầy, bỏ lần gửi này`); break; }
+      if (inflight >= MAX_INFLIGHT) { logger.warn(`webhook ${kind}: queue full, dropping this delivery`, { terminal: true }); break; }
       inflight += 1;
       sent += 1;
       void deliver(hook, kind, body, newId('whk')).finally(() => { inflight -= 1; });

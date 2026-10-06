@@ -55,7 +55,7 @@ async function boot() {
     const pending = stopRequestedProjects();
     if (pending.length) {
       hydrateStops(pending);
-      logger.info(`boot recovery: ${pending.length} dự án đã được yêu cầu dừng — giữ nguyên trạng thái dừng`);
+      logger.info(`boot recovery: ${pending.length} project(s) had a stop requested — keeping them stopped`);
     }
     // After P13's project recovery: requeue jobs orphaned by the dead process and start the
     // scheduler — queued/batched work continues across restarts instead of being stranded.
@@ -93,7 +93,7 @@ async function boot() {
   // "rebuild" appears to fix things that a rebuild has nothing to do with.
   server.on('error', (e) => {
     if (e?.code === 'EADDRINUSE') {
-      logger.error(`cổng ${PORT} đang bị chiếm — một server AI Video Studio khác vẫn đang chạy. Thoát tiến trình cũ rồi mở lại (App: thoát hẳn app; terminal: kill tiến trình 'node src/server.js').`);
+      logger.error(`port ${PORT} is already in use — another AI Video Studio server is still running. Stop it and start again (app: quit it from the menu bar or tray; terminal: kill the 'node src/server.js' process).`);
       console.error(`AVS_PORT_IN_USE ${PORT}`);
     } else {
       logger.error(`server listen failed: ${e?.message || e}`);

@@ -24,7 +24,7 @@ module.exports = {
     if (context.electronPlatformName !== 'win32') return;
     const src = join(__dirname, 'shell', 'build', 'win-payload', 'node_modules');
     const dest = join(context.appOutDir, 'resources', 'app-payload', 'node_modules');
-    if (!existsSync(src)) throw new Error(`afterPack: thiếu ${src} — build-windows.mjs phải dựng payload trước`);
+    if (!existsSync(src)) throw new Error(`afterPack: ${src} missing — build-windows.mjs must build the payload first`);
     cpSync(src, dest, { recursive: true });
     // macOS sprinkles .DS_Store through any directory it touches during the build; strip them from
     // the whole packed tree here, after every copy and before NSIS packs it, so none ship.

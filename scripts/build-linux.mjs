@@ -42,18 +42,18 @@ function die(msg) {
 }
 
 // ── 1. Preconditions ───────────────────────────────────────────────────────────────────────────
-console.log('· kiểm tra điều kiện…');
-try { cap('go', ['version']); } catch { die('chưa cài Go — cần Go 1.22+ để dựng launcher.\n  Cài: brew install go'); }
-if (!existsSync(HOST_NODE)) die('thiếu vendor/node — chạy: npm run node:fetch');
+console.log('· checking prerequisites…');
+try { cap('go', ['version']); } catch { die('Go is not installed — Go 1.22+ is needed to build the launcher.\n  Install: brew install go'); }
+if (!existsSync(HOST_NODE)) die('vendor/node is missing — run: npm run node:fetch');
 const NODE_VER = cap(HOST_NODE, ['-v']); // the single source of truth for V8
-console.log(`  node dự án: ${NODE_VER}`);
+console.log(`  project node: ${NODE_VER}`);
 
 // ── 2. Vendored Linux runtime, pinned to the same version ────────────────────────────────────────
 if (!existsSync(LINUX_NODE)) {
-  console.log('· tải node Linux…');
+  console.log('· fetching the Linux node runtime…');
   run(HOST_NODE, [join(ROOT, 'scripts', 'fetch-node.mjs'), '--linux']);
 }
-if (!existsSync(LINUX_NODE)) die('không lấy được vendor/node-linux/bin/node');
+if (!existsSync(LINUX_NODE)) die('could not fetch vendor/node-linux/bin/node');
 
 // ── 3–5. Bundle → bytecode → encrypt (fresh per-build key) ───────────────────────────────────────
 rmSync(OUT, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
@@ -62,31 +62,31 @@ console.log('· bundle src → server.cjs…');
 run(HOST_NODE, [join(ROOT, 'scripts', 'build-bundle.mjs'), '--out', PAYLOAD, '--map-out', join(ROOT, 'dist', 'private')]);
 
 const APP_KEY = process.env.AVS_APP_KEY || randomBytes(32).toString('hex'); // RAM only, until it is compiled in
-console.log('· biên dịch bytecode + mã hoá…');
+console.log('· compiling bytecode + encrypting…');
 run(HOST_NODE, [join(ROOT, 'scripts', 'build-bytecode.mjs'), '--in', join(PAYLOAD, 'server.cjs'), '--out', PAYLOAD, '--key', APP_KEY]);
 rmSync(join(PAYLOAD, 'server.cjs'), { force: true }); // the plaintext bundle never ships
 for (const f of ['app.jsc', 'app.jsc.json', 'loader.cjs']) {
-  if (!existsSync(join(PAYLOAD, f))) die(`bytecode thiếu ${f}`);
+  if (!existsSync(join(PAYLOAD, f))) die(`bytecode is missing ${f}`);
 }
 
 // ── 6. Go launcher, with the key compiled in ─────────────────────────────────────────────────────
 // The same source as the Windows launcher: job_other.go is already the non-Windows stub, and the
 // paths it resolves (./node-*/bin/node, ./app-payload) are the layout this script writes.
-console.log('· dựng launcher Go (nhúng khoá)…');
+console.log('· building the Go launcher (key embedded)…');
 const LAUNCHER = join(OUT, 'avs-launcher');
 // nodeRel: the Windows default points at node-win/node.exe, which is not where a Linux payload
 // keeps its runtime. One source, three layouts, each named at build time.
 run('go', ['build', '-trimpath', '-ldflags', `-s -w -X main.appKey=${APP_KEY} -X main.nodeRel=node-linux/bin/node`, '-o', LAUNCHER, '.'],
   { cwd: join(ROOT, 'shell', 'win-launcher'), env: { ...process.env, GOOS: 'linux', GOARCH: 'amd64', CGO_ENABLED: '0' } });
-if (!existsSync(LAUNCHER)) die('không dựng được avs-launcher');
+if (!existsSync(LAUNCHER)) die('could not build avs-launcher');
 chmodSync(LAUNCHER, 0o755);
 
 // ── 7. Frontend ──────────────────────────────────────────────────────────────────────────────────
-console.log('· dựng frontend…');
+console.log('· building the frontend…');
 run(HOST_NODE, [join(ROOT, 'scripts', 'build-frontend.mjs'), '--out', join(PAYLOAD, 'public')]);
 
 // ── 8. Production deps, then the linux-x64 better-sqlite3 swapped in ─────────────────────────────
-console.log('· cài dependencies production…');
+console.log('· installing production dependencies…');
 const stage = mkdtempSync(join(tmpdir(), 'avs-linux-'));
 copyFileSync(join(ROOT, 'package.json'), join(stage, 'package.json'));
 copyFileSync(join(ROOT, 'package-lock.json'), join(stage, 'package-lock.json'));
@@ -95,12 +95,12 @@ run(HOST_NODE, [HOST_NPM, 'ci', '--omit=dev', '--silent'],
 cpSync(join(stage, 'node_modules'), join(PAYLOAD, 'node_modules'), { recursive: true });
 rmSync(stage, { recursive: true, force: true });
 
-console.log('· hoán better-sqlite3 sang ABI Node-linux-x64…');
+console.log('· swapping better-sqlite3 to the Node linux-x64 ABI…');
 const bsqlite = join(PAYLOAD, 'node_modules', 'better-sqlite3');
 run(join(ROOT, 'node_modules', '.bin', 'prebuild-install'),
   ['-r', 'node', '-t', NODE_VER.replace(/^v/, ''), '--arch', 'x64', '--platform', 'linux', '--tag-prefix', 'v'],
   { cwd: bsqlite });
-if (!existsSync(join(bsqlite, 'build', 'Release', 'better_sqlite3.node'))) die('không lấy được better_sqlite3.node (linux-x64)');
+if (!existsSync(join(bsqlite, 'build', 'Release', 'better_sqlite3.node'))) die('could not fetch better_sqlite3.node (linux-x64)');
 
 // ── 9. package.json + lock so the server's ROOT resolves ─────────────────────────────────────────
 copyFileSync(join(ROOT, 'package.json'), join(PAYLOAD, 'package.json'));
@@ -115,7 +115,7 @@ for (const v of ['gsap', 'libs', 'fonts']) {
 }
 
 // ── 11. Scrub (mirror scrub_payload in build-app.sh) ─────────────────────────────────────────────
-console.log('· dọn payload…');
+console.log('· cleaning the payload…');
 scrub(OUT);
 
 // ── 12. Audit (HARD GATE) ────────────────────────────────────────────────────────────────────────
@@ -123,8 +123,8 @@ console.log('· audit payload…');
 run(HOST_NODE, [join(ROOT, 'scripts', 'audit-linux.mjs'), '--dist', OUT]);
 
 console.log(`\n✅ Xong: ${OUT}`);
-console.log('   Chạy: ./avs-launcher   (AVS_MODE=server AVS_HOST=0.0.0.0 AVS_DATA_DIR=/data …)');
-console.log('   ⚠ Bytecode được biên dịch trên macOS cho Linux — bắt buộc smoke-test boot thật (docker build/run).');
+console.log('   Run: ./avs-launcher   (AVS_MODE=server AVS_HOST=0.0.0.0 AVS_DATA_DIR=/data …)');
+console.log('   ⚠ Bytecode was compiled on macOS for Linux — a real boot smoke test is required (docker build/run).');
 
 // ── helpers ──────────────────────────────────────────────────────────────────────────────────────
 function scrub(dir) {

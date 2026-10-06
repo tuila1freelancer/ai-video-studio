@@ -539,7 +539,6 @@
   "srv.⏳ Đã xếp vào hàng đợi sản xuất": "⏳ Production queued",
   "srv.⏳ Đã xếp vào hàng đợi sản xuất (video hẹn lịch)": "⏳ Production queued (scheduled video)",
   "srv.⏸ Giữ ở cổng duyệt cảnh — chờ bạn duyệt storyboard rồi mới lồng tiếng": "⏸ Paused at review gate — approve storyboard before voiceover",
-  "srv.⏸ Đã dừng nhận việc: mọi tác vụ đang chạy đã xong": "⏸ Stopped accepting jobs: all running tasks finished",
   "srv.⏹ Đã dừng render theo yêu cầu": "⏹ Render stopped on request",
   "srv.⏹ Đã dừng theo yêu cầu của bạn": "⏹ Stopped on your request",
   "srv.▶ Tiếp tục pipeline": "▶ Resume pipeline",

@@ -16,7 +16,7 @@ export function bootstrapToken(env = process.env) {
   if (countApiTokens() > 0) return null;
   const scopes = String(env.AVS_BOOTSTRAP_SCOPES || 'read,produce,publish').split(',').map((s) => s.trim()).filter(Boolean);
   const made = createApiToken({ name: String(name).slice(0, 80) || 'bootstrap', scopes });
-  logger.warn(`API token đầu tiên (${made.name}): ${made.token}`);
-  logger.warn('Token này nằm trong log — dùng để kết nối lần đầu, sau đó tạo token mới và thu hồi nó.');
+  logger.warn(`First API token (${made.name}): ${made.token}`);
+  logger.warn('This token is in the log — use it for the first connection, then mint a new one and revoke it.');
   return made.token;
 }

@@ -23,12 +23,12 @@ const work = mkdtempSync(join(tmpdir(), 'avs-image-audit-'));
 const container = `avs-audit-${Date.now().toString(36)}`;
 
 try {
-  console.log(`· xuất ${IMAGE}…`);
+  console.log(`· exporting ${IMAGE}…`);
   execFileSync('docker', ['create', '--name', container, IMAGE], { stdio: 'ignore' });
   // export | tar: the only way to read a layer's real contents without running the image.
   execFileSync('sh', ['-c', `docker export ${container} | tar -x -C ${work} app`], { stdio: 'inherit' });
   if (!existsSync(join(work, 'app', 'app-payload'))) {
-    console.error(`✖ image không có /app/app-payload`);
+    console.error(`✖ image has no /app/app-payload`);
     process.exit(1);
   }
   execFileSync(process.execPath, [join(ROOT, 'scripts', 'audit-linux.mjs'), '--dist', join(work, 'app')], { stdio: 'inherit' });

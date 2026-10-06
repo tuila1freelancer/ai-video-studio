@@ -128,7 +128,7 @@ export function tick() {
     if (!acceptingWork()) {
       if (opsState().state === 'draining' && running.size === 0) {
         setOpsState('paused', { by: 'scheduler', reason: 'drained' });
-        logger.info(m('⏸ Đã dừng nhận việc: mọi tác vụ đang chạy đã xong'));
+        logger.info('⏸ Queue paused: every running job has finished');
       }
       scheduleTick(5_000);
       return;

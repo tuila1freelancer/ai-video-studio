@@ -238,8 +238,7 @@ export async function upload({
   const vertical = /^(9:16|4:5)$/.test(String(aspectRatio));
   const args = { pageId: c.pageId, token: c.pageToken, videoPath, title, description: body, scheduledAt: when, onLog };
   const out = vertical ? await uploadReel(args) : await uploadFeedVideo(args);
-  // i18n-exempt: logger.info carries no projectId, so this line never leaves the terminal (util/log.js).
-  logger.info(`Facebook: ${when ? 'đã lên lịch' : 'đã đăng'} ${vertical ? 'reel' : 'video'} ${out.videoId}`);
+  logger.info(`Facebook: ${when ? 'scheduled' : 'published'} ${vertical ? 'reel' : 'video'} ${out.videoId}`);
   if (firstComment) {
     try { await comment(out.videoId, firstComment); onLog(m('💬 Đã đăng bình luận đầu tiên')); }
     catch (e) { logger.warn(`Facebook first comment: ${e.message}`); }

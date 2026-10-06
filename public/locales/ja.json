@@ -539,7 +539,6 @@
   "srv.⏳ Đã xếp vào hàng đợi sản xuất": "⏳ 生成キューに追加しました",
   "srv.⏳ Đã xếp vào hàng đợi sản xuất (video hẹn lịch)": "⏳ 生成キューに追加しました（予約動画）",
   "srv.⏸ Giữ ở cổng duyệt cảnh — chờ bạn duyệt storyboard rồi mới lồng tiếng": "⏸ シーン確認で一時停止中 — 絵コンテ承認後にボイスを生成します",
-  "srv.⏸ Đã dừng nhận việc: mọi tác vụ đang chạy đã xong": "⏸ 受付停止: 実行中タスクはすべて完了しました",
   "srv.⏹ Đã dừng render theo yêu cầu": "⏹ 要求に応じてレンダリングを停止しました",
   "srv.⏹ Đã dừng theo yêu cầu của bạn": "⏹ 要求に応じて停止しました",
   "srv.▶ Tiếp tục pipeline": "▶ パイプラインを再開",

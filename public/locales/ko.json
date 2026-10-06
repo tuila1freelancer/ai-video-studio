@@ -539,7 +539,6 @@
   "srv.⏳ Đã xếp vào hàng đợi sản xuất": "⏳ 제작 대기열에 추가됨",
   "srv.⏳ Đã xếp vào hàng đợi sản xuất (video hẹn lịch)": "⏳ 제작 대기열에 추가됨 (예약 비디오)",
   "srv.⏸ Giữ ở cổng duyệt cảnh — chờ bạn duyệt storyboard rồi mới lồng tiếng": "⏸ 장면 검토 대기 — 스토리보드 승인 후 음성 생성 진행",
-  "srv.⏸ Đã dừng nhận việc: mọi tác vụ đang chạy đã xong": "⏸ 작업 접수 중지: 실행 중인 모든 작업 완료됨",
   "srv.⏹ Đã dừng render theo yêu cầu": "⏹ 요청에 따라 렌더링 중단됨",
   "srv.⏹ Đã dừng theo yêu cầu của bạn": "⏹ 요청에 따라 중단됨",
   "srv.▶ Tiếp tục pipeline": "▶ 파이프라인 계속",

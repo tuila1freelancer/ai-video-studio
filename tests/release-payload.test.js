@@ -28,7 +28,7 @@ test('the dist payload ships bytecode, and the launcher can start it', () => {
   assert.match(swift, /stdinPipe\.fileHandleForWriting\.write\(Data\(\(APP_KEY \+ "\\n"\)\.utf8\)\)/);
   assert.doesNotMatch(swift, /env\["APP_KEY"\]/, 'the key must never reach the environment');
   // And the build refuses to ship a payload that still has source in it.
-  assert.match(build, /payload vẫn còn mã nguồn trong src\//);
+  assert.match(build, /payload still contains source under src\//);
 });
 
 test('the UI ships hashed and split: one entry, preloaded static graph, lazy chunks, no dead hints', async () => {

@@ -127,7 +127,7 @@ test('a wrong key is fatal, and so is a tampered file', () => {
     input: `${'b'.repeat(64)}\n`,
   });
   assert.equal(wrong.status, 1);
-  assert.match(wrong.stderr, /sai khoá hoặc file đã bị sửa/);
+  assert.match(wrong.stderr, /wrong key or the file was modified/);
 
   // GCM authenticates, so a flipped byte and a wrong key are the same refusal — which is what
   // keeps a patched app.jsc from booting at all.
@@ -151,5 +151,5 @@ test('a wrong key is fatal, and so is a tampered file', () => {
 test('no key at all is refused rather than guessed at', () => {
   const r = spawnSync(NODE, [...V8_FLAGS, join(encDir, 'loader.cjs')], { encoding: 'utf8', input: '' });
   assert.equal(r.status, 1);
-  assert.match(r.stderr, /khoá giải mã không hợp lệ/);
+  assert.match(r.stderr, /invalid decryption key/);
 });

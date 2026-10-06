@@ -53,22 +53,22 @@ const files = walk(APP);
 
 // 1. No JavaScript source of ours, anywhere.
 const ourJs = files.filter((f) => f.startsWith(join(PAYLOAD, 'src')) && f.endsWith('.js'));
-note(ourJs.length === 0, 'không còn file src/*.js trong payload', `${ourJs.length} file`);
+note(ourJs.length === 0, 'no src/*.js files left in the payload', `${ourJs.length} file`);
 
 // 2. The payload entry is bytecode, and it is encrypted.
 let meta = null;
 try { meta = JSON.parse(readFileSync(join(PAYLOAD, 'app.jsc.json'), 'utf8')); } catch { /* reported below */ }
-note(Boolean(meta), 'app.jsc.json có mặt');
-note(meta?.encrypted === true, 'bytecode đã được mã hoá', meta ? `v8 ${meta.v8}` : '');
+note(Boolean(meta), 'app.jsc.json present');
+note(meta?.encrypted === true, 'bytecode is encrypted', meta ? `v8 ${meta.v8}` : '');
 
 // 3. Housekeeping the old build shipped: 519 dependency READMEs, .DS_Store, sourcemaps.
 const junk = {
   '.DS_Store': files.filter((f) => basename(f) === '.DS_Store'),
   'sourcemap': files.filter((f) => f.endsWith('.map')),
-  'markdown (trừ licence)': files.filter((f) => /\.(md|markdown)$/i.test(f) && !/licen[cs]e|copying|notice/i.test(basename(f))),
+  'markdown (licences excepted)': files.filter((f) => /\.(md|markdown)$/i.test(f) && !/licen[cs]e|copying|notice/i.test(basename(f))),
 };
 for (const [label, hits] of Object.entries(junk)) {
-  note(hits.length === 0, `không có ${label}`, hits.length ? `${hits.length}: ${hits.slice(0, 2).map((f) => f.slice(APP.length + 1)).join(', ')}` : '');
+  note(hits.length === 0, `no ${label}`, hits.length ? `${hits.length}: ${hits.slice(0, 2).map((f) => f.slice(APP.length + 1)).join(', ')}` : '');
 }
 
 // 4. The doctrine itself, searched byte-exact in both encodings. UTF-16 matters: the Vietnamese
@@ -85,27 +85,27 @@ for (const f of files) {
     }
   }
 }
-note(leaks.length === 0, `không đọc được doctrine trong ${scanned} file`, leaks.join(' | '));
+note(leaks.length === 0, `no readable doctrine in ${scanned} files`, leaks.join(' | '));
 
 // 6. The Agent Kit travels with the app, readable and keyless — it is the one part that is meant
 //    to be read. Absent, a user who never cloned the repo has no way to point an agent here.
 const KIT = join(PAYLOAD, 'packages', 'avs-kit');
 const kitFiles = existsSync(KIT) ? walk(KIT) : [];
-note(existsSync(join(KIT, 'bin', 'avs-mcp.mjs')), 'Agent Kit có mặt trong payload', `${kitFiles.length} file`);
+note(existsSync(join(KIT, 'bin', 'avs-mcp.mjs')), 'Agent Kit present in the payload', `${kitFiles.length} file`);
 const kitHex = kitFiles.filter((f) => /[0-9a-f]{64}/i.test(readFileSync(f, 'utf8')));
-note(kitHex.length === 0, 'kit không chứa khoá 64-hex', kitHex.map((f) => f.slice(KIT.length + 1)).join(', '));
+note(kitHex.length === 0, 'kit holds no 64-hex key', kitHex.map((f) => f.slice(KIT.length + 1)).join(', '));
 
 // 5. The launcher runs bytecode, and the window hands over no inspector.
 const launcher = readFileSync(join(APP, 'Contents', 'MacOS', 'AI Video Studio'));
-note(launcher.includes(Buffer.from('loader.cjs')), 'launcher chạy loader.cjs');
-note(launcher.includes(Buffer.from('--no-lazy')), 'launcher truyền --no-lazy', 'thiếu cờ này thì V8 không trả về gì');
-note(!launcher.includes(Buffer.from('src/server.js')), 'launcher không còn trỏ vào mã nguồn');
+note(launcher.includes(Buffer.from('loader.cjs')), 'launcher runs loader.cjs');
+note(launcher.includes(Buffer.from('--no-lazy')), 'launcher passes --no-lazy', 'without it V8 returns nothing');
+note(!launcher.includes(Buffer.from('src/server.js')), 'launcher no longer points at source');
 const swift = readFileSync(join(ROOT, 'shell', 'main.swift'), 'utf8');
-note(/EXTRA_ENV\["AVS_DIST"\] != "1", forKey: "developerExtrasEnabled"/.test(swift), 'DevTools tắt trong bản dist');
+note(/EXTRA_ENV\["AVS_DIST"\] != "1", forKey: "developerExtrasEnabled"/.test(swift), 'DevTools disabled in the dist build');
 
 console.log();
 if (failures.length) {
-  console.error(`✖ Bản dựng KHÔNG đạt: ${failures.length} mục — ${failures.join('; ')}\n`);
+  console.error(`✖ Build FAILED: ${failures.length} check(s) — ${failures.join('; ')}\n`);
   process.exit(1);
 }
-console.log(`✅ Bản dựng kín: ${scanned} file đã quét, không có mã nguồn hay doctrine nào đọc được.\n`);
+console.log(`✅ Build sealed: ${scanned} files scanned, no readable source or doctrine.\n`);

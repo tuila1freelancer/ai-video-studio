@@ -84,7 +84,7 @@ export async function qaSpec(spec, { w = 1080, h = 1920, duration, beats, det = 
     // timeline coverage
     const tlDur = await page.evaluate(() => (window.__tl ? window.__tl.totalDuration() : 0));
     if (!init.tplErr) {
-      if (tlDur < dur - 0.4) defects.push({ code: 'FROZEN_TAIL', detail: `timeline ${tlDur.toFixed(2)}s < DUR ${dur.toFixed(2)}s (đóng băng cuối)` });
+      if (tlDur < dur - 0.4) defects.push({ code: 'FROZEN_TAIL', detail: `timeline ${tlDur.toFixed(2)}s < DUR ${dur.toFixed(2)}s (frozen tail)` });
       if (tlDur > dur + 1.5) warnings.push({ code: 'OVERSHOOT', detail: `timeline ${tlDur.toFixed(2)}s > DUR ${dur.toFixed(2)}s` });
     }
     // sample times: scene open, each beat peak + gap, DUR tail
@@ -106,16 +106,16 @@ export async function qaSpec(spec, { w = 1080, h = 1920, duration, beats, det = 
         if (e.cy > 0.82 * H) offenders.SUBTITLE_COLLISION.push({ t, ...e });
       }
       if (Math.abs(t - 0.05) < 0.001 && vis.filter((e) => e.o > 0.55).length > 3) {
-        warnings.push({ code: 'START_NOT_EMPTY', detail: `${vis.filter((e) => e.o > 0.55).length} element hiện rõ ở t=0` });
+        warnings.push({ code: 'START_NOT_EMPTY', detail: `${vis.filter((e) => e.o > 0.55).length} elements clearly visible at t=0` });
       }
     }
-    if (!anyVisibleEver && !init.tplErr) defects.push({ code: 'NO_ELEMENTS', detail: 'không element nào hiển thị suốt cảnh' });
+    if (!anyVisibleEver && !init.tplErr) defects.push({ code: 'NO_ELEMENTS', detail: 'no element is visible at any point in the scene' });
     // rich density (prompt v5): a hero cluster + decor + settled builds standing together is
     // the intended look — only flag genuinely swarming frames
-    if (maxAtOnce > 9) warnings.push({ code: 'CROWDED', detail: `tối đa ${maxAtOnce} element cùng lúc` });
+    if (maxAtOnce > 9) warnings.push({ code: 'CROWDED', detail: `up to ${maxAtOnce} elements at once` });
     // dedupe offenders to one representative each
-    if (offenders.OFFSCREEN.length) { const o = offenders.OFFSCREEN[0]; defects.push({ code: 'OFFSCREEN', detail: `"${o.txt||o.cls}" tràn ${o.overflow}px @${o.t}s (bbox ${o.x},${o.y} ${o.w}x${o.h})`, count: offenders.OFFSCREEN.length }); }
-    if (offenders.SUBTITLE_COLLISION.length) { const o = offenders.SUBTITLE_COLLISION[0]; defects.push({ code: 'SUBTITLE_COLLISION', detail: `"${o.txt||o.cls}" ở đáy (cy=${o.cy}/${h}) @${o.t}s — đè phụ đề`, count: offenders.SUBTITLE_COLLISION.length }); }
+    if (offenders.OFFSCREEN.length) { const o = offenders.OFFSCREEN[0]; defects.push({ code: 'OFFSCREEN', detail: `"${o.txt||o.cls}" overflows ${o.overflow}px @${o.t}s (bbox ${o.x},${o.y} ${o.w}x${o.h})`, count: offenders.OFFSCREEN.length }); }
+    if (offenders.SUBTITLE_COLLISION.length) { const o = offenders.SUBTITLE_COLLISION[0]; defects.push({ code: 'SUBTITLE_COLLISION', detail: `"${o.txt||o.cls}" at the bottom (cy=${o.cy}/${h}) @${o.t}s — overlaps the subtitles`, count: offenders.SUBTITLE_COLLISION.length }); }
 
     if (det && !init.tplErr) {
       // Match the production renderer: fresh page, forward-only monotonic seeks (never reuse

@@ -539,7 +539,6 @@
   "srv.⏳ Đã xếp vào hàng đợi sản xuất": "⏳ 已加入制作队列",
   "srv.⏳ Đã xếp vào hàng đợi sản xuất (video hẹn lịch)": "⏳ 已加入制作队列（定时视频）",
   "srv.⏸ Giữ ở cổng duyệt cảnh — chờ bạn duyệt storyboard rồi mới lồng tiếng": "⏸ 暂停在场景审核 — 等待审核分镜后再配音",
-  "srv.⏸ Đã dừng nhận việc: mọi tác vụ đang chạy đã xong": "⏸ 已停止接收任务：所有运行中任务已完成",
   "srv.⏹ Đã dừng render theo yêu cầu": "⏹ 已按要求停止渲染",
   "srv.⏹ Đã dừng theo yêu cầu của bạn": "⏹ 已按要求停止",
   "srv.▶ Tiếp tục pipeline": "▶ 继续流程",

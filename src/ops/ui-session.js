@@ -48,7 +48,7 @@ export function uiSessionToken() {
   }
   const made = createApiToken({ name: 'app window', scopes: ['admin'], system: true });
   session = made.token;
-  logger.info('app window: phiên nội bộ đã sẵn sàng');
+  logger.info('app window: internal session ready');
   return session;
 }
 

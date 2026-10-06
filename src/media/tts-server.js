@@ -76,7 +76,7 @@ export function stopSupertonic(cfg = {}) {
   if (p) {
     try { p.kill('SIGTERM'); } catch { /* already gone */ }
     procs.delete('supertonic');
-    logger.info(`[TTS] đã dừng Supertonic (port ${portOf(supertonicUrl(cfg))})`);
+    logger.info(`[TTS] stopped Supertonic (port ${portOf(supertonicUrl(cfg))})`);
     return true;
   }
   return false;
@@ -96,7 +96,7 @@ export async function ensureSupertonic(cfg = {}, { restart = false, waitMs = 600
   }
   const launcher = supertonicLauncher();
   if (!launcher) {
-    logger.info('[TTS] Supertonic chưa cài (pip install supertonic) — bỏ qua');
+    logger.info('[TTS] Supertonic is not installed (pip install supertonic) — skipping');
     return false;
   }
   const url = new URL(base);
@@ -106,13 +106,13 @@ export async function ensureSupertonic(cfg = {}, { restart = false, waitMs = 600
   });
   child.stdout?.on('data', (b) => { const s = String(b).trim(); if (s) logger.info(`[TTS][supertonic] ${s}`); });
   child.stderr?.on('data', (b) => { const s = String(b).trim(); if (s) logger.info(`[TTS][supertonic] ${s}`); });
-  child.on('exit', (code) => { if (procs.get('supertonic') === child) { procs.delete('supertonic'); logger.info(`[TTS] Supertonic thoát code ${code}`); } });
+  child.on('exit', (code) => { if (procs.get('supertonic') === child) { procs.delete('supertonic'); logger.info(`[TTS] Supertonic exited with code ${code}`); } });
   child.on('error', (e) => { procs.delete('supertonic'); logger.warn(tp`[TTS] Supertonic lỗi process: ${e.message}`); });
   procs.set('supertonic', child);
 
   const deadline = Date.now() + waitMs;
   while (Date.now() < deadline) {
-    if (await isAlive(base, 2000)) { logger.info(`[TTS] Supertonic sẵn sàng tại ${base}`); return true; }
+    if (await isAlive(base, 2000)) { logger.info(`[TTS] Supertonic ready at ${base}`); return true; }
     await sleep(1000);
   }
   logger.warn(tp`[TTS] Supertonic không sẵn sàng trong ${Math.round(waitMs / 1000)}s`);
@@ -144,7 +144,7 @@ export async function ensureVieneu(cfg = {}, { waitMs = 120000 } = {}) {
   if (await isAlive(base)) return true;
   const py = vieneuPython(cfg.repoDir);
   if (!py) {
-    logger.info('[TTS] VieNeu chưa cài (chạy `uv sync` trong thư mục VieNeu-TTS) — bỏ qua');
+    logger.info('[TTS] VieNeu is not installed (run `uv sync` in the VieNeu-TTS folder) — skipping');
     return false;
   }
   const url = new URL(base);
@@ -156,13 +156,13 @@ export async function ensureVieneu(cfg = {}, { waitMs = 120000 } = {}) {
   const relay = (b) => { const s = String(b).trim(); if (s) logger.info(`[TTS][vieneu] ${s.slice(0, 300)}`); };
   child.stdout?.on('data', relay);
   child.stderr?.on('data', relay);
-  child.on('exit', (code) => { if (procs.get('vieneu') === child) { procs.delete('vieneu'); logger.info(`[TTS] VieNeu thoát code ${code}`); } });
+  child.on('exit', (code) => { if (procs.get('vieneu') === child) { procs.delete('vieneu'); logger.info(`[TTS] VieNeu exited with code ${code}`); } });
   child.on('error', (e) => { procs.delete('vieneu'); logger.warn(tp`[TTS] VieNeu lỗi process: ${e.message}`); });
   procs.set('vieneu', child);
 
   const deadline = Date.now() + waitMs;
   while (Date.now() < deadline) {
-    if (await isAlive(base, 2000)) { logger.info(`[TTS] VieNeu sẵn sàng tại ${base}`); return true; }
+    if (await isAlive(base, 2000)) { logger.info(`[TTS] VieNeu ready at ${base}`); return true; }
     await sleep(1500);
   }
   logger.warn(tp`[TTS] VieNeu không sẵn sàng trong ${Math.round(waitMs / 1000)}s`);

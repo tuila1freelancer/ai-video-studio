@@ -46,7 +46,7 @@ function arg(name, fallback) {
 const inFile = resolve(ROOT, arg('in', join('dist', 'bundle', 'server.cjs')));
 const outDir = resolve(ROOT, arg('out', join('dist', 'bundle')));
 const keyHex = arg('key', '');
-if (keyHex && !/^[0-9a-f]{64}$/i.test(keyHex)) throw new Error('--key phải là 32 byte hex');
+if (keyHex && !/^[0-9a-f]{64}$/i.test(keyHex)) throw new Error('--key must be 32 bytes of hex');
 
 // The runtime that ships is the runtime that must compile: cached data is tied to the V8 build.
 if (process.execPath !== VENDOR_NODE || V8_FLAGS.some((f) => !process.execArgv.includes(f))) {

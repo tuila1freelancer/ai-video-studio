@@ -52,37 +52,37 @@ const target = WIN
 if (existsSync(target.bin) && !FORCE) {
   if (WIN || LINUX) {
     // A foreign binary cannot be run here to check its version, so existence is the skip signal.
-    console.log(`${target.dest.replace(ROOT + '/', '')} đã có runtime — bỏ qua (dùng --force để tải lại)`);
+    console.log(`${target.dest.replace(ROOT + '/', '')} already has a runtime — skipping (use --force to download again)`);
     process.exit(0);
   }
   const have = execFileSync(target.bin, ['-v'], { encoding: 'utf8' }).trim();
   if (have === `v${VERSION}`) {
-    console.log(`vendor/node đã có ${have} — bỏ qua (dùng --force để tải lại)`);
+    console.log(`vendor/node already has ${have} — skipping (use --force to download again)`);
     process.exit(0);
   }
 }
 
 const base = `https://nodejs.org/dist/v${VERSION}`;
 const file = `${target.name}.${target.ext}`;
-console.log(`tải ${file} …`);
+console.log(`downloading ${file} …`);
 
 const sums = await (await fetch(`${base}/SHASUMS256.txt`)).text();
 const expected = sums.split('\n').find((l) => l.endsWith(`  ${file}`))?.split(/\s+/)[0];
 if (!expected) {
-  console.error(`✖ không tìm thấy ${file} trong SHASUMS256 của v${VERSION}`);
+  console.error(`✖ ${file} not found in the SHASUMS256 of v${VERSION}`);
   process.exit(1);
 }
 
 const res = await fetch(`${base}/${file}`);
 if (!res.ok) {
-  console.error(`✖ tải thất bại: HTTP ${res.status}`);
+  console.error(`✖ download failed: HTTP ${res.status}`);
   process.exit(1);
 }
 const bytes = Buffer.from(await res.arrayBuffer());
 const actual = createHash('sha256').update(bytes).digest('hex');
 if (actual !== expected) {
   // A runtime is the most dangerous thing to install unverified: it executes everything else.
-  console.error(`✖ checksum sai\n   chờ đợi: ${expected}\n   nhận:    ${actual}`);
+  console.error(`✖ checksum mismatch\n   expected: ${expected}\n   got:      ${actual}`);
   process.exit(1);
 }
 
@@ -111,8 +111,8 @@ if (WIN || LINUX) {
   // proves it is the right one, and the loader refuses at boot if the V8 inside disagrees.
   const { statSync } = await import('node:fs');
   const mb = (statSync(target.bin).size / 1e6).toFixed(1);
-  console.log(`✅ ${target.bin.replace(`${ROOT}/`, '')} (v${VERSION}, ${mb} MB) — checksum khớp`);
+  console.log(`✅ ${target.bin.replace(`${ROOT}/`, '')} (v${VERSION}, ${mb} MB) — checksum verified`);
 } else {
   const version = execFileSync(target.bin, ['-v'], { encoding: 'utf8' }).trim();
-  console.log(`✅ vendor/node ${version} (${ARCH}) — checksum khớp`);
+  console.log(`✅ vendor/node ${version} (${ARCH}) — checksum verified`);
 }

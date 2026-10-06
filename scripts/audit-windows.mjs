@@ -55,33 +55,33 @@ function walk(dir, out = []) {
 }
 
 if (!existsSync(RESOURCES)) {
-  console.error(`✖ không thấy ${RESOURCES} — chạy build trước`);
+  console.error(`✖ ${RESOURCES} not found — run the build first`);
   process.exit(1);
 }
 
 // 1. No JavaScript source of ours — not in the asar, not in the payload.
 let asarPaths = [];
-try { asarPaths = asar.listPackage(ASAR); } catch (e) { note(false, 'đọc được app.asar', e.message); }
+try { asarPaths = asar.listPackage(ASAR); } catch (e) { note(false, 'app.asar is readable', e.message); }
 const asarSrc = asarPaths.filter((p) => /(^|[/\\])src[/\\].*\.js$/i.test(p));
-note(asarSrc.length === 0, 'không có src/*.js trong app.asar', asarSrc.slice(0, 3).join(', '));
+note(asarSrc.length === 0, 'no src/*.js in app.asar', asarSrc.slice(0, 3).join(', '));
 const payloadSrc = walk(join(PAYLOAD, 'src')).filter((f) => f.endsWith('.js'));
-note(payloadSrc.length === 0, 'không có src/*.js trong payload', `${payloadSrc.length} file`);
+note(payloadSrc.length === 0, 'no src/*.js in the payload', `${payloadSrc.length} file`);
 
 // 2. The payload entry is bytecode, and it is encrypted.
 let meta = null;
 try { meta = JSON.parse(readFileSync(join(PAYLOAD, 'app.jsc.json'), 'utf8')); } catch { /* reported */ }
-note(Boolean(meta), 'app.jsc.json có mặt');
-note(meta?.encrypted === true, 'bytecode đã được mã hoá', meta ? `v8 ${meta.v8}` : '');
+note(Boolean(meta), 'app.jsc.json present');
+note(meta?.encrypted === true, 'bytecode is encrypted', meta ? `v8 ${meta.v8}` : '');
 
 // 3. Housekeeping.
 const resFiles = walk(RESOURCES);
 const junk = {
   '.DS_Store': resFiles.filter((f) => basename(f) === '.DS_Store'),
   sourcemap: resFiles.filter((f) => f.endsWith('.map')),
-  'markdown (trừ licence)': resFiles.filter((f) => /\.(md|markdown)$/i.test(f) && !/licen[cs]e|copying|notice/i.test(basename(f))),
+  'markdown (licences excepted)': resFiles.filter((f) => /\.(md|markdown)$/i.test(f) && !/licen[cs]e|copying|notice/i.test(basename(f))),
 };
 for (const [label, hits] of Object.entries(junk)) {
-  note(hits.length === 0, `không có ${label}`, hits.length ? `${hits.length}: ${hits.slice(0, 2).map((f) => f.slice(RESOURCES.length + 1)).join(', ')}` : '');
+  note(hits.length === 0, `no ${label}`, hits.length ? `${hits.length}: ${hits.slice(0, 2).map((f) => f.slice(RESOURCES.length + 1)).join(', ')}` : '');
 }
 
 // 4. The doctrine itself, byte-exact in both encodings — over the app.asar blob (a src regression
@@ -99,45 +99,45 @@ for (const f of [ASAR, ...walk(PAYLOAD)]) {
     }
   }
 }
-note(leaks.length === 0, `không đọc được doctrine trong ${scanned} file`, leaks.join(' | '));
+note(leaks.length === 0, `no readable doctrine in ${scanned} files`, leaks.join(' | '));
 
 // 5. The launcher runs bytecode and no longer points at source. It legitimately CARRIES the key, so
 //    it is never scanned for one.
 const launcher = existsSync(LAUNCHER) ? readFileSync(LAUNCHER) : Buffer.alloc(0);
-note(launcher.length > 0, 'avs-launcher.exe có mặt');
-note(launcher.includes(Buffer.from('loader.cjs')), 'launcher chạy loader.cjs');
-note(launcher.includes(Buffer.from('--no-lazy')), 'launcher truyền --no-lazy', 'thiếu cờ này thì V8 không trả về gì');
-note(!launcher.includes(Buffer.from('src/server.js')) && !launcher.includes(Buffer.from('src\\server.js')), 'launcher không trỏ vào mã nguồn');
+note(launcher.length > 0, 'avs-launcher.exe present');
+note(launcher.includes(Buffer.from('loader.cjs')), 'launcher runs loader.cjs');
+note(launcher.includes(Buffer.from('--no-lazy')), 'launcher passes --no-lazy', 'without it V8 returns nothing');
+note(!launcher.includes(Buffer.from('src/server.js')) && !launcher.includes(Buffer.from('src\\server.js')), 'launcher does not point at source');
 
 // 6. The Electron main process hands over no inspector and stays isolated.
 let mainCjs = '';
 for (const name of ['shell/electron/main.cjs', '/shell/electron/main.cjs']) {
   try { mainCjs = asar.extractFile(ASAR, name).toString('utf8'); break; } catch { /* try next */ }
 }
-note(/contextIsolation:\s*true/.test(mainCjs), 'main.cjs bật contextIsolation');
-note(/nodeIntegration:\s*false/.test(mainCjs), 'main.cjs tắt nodeIntegration');
-note(/devTools:\s*(!app\.isPackaged|false)/.test(mainCjs), 'main.cjs tắt DevTools khi đóng gói');
+note(/contextIsolation:\s*true/.test(mainCjs), 'main.cjs enables contextIsolation');
+note(/nodeIntegration:\s*false/.test(mainCjs), 'main.cjs disables nodeIntegration');
+note(/devTools:\s*(!app\.isPackaged|false)/.test(mainCjs), 'main.cjs disables DevTools when packaged');
 
 // 7. better-sqlite3 is the Windows (PE) binary — Node ABI 127, not the Electron ABI @electron/rebuild
 //    would have produced, and not the macOS Mach-O.
 let sqliteOk = false;
-let sqliteWhat = 'thiếu file';
+let sqliteWhat = 'file missing';
 if (existsSync(SQLITE)) {
   const head = readFileSync(SQLITE).subarray(0, 4);
   const isPE = head[0] === 0x4d && head[1] === 0x5a; // 'MZ'
   const isMachO = head[0] === 0xcf && head[1] === 0xfa; // 0xcffaedfe little-endian
   const isELF = head[0] === 0x7f && head[1] === 0x45; // 0x7f 'E'
   sqliteOk = isPE && !isMachO && !isELF;
-  sqliteWhat = isPE ? 'PE/Windows' : isMachO ? 'Mach-O/macOS (SAI)' : isELF ? 'ELF/Linux (SAI)' : 'không nhận dạng';
+  sqliteWhat = isPE ? 'PE/Windows' : isMachO ? 'Mach-O/macOS (WRONG)' : isELF ? 'ELF/Linux (WRONG)' : 'unrecognised';
 }
-note(sqliteOk, 'better_sqlite3.node là binary Windows', sqliteWhat);
+note(sqliteOk, 'better_sqlite3.node is a Windows binary', sqliteWhat);
 
 // 7b. The Agent Kit travels with the app, readable and keyless — the one part meant to be read.
 const KIT = join(PAYLOAD, 'packages', 'avs-kit');
 const kitFiles = walk(KIT);
-note(existsSync(join(KIT, 'bin', 'avs-mcp.mjs')), 'Agent Kit có mặt trong payload', `${kitFiles.length} file`);
+note(existsSync(join(KIT, 'bin', 'avs-mcp.mjs')), 'Agent Kit present in the payload', `${kitFiles.length} file`);
 const kitHex = kitFiles.filter((f) => /[0-9a-f]{64}/i.test(readFileSync(f, 'utf8')));
-note(kitHex.length === 0, 'kit không chứa khoá 64-hex', kitHex.map((f) => f.slice(KIT.length + 1)).join(', '));
+note(kitHex.length === 0, 'kit holds no 64-hex key', kitHex.map((f) => f.slice(KIT.length + 1)).join(', '));
 
 // 8. The AES key lives ONLY in the launcher. It must not have leaked into readable JS or the meta.
 //    (app.jsc.json.sha256 is a legitimate 64-hex value, so the meta is checked by field, not by
@@ -145,13 +145,13 @@ note(kitHex.length === 0, 'kit không chứa khoá 64-hex', kitHex.map((f) => f.
 const hex64 = /[0-9a-f]{64}/i;
 const keyTokens = /appkey|app_key/i;
 const mainClean = mainCjs && !hex64.test(mainCjs) && !keyTokens.test(mainCjs);
-note(Boolean(mainClean), 'main.cjs không chứa khoá', mainCjs ? '' : 'không đọc được main.cjs');
+note(Boolean(mainClean), 'main.cjs holds no key', mainCjs ? '' : 'main.cjs unreadable');
 const metaClean = meta && !('key' in meta) && !Object.keys(meta).some((k) => keyTokens.test(k));
-note(Boolean(metaClean), 'app.jsc.json không chứa khoá');
+note(Boolean(metaClean), 'app.jsc.json holds no key');
 
 console.log();
 if (failures.length) {
-  console.error(`✖ Bản Windows KHÔNG đạt: ${failures.length} mục — ${failures.join('; ')}\n`);
+  console.error(`✖ Windows build FAILED: ${failures.length} check(s) — ${failures.join('; ')}\n`);
   process.exit(1);
 }
-console.log(`✅ Bản Windows kín: ${scanned} file đã quét, không có mã nguồn, doctrine hay khoá nào đọc được.\n`);
+console.log(`✅ Windows build sealed: ${scanned} files scanned, no readable source, doctrine or key.\n`);

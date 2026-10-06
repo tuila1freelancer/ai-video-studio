@@ -16,6 +16,8 @@ export function log(level, msg, meta = {}) {
   if (level === 'error') console.error(line);
   else console.log(line);
   writeLogLine(`${level.toUpperCase()} ${msg}`);
+  // Operator-only lines (webhook delivery, server lifecycle) never belong in a project's journal.
+  if (meta.terminal) return;
   // Attribution: explicit meta wins; warn/error inside a run auto-attach the run's project
   // via the ALS context — provider-level failures (TTS/whisper/imagegen fallbacks) explain
   // quality drops and MUST reach that project's journal even without threaded ids.

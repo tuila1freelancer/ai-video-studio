@@ -539,7 +539,6 @@
   "srv.⏳ Đã xếp vào hàng đợi sản xuất": "⏳ En cola de producción",
   "srv.⏳ Đã xếp vào hàng đợi sản xuất (video hẹn lịch)": "⏳ En cola de producción (video programado)",
   "srv.⏸ Giữ ở cổng duyệt cảnh — chờ bạn duyệt storyboard rồi mới lồng tiếng": "⏸ En espera: aprueba el storyboard antes de generar la voz",
-  "srv.⏸ Đã dừng nhận việc: mọi tác vụ đang chạy đã xong": "⏸ Recepción detenida: tareas activas finalizadas",
   "srv.⏹ Đã dừng render theo yêu cầu": "⏹ Renderizado detenido",
   "srv.⏹ Đã dừng theo yêu cầu của bạn": "⏹ Proceso detenido por el usuario",
   "srv.▶ Tiếp tục pipeline": "▶ Reanudar flujo",

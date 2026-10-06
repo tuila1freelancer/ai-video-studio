@@ -33,18 +33,18 @@ function die(msg) {
 }
 
 // ── 1. Preconditions ───────────────────────────────────────────────────────────────────────────
-console.log('· kiểm tra điều kiện…');
-try { cap('go', ['version']); } catch { die('chưa cài Go — cần Go 1.22+ để dựng launcher Windows.\n  Cài: brew install go'); }
-if (!existsSync(MAC_NODE)) die('thiếu vendor/node (macOS) — chạy: npm run node:fetch');
+console.log('· checking prerequisites…');
+try { cap('go', ['version']); } catch { die('Go is not installed — Go 1.22+ is needed to build the Windows launcher.\n  Install: brew install go'); }
+if (!existsSync(MAC_NODE)) die('vendor/node (macOS) is missing — run: npm run node:fetch');
 const NODE_VER = cap(MAC_NODE, ['-v']); // e.g. v22.22.1 — the single source of truth for V8
-console.log(`  node dự án: ${NODE_VER}`);
+console.log(`  project node: ${NODE_VER}`);
 
 // ── 2. Vendored Windows node.exe (pinned to the mac node's version) ───────────────────────────────
 if (!existsSync(WIN_NODE)) {
-  console.log('· tải node.exe Windows…');
+  console.log('· fetching the Windows node.exe…');
   run(MAC_NODE, [join(ROOT, 'scripts', 'fetch-node.mjs'), '--win']);
 }
-if (!existsSync(WIN_NODE)) die('không lấy được vendor/node-win/node.exe');
+if (!existsSync(WIN_NODE)) die('could not fetch vendor/node-win/node.exe');
 
 // ── 3–5. Bundle → bytecode → encrypt (with a fresh per-build key) ─────────────────────────────────
 // maxRetries: the external SSD occasionally throws ENOTEMPTY on a recursive remove mid-flight.
@@ -54,25 +54,25 @@ console.log('· bundle src → server.cjs…');
 run(MAC_NODE, [join(ROOT, 'scripts', 'build-bundle.mjs'), '--out', PAYLOAD, '--map-out', join(ROOT, 'dist', 'private')]);
 
 const APP_KEY = randomBytes(32).toString('hex'); // in RAM only until it is compiled into the launcher
-console.log('· biên dịch bytecode + mã hoá…');
+console.log('· compiling bytecode + encrypting…');
 run(MAC_NODE, [join(ROOT, 'scripts', 'build-bytecode.mjs'), '--in', join(PAYLOAD, 'server.cjs'), '--out', PAYLOAD, '--key', APP_KEY]);
 rmSync(join(PAYLOAD, 'server.cjs'), { force: true }); // the plaintext bundle never ships
 for (const f of ['app.jsc', 'app.jsc.json', 'loader.cjs']) {
-  if (!existsSync(join(PAYLOAD, f))) die(`bytecode thiếu ${f}`);
+  if (!existsSync(join(PAYLOAD, f))) die(`bytecode is missing ${f}`);
 }
 
 // ── 6. Go launcher, with the key compiled in ─────────────────────────────────────────────────────
-console.log('· dựng launcher Go (nhúng khoá)…');
+console.log('· building the Go launcher (key embedded)…');
 run('go', ['build', '-trimpath', '-ldflags', `-s -w -X main.appKey=${APP_KEY}`, '-o', LAUNCHER, '.'],
   { cwd: join(ROOT, 'shell', 'win-launcher'), env: { ...process.env, GOOS: 'windows', GOARCH: 'amd64', CGO_ENABLED: '0' } });
-if (!existsSync(LAUNCHER)) die('không dựng được avs-launcher.exe');
+if (!existsSync(LAUNCHER)) die('could not build avs-launcher.exe');
 
 // ── 7. Frontend (minified UI + locales) ──────────────────────────────────────────────────────────
-console.log('· dựng frontend…');
+console.log('· building the frontend…');
 run(MAC_NODE, [join(ROOT, 'scripts', 'build-frontend.mjs'), '--out', join(PAYLOAD, 'public')]);
 
 // ── 8. Production deps, staged, then the Windows-ABI better-sqlite3 swapped in ────────────────────
-console.log('· cài dependencies production…');
+console.log('· installing production dependencies…');
 const stage = mkdtempSync(join(tmpdir(), 'avs-win-'));
 copyFileSync(join(ROOT, 'package.json'), join(stage, 'package.json'));
 copyFileSync(join(ROOT, 'package-lock.json'), join(stage, 'package-lock.json'));
@@ -84,14 +84,14 @@ run(MAC_NODE, [MAC_NPM, 'ci', '--omit=dev', '--silent'],
 cpSync(join(stage, 'node_modules'), join(PAYLOAD, 'node_modules'), { recursive: true });
 rmSync(stage, { recursive: true, force: true });
 
-console.log('· hoán better-sqlite3 sang ABI Node-win-x64…');
+console.log('· swapping better-sqlite3 to the Node win-x64 ABI…');
 const bsqlite = join(PAYLOAD, 'node_modules', 'better-sqlite3');
 const version = NODE_VER.replace(/^v/, '');
 run(join(ROOT, 'node_modules', '.bin', 'prebuild-install'),
   ['-r', 'node', '-t', version, '--arch', 'x64', '--platform', 'win32', '--tag-prefix', 'v'],
   { cwd: bsqlite });
 const sqliteBin = join(bsqlite, 'build', 'Release', 'better_sqlite3.node');
-if (!existsSync(sqliteBin)) die('không lấy được better_sqlite3.node (win32-x64)');
+if (!existsSync(sqliteBin)) die('could not fetch better_sqlite3.node (win32-x64)');
 
 // ── 9. package.json + lock so the server's ROOT resolves ─────────────────────────────────────────
 copyFileSync(join(ROOT, 'package.json'), join(PAYLOAD, 'package.json'));
@@ -105,21 +105,21 @@ for (const v of ['gsap', 'libs', 'fonts']) {
   if (existsSync(join(ROOT, 'vendor', v))) cpSync(join(ROOT, 'vendor', v), join(PAYLOAD, 'vendor', v), { recursive: true });
 }
 if (!existsSync(join(ROOT, 'vendor', 'ffmpeg-win', 'ffmpeg.exe'))) {
-  console.log('· tải ffmpeg Windows…');
+  console.log('· fetching the Windows ffmpeg…');
   try { run(MAC_NODE, [join(ROOT, 'scripts', 'fetch-ffmpeg-win.mjs')]); } catch { /* fall through to warn */ }
 }
 if (existsSync(join(ROOT, 'vendor', 'ffmpeg-win', 'ffmpeg.exe'))) {
   cpSync(join(ROOT, 'vendor', 'ffmpeg-win'), join(PAYLOAD, 'vendor', 'ffmpeg'), { recursive: true });
-  console.log('  ✓ đã đóng ffmpeg Windows (libass)');
+  console.log('  ✓ bundled the Windows ffmpeg (libass)');
 } else {
-  console.warn('  ⚠ KHÔNG có vendor/ffmpeg-win — bản Windows sẽ cần ffmpeg hệ thống (C:\\ffmpeg\\bin hoặc PATH); phụ đề libass cần ffmpeg vendored. Chạy: npm run ffmpeg:fetch:win');
+  console.warn('  ⚠ NO vendor/ffmpeg-win — the Windows build will need a system ffmpeg (C:\\ffmpeg\\bin or PATH); libass subtitles need the vendored ffmpeg. Run: npm run ffmpeg:fetch:win');
 }
 
 // ── 10b. The Agent Kit, shipped as readable source beside the sealed engine ──────────────────────
 cpSync(join(ROOT, 'packages', 'avs-kit'), join(PAYLOAD, 'packages', 'avs-kit'), { recursive: true });
 
 // ── 11. Scrub the payload (mirror scrub_payload in build-app.sh) ──────────────────────────────────
-console.log('· dọn payload…');
+console.log('· cleaning the payload…');
 scrub(PAYLOAD);
 
 // ── 12. electron-builder with the protected config ───────────────────────────────────────────────
@@ -132,11 +132,11 @@ run(join(ROOT, 'node_modules', '.bin', 'electron-builder'),
 // macOS keeps dropping .DS_Store onto the external volume even after the afterPack sweep; clear
 // win-unpacked once more right before the scan (the installer was already packed clean in afterPack).
 try { execFileSync('find', [join(ROOT, 'dist', 'electron', 'win-unpacked'), '-name', '.DS_Store', '-delete'], { stdio: 'ignore' }); } catch { /* best effort */ }
-console.log('· audit bản Windows…');
+console.log('· auditing the Windows build…');
 run(MAC_NODE, [join(ROOT, 'scripts', 'audit-windows.mjs'), '--dist', join(ROOT, 'dist', 'electron', 'win-unpacked')]);
 
-console.log('\n✅ Xong. Bộ cài ở dist/electron/');
-console.log('   ⚠ Bắt buộc: smoke-test trên Windows thật (V8 cache + better-sqlite3 chỉ chứng minh được khi chạy).');
+console.log('\n✅ Done. The installer is in dist/electron/');
+console.log('   ⚠ Required: smoke-test on a real Windows machine (the V8 cache and better-sqlite3 are only proven by running).');
 
 // ── helpers ──────────────────────────────────────────────────────────────────────────────────────
 function scrub(dir) {

@@ -24,21 +24,21 @@ const URL = `https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2
 const SHA256 = 'b8481cf0b9c93cf15fadf70217ba379dd8aef2fa6d08c0abab1037af10a38d8a';
 
 if (existsSync(join(DEST, 'ffmpeg.exe')) && existsSync(join(DEST, 'ffprobe.exe')) && !FORCE) {
-  console.log('vendor/ffmpeg-win đã có ffmpeg.exe + ffprobe.exe — bỏ qua (dùng --force để tải lại)');
+  console.log('vendor/ffmpeg-win already has ffmpeg.exe + ffprobe.exe — skipping (use --force to download again)');
   process.exit(0);
 }
 
-console.log(`tải ${NAME}.zip (~168 MB) …`);
+console.log(`downloading ${NAME}.zip (~168 MB) …`);
 const res = await fetch(URL);
 if (!res.ok) {
-  console.error(`✖ tải thất bại: HTTP ${res.status}`);
+  console.error(`✖ download failed: HTTP ${res.status}`);
   process.exit(1);
 }
 const bytes = Buffer.from(await res.arrayBuffer());
 const actual = createHash('sha256').update(bytes).digest('hex');
 if (actual !== SHA256) {
   // ffmpeg runs untrusted media; an unverified binary is not worth the risk.
-  console.error(`✖ checksum sai\n   chờ đợi: ${SHA256}\n   nhận:    ${actual}`);
+  console.error(`✖ checksum mismatch\n   expected: ${SHA256}\n   got:      ${actual}`);
   process.exit(1);
 }
 
@@ -55,10 +55,10 @@ rmSync(tmp, { force: true });
 const { statSync } = await import('node:fs');
 for (const f of ['ffmpeg.exe', 'ffprobe.exe']) {
   if (!existsSync(join(DEST, f))) {
-    console.error(`✖ thiếu ${f} sau khi giải nén`);
+    console.error(`✖ ${f} missing after extraction`);
     process.exit(1);
   }
   const mb = (statSync(join(DEST, f)).size / 1e6).toFixed(1);
   console.log(`  ✓ ${f} (${mb} MB)`);
 }
-console.log(`✅ vendor/ffmpeg-win (ffmpeg 8.1.2 GPL/libass, win-x64) — checksum khớp`);
+console.log(`✅ vendor/ffmpeg-win (ffmpeg 8.1.2 GPL/libass, win-x64) — checksum verified`);

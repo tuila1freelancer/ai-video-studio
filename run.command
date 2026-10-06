@@ -3,7 +3,7 @@
 cd "$(dirname "$0")"
 export PATH="/opt/homebrew/opt/node@22/bin:$PATH"
 PORT="${AVS_PORT:-8123}"
-echo "🎬 Khởi động AI Video Studio trên http://127.0.0.1:$PORT …"
+echo "🎬 Starting AI Video Studio on http://127.0.0.1:$PORT …"
 AVS_PORT="$PORT" node src/server.js &
 SERVER_PID=$!
 # wait for health
@@ -12,5 +12,5 @@ for i in $(seq 1 60); do
   sleep 0.4
 done
 open "http://127.0.0.1:$PORT"
-echo "Đang chạy (PID $SERVER_PID). Đóng cửa sổ Terminal này để dừng."
+echo "Running (PID $SERVER_PID). Close this Terminal window to stop it."
 wait $SERVER_PID

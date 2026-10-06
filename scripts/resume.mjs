@@ -52,5 +52,5 @@ ws.close(); srv.kill();
 // The real contract: final duration covers ≥ 92% of the narration material.
 const expect = (finScenes || []).reduce((a, s) => a + (s.duration || 0), 0);
 const ok = expect > 0 ? dur >= expect * 0.92 : dur > 600;
-log(`narration total: ${(expect / 60).toFixed(1)} min → ${ok ? 'PASS ✅' : 'FAIL (video ngắn hơn phần lồng tiếng)'}`);
+log(`narration total: ${(expect / 60).toFixed(1)} min → ${ok ? 'PASS ✅' : 'FAIL (video is shorter than the narration)'}`);
 process.exit(ok ? 0 : 1);

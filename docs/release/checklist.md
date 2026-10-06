@@ -36,7 +36,7 @@ npm run shell:build:dist
 vendor/node/bin/node scripts/audit-release.mjs
 ```
 
-- [ ] Audit green, including *Agent Kit có mặt trong payload* and *kit không chứa khoá 64-hex*.
+- [ ] Audit green, including *Agent Kit present in the payload* and *kit holds no 64-hex key*.
 - [ ] Open the built `.app`: the window appears with no key, no account and no sign-in.
 - [ ] Close the window: the app stays in the menu bar, and `curl $(cat ~/Library/Application\
       Support/AI\ Video\ Studio/server.url)/api/health` still answers.
@@ -58,7 +58,7 @@ npm run win:build
 vendor/node/bin/node scripts/audit-windows.mjs
 ```
 
-- [ ] Audit green, including the Agent Kit checks and *better_sqlite3.node là binary Windows*.
+- [ ] Audit green, including the Agent Kit checks and *better_sqlite3.node is a Windows binary*.
 
 On a real Windows machine (Windows 10 or 11, x64):
 

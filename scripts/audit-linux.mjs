@@ -54,30 +54,30 @@ function walk(dir, out = []) {
 }
 
 if (!existsSync(PAYLOAD)) {
-  console.error(`✖ không thấy ${PAYLOAD} — chạy build trước`);
+  console.error(`✖ ${PAYLOAD} not found — run the build first`);
   process.exit(1);
 }
 
 // 1. No JavaScript source of ours.
 const payloadSrc = walk(join(PAYLOAD, 'src')).filter((f) => f.endsWith('.js'));
-note(payloadSrc.length === 0, 'không có src/*.js trong payload', `${payloadSrc.length} file`);
+note(payloadSrc.length === 0, 'no src/*.js in the payload', `${payloadSrc.length} file`);
 
 // 2. The payload entry is bytecode, and it is encrypted.
 let meta = null;
 try { meta = JSON.parse(readFileSync(join(PAYLOAD, 'app.jsc.json'), 'utf8')); } catch { /* reported */ }
-note(Boolean(meta), 'app.jsc.json có mặt');
-note(meta?.encrypted === true, 'bytecode đã được mã hoá', meta ? `v8 ${meta.v8}` : '');
-note(!existsSync(join(PAYLOAD, 'server.cjs')), 'bundle nguyên bản không đi kèm');
+note(Boolean(meta), 'app.jsc.json present');
+note(meta?.encrypted === true, 'bytecode is encrypted', meta ? `v8 ${meta.v8}` : '');
+note(!existsSync(join(PAYLOAD, 'server.cjs')), 'plain bundle not shipped');
 
 // 3. Housekeeping.
 const distFiles = walk(DIST);
 const junk = {
   '.DS_Store': distFiles.filter((f) => basename(f) === '.DS_Store'),
   sourcemap: distFiles.filter((f) => f.endsWith('.map')),
-  'markdown (trừ licence)': distFiles.filter((f) => /\.(md|markdown)$/i.test(f) && !/licen[cs]e|copying|notice/i.test(basename(f))),
+  'markdown (licences excepted)': distFiles.filter((f) => /\.(md|markdown)$/i.test(f) && !/licen[cs]e|copying|notice/i.test(basename(f))),
 };
 for (const [label, hits] of Object.entries(junk)) {
-  note(hits.length === 0, `không có ${label}`, hits.length ? `${hits.length}: ${hits.slice(0, 2).map((f) => f.slice(DIST.length + 1)).join(', ')}` : '');
+  note(hits.length === 0, `no ${label}`, hits.length ? `${hits.length}: ${hits.slice(0, 2).map((f) => f.slice(DIST.length + 1)).join(', ')}` : '');
 }
 
 // 4. The doctrine itself, byte-exact in both encodings. UTF-16 matters: Vietnamese forces two-byte
@@ -94,54 +94,54 @@ for (const f of walk(PAYLOAD)) {
     }
   }
 }
-note(leaks.length === 0, `không đọc được doctrine trong ${scanned} file`, leaks.join(' | '));
+note(leaks.length === 0, `no readable doctrine in ${scanned} files`, leaks.join(' | '));
 
 // 5. The launcher runs bytecode and no longer points at source. It legitimately CARRIES the key, so
 //    it is never scanned for one.
 const launcher = existsSync(LAUNCHER) ? readFileSync(LAUNCHER) : Buffer.alloc(0);
-note(launcher.length > 0, 'avs-launcher có mặt');
-note(launcher.includes(Buffer.from('loader.cjs')), 'launcher chạy loader.cjs');
-note(launcher.includes(Buffer.from('--no-lazy')), 'launcher truyền --no-lazy', 'thiếu cờ này thì V8 không trả về gì');
-note(launcher.includes(Buffer.from('AVS_DIST=1')), 'launcher đặt AVS_DIST', 'thiếu thì DevTools mở trong bản dist');
-note(!launcher.includes(Buffer.from('src/server.js')), 'launcher không trỏ vào mã nguồn');
+note(launcher.length > 0, 'avs-launcher present');
+note(launcher.includes(Buffer.from('loader.cjs')), 'launcher runs loader.cjs');
+note(launcher.includes(Buffer.from('--no-lazy')), 'launcher passes --no-lazy', 'without it V8 returns nothing');
+note(launcher.includes(Buffer.from('AVS_DIST=1')), 'launcher sets AVS_DIST', 'without it DevTools open in the dist build');
+note(!launcher.includes(Buffer.from('src/server.js')), 'launcher does not point at source');
 const elfLauncher = launcher.subarray(0, 4);
-note(elfLauncher[0] === 0x7f && elfLauncher[1] === 0x45, 'launcher là ELF/Linux');
+note(elfLauncher[0] === 0x7f && elfLauncher[1] === 0x45, 'launcher is ELF/Linux');
 
 // 6. better-sqlite3 is the LINUX binary at the Node ABI — not the macOS Mach-O the host built with.
 let sqliteOk = false;
-let sqliteWhat = 'thiếu file';
+let sqliteWhat = 'file missing';
 if (existsSync(SQLITE)) {
   const head = readFileSync(SQLITE).subarray(0, 4);
   const isELF = head[0] === 0x7f && head[1] === 0x45; // 0x7f 'E'
   const isMachO = head[0] === 0xcf && head[1] === 0xfa;
   const isPE = head[0] === 0x4d && head[1] === 0x5a; // 'MZ'
   sqliteOk = isELF && !isMachO && !isPE;
-  sqliteWhat = isELF ? 'ELF/Linux' : isMachO ? 'Mach-O/macOS (SAI)' : isPE ? 'PE/Windows (SAI)' : 'không nhận dạng';
+  sqliteWhat = isELF ? 'ELF/Linux' : isMachO ? 'Mach-O/macOS (WRONG)' : isPE ? 'PE/Windows (WRONG)' : 'unrecognised';
 }
-note(sqliteOk, 'better_sqlite3.node là binary Linux', sqliteWhat);
+note(sqliteOk, 'better_sqlite3.node is a Linux binary', sqliteWhat);
 
 // 7. The runtime that runs the bytecode. A payload for a bare machine carries its own; a container
 //    image uses the one it installed, and then the launcher names an absolute path instead.
 const runtime = join(DIST, 'node-linux', 'bin', 'node');
 if (existsSync(runtime)) {
   const head = readFileSync(runtime).subarray(0, 4);
-  note(head[0] === 0x7f && head[1] === 0x45, 'runtime Node đi kèm là ELF/Linux');
+  note(head[0] === 0x7f && head[1] === 0x45, 'bundled Node runtime is ELF/Linux');
 } else {
-  note(/\/(usr|opt)\/[\w/.-]*node/.test(launcher.toString('latin1')), 'launcher trỏ tới runtime hệ thống',
-    'payload không kèm node-linux — đúng với bản image');
+  note(/\/(usr|opt)\/[\w/.-]*node/.test(launcher.toString('latin1')), 'launcher points at the system runtime',
+    'payload carries no node-linux — expected for the image build');
 }
 
 // 8. The AES key lives ONLY in the launcher. app.jsc.json.sha256 is a legitimate 64-hex value, so
 //    the meta is checked by field rather than by scanning for hex.
 const keyTokens = /appkey|app_key/i;
 const metaClean = meta && !('key' in meta) && !Object.keys(meta).some((k) => keyTokens.test(k));
-note(Boolean(metaClean), 'app.jsc.json không chứa khoá');
+note(Boolean(metaClean), 'app.jsc.json holds no key');
 const loader = existsSync(join(PAYLOAD, 'loader.cjs')) ? readFileSync(join(PAYLOAD, 'loader.cjs'), 'utf8') : '';
-note(Boolean(loader) && !/[0-9a-f]{64}/i.test(loader), 'loader.cjs không chứa khoá');
+note(Boolean(loader) && !/[0-9a-f]{64}/i.test(loader), 'loader.cjs holds no key');
 
 console.log();
 if (failures.length) {
-  console.error(`✖ Bản dựng KHÔNG đạt: ${failures.length} mục — ${failures.join('; ')}\n`);
+  console.error(`✖ Build FAILED: ${failures.length} check(s) — ${failures.join('; ')}\n`);
   process.exit(1);
 }
-console.log(`✅ Bản dựng kín: ${scanned} file đã quét, không có mã nguồn hay doctrine nào đọc được.\n`);
+console.log(`✅ Build sealed: ${scanned} files scanned, no readable source or doctrine.\n`);

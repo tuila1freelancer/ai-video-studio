@@ -86,8 +86,8 @@ for (const id of ids) {
     const scores = a.hashes.map((h, i) => h === b.hashes[i] ? Infinity : psnr(a.bufs[i], b.bufs[i]));
     const worst = Math.min(...scores);
     same = worst >= PSNR_OK;
-    note = ` (raster noise, PSNR tệ nhất ${worst === Infinity ? '∞' : worst.toFixed(1)}dB)`;
-    if (!same) note = ` — PSNR ${worst.toFixed(1)}dB < ${PSNR_OK}dB: DRIFT THẬT`;
+    note = ` (raster noise, worst PSNR ${worst === Infinity ? '∞' : worst.toFixed(1)}dB)`;
+    if (!same) note = ` — PSNR ${worst.toFixed(1)}dB < ${PSNR_OK}dB: REAL DRIFT`;
   }
   const gsapOk = !tpl.script || (a.init && a.init.gsap && !a.init.tplErr);
   if (!same || !gsapOk) {
@@ -95,7 +95,7 @@ for (const id of ids) {
     console.error(`✗ ${id} — deterministic:${same}${note} gsap:${a.init?.gsap} tplErr:${a.init?.tplErr || 'none'}`);
     console.error(`  run1: ${a.hashes.join(' ')}\n  run2: ${b.hashes.join(' ')}`);
   } else {
-    console.log(`✓ ${id} — 2 lần render khớp ${TS.length}/${TS.length} frame${note}${tpl.script ? ' [gsap]' : ''}`);
+    console.log(`✓ ${id} — 2 renders match ${TS.length}/${TS.length} frames${note}${tpl.script ? ' [gsap]' : ''}`);
   }
 }
 await closeBrowser();

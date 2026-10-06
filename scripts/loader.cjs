@@ -26,33 +26,32 @@ let meta;
 try {
   meta = JSON.parse(readFileSync(join(HERE, 'app.jsc.json'), 'utf8'));
 } catch (e) {
-  die(`không đọc được app.jsc.json: ${e.message}`);
+  die(`cannot read app.jsc.json: ${e.message}`);
 }
 
 if (meta.v8 !== process.versions.v8) {
-  die(`bytecode dựng cho V8 ${meta.v8}, runtime này là V8 ${process.versions.v8} — dựng lại bản phát hành`);
+  die(`bytecode was built for V8 ${meta.v8}, this runtime is V8 ${process.versions.v8} — rebuild the release`);
 }
 
 // Checked before anything runs, so a missing flag is a refusal at boot rather than a failure an
 // hour into a render.
 const missing = (meta.flags || []).filter((f) => !process.execArgv.includes(f));
-if (missing.length) die(`thiếu cờ V8: ${missing.join(' ')} — launcher phải chạy node với đúng các cờ này`);
+if (missing.length) die(`missing V8 flags: ${missing.join(' ')} — the launcher must run node with exactly these flags`);
 
 let cachedData = readFileSync(join(HERE, 'app.jsc'));
 
 if (meta.encrypted) {
   // The key comes down stdin from the launcher: not beside the ciphertext on disk, and not in the
   // environment where `ps -E` would print it back. Recovering it means disassembling the launcher
-  // or attaching a debugger — which is the honest ceiling for anything running on the user's own
-  // machine, and the reason the doctrine moves server-side in phase B.
-  if (process.stdin.isTTY) die('thiếu khoá giải mã — app này phải được mở từ AI Video Studio.app');
+  // or attaching a debugger — the honest ceiling for anything running on the user's own machine.
+  if (process.stdin.isTTY) die('decryption key missing — this payload must be started by its launcher');
   let keyHex = '';
   try {
     keyHex = readFileSync(0, 'utf8').trim();
   } catch (e) {
-    die(`không đọc được khoá giải mã: ${e.message}`);
+    die(`cannot read the decryption key: ${e.message}`);
   }
-  if (!/^[0-9a-f]{64}$/i.test(keyHex)) die('khoá giải mã không hợp lệ');
+  if (!/^[0-9a-f]{64}$/i.test(keyHex)) die('invalid decryption key');
   try {
     const iv = cachedData.subarray(0, 12);
     const tag = cachedData.subarray(12, 28);
@@ -62,24 +61,24 @@ if (meta.encrypted) {
     cachedData = Buffer.concat([decipher.update(body), decipher.final()]);
   } catch {
     // GCM authenticates: a wrong key and a tampered file are the same failure, and both are fatal.
-    die('không giải mã được app.jsc — sai khoá hoặc file đã bị sửa');
+    die('cannot decrypt app.jsc — wrong key or the file was modified');
   }
 }
 
 // Checked BEFORE V8 sees it: handed a truncated or half-written app.jsc, V8 does not return an
 // error, it takes the process down with a signal. A half-finished download must report itself.
 const digest = createHash('sha256').update(cachedData).digest('hex');
-if (digest !== meta.sha256) die('app.jsc hỏng hoặc tải thiếu — tải lại bản cài đặt');
+if (digest !== meta.sha256) die('app.jsc is corrupt or incomplete — reinstall the app');
 
 const filename = join(HERE, 'server.cjs');
 // Same length, different bytes: V8 checks the length of the source, never its text.
 const script = new vm.Script(' '.repeat(meta.sourceLength), { cachedData, filename });
 // The likeliest cause by far is a missing --no-lazy, because the cache was built with it.
-if (script.cachedDataRejected) die('V8 từ chối bytecode — thiếu --no-lazy, hoặc sai phiên bản runtime');
+if (script.cachedDataRejected) die('V8 rejected the bytecode — --no-lazy missing, or the wrong runtime version');
 
 const wrapper = script.runInThisContext();
 if (typeof wrapper !== 'function') {
-  die('bytecode không trả về module wrapper — thiếu --no-lazy khi chạy');
+  die('bytecode did not return a module wrapper — --no-lazy missing at launch');
 }
 
 const mod = new Module(filename, null);

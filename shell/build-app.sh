@@ -51,8 +51,8 @@ else
   # A portable runtime is not optional: the Homebrew \`node\` is an 84 KB stub linked against a
   # dozen dylibs under /opt/homebrew, so a bundle carrying it runs here and crashes everywhere.
   if [ ! -x "$ROOT/vendor/node/bin/node" ]; then
-    echo "✖ thiếu runtime Node di động cho bản phát hành."
-    echo "  Chạy: npm run node:fetch"
+    echo "✖ the portable Node runtime for the release build is missing."
+    echo "  Run: npm run node:fetch"
     exit 1
   fi
   echo "node:    vendor/node/bin/node ($("$ROOT/vendor/node/bin/node" -v))"
@@ -95,7 +95,7 @@ chmod +x "$APP/Contents/MacOS/AI Video Studio"
 if [ -f shell/AppIcon.icns ]; then
   cp shell/AppIcon.icns "$APP/Contents/Resources/icon.icns"
 else
-  echo "⚠ shell/AppIcon.icns chưa có — chạy: npm run icon:build"
+  echo "⚠ shell/AppIcon.icns is missing — run: npm run icon:build"
 fi
 
 # Strip everything a running app never reads. Two reasons, one command: 519 dependency READMEs
@@ -172,12 +172,12 @@ if [ "$MODE" = "dist" ]; then
   scrub_payload "$APP/Contents/Resources"
 
   # Sanity: the payload has to be able to answer for itself.
-  [ -f "$APPDIR/app.jsc" ] || { echo "✖ payload thiếu app.jsc"; exit 1; }
-  [ -f "$APPDIR/loader.cjs" ] || { echo "✖ payload thiếu loader.cjs"; exit 1; }
-  [ -d "$APPDIR/node_modules/better-sqlite3" ] || { echo "✖ payload thiếu better-sqlite3"; exit 1; }
+  [ -f "$APPDIR/app.jsc" ] || { echo "✖ payload is missing app.jsc"; exit 1; }
+  [ -f "$APPDIR/loader.cjs" ] || { echo "✖ payload is missing loader.cjs"; exit 1; }
+  [ -d "$APPDIR/node_modules/better-sqlite3" ] || { echo "✖ payload is missing better-sqlite3"; exit 1; }
   # The whole point of the exercise, asserted rather than hoped for.
   if find "$APPDIR/src" -name '*.js' 2>/dev/null | grep -q .; then
-    echo "✖ payload vẫn còn mã nguồn trong src/"; exit 1
+    echo "✖ payload still contains source under src/"; exit 1
   fi
 fi
 
@@ -204,6 +204,6 @@ EOF
 APP_ABS="$(cd "$(dirname "$APP")" && pwd)/$(basename "$APP")"
 echo "✅ Built: $APP_ABS  (v$VERSION, $MODE)"
 if [ "$MODE" = "dist" ]; then
-  echo "   Kích thước: $(du -sh "$APP" | cut -f1)"
+  echo "   Size: $(du -sh "$APP" | cut -f1)"
 fi
-echo "   Mở bằng: open \"$APP_ABS\""
+echo "   Open with: open \"$APP_ABS\""

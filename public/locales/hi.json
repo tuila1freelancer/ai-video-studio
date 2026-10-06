@@ -539,7 +539,6 @@
   "srv.⏳ Đã xếp vào hàng đợi sản xuất": "⏳ प्रोडक्शन कतार में जोड़ा गया",
   "srv.⏳ Đã xếp vào hàng đợi sản xuất (video hẹn lịch)": "⏳ प्रोडक्शन कतार में जोड़ा गया (शेड्यूल वीडियो)",
   "srv.⏸ Giữ ở cổng duyệt cảnh — chờ bạn duyệt storyboard rồi mới lồng tiếng": "⏸ सीन रिव्यू पर रोका — वॉयस से पहले स्टोरीबोर्ड अप्रूवल का इंतज़ार",
-  "srv.⏸ Đã dừng nhận việc: mọi tác vụ đang chạy đã xong": "⏸ नए काम बंद: चल रहे सभी कार्य पूरे हुए",
   "srv.⏹ Đã dừng render theo yêu cầu": "⏹ अनुरोध पर रेंडर रोका गया",
   "srv.⏹ Đã dừng theo yêu cầu của bạn": "⏹ आपके अनुरोध पर रोका गया",
   "srv.▶ Tiếp tục pipeline": "▶ पाइपलाइन जारी रखें",
