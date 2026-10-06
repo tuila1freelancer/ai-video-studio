@@ -27,7 +27,7 @@ test('a project owns its working directory, and NOTHING it merely shares', () =>
 });
 
 test('the confirmation names what disappears, measured rather than guessed', () => {
-  // Deleting takes the files (owner's call, 2026-08-12), so a dialog saying "xoá dự án?" while
+  // Deleting takes the files, so a dialog saying "xoá dự án?" while
   // quietly removing 4 GB is not a confirmation. The footprint is asked for BEFORE the dialog and
   // reports the real file count and the real bytes.
   assert.match(routes, /r\.get\('\/projects\/:id\/footprint'/);

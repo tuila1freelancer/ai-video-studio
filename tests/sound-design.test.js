@@ -83,7 +83,7 @@ test('an audio-only re-join keeps the cover the owner chose', () => {
 
 test('the music and SFX levels are the raised ones, and the SFX bed cannot clip the mix', () => {
   // Measured on video 2: the old 0.11 pre-duck level put the bed at −45 dBFS in the speech gaps,
-  // which reads as present on a meter and as nothing to the ear. Owner asked for more, 2026-08-26.
+  // which reads as present on a meter and as nothing to the ear.
   assert.equal(BGM_VOL_MIN, 0.14);
   assert.equal(BGM_VOL_MAX, 0.28);
   const r = sourceOf('src/pipeline/render.js');

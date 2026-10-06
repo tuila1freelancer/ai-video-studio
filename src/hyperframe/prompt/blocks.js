@@ -43,8 +43,7 @@ export function guideV2Block(guide) {
 // composites onto REAL FOOTAGE via colorkey, so the design rules flip from "build a stage"
 // to "decorate a living picture without hiding it".
 export function overlayBlock({ edit = false } = {}) {
-  // Owner order 2026-08-02: an EVEN frame outranks avoiding whatever text the footage already
-  // burned in. No band is reserved here — the balance doctrine owns placement.
+  // An EVEN frame outranks avoiding whatever text the footage already burned in. No band is reserved here — the balance doctrine owns placement.
   const editNote = edit
     ? `
 - THIS FOOTAGE IS THE OWNER'S OWN VIDEO and the narration you are given is what it ALREADY SAYS out loud at this moment. Your graphics ANNOTATE it — a keyword, a number, a label — they never restate the sentence.`

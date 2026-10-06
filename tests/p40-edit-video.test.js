@@ -125,7 +125,7 @@ test('P40-E: edit mode annotates the footage, and reserves NO band for its subti
   const edit = overlayBlock({ edit: true });
   assert.ok(!/OWNER'S OWN VIDEO/.test(plain), 'plain overlay (B-roll under a narrated scene) is unchanged');
   assert.match(edit, /they never restate the sentence/, 'annotate the footage, do not repeat it');
-  // P41 (owner order): an EVEN frame outranks dodging whatever text the footage burned in —
+  // P41: an EVEN frame outranks dodging whatever text the footage burned in —
   // no band may be reserved here, or the composition gets squeezed into the middle again.
   for (const b of [plain, edit]) assert.ok(!/KEEP THE BOTTOM/.test(b), 'no reserved band');
   // both keep the shared overlay rules

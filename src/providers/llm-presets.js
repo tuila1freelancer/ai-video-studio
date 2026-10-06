@@ -43,13 +43,13 @@
  */
 
 // HyperFrame writes the scene graphics as code, and measured against every other family only
-// Gemini produces markup that renders — owner's call, 2026-08-13. So `codegenModel` is set
+// Gemini produces markup that renders reliably. So `codegenModel` is set
 // ONLY on providers that actually serve a Gemini model; everywhere else it is null and the
 // settings panel says so out loud, because today the mismatch only surfaces as a render
 // failure ten attempts deep (codegen strips modelFallback, so it cannot degrade quietly).
 const GEMINI_CODEGEN = 'gemini-3.1-pro-preview';
 
-// Owner order 2026-08-12: the LLM picker offers ONLY providers that can serve Gemini, because
+// The LLM picker offers ONLY providers that can serve Gemini, because
 // the script and the HyperFrame graphics run on the same setting and a non-Gemini choice makes
 // the second one fail. Thirteen catalogue entries that served nothing but a non-Gemini LLM lane
 // were deleted outright (Cerebras · Mistral · DeepSeek · xAI · Moonshot · Z.ai · Fireworks ·

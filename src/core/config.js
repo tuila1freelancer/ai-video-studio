@@ -66,8 +66,7 @@ const NEW_PROJECT_DEFAULTS = {
   // B2 script path: 'master' = the master script engine (one master prompt → canonical
   // scenes JSON with per-scene 8-bracket visuals). 'legacy' restores the old generateScript.
   scriptEngine: 'master',
-  // Subtitles are printed onto the ASSEMBLED video, never baked into the clips (owner order
-  // 2026-08-06). A caption drawn inside a clip is an INPUT to that clip: changing the font then
+  // Subtitles are printed onto the ASSEMBLED video, never baked into the clips. A caption drawn inside a clip is an INPUT to that clip: changing the font then
   // costs one render per scene, and there is no way to take it back out again. Burning once at
   // the join makes every later subtitle edit cost a single concat.
   //

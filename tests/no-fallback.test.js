@@ -1,4 +1,4 @@
-// P25 — NO-FALLBACK codegen contract (owner order 2026-07-17): the primary model gets up
+// P25 — NO-FALLBACK codegen contract: the primary model gets up
 // to 10 attempts, then the failure THROWS loudly; B5 never swaps in a fallback model or a
 // heuristic template for hyperframe scenes, and strips modelFallback from the codegen ai.
 import './_env.mjs';

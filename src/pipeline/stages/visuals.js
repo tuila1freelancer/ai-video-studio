@@ -34,8 +34,7 @@ export async function runVisuals(ctx) {
   const guide = resolveGuide(config);
   const hfSize = animSize(project.aspect_ratio, 1); // codegen/validate in the LOGICAL canvas — output upscales losslessly
   const totalHf = scenes.length;
-  // Per-video model override for the codegen step. NO-FALLBACK CONTRACT (owner order
-  // 2026-07-17): codegen runs on the PRIMARY model only — modelFallback is stripped so
+  // Per-video model override for the codegen step. NO-FALLBACK CONTRACT (P25): codegen runs on the PRIMARY model only — modelFallback is stripped so
   // chat() can never silently switch to a weaker model mid-scene; quality degradation is
   // a loud failure, never a quiet substitution.
   const baseLlm = ai?.llm ? { ...ai.llm } : null;
@@ -98,7 +97,7 @@ export async function runVisuals(ctx) {
   // plan is kept verbatim — without this, a scene would re-enter codegen on the continue
   // run and silently replace visuals the owner just signed off on.
   const approved = !!DB.getProject(projectId).scenes_approved_at;
-  // NO-FALLBACK CONTRACT (owner order 2026-07-17): a scene the primary model cannot build
+  // NO-FALLBACK CONTRACT (P25): a scene the primary model cannot build
   // in 10 attempts FAILS LOUDLY — no fallback model, no heuristic template. Failures are
   // collected and the stage throws after the pool, so the run lands in the error state
   // with the exact scene list; resume retries ONLY those scenes (they carry no props).

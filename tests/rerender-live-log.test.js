@@ -1,7 +1,7 @@
 // Changing a logo or a subtitle on a finished video: a way in, and something to watch.
 //
-// Owner order 2026-08-06: "khi chỉnh logo hoặc phụ đề của kênh, thì phải có chức năng render lại
-// video hoàn chỉnh, có nhật ký xử lý rõ ràng tiến trình xử lý một cách realtime."
+// Requirement: changing a channel's logo or subtitles must offer to re-render the finished video,
+// with a live processing log that shows progress in real time.
 //
 // Everything needed already existed and none of it was reachable or visible:
 //   - finalize reads the brand kit LIVE from the channel, so a new logo costs one join — but

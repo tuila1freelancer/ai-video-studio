@@ -48,11 +48,10 @@ export async function finalize(projectId, { dir, size, config: given, variantNam
   const firstImg = scenes.find((s) => s.image_path && existsSync(s.image_path))?.image_path;
   const visualMode = config.visualMode || 'hyperframe';
 
-  // No synthetic intro/outro cards (P31, owner order 2026-07-18 — reference-app parity):
-  // the video is the SCRIPT's scenes and nothing else. The master script already ends on a
-  // narrated closing-CTA scene whose HTML the codegen LLM designs like every other scene —
-  // exactly how the reference sessions work (their clip count == scene count). The old
-  // hardcoded farewell card made every video end identically.
+  // No synthetic intro/outro cards (P31): the video is the SCRIPT's scenes and nothing else, so
+  // clip count == scene count. The master script already ends on a narrated closing-CTA scene
+  // whose HTML the codegen LLM designs like every other scene. The old hardcoded farewell card
+  // made every video end identically.
 
   // Doctrine transition plan (P5): hard cuts by default, role-driven hero transitions.
   // Computed BEFORE the SFX bed and QC so their timelines account for xfade overlaps exactly.

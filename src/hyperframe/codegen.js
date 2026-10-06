@@ -155,7 +155,7 @@ export function imageFullBlock(media) {
 
 /**
  * Generate one scene's hyperframe props. Returns { props, beats, direction, warnings }.
- * Owner's contract (2026-07-17): the PRIMARY model gets up to 10 attempts; when they are
+ * No-fallback contract (P25): the PRIMARY model gets up to 10 attempts; when they are
  * exhausted this THROWS and the failure surfaces loudly — no fallback model, no heuristic
  * template (fallback output sits below the quality bar).
  */

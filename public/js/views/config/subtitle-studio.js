@@ -229,8 +229,8 @@ export function updateSubLaneHint(cfg = null) {
 }
 
 // ---------------- the channel remembers its subtitles ----------------
-// Owner order 2026-08-06: editing a channel's subtitles saves them for that channel, so the next
-// video starts where the last one left off. Before this the style lived only in the project being
+// Editing a channel's subtitles saves them for that channel, so the next video starts where the
+// last one left off. Before this the style lived only in the project being
 // edited, and carrying it forward meant finding a save icon inside the channel-management dialog
 // that wrote the WHOLE panel over the channel — so most videos got their font picked again.
 //

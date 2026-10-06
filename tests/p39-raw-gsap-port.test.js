@@ -10,8 +10,8 @@ import * as DB from '../src/db/index.js';
 import { viewportBlock } from '../src/hyperframe/prompt.js';
 
 
-// ai-providers amends this pillar (owner's call 2026-08-13). The pin used to be the constant
-// `ag/gemini-pro-agent`, which exists only on the owner's own proxy — fine while that was the
+// ai-providers amends this pillar. The pin used to be the constant
+// `ag/gemini-pro-agent`, which exists only on one private proxy — fine while that was the
 // only endpoint anyone used, a guaranteed render failure the moment the provider picker let
 // someone choose Groq. The requirement it encoded is unchanged: codegen must run on a strong
 // GEMINI model, because nothing else writes scene markup that renders. It is now resolved from

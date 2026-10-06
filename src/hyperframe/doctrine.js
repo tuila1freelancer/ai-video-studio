@@ -1,14 +1,9 @@
 // Where the codegen doctrine lives, and who talks to the model.
 //
-// Today: both are here on the customer's machine. The 181 KB of prompt in prompt.js is the product,
-// and a release ships it as encrypted bytecode — which stops someone reading it out of the bundle,
-// and does nothing at all about the fact that the customer supplies the LLM endpoint and can read
-// every prompt verbatim in their own provider's dashboard.
-//
-// The owner weighed that and accepted it (2026-08-19) — the requirement is that no source ships, and
-// none does. This module stays anyway, because the boundary is right on its own terms: the re-ask
-// loop has no business knowing what a prompt looks like or which provider answers it. If the sales
-// model ever changes, ENGINEERING.md carries the spec for a second implementation.
+// Both run locally: the prompt is built by prompt.js and sent to whichever LLM endpoint the user
+// configured. The boundary is here so the re-ask loop never needs to know what a prompt looks like
+// or which provider answers it — a remote doctrine service would replace this module and nothing
+// else (ENGINEERING.md carries the spec).
 //
 // The interface is a SESSION, not a function, because getting a scene right takes up to ten rounds
 // of "here is what is wrong, fix it" — and whoever owns the prompt has to own that conversation.

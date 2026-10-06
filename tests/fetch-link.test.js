@@ -189,7 +189,7 @@ test('a model that deletes the article is treated as wrong, not as decisive', as
 });
 
 test('an image that never sat inside the article is not an illustration', () => {
-  // "ảnh không phải nằm trong nội dung bài viết" — the old order was og:image, then in-article,
+  // Images outside the article body are not illustrations. The old order was og:image, then in-article,
   // then EVERYTHING ELSE on the page, so related-story tiles and promos rode along.
   const html = '<article><p>' + 'x'.repeat(260) + '</p>'
     + '<img src="/img/chart.jpg" alt="Biểu đồ tăng trưởng"></article>'

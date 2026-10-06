@@ -13,7 +13,7 @@ import {
 const TIERS = new Set(['free', 'cheap', 'premium', 'local', 'custom']);
 
 test('every preset is well formed', () => {
-  // Owner order 2026-08-12: the LLM picker offers ONLY Gemini-capable providers, because the
+  // The LLM picker offers ONLY Gemini-capable providers, because the
   // script and the HyperFrame graphics run off one setting and a non-Gemini choice makes the
   // second half fail. Thirteen LLM-only entries were deleted; three stay for the image/TTS lanes
   // with lanes.llm:false. So the catalogue is deliberately SMALL now — what has to hold is that
@@ -58,7 +58,7 @@ test('no preset ships a modelFallback', () => {
 });
 
 test('only a provider that actually serves Gemini may pin the codegen model', () => {
-  // Owner's call 2026-08-13: HyperFrame renders correctly only on Gemini, and codegen has no
+  // HyperFrame renders correctly only on Gemini, and codegen has no
   // fallback — a non-Gemini pin is a loud render failure, not a soft downgrade.
   for (const p of LLM_PRESETS) {
     if (!p.codegenModel) continue;

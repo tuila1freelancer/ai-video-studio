@@ -1,7 +1,7 @@
 // Brand Kit — per-channel branding composited into every scene: the channel-name badge and
 // optional stickers, both at USER-FIXED positions. The logo itself never rides the scene
 // pages anymore: it burns once at final concat (the P26 WYSIWYG stamp) — the old 'smart'
-// auto-avoid placement was removed by owner order (2026-07-17, "không thực tế").
+// auto-avoid placement was removed because it could not be made predictable.
 //
 // Determinism contract: the layer is 100% static DOM/CSS (no animations, no randomness at
 // render time — sticker cadence is a pure function of scene index). When brandKit is absent

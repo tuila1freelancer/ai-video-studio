@@ -3,8 +3,8 @@
 // Until now the subtitle style lived only in the project being edited. Getting it onto the next
 // video meant finding a save icon inside the channel-management dialog, which wrote the WHOLE
 // panel over the channel — so the owner re-picked the font for every video, or overwrote settings
-// they never meant to touch. Owner order 2026-08-06: editing a channel's subtitles saves them for
-// that channel, automatically.
+// they never meant to touch. Editing a channel's subtitles now saves them for that channel,
+// automatically.
 //
 // Two rules make it safe to call this on every keystroke:
 //

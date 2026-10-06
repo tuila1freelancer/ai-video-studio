@@ -38,7 +38,7 @@ export function renderProjectList() {
 /**
  * Delete ONE project, files and all.
  *
- * Deleting takes the files with it (owner's call, 2026-08-12), so the dialog has to name what
+ * Deleting takes the files with it, so the dialog has to name what
  * goes: a confirmation that says "xoá dự án?" while quietly removing 4 GB of 4K clips is not a
  * confirmation. The footprint is fetched from the server FIRST — the real file count and the real
  * bytes, not an estimate — and a running project is refused outright rather than deleted out from

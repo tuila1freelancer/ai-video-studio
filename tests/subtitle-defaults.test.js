@@ -1,8 +1,8 @@
 // A channel remembers how its subtitles look — including while they are switched off.
 //
-// Two complaints behind this, both from the owner (2026-08-06):
-//   "chỉnh phụ đề của kênh nào thì phải lưu lại để dùng tự động cho các lần sau"
-//   "bật/tắt phụ đề thì config lúc bật trước đó vẫn phải còn khi bật lại"
+// Two requirements behind this:
+//   - a channel's subtitle edits are saved and reused automatically for its next videos;
+//   - switching subtitles off and on again keeps the configuration they had before.
 //
 // The first was simply not implemented: the subtitle style lived in the project being edited and
 // the only way to carry it forward was a save icon buried in the channel dialog that wrote the

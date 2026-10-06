@@ -38,7 +38,7 @@ export function viewportBlock(w, h, captionsOn) {
     `- TEXT_MAX_W=${X(T.textW)}px (any single text block) · TEXT_BLOCK_MAX_H=${Y(T.textBlockH)}px (no taller vertical text stack).`,
     `- HERO_MAX_W=${X(T.heroW)}px × SUBJECT_MAX_H=${Y(T.subjectH)}px (the hero construction; leave room for its counterweight).`,
     `- CARD_MIN_W=${X(T.cardMin)}px · CARD_MAX_W=${X(T.cardMax)}px (any panel/card).`,
-    // Owner order 2026-08-02: evenness outranks subtitle avoidance. The band is no longer a
+    // Evenness outranks subtitle avoidance. The band is no longer a
     // no-go zone that evicts a third of the frame and pushes every composition upward — only the
     // BIGGEST readable text stays out of it; structure, panels and ambience may live there.
     captionsOn

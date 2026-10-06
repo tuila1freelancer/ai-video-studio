@@ -353,7 +353,7 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
     if (!overlay && w >= h * 1.1 && hadCluster && maxSpread < 0.22 && unionFrac < 0.5) {
       warnings.push(`the composition is stacked on the center axis (readable elements span only ${Math.round(maxSpread * 100)}% of the width) — distribute them across left / center / right per the ratio rules: a wide frame wants a split or an off-center hero with a real counterweight, not everything in the middle.`);
     }
-    // P41 EVENNESS (owner order 2026-08-02: "bố cục và nội dung đều nhau"). Measured across real
+    // P41 EVENNESS: layout and content spread evenly across the frame. Measured across real
     // scenes, the failure is not emptiness but LOPSIDEDNESS: the top corners carried ~0.065 of the
     // ink against a 0.111 fair share while dead-centre carried ~0.192. Named zones make the advice
     // actionable — "put something in the top-left" is a thing a model can do, "distribute weight"

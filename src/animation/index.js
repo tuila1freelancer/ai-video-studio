@@ -302,10 +302,10 @@ export async function renderAnimationScene(scene, project, config, { dir, progre
   return { ...res, preview: existsSync(previewPath) ? previewPath : null };
 }
 
-// (The synthetic "Cảm ơn đã xem" outro clip was removed — P31, owner order 2026-07-18:
-// the video ends on the script's own closing-CTA scene, codegen'd like every other scene,
-// exactly as the reference app does. cta-outro remains a normal TEMPLATE the animation-mode
-// planner may pick for a narrated closing scene — content then comes from the script.)
+// (The synthetic "Cảm ơn đã xem" outro clip was removed — P31: the video ends on the script's
+// own closing-CTA scene, generated like every other scene. cta-outro remains a normal TEMPLATE
+// the animation-mode planner may pick for a narrated closing scene — content then comes from the
+// script.)
 
 // One preview frame (UI helper).
 export async function previewSceneFrame(scene, project, config, { outPath, t } = {}) {

@@ -1,5 +1,5 @@
-// P41 — EVEN LAYOUT. Owner order 2026-08-02: "bố cục và nội dung đều nhau, không cần quan tâm
-// đến phụ đề ghi đè". Pins the three things that make evenness real rather than aspirational:
+// P41 — EVEN LAYOUT: layout and content spread evenly, even where subtitles end up overlapping.
+// Pins the three things that make evenness real rather than aspirational:
 // the few-shot example demonstrates it, nothing reserves a band that squeezes the composition,
 // and the validator measures zones by PRESENCE (a corner kicker is not a hole).
 // Pure/fast: no browser, no ffmpeg, no LLM.

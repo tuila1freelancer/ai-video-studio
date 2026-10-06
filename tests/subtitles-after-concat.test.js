@@ -1,4 +1,4 @@
-// Subtitles are printed onto the finished video. Never before it. (Owner order 2026-08-06.)
+// Subtitles are printed onto the finished video. Never before it.
 //
 // The app used to offer a choice, and the other option was a trap: captions drawn inside a scene
 // page are an INPUT to that scene's clip. Choosing it meant every later subtitle edit — a font, a
