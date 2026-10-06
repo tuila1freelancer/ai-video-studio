@@ -14,5 +14,5 @@
     "avs-mcp": "bin/avs-mcp.mjs"
   },
   "engines": { "node": ">=22" },
-  "license": "UNLICENSED"
+  "license": "MIT"
 }

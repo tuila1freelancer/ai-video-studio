@@ -1,7 +1,28 @@
 {
   "name": "ai-video-studio",
   "version": "1.0.3",
-  "description": "AI Video Studio — tạo video tự động (dài tuỳ ý) cho macOS. Node 22 backend + native WKWebView shell.",
+  "description": "Turn one line of text into a finished, narrated, motion-graphics video. Node.js engine with native macOS and Windows shells.",
+  "license": "MIT",
+  "author": "TuiLa1Freelancer",
+  "homepage": "https://github.com/tuila1freelancer/ai-video-studio#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tuila1freelancer/ai-video-studio.git"
+  },
+  "bugs": {
+    "url": "https://github.com/tuila1freelancer/ai-video-studio/issues"
+  },
+  "keywords": [
+    "video",
+    "ai",
+    "text-to-video",
+    "motion-graphics",
+    "gsap",
+    "ffmpeg",
+    "tts",
+    "subtitles",
+    "mcp"
+  ],
   "type": "module",
   "main": "shell/electron/main.cjs",
   "engines": {
