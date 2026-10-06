@@ -117,7 +117,7 @@ export function normalizeGuide(g) {
     conceptMap: strList(g.conceptMap, 14),
     hud: { kickers: strList(hud.kickers, 6, 24), statuses: strList(hud.statuses, 10, 32) },
     sceneRules: strList(g.sceneRules, 8),
-    // 7-section parity (optional; reference style guides carry all seven): a px type ladder,
+    // 7-section guide (optional; a complete style guide carries all seven): a px type ladder,
     // named text-effect presets and ambient notes travel into the codegen prompt verbatim.
     fontSizes: (() => {
       const fs = g.fontSizes && typeof g.fontSizes === 'object' ? g.fontSizes : {};

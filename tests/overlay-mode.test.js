@@ -53,7 +53,7 @@ test('P24 overlay: lint bans backdrop-filter only in overlay mode; the prompt bl
   assert.ok(/40-50%/.test(block) && /3-layer shadow/.test(block) && /colorkey|keyed transparent/i.test(block));
 });
 
-test('P24 overlay: compositeColorkey is exported with reference defaults', async () => {
+test('P24 overlay: compositeColorkey is exported with its standard defaults', async () => {
   const { compositeColorkey } = await import('../src/media/ffmpeg.js');
   assert.equal(typeof compositeColorkey, 'function');
 });

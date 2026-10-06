@@ -12,7 +12,7 @@ import { langName, majorityLang } from '../util/lang.js';
 import { m, tp } from '../i18n/t.js';
 export const BGM_VOL_MIN = 0.14, BGM_VOL_MAX = 0.28;   // pre-duck linear mix level bounds
 export const SFX_VOL_MIN = 0.3, SFX_VOL_MAX = 1.0;     // per-event linear volume bounds
-export const SFX_MIN_GAP_S = 1.0;                       // reference rule: no two SFX within 1s
+export const SFX_MIN_GAP_S = 1.0;                       // no two SFX within 1s
 
 /** Absolute cue sheet [{t, text}] from per-scene srt_json, on the FINAL timeline. */
 export function buildCueSheet(scenes, lossBeforeScene = () => 0) {
@@ -55,7 +55,7 @@ export function sanitizePlan(raw, { bgm = [], sfx = [], total = 0 } = {}) {
     .sort((a, b) => a.at - b.at);
   let lastAt = -Infinity;
   for (const e of sorted) {
-    if (e.at - lastAt < SFX_MIN_GAP_S) continue; // reference rule: never stack SFX within 1s
+    if (e.at - lastAt < SFX_MIN_GAP_S) continue; // never stack SFX within 1s
     const vol = Math.min(SFX_VOL_MAX, Math.max(SFX_VOL_MIN, Number.isFinite(e.vol) ? e.vol : 0.7));
     events.push({ at: +e.at.toFixed(2), src: e.pick.path, gain: +(20 * Math.log10(vol / 0.75)).toFixed(1) });
     lastAt = e.at;

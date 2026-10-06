@@ -194,7 +194,7 @@ test('P27 transparency gate: an opaque result consumes an attempt and hardens th
 
 // ---- settings-backed provider management + config resolution ----
 
-test('P27 brandEditConfig: throws without a provider; resolves reference defaults with one', () => {
+test('P27 brandEditConfig: throws without a provider; resolves the defaults with one', () => {
   assert.throws(() => brandEditConfig({ imageGen: {} }), /provider/i);
   const cfg = brandEditConfig({ imageGen: { editProviders: [{ id: 'a', label: 'A', baseUrl: 'https://x/v1', apiKey: 'k' }] } });
   assert.equal(cfg.model, 'gpt-image-2');
