@@ -23,7 +23,7 @@ loads the UI in headless Chrome with the network log attached, and reports:
 The database snapshot is the user's real one (105 projects, 3,877 scenes at the time of writing),
 so the numbers describe the app as it is actually used, not an empty install.
 
-## Baseline — before the refactor (2026-09-17, commit `fe04e7f`)
+## Baseline — before the refactor (2026-09-17, commit `26542ca`)
 
 | | vi | en |
 |---|---|---|
@@ -90,7 +90,7 @@ every request in **server mode only**: in desktop mode `apiAuth` returns on its 
 rest is untouched. Measured back to back on the same machine and the same live database, because a
 number from a different day is not a comparison:
 
-| dev tree, vi | `origin/main` (`d2c255c`) | `feat/agent-ops` |
+| dev tree, vi | `origin/main` (`76823cd`) | `feat/agent-ops` |
 |---|---|---|
 | requests | 86 | 87 |
 | bytes on wire | 402 KB | 405 KB |
