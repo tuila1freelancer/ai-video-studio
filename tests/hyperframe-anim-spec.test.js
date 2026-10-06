@@ -1,4 +1,4 @@
-// P37 — reference-parity codegen: the prompt now hands the model concrete ANIMATION_SPEC +
+// P37 — codegen: the prompt now hands the model concrete ANIMATION_SPEC +
 // TIMELINE_SKELETON values in OUR tl.*/FX.* vocabulary (never raw gsap.*), and the caliber gates
 // are relaxed to first-3-attempt nudges (softDefects) so a scene that cleared every HARD
 // readability gate is not homogenized toward one dense look.
@@ -72,7 +72,7 @@ test('P39 render gate: structural floor is HARD (defects), geometry is advisory 
     const l = lineWith(hard);
     assert.ok(l && /defects\.push\(/.test(l), `"${hard}" must be a HARD structural defect`);
   }
-  // every GEOMETRY finding is ADVISORY → warnings.push (reference-parity: validation advisory)
+  // every GEOMETRY finding is ADVISORY → warnings.push
   for (const soft of ['px off-screen', 'reserved for subtitles', 'stacked on the center axis', 'overlap each other', 'is clipped']) {
     const l = lineWith(soft);
     assert.ok(l && /warnings\.push\(/.test(l), `"${soft}" must be an advisory warning`);
@@ -87,7 +87,7 @@ test('P39 render gate: structural floor is HARD (defects), geometry is advisory 
   assert.match(c, /const LANG_REASK_MAX = 3;/, 'bounded — a scene is worth more than a perfect one');
   assert.match(c, /attempt <= LANG_REASK_MAX\) renderDefects = \[\.\.\.renderDefects, \.\.\.renderLangDefects\]/);
   assert.match(c, /vẫn sai ngôn ngữ sau \$\{LANG_REASK_MAX\} lần thử/, 'the downgrade is never silent');
-  // the caliber / contrast nudges are removed entirely (the reference app ships none of them)
+  // the caliber / contrast nudges are removed entirely
   for (const gone of ['reads sparse', 'crafted sub-parts', 'produce no visual response', 'the spoken anchor words', 'is unreadable at']) {
     assert.ok(!v.includes(gone), `"${gone}" caliber/contrast nudge is removed`);
   }

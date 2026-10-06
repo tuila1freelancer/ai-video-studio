@@ -30,8 +30,8 @@ export function ffProgress(total, onPct, passthrough) {
 }
 
 /**
- * `quality` reproduces the reference app's master exactly (crf 18, preset medium, High@4.0) and
- * stays the default for anything the user publishes.
+ * `quality` is the master profile (crf 18, preset medium, High@4.0) and stays the default for
+ * anything the user publishes.
  *
  * `fast` is the same encoder at the same CRF with a cheaper preset — NOT the hardware encoder,
  * which was the obvious guess and measured worse on every axis. On 158s of real 1080p scene
@@ -41,7 +41,7 @@ export function ffProgress(total, onPct, passthrough) {
  *   libx264 -preset veryfast -crf 18 21.8s   43.4 MB   SSIM 0.99952 vs baseline
  *   h264_videotoolbox -q:v 75        24.5s   54.7 MB   SSIM 0.99875 vs baseline
  *
- * VideoToolbox is slower than veryfast, 23% larger, and further from the reference — so there is
+ * VideoToolbox is slower than veryfast, 23% larger, and further from the master — so there is
  * no configuration in which it wins here and it is not offered. Note the ceiling on all of this:
  * the stream-copy tier does the same job in 4.6s. Picking a cheaper encoder is worth 1.8×;
  * needing no encoder at all is worth 8×, which is why concat-plan.js matters more than this

@@ -1,8 +1,7 @@
 // Static safety/determinism lint for LLM-generated scene specs { css, html, script }.
-// P39 (raw-GSAP reference port): the model now authors like the reference app — a raw GSAP
-// timeline. The FULL gsap API is allowed (gsap.set for instant states, gsap.timeline for nested
+// P39 (raw GSAP): the model authors a raw GSAP timeline. The FULL gsap API is allowed (gsap.set for instant states, gsap.timeline for nested
 // sub-sequences, gsap.utils, eases); ERRORS are reserved for what genuinely breaks the render,
-// and layout/quality nits are advisory WARNINGS (the reference app's validation is advisory too).
+// and layout/quality nits are advisory WARNINGS.
 // The rules that stay hard protect two contracts:
 //   1) determinism — no wall-clock, no self-scheduling, no network; all TIMED motion lives on the
 //      paused root timeline `tl` (scrubbed by __seek), so a STANDALONE gsap.to/from (which runs on
@@ -71,7 +70,7 @@ export function lintSpec(spec, { overlay = false } = {}) {
   if (!script.trim()) warnings.push('script is empty — the scene will only have the default ambient motion');
   else if (!/\b(tl|FX)\s*[.(]/.test(script)) warnings.push('script adds no tween to tl/FX — the scene will be static (no seeked motion)');
   if (css.length > CAP || html.length > CAP || script.length > CAP) errors.push(`spec too long (>${CAP} chars/field)`);
-  // P39: these are advisory now (the reference app does not gate on them). Math.random is
+  // P39: these are advisory, never a gate. Math.random is
   // deterministic here (the harness reseeds it per scene); display/layout tweens and
   // gBCR-in-callback are quality nits, not render breakers under deterministic frame-seek.
   if (/Math\s*\.\s*random\b/.test(script)) warnings.push('Math.random — the harness reseeds it deterministically per scene, but rng() is clearer for seeded randomness');

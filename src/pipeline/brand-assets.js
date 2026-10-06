@@ -1,10 +1,9 @@
-// Brand-asset auto-casting (P40) — reference-app parity for "put the brand's own art in the video".
+// Brand-asset auto-casting (P40): put the brand's own art in the video.
 //
-// The reference app keeps a per-brand folder of mascot cutouts (`character <name> <emotion>.png`)
-// and concept backgrounds, asks its model for per-scene keywords, then filename-matches those
-// keywords against the folder. We do the equivalent in ONE call but hand the model the REAL
-// catalog instead of keywords — the same shape as our sound-design lane (audio/sound-design.js),
-// so a pick is always an existing file and never a hallucinated filename that silently drops.
+// A brand folder holds mascot cutouts (`character <name> <emotion>.png`) and concept backgrounds.
+// ONE call hands the model the REAL catalog rather than asking for keywords to filename-match —
+// the same shape as the sound-design lane (audio/sound-design.js) — so a pick is always an
+// existing file and never a hallucinated filename that silently drops.
 //
 // Everything downstream is unchanged: picks are merged into the existing image-full asset lane,
 // so a cast asset becomes a {{asset:NAME}} placeholder the codegen model may place. The lane is
@@ -18,7 +17,7 @@ import { chat, llmEnabled } from '../providers/llm.js';
 import { safeJson } from '../util/util.js';
 
 import { tp } from '../i18n/t.js';
-/** A mascot cutout follows the reference naming scheme; everything else is concept art. */
+/** A mascot cutout follows the `character <name> <emotion>` naming scheme; everything else is concept art. */
 export function isCharacterAsset(name) {
   return /^character\b/i.test(String(name || '').trim());
 }
@@ -31,8 +30,7 @@ const ART = /\.(png|jpe?g|webp|gif|svg)$/i;
  *
  * The DB rows are the assets uploaded or generated through the app; the FOLDER is what the user
  * sees in Finder. Reading only the DB (as this did at first) made art dropped straight into the
- * folder invisible — the reference app reads the folder, and dropping files in is the obvious
- * thing to do. Both are unioned, DB rows winning on a name clash since they carry the real row.
+ * folder invisible — and dropping files in is the obvious thing to do. Both are unioned, DB rows winning on a name clash since they carry the real row.
  */
 export function brandCatalog(brandFolder = 'Default') {
   const seen = new Map();
@@ -62,7 +60,7 @@ export function brandFolders() {
 
 /**
  * Which brand folder a project casts from. 'auto' (the default) uses the project's folder, or
- * 'Default' — matching the reference app, which always has a brand in play. `false`/'none' opts out.
+ * 'Default', so a brand is always in play. `false`/'none' opts out.
  */
 export function brandFolderFor(config = {}) {
   const v = config.brandAssets;

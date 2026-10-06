@@ -1,5 +1,4 @@
-// Drag & drop onto the window (P43 — the reference app has this and we did not). Dropping a file
-// is the obvious gesture, and the alternative was hunting for the right hidden <input> every time.
+// Drag & drop onto the window (P43). Dropping a file is the obvious gesture, and the alternative was hunting for the right hidden <input> every time.
 //
 // Where a file GOES is decided by what it is, not by where it lands, so the user can drop
 // anywhere on the window:

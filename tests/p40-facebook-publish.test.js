@@ -1,5 +1,4 @@
-// P40 — Facebook Page publishing (the reference app's only publish target) + the two UI holes
-// the audit found: a toolbar button with no handler, and publish routes nothing could reach.
+// P40 — Facebook Page publishing + two UI holes: a toolbar button with no handler, and publish routes nothing could reach.
 // Every network call is stubbed: nothing is uploaded anywhere.
 import './_env.mjs';
 import test from 'node:test';

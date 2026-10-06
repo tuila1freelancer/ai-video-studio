@@ -1,5 +1,5 @@
 // Design-token themes for the animation engine.
-// 'neon-tech' replicates the reference channel: dark navy, neon glow typography, HUD accents.
+// 'neon-tech': dark navy, neon glow typography, HUD accents.
 
 export const THEMES = {
   'neon-tech': {

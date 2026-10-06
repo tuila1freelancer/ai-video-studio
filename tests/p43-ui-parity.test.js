@@ -1,6 +1,5 @@
-// P43 — UI-surface parity. The route diff (P42) could not see client-side features, so the
-// reference app's 406 user-visible controls were checked separately. These pin the two real
-// capability gaps that check found. Pure/fast: no browser, no ffmpeg, no LLM.
+// P43 — UI-surface capabilities that live only on the client, which a route-level test (P42)
+// cannot see. These pin two of them. Pure/fast: no browser, no ffmpeg, no LLM.
 import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';

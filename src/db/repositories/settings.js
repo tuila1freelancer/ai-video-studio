@@ -37,7 +37,7 @@ export const DEFAULT_SETTINGS = {
     provider: 'pollinations', model: 'flux', apiKey: '', baseUrl: 'https://api.openai.com/v1', bestOf: 1,
     // Brand-asset image EDITS (reference-image → character variations). Named providers are
     // OpenAI-compatible /images/edits endpoints managed from the Brand Asset page; brandEdit
-    // stores the page's current pick. Defaults mirror the reference app (gpt-image-2 @ 1024x1536)
+    // stores the page's current pick. Defaults (gpt-image-2 @ 1024x1536) live here
     // as DATA — the generate path reads only what is saved here, no constants in code.
     editProviders: [], // [{id, label, baseUrl, apiKey}]
     brandEdit: { providerId: '', model: 'gpt-image-2', size: '1024x1536' },

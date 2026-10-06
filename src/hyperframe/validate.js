@@ -239,9 +239,9 @@ const PROBE = `(() => {
  */
 export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration = 6, beats = [], narration = '', captionsOn = true, overlay = false, language = '' }) {
   // P38: this gate now checks ONLY "the HTML is not broken" + "the layout is balanced" — the two
-  // things the user asked to keep. The reference-caliber nudges (sparse / hero-density / beat-
-  // adherence / dialogue-match), the flat-type check, the low-contrast gate + auto-repair, and the
-  // mid-scene/ending liveness checks are all removed (the reference app ships none of them).
+  // things the user asked to keep. The caliber nudges (sparse / hero-density / beat-adherence /
+  // dialogue-match), the flat-type check, the low-contrast gate + auto-repair, and the
+  // mid-scene/ending liveness checks are all removed: they cost attempts and bought nothing visible.
   if (!chromeAvailable()) return { ok: true, skipped: true, defects: [], warnings: [], langDefects: [] };
   const dur = Math.max(1.5, duration);
   const g = normalizeGuide(guide || spec.guide);
@@ -255,11 +255,10 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
   });
   const browser = await getBrowser();
   const page = await browser.newPage();
-  // P39 (reference-parity, advisory validation): `defects` is the HARD structural floor only —
-  // the script threw, or the scene renders blank. These block + re-ask (they are the real
-  // "broken scene" cases the reference app's own structure implicitly rejects). Every geometry
-  // finding (off-screen / overlap / caption-band / distribution / …) is now an advisory WARNING:
-  // surfaced and logged, never a re-ask — mirroring the reference app, whose validation is advisory.
+  // P39 (advisory validation): `defects` is the HARD structural floor only — the script threw, or
+  // the scene renders blank. These block + re-ask (they are the real "broken scene" cases). Every
+  // geometry finding (off-screen / overlap / caption-band / distribution / …) is an advisory
+  // WARNING: surfaced and logged, never a re-ask.
   const defects = [], warnings = [], langDefects = [];
   try {
     await page.setViewport({ width: w, height: h, deviceScaleFactor: 1 });
@@ -344,7 +343,7 @@ export async function renderValidate({ spec, guide, w = 1080, h = 1920, duration
     // HARD FLOOR — "HTML not broken": the scene must actually paint something (a blank render =
     // extraction/JS fail). This is the one structural defect that still blocks + re-asks.
     if (!anyVisible) defects.push('no element is ever visible — the scene renders empty. Make each beat element visible during its window.');
-    // ---- everything below is ADVISORY (warnings): logged, never a re-ask (reference-parity) ----
+    // ---- everything below is ADVISORY (warnings): logged, never a re-ask ----
     // overlay contract: the footage should stay visible — solid paint may not blanket the center.
     if (overlay && maxCenterCover > 0.4) {
       warnings.push(`overlay mode: solid elements cover ${Math.round(maxCenterCover * 100)}% of the center of the frame — the owner's footage must stay visible. Keep the center ~40-50% clear; move panels/keywords to the edges, lower-third or side columns, and never use filled backgrounds larger than a chip.`);

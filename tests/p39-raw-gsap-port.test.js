@@ -1,6 +1,6 @@
-// P39 — raw-GSAP reference port. Pins the four pillars that make the output match the reference
-// app: (1) strong codegen model + token headroom, (2) raw-GSAP lint contract, (3) exact integer
-// threshold tables, (4) reference-grade encode. Pure/fast: no browser, no ffmpeg, no LLM.
+// P39 — raw-GSAP codegen. Pins the four pillars of the output quality: (1) strong codegen model +
+// token headroom, (2) raw-GSAP lint contract, (3) exact integer threshold tables, (4) master-grade
+// encode. Pure/fast: no browser, no ffmpeg, no LLM.
 import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';

@@ -1,9 +1,8 @@
-// EDIT VIDEO (P40) — reference-app parity for "put motion graphics on a video I already have".
+// EDIT VIDEO (P40): put motion graphics on a video the user already has.
 //
-// The reference app's edit-video mode takes an existing file, transcribes it, cuts it into
-// segments, has the model design an overlay for each, renders them on a key colour and
-// composites them back onto the footage. This lane does the same by REUSING the pieces that
-// already exist here — whisper, the overlay codegen (config.overlay.enabled), the deterministic
+// Take an existing file, transcribe it, cut it into segments, have the model design an overlay
+// for each, render them on a key colour and composite them back onto the footage — by REUSING
+// the pieces that already exist here — whisper, the overlay codegen (config.overlay.enabled), the deterministic
 // renderer and concat — instead of growing a second pipeline:
 //
 //   probe + transcribe → segment into scenes → runVisuals(overlay) → render+composite → concat
@@ -134,7 +133,7 @@ export function scenesFromSegments(segments = []) {
 }
 
 /**
- * Repair an ASR transcript with the LLM (reference parity: its `ai-fix-srt`).
+ * Repair an ASR transcript with the LLM.
  * Speech recognition is the ceiling of this lane — with no script to align to, a small whisper
  * model mangles Vietnamese diacritics ("FAMO TANG NANG SUK" for "Ba mẹo tăng năng suất"). One
  * call fixes spelling/diacritics/spacing WITHOUT touching timings or the number of lines; a
@@ -231,9 +230,9 @@ export async function runEditVideo(ctx) {
   if (!existing.length) {
     step(projectId, 'b2', 'running', m('Bóc lời thoại từ video'));
     jlog(projectId, { kind: 'status', msg: tp`🎬 Sửa video: ${src.split('/').pop()}` });
-    // DEAD AIR FIRST (P44). The reference cuts silence AFTER it has split scenes from the
-    // transcript, so every scene then reads the shortened footage at its OLD timestamp and
-    // drifts. Cutting before the transcript means whisper only ever sees the final footage and
+    // DEAD AIR FIRST (P44). Cutting silence AFTER splitting scenes from the transcript would
+    // leave every scene reading the shortened footage at its OLD timestamp, drifting.
+    // Cutting before the transcript means whisper only ever sees the final footage and
     // the timings are right by construction.
     const useSrc = await maybeRemoveSilence(ctx, src);
     op(projectId, m('🎧 Đang bóc lời thoại (whisper)…'));

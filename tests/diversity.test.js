@@ -1,7 +1,7 @@
-// P31 — every video unique, reference-app parity.
+// P31 — every video unique.
 // (a) No synthetic intro/outro cards: the program is the script's scenes only — the ending
-//     is the script's own closing-CTA scene, codegen'd like any scene (reference sessions
-//     hold exactly one HTML per scripted scene, none extra).
+//     is the script's own closing-CTA scene, generated like any scene (exactly one HTML per
+//     scripted scene, none extra).
 // (b) Per-project diversity: scene N of two different videos must not share randomness —
 //     sceneSeed salts the seed with the project id and motionSignature rotates with a
 //     per-project salt. No project id → legacy values, byte-identical.

@@ -4,10 +4,10 @@ import { column } from '../../i18n/languages.js';
 import { countWords } from '../../i18n/segment.js';
 
 // Spoken words(-as-written-tokens) per second by language — Vietnamese "words" are syllables,
-// so neural voices land near the reference channel's ~270 syllables/min. Undershooting this
+// so neural voices land near a natural presenter's ~270 syllables/min. Undershooting this
 // (the old flat 2.6) produced scenes that ran seconds shorter than their slot.
 // P5 core rates (vi 4.4 …) are measured and pinned; the 2026-07 additions extend the table
-// for the reference-app language set (its per-language wordsPerSecond values where known,
+// to the full language set (published per-language speaking rates where known,
 // family-consistent estimates otherwise) — existing entries are untouched.
 export const LANG_WPS = column('wps');
 // LANG_NAME now lives in util/lang.js next to detectLang so the render validator and the codegen

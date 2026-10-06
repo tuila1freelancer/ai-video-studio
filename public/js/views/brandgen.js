@@ -118,7 +118,7 @@ async function genEmotions() {
   finally { btn.disabled = false; btn.textContent = m('📋 Sinh danh sách'); }
 }
 
-// ---- generation loop (batch-3, stop/resume like the reference) ----
+// ---- generation loop (batches of 3, stop/resume) ----
 async function generateOne(emotion) {
   log(`→ character ${$('#bgName').value.trim()} ${emotion}…`);
   try {

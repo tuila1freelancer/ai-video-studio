@@ -1,5 +1,4 @@
-// P44 — the two ENGINE steps the route diff (P42) and the UI diff (P43) could not see, because
-// they are neither a route nor a button in the reference: silence removal and auto-zoom, both
+// P44 — two ENGINE steps that are neither a route nor a button: silence removal and auto-zoom, both
 // applied automatically to the user's own footage inside the edit-video lane.
 // Pure/fast: the cut decision and the zoom expression are computed without ffmpeg.
 import './_env.mjs';
@@ -59,8 +58,8 @@ test('P44: nothing detected, or nothing detectable, is never a destructive edit'
 
 test('P44: removeSilence trims picture and sound with ONE range list, so they cannot drift', () => {
   const ff = sourceOf('src/media/ffmpeg.js');
-  // the same r.start/r.end feeds trim= and atrim= in the same iteration — the reference wrote
-  // N intermediate clips and concat-demuxed them, which re-encodes every segment twice
+  // the same r.start/r.end feeds trim= and atrim= in the same iteration — writing
+  // N intermediate clips and concat-demuxing them would re-encode every segment twice
   assert.match(ff, /\[0:v\]trim=start=\$\{r\.start\}:end=\$\{r\.end\}/);
   assert.match(ff, /\[0:a\]atrim=start=\$\{r\.start\}:end=\$\{r\.end\}/);
   assert.match(ff, /concat=n=\$\{ranges\.length\}:v=1:a=1/);
@@ -83,9 +82,9 @@ test('P44: the zoom alternates direction per scene and lands exactly on 1.0 at a
   assert.ok(Math.abs(outMax - (1 + outAmt)) < 1e-6, 'pull-out starts at max and ends at 1.0');
 });
 
-test('P44: the zoom is framed at the REAL output size — not the reference hardcoded 1920x1080', () => {
-  // the reference writes s=1920x1080 unconditionally, so a 9:16 video it zooms comes back
-  // squashed into landscape. Ours takes the caller's frame.
+test('P44: the zoom is framed at the REAL output size — never a hardcoded 1920x1080', () => {
+  // s=1920x1080 written unconditionally would bring a zoomed 9:16 video back squashed into
+  // landscape. The filter takes the caller's frame.
   assert.match(zoomFilter({ w: 1080, h: 1920, fps: 30 }), /:s=1080x1920:fps=30$/);
   assert.match(zoomFilter({ w: 1080, h: 1080, fps: 24 }), /:s=1080x1080:fps=24$/);
   // the ramp is measured in OUTPUT frames, so it completes over the scene at any fps
@@ -117,8 +116,8 @@ test('P44: zoom rides the footage only — the keyed graphics on top stay still'
 
 test('P44: silence is cut BEFORE the transcript, and the whole project follows the new file', () => {
   const ev = sourceOf('src/pipeline/edit-video.js');
-  // ORDER IS THE POINT. The reference splits scenes from the transcript first and removes
-  // silence after, so each scene then reads the shortened footage at its old timestamp.
+  // ORDER IS THE POINT. Splitting scenes from the transcript first and removing silence after
+  // would leave each scene reading the shortened footage at its old timestamp.
   const cut = ev.indexOf('await maybeRemoveSilence(ctx, src)');
   const transcribe = ev.indexOf('await transcribeWords(useSrc');
   assert.ok(cut > 0 && transcribe > cut, 'the cut happens first');

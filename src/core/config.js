@@ -27,8 +27,8 @@ export function mergeConfigLayers(...layers) {
 }
 function isPlainObject(v) { return v != null && typeof v === 'object' && !Array.isArray(v); }
 
-// P39 (raw-GSAP reference port): HyperFrame visual quality is dominated by the codegen model,
-// not the prompt alone (memory: hyperframe-codegen-model). It reaches the render as a per-project
+// P39: HyperFrame visual quality is dominated by the codegen model, not the prompt alone. It
+// reaches the render as a per-project
 // override read by visuals.js (config.hyperframe.model → hfAi.llm.model), so existing projects
 // keep their stored snapshot and any channel/preset/request value still wins.
 //

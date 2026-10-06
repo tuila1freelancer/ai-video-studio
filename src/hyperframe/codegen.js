@@ -218,11 +218,11 @@ export async function generateSceneSpec({ scene, guide, w, h, idx, total, ai, on
     // image-full media lands AFTER lint (placeholders are lint-invisible) and BEFORE the
     // render check, so validation sees the actual inlined hero media.
     if (!errors.length && media.length) applyAssetMedia(clean, media);
-    // dynamic: actually render. P39 (reference-parity): the render gate returns the HARD
+    // dynamic: actually render. P39: the render gate returns the HARD
     // STRUCTURAL FLOOR as defects (the script threw / the scene renders blank) — those re-ask
     // (they are genuinely broken scenes). Every GEOMETRY finding (off-screen / overlap /
-    // caption-band / center-clump / junk) stays ADVISORY: logged, never a re-ask — matching the
-    // reference app. No layout defect burns an attempt.
+    // caption-band / center-clump / junk) stays ADVISORY: logged, never a re-ask. No layout
+    // defect burns an attempt.
     //
     // WRONG LANGUAGE is the one exception, and it was earned the hard way: on a 95-scene English
     // video this fired 22 times as an advisory and all 22 scenes shipped with Vietnamese text on

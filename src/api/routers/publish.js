@@ -54,7 +54,7 @@ export function mount(r) {
   });
 
   // Facebook Page connect/disconnect — a pasted Page access token, verified against the Page
-  // (P40). No OAuth dance: this is a desktop tool and the reference app works the same way.
+  // (P40). No OAuth dance: this is a desktop tool, and a Page token is all the Graph API needs.
   r.post('/publish/facebook/connect', async (req, res) => {
     try {
       res.json(await getPublisher('facebook').connect(req.body || {}));

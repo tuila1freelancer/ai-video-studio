@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 
 /**
  * ONE image-to-image edit call (brand-asset lane, P27) against an OpenAI-compatible
- * `/v1/images/edits` endpoint — the exact shape the reference app uses: multipart
+ * `/v1/images/edits` endpoint: multipart
  * `image, prompt, model, n=1, size` (+ `background=transparent` for gpt-image models).
  * Deliberately NO failover chain and it throws on failure: the caller owns the
  * primary-model ×N retry loop and the loud final error (no-fallback contract).

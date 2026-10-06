@@ -39,7 +39,7 @@ MUST contain ALL 8 bracket sections, concise (1-2 lines each):
 DIVERSITY IS MANDATORY: every scene's [MAIN FOCUS] must be UNIQUE to that scene's voice — rotate object types and layouts (${HF_LAYOUTS.slice(0, 12).join(' | ')}), never repeat a composition within 2 consecutive scenes, never stamp one template sentence across scenes.
 Keep each scene to 2-3 main moving elements. Overly complex scenes = broken HTML.`;
 
-// Per-language narration guidance (reference-app voiceNote parity): tone + address form so
+// Per-language narration guidance (voiceNote): tone + address form so
 // non-vi/en scripts read like a native presenter, not a translation.
 export const LANG_VOICE_NOTES = column('voiceNote');
 
@@ -57,7 +57,7 @@ export function buildMasterPrompt({
   // One lookup, not a Vietnamese special case with everything else as its else-branch — which is
   // how English, the app's second language, ended up with no register guidance at all.
   const persona = LANG_VOICE_NOTES[language] ? `\n- ${LANG_VOICE_NOTES[language]}` : '';
-  // Reference-app LANGUAGE OVERRIDE semantics: narration in the target language, the
+  // LANGUAGE OVERRIDE semantics: narration in the target language, the
   // "visual" brief stays English (codegen instructions are English), title follows the voice.
   const langOverride = language !== 'en'
     ? `\n- LANGUAGE: the "voice" field MUST be written in ${langName}. The "visual" field MUST remain in English (it feeds an English-instruction rendering engine) — except [ON-SCREEN TEXT] labels, which are in ${langName}. thumbnail.title in ${langName}; thumbnail.prompt in English.` : '';

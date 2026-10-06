@@ -14,7 +14,7 @@ import { m, tp } from '../../i18n/t.js';
  * @returns {Promise<{sdPlan:object|null, bgmPath:string|null, sfxPath:string|null}>}
  */
 export async function buildSoundtrack({ projectId, project, config, scenes, renderDir, expectDur, lossBeforeScene }) {
-  // LLM sound design (reference-app parity, toggle config.soundDesign): ONE call picks a
+  // LLM sound design (toggle config.soundDesign): ONE call picks a
   // BGM from the user's library and places SFX by the cue sheet. Anything short of a
   // valid plan (offline, empty library, bad reply) → sdPlan stays null and the
   // deterministic legacy audio below ships unchanged.

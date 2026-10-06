@@ -15,7 +15,7 @@ const CATALOG = [
   { name: 'chart background.png', path: '/tmp/c.png', character: false },
 ];
 
-test('P40-B: the reference naming scheme decides what is a mascot cutout', () => {
+test('P40-B: the naming scheme decides what is a mascot cutout', () => {
   assert.equal(isCharacterAsset('character ema crying.png'), true);
   assert.equal(isCharacterAsset('Character Ema Crying.PNG'), true);
   assert.equal(isCharacterAsset('chart background.png'), false);
@@ -24,7 +24,7 @@ test('P40-B: the reference naming scheme decides what is a mascot cutout', () =>
 });
 
 test('P40-B: casting is on by default (Default folder) and explicitly opt-out', () => {
-  assert.equal(brandFolderFor({}), 'Default', 'reference parity — a brand is always in play');
+  assert.equal(brandFolderFor({}), 'Default', 'a brand is always in play');
   assert.equal(brandFolderFor({ brandAssets: 'auto' }), 'Default');
   assert.equal(brandFolderFor({ brandAssets: 'The Money Uncle' }), 'The Money Uncle');
   assert.equal(brandFolderFor({ brandAssets: 'none' }), null);

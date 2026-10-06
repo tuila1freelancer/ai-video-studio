@@ -1,6 +1,5 @@
-// P42 — the last capabilities the reference app had and we did not, found by diffing its 121
-// routes against ours. Each is implemented on OUR architecture rather than copied route-for-route,
-// so the tests pin the CAPABILITY and the safety property, not the URL shape.
+// P42 — route-level capabilities: copy-assets, restart, AI captions, logo presets and the rest.
+// The tests pin the CAPABILITY and the safety property, not the URL shape.
 // Pure/fast: no browser, no ffmpeg, no LLM.
 import './_env.mjs';
 import test from 'node:test';

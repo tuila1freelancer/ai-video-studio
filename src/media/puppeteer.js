@@ -30,8 +30,7 @@ export async function getBrowser() {
           // byte-identical output on non-WebGL pages (SwiftShader only serves WebGL contexts —
           // 2D text/SVG rasterization is untouched), so existing renders are unaffected.
           // Without these a WebGLRenderer throws "Error creating WebGL context" and takes the
-          // whole scene script down with it. The reference app leaves this off (its three.js
-          // cache is dead weight) — this is where we go one better.
+          // whole scene script down with it.
           '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'],
       });
       // warm-up: first page load is slow; do it once so real screenshots paint fully.

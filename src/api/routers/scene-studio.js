@@ -105,7 +105,7 @@ export function mount(r) {
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
-  // Edit-by-prompt (reference-app parity): a plain instruction rewrites the scene's current
+  // Edit-by-prompt: a plain instruction rewrites the scene's current
   // effective source via ONE LLM call; the result passes the same lint/render gates as fresh
   // codegen, snapshots a take, and invalidates the clip. Bad edits are rejected with defects.
   r.post('/scenes/:id/edit-html', async (req, res) => {

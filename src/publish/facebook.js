@@ -1,16 +1,14 @@
-// Facebook Page publisher (P40) — the reference app's only publish target, ported onto our
-// existing publisher contract so it sits beside YouTube instead of replacing it.
+// Facebook Page publisher (P40), built on the existing publisher contract so it sits beside YouTube instead of replacing it.
 //
 // Auth is a PAGE ACCESS TOKEN the user pastes in (Meta's Graph API Explorer or their own app),
-// not an OAuth dance: the reference works the same way, and it keeps us out of app-review
-// territory for a desktop tool. The token lives in settings.publish.facebook.pageToken and is
+// not an OAuth dance: that keeps a desktop tool out of app-review territory. The token lives in settings.publish.facebook.pageToken and is
 // masked at every egress by the *Token key-suffix rule (P14).
 //
 // Two shapes, chosen by the video's own aspect ratio:
 //   • vertical (9:16 / 4:5) → REELS: POST /{page}/video_reels upload_phase=start → PUT the bytes
 //     to rupload.facebook.com → upload_phase=finish (PUBLISHED or SCHEDULED).
 //   • everything else → a normal feed video: multipart POST /{page}/videos.
-// Both accept a scheduled_publish_time, which is how the reference schedules a post.
+// Both accept a scheduled_publish_time, which is how a post is scheduled.
 import { createReadStream, openAsBlob, statSync } from 'node:fs';
 import { getSetting, setSetting } from '../db/index.js';
 import { logger } from '../util/log.js';
@@ -207,7 +205,7 @@ async function uploadFeedVideo({ pageId, token, videoPath, title, description, s
   return { videoId: String(out.id), url: `https://www.facebook.com/${out.id}` };
 }
 
-/** Optional first comment — the reference's way of pinning a link without hurting reach. */
+/** Optional first comment — a way of pinning a link without hurting reach. */
 export async function comment(objectId, message) {
   const c = cfg();
   if (!c.pageToken || !objectId || !message) return { ok: false };

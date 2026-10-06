@@ -46,9 +46,8 @@ ${lines.join('\n')}`;
 }
 
 /**
- * CREATIVE LIBRARIES (P40) — reference-app parity. The reference lets its model pull in up to 4
- * CDN libraries (three.js, p5.js, …) and rewrites them to a local cache. We vendor the same set
- * and inject only what a scene references, but the renderer scrubs a PAUSED timeline, so a
+ * CREATIVE LIBRARIES (P40). A scene may pull in up to 4 libraries (three.js, p5.js, …). They are
+ * vendored and only what a scene references is injected, but the renderer scrubs a PAUSED timeline, so a
  * library that draws on its own rAF clock would jitter. The block therefore teaches the ONE
  * pattern that keeps such a layer deterministic: redraw from window.__onSeek(t).
  * Returns '' when nothing is vendored, so a machine without vendor/libs never sees the offer.

@@ -86,7 +86,7 @@ export async function chat(messages, { json = false, temperature = 0.8, maxToken
 async function chatOnce(s, messages, { json, temperature, maxTokens, timeoutMs }) {
   // Reasoning models (gemini-*-low, o*, gpt-5*) burn max_tokens on hidden thinking BEFORE the
   // visible reply — a tight cap returns a truncated mid-thought fragment. Give every call a
-  // generous floor (the reference app sends 100k for gemini-like backends); providers simply
+  // generous floor (gemini-like backends accept 100k); providers simply
   // stop earlier when done. Tune with llm.maxTokensFloor if a backend rejects large caps.
   const floor = Number(s.maxTokensFloor) > 0 ? Number(s.maxTokensFloor) : 16000;
   // …and a CEILING, because a floor cannot lower anything. Groq, DeepSeek and Cerebras enforce

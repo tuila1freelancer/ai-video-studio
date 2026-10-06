@@ -1,7 +1,7 @@
 // P35 — visual quality levers: role-aware per-scene density (with validation floors that
 // scale to match), a positive dialogue-match gate, an art director who sees the spoken
 // anchors, a duration-scaled beat budget, honest contrast for headline text, regen parity
-// with the no-fallback contract, and WHITE-frame QC (the reference app's blank-scene bug).
+// with the no-fallback contract, and WHITE-frame QC (a blank scene must never ship).
 import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';

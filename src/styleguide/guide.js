@@ -23,7 +23,7 @@ export const HF_DEFAULT_GUIDE = {
 };
 
 // v2 "art direction" fields — optional per guide, embedded into the codegen prompt so the
-// LLM designs every scene inside one locked visual language (reference-app parity):
+// LLM designs every scene inside one locked visual language:
 //   semantics:   fixed meaning → color map (good/bad/warn/money…) — accents stay decorative
 //   conceptMap:  "concept → visual" recipes ("comparison → SPLIT 2 columns", "process → stepper…")
 //   hud:         decorative HUD vocabulary (mono kickers like "// SECTION", corner statuses)

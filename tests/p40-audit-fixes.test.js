@@ -1,5 +1,4 @@
-// P40 — the remaining gaps a multi-agent audit of the reference app CONFIRMED against this repo:
-// SEO written from the title alone, no key pool for paid voices, and no scheduled publishing.
+// P40 — three gaps closed: SEO written from the title alone, no key pool for paid voices, and no scheduled publishing.
 // Pure/fast: no network, no LLM.
 import './_env.mjs';
 import test from 'node:test';

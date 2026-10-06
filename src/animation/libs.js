@@ -1,11 +1,10 @@
-// Creative runtime libraries for scene pages (P40) — reference-app parity, made deterministic.
+// Creative runtime libraries for scene pages (P40), made deterministic.
 //
-// The reference app lets its codegen model add up to 4 CDN <script> imports (three.js, p5.js,
-// tsParticles, countUp, extra GSAP plugins) and rewrites them to a local cache before render.
-// We vendor the same set (scripts/build-libs.mjs → vendor/libs) and inject ONLY the libraries a
-// scene actually references, so a text-only scene stays as light as it was before this feature.
+// A scene may use up to 4 extra libraries (three.js, p5.js, tsParticles, countUp, extra GSAP
+// plugins). They are vendored (scripts/build-libs.mjs → vendor/libs) and ONLY the libraries a
+// scene actually references are injected, so a text-only scene stays as light as before.
 //
-// Determinism contract — the upgrade over the reference:
+// Determinism contract:
 //   the renderer scrubs a PAUSED timeline frame by frame, so a library that draws on its own
 //   requestAnimationFrame clock would produce a different picture every run. Every library here
 //   is therefore driven from `window.__onSeek(fn)`: the harness calls each registered hook with

@@ -31,7 +31,7 @@ import { escapeHtml } from '../../util/util.js';
  */
 export function buildScenePage(opts) {
   const { w, h, theme, template } = opts;
-  // Overlay mode (reference-app parity): the page renders on a SOLID key color that ffmpeg
+  // Overlay mode: the page renders on a SOLID key color that ffmpeg
   // later keys transparent, so the graphics composite onto the user's footage. Every stage
   // dressing that would pollute the key (particle canvas, grid, vignette, watermark,
   // progress bar) is omitted; captions stay — they belong on top of the footage.

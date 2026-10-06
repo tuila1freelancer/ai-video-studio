@@ -1,7 +1,7 @@
 // P24 — overlay mode: scenes render on the solid key color with every stage dressing
 // stripped (particles/grid/vignette/grain/watermark/progress), captions kept; the
 // hyperframe template drops motif/deco; lint bans backdrop-filter; the composite helper
-// exists with the reference colorkey defaults. Off by default: pages are byte-identical
+// exists with the standard colorkey defaults. Off by default: pages are byte-identical
 // to the pre-overlay ones when config.overlay is absent.
 import './_env.mjs';
 import test from 'node:test';
@@ -33,7 +33,7 @@ test('P24 overlay: the page renders on the solid key color with no stage dressin
 test('P24 overlay: default page is unchanged when overlay is off', () => {
   const html = buildScenePage(base);
   assert.ok(html.includes('bgCanvas') && html.includes('progtrack') && html.includes('wmt'));
-  assert.match(html, /radial-gradient\(ellipse at 50% 30%/); // P39: cinematic stage gradient (reference-parity)
+  assert.match(html, /radial-gradient\(ellipse at 50% 30%/); // P39: cinematic stage gradient
 });
 
 test('P24 overlay: hyperframe template drops motif/deco/vig/grain and beat pulses under props.overlay', () => {

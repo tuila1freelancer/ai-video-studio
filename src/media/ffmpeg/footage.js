@@ -6,7 +6,7 @@ import { m, tp } from '../../i18n/t.js';
 import { ffmpeg } from './run.js';
 import { probeDuration, probeImageSize } from './probe.js';
 
-// Overlay-mode composite (reference-app parity): the scene clip's key color becomes
+// Overlay-mode composite: the scene clip's key color becomes
 // transparent and the motion graphics land on a slice of the user's base footage. The
 // slice offset wraps around the footage length so any video length works; footage shorter
 // than the scene is frozen on its last frame (tpad clone) rather than cut to black.
@@ -102,7 +102,7 @@ export function silenceKeepRanges(silences = [], total = 0, { keepMs = 200, padM
   let cursor = 0;
   for (const g of gaps) {
     const cutFrom = Math.max(cursor, g.start + pad);                    // keep a beat of the head
-    // …and of the tail. Clamped to the gap's own end: the reference's `max(end-pad, start+keep)`
+    // …and of the tail. Clamped to the gap's own end: the naive `max(end-pad, start+keep)`
     // runs PAST a gap shorter than `keep` and eats the first syllable of the next sentence.
     const cutTo = Math.min(g.end, Math.max(g.end - pad, g.start + keep));
     if (cutTo - cutFrom < MIN_CUT) continue;   // not enough dead air to be worth a splice
@@ -116,7 +116,7 @@ export function silenceKeepRanges(silences = [], total = 0, { keepMs = 200, padM
 /**
  * Cut the dead air out of a recording (P44 — reference `removeSilence`).
  *
- * Done in ONE filter_complex pass (trim/atrim → concat) rather than the reference's
+ * Done in ONE filter_complex pass (trim/atrim → concat) rather than
  * write-N-clips-then-concat-demux, so there is no intermediate generation loss and no temp
  * files to leak. Audio and video are trimmed with the SAME range list, so they cannot drift.
  * Nothing to cut → the file is copied through untouched.
@@ -166,9 +166,8 @@ export function zoomFocus(point) {
  * A slow push-in / pull-out for ONE scene of footage (P44 — reference `applySceneZoom`).
  *
  * Even scenes push in, odd scenes pull out, and the focus point rotates, so a long stretch of
- * talking-head footage never sits perfectly still. Unlike the reference — which hardcodes
- * `s=1920x1080` and so squashes every vertical video it touches — the output size is the
- * caller's real frame, and the filter is folded into the composite pass instead of costing a
+ * talking-head footage never sits perfectly still. The output size is the caller's real frame —
+ * a hardcoded `s=1920x1080` would squash every vertical video — and the filter is folded into the composite pass instead of costing a
  * second full re-encode.
  * @returns {string} a `zoompan=…` filter string
  */

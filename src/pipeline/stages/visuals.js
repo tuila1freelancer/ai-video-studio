@@ -63,7 +63,7 @@ export async function runVisuals(ctx) {
     logger.info(tp`🎬 Chỉ đạo hình ảnh: ${dirs.size}/${undirected.length} cảnh có brief`, { projectId, stage: 'b5' });
   }
   const hookVisual = scenes[0]?.visual_prompt || '';
-  // Image-full lane (reference-app parity): resolve each scene's master-assigned asset
+  // Image-full lane: resolve each scene's master-assigned asset
   // names against config.assets [{name, path, type}] → hero-sized data URIs. Resolution
   // failures simply drop the asset (the scene designs media-free).
   // P40 brand casting: the brand's own artwork (mascot cutouts + concept art) joins the SAME

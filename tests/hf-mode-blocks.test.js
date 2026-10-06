@@ -1,4 +1,4 @@
-// P22 — reference-app mode blocks on the codegen lane:
+// P22 — mode blocks on the codegen lane:
 //   consistent-scenes: prompt block locks bg + primary accent for every scene
 //   image-full: master-assigned scene assets ride rows → prompt block + {{asset:NAME}}
 //   substitution AFTER lint; unresolved placeholders can never reach the page.

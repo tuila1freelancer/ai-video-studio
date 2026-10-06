@@ -14,7 +14,7 @@ test('lint: the canned SAMPLE_SPEC passes clean', () => {
   assert.deepEqual(errors, []);
 });
 
-// P39 (raw-GSAP reference port): the reference app's validation is advisory, so these
+// P39 (raw GSAP): validation is advisory, so these
 // quality/geometry nits are WARNINGS now, not errors — they no longer burn a codegen attempt.
 test('lint: repeat:-1 is an advisory warning with a finite-count fix hint (P39)', () => {
   const r = ok("tl.to('#a',{x:10,duration:1,repeat:-1},0)");

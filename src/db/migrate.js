@@ -57,7 +57,7 @@ const MIGRATIONS = [
   {
     id: 4,
     name: 'scene-assets',
-    // Per-scene project-asset assignment (reference-app image-full parity): the master
+    // Per-scene project-asset assignment (image-full lane): the master
     // engine assigns uploaded assets to the 1–2 scenes each fits; the names persist here
     // (JSON array) so codegen/image-full can resolve them against config.assets.
     up(db) {

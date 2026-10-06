@@ -16,7 +16,7 @@ export async function runMetadata(ctx) {
   try {
     op(projectId, m('📊 Tạo metadata…'));
     // config.metadataPrompt (channel/preset/request layered) = user-defined SEO style
-    // prompt prefix — the reference app's "metadata styles" as one config knob.
+    // prompt prefix — "metadata styles" as one config knob.
     // The narration is the only honest source for SEO: from a title alone the model invents tags
     // and promises the video never delivers (P40 audit finding). Send what the viewer will hear.
     const scs = DB.getScenes(projectId);

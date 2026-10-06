@@ -1,7 +1,6 @@
 // Per-scene MOTION SIGNATURE — a named visual "personality" that varies scene-to-scene so a
-// video never reads as one template stamped N times. Distilled from the reference channel's
-// mood/energy visual-style layer (Swiss / Velvet / Maximalist / Shadow-cut / Data-drift) and
-// adapted to our palette-driven guide: a signature dictates MOTION FEEL, typography weight and
+// video never reads as one template stamped N times. A mood/energy visual-style layer (Swiss /
+// Velvet / Maximalist / Shadow-cut / Data-drift) adapted to the palette-driven guide: a signature dictates MOTION FEEL, typography weight and
 // hero treatment — NEVER fixed colors (those stay locked to the style guide). It is selected
 // deterministically from the scene's already-computed cinematic direction, so identical input
 // renders identical frames (determinism is sacred in this pipeline).
@@ -77,7 +76,7 @@ export const SIGNATURES = {
  * Pick the motion signature for a scene from its cinematic direction (+ scene index).
  * Deterministic — same direction + idx always yields the same signature. The idx term
  * rotates the mid-energy scenes through several personalities so a long video's calm
- * stretch never wears one look for many scenes in a row (reference-app 8-mood parity).
+ * stretch never wears one look for many scenes in a row.
  * @param {{energy?:string, mood?:string, isHook?:boolean, isClimax?:boolean}} direction
  * @param {number} [idx] scene index (0-based); omitted → legacy fixed mapping
  */

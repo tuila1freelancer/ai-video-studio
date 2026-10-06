@@ -17,7 +17,7 @@ import { tp } from '../i18n/t.js';
 const DIRECTED = /\[MAIN FOCUS\]/i;
 export function hasDirection(scene) { return DIRECTED.test(scene?.visual_prompt || ''); }
 
-// Scene layout taxonomy: distilled from the @TuiLa1Freelancer reference channel, plus the
+// Scene layout taxonomy: distilled from the TuiLa1Freelancer channel's videos, plus the
 // five HyperFrames blueprint shapes that cover roles the original ten lacked
 // (NOTICE.md → HyperFrames → Blueprints).
 export const HF_LAYOUTS = [

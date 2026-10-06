@@ -33,7 +33,7 @@ export function measureLoudness(inPath, { I = -16, TP = -1.5, LRA = 11 } = {}) {
 // every scene sits at the same level regardless of TTS provider — a static gain, so it cannot
 // pump, and the whole-mix loudnorm at concat (the -16 LUFS authority, P9) barely has to move
 // an already-correct input. Then pad a short trailing silence (the "breath" between scenes —
-// reference app uses 650ms vi / 400ms en). Returns { path, duration }.
+// 650ms vi / 400ms en). Returns { path, duration }.
 export async function normalizeVoice(inPath, outPath, { padMs = 500 } = {}) {
   const pad = Math.max(0, padMs) / 1000;
   let ln = 'loudnorm=I=-16:TP=-1.5:LRA=11'; // fallback: single-pass dynamic (previous behavior)
@@ -71,7 +71,7 @@ export async function makeWhoosh(outPath, { dur = 0.9 } = {}) {
 }
 
 // Lay one whoosh at every event timestamp onto a silent bed of the video's length —
-// mixed into the final cut like a second BGM track (section punctuation, reference-app style).
+// mixed into the final cut like a second BGM track (section punctuation).
 export async function makeSfxBed(outPath, { events = [], whooshPath, total = 0 }) {
   const evts = events.filter((e) => Number.isFinite(+e.at) && +e.at >= 0).slice(0, 60);
   if (!evts.length || !total) throw new Error(m('sfx bed: không có event/thời lượng'));

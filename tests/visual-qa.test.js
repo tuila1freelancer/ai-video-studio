@@ -24,7 +24,7 @@ test('contrastRatio: WCAG anchors (white/black 21:1, same color 1:1) and the 2.2
 
 test('P39 codegen re-asks ONLY on the structural floor; geometry is advisory (no HARD_DEFECT lane)', () => {
   const s = sourceOf('src/hyperframe/codegen.js');
-  // P39 (reference-parity): the hard/soft defect classifier and the lastGood graceful-fallback
+  // P39: the hard/soft defect classifier and the lastGood graceful-fallback
   // lane are gone. A scene ships as soon as it passes lint + syntax + the structural render floor
   // (script didn't throw, scene isn't blank); every geometry finding is an advisory warning.
   assert.ok(!/HARD_DEFECT/.test(s), 'the HARD_DEFECT classifier is removed');

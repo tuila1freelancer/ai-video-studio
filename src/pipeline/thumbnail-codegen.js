@@ -1,8 +1,7 @@
-// LLM-authored HTML thumbnail (P40) — reference-app parity.
+// LLM-authored HTML thumbnail (P40).
 //
-// The reference app asks its model for a full STATIC HTML page and screenshots it headless,
-// which is why its thumbnails are compositions rather than "title over a photo". We do the same,
-// with two differences that make it safe here:
+// The model writes a full STATIC HTML page and Chrome screenshots it headless, which is what makes
+// a thumbnail a composition rather than "title over a photo". Two rules make it safe:
 //   • the page is sanitized and re-shelled by US (our vendored fonts, the locked palette, the
 //     exact canvas), so a model can style but never break out of the frame or reach the network;
 //   • a failure is NOT loud — a thumbnail is packaging, not the video, so an unusable reply falls
@@ -204,7 +203,7 @@ function shell(fragment, { w, h, guide, language }) {
   // one really did — would beat a head rule, collapse the box to height:0 (its children are all
   // absolute) and render a solid black image. An inline style outranks any author rule, so the
   // model can restyle the canvas (background, font, radius) but never move or collapse it.
-  // overflow VISIBLE, like the reference: hidden clips marks that sit above or below the line.
+  // overflow VISIBLE: hidden clips marks that sit above or below the line.
   const box = `position:absolute;top:${inset}px;left:${inset}px;right:${inset}px;bottom:${inset}px;overflow:visible`;
   return `<!doctype html><html><head><meta charset="utf-8"><style>
 ${fontsCss()}

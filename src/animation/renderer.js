@@ -61,7 +61,7 @@ export async function renderScenePage(opts) {
         '-i', audio,
         '-map', '0:v', '-map', '1:a',
         '-t', duration.toFixed(3),
-        // P39: match the reference app's per-scene encode (crf 18, preset medium, High@4.0) —
+        // P39: per-scene master encode (crf 18, preset medium, High@4.0) —
         // one visible notch above the old crf20/veryfast on the same q92-JPEG frame source.
         '-c:v', 'libx264', '-preset', 'medium', '-crf', '18', '-profile:v', 'high', '-level', '4.0', '-pix_fmt', 'yuv420p', '-r', String(fps),
         '-c:a', 'aac', '-b:a', '160k', '-ar', '44100', '-ac', '2',

@@ -1,8 +1,8 @@
 // Local TTS server lifecycle (P40) — the self-hosted Supertonic and VieNeu-TTS voices.
 //
-// The reference app spawns `supertonic serve` on demand, waits for the port, deep-checks that a
-// tiny synthesis really works (an HTTP-alive-but-broken zombie is worse than a dead port), and
-// kills the process on shutdown. Same behaviour here, kept in ONE place so the provider stays a
+// Spawns `supertonic serve` on demand, waits for the port, deep-checks that a tiny synthesis
+// really works (an HTTP-alive-but-broken zombie is worse than a dead port), and kills the process
+// on shutdown. Kept in ONE place so the provider stays a
 // pure request/response module and nothing else in the app has to know about child processes.
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';

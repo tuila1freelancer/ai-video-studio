@@ -9,8 +9,8 @@
 // for why a dip and not a dissolve — it was measured on real adjacent clips, not chosen by taste.
 const ROLE_RE = /\[ROLE\]\s*(\w+)/i;
 // User-pickable transition styles (P43). 'auto' keeps the storytelling doctrine below — the
-// default, and still the best answer — but the user can now name one look for the whole video
-// the way the reference app lets him, or 'varied' to rotate deterministically. Every value is a
+// default, and still the best answer — but the user can now name one look for the whole video,
+// or 'varied' to rotate deterministically. Every value is a
 // real ffmpeg xfade transition, verified against the vendored build.
 /**
  * Ceiling on the xfade graph, in clips.

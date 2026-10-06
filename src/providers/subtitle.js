@@ -64,7 +64,7 @@ export async function buildSubtitles(audioPath, text, duration, { language, onLo
         if (r.words.length) {
           if (engine === 'whisper') {
             // Raw transcription may mishear proper nouns / numbers / foreign terms — the
-            // LLM correction lane (reference-app parity) fixes wording while the contract
+            // LLM correction lane fixes wording while the contract
             // pins every timestamp + block count. align-engine scenes never need this:
             // their displayed words ARE the script. Toggle: ai.subtitle.llmCorrect.
             const sub = aiSettings().subtitle || {};

@@ -31,7 +31,7 @@ function mountThumbnail(r) {
     res.json({ presets: Object.entries(EXPORT_PRESETS).map(([id, p]) => ({ id, ...p })) });
   });
 
-  // ---- thumbnail operations (P40) — the reference exposes regen/edit/preview; we only ever
+  // ---- thumbnail operations (P40): regen, edit and preview. Before this the app only ever
   // produced one at the end of a render, with no way to look at it, retry it or hand-tune it.
   r.get('/projects/:id/thumbnail', (req, res) => {
     const p = DB.getProject(req.params.id);

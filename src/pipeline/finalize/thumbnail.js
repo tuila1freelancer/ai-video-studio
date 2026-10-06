@@ -19,7 +19,7 @@ import { THUMB_SIZE } from '../../core/constants.js';
  * @returns {Promise<string|null>} the thumbnail path for the project row
  */
 export async function packageCovers({ projectId, project, config, size, scenes, res, firstImg, visualMode }) {
-  // Thumbnail. P40 (reference parity): the AI DESIGNS a static HTML page and Chrome shoots it,
+  // Thumbnail. P40: the AI DESIGNS a static HTML page and Chrome shoots it,
   // so the result is a real composition instead of a title bar over a frame. It is packaging,
   // not the video — an unusable reply silently falls back to the deterministic builders that
   // shipped before, which also cover a project with no LLM configured.

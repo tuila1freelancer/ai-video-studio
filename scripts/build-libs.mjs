@@ -1,10 +1,9 @@
 #!/usr/bin/env node
 // Provision the CREATIVE RUNTIME LIBRARIES the scene codegen may reach for (P40).
 //
-// The reference app lets its codegen model add up to 4 CDN <script> imports and rewrites
-// them to a local cache at render time, so a scene can use three.js / p5.js / tsParticles /
-// countUp on top of GSAP. Our renderer must stay offline and deterministic, so the same
-// libraries are VENDORED here instead of fetched per render, and the harness injects only
+// The codegen model may use three.js / p5.js / tsParticles / countUp on top of GSAP. The
+// renderer must stay offline and deterministic, so these libraries are VENDORED here instead of
+// fetched per render, and the harness injects only
 // the ones a scene actually references.
 //
 //   node scripts/build-libs.mjs          # fetch anything missing into vendor/libs/
