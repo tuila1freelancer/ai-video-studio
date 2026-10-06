@@ -10,13 +10,14 @@ All notable changes to this project are documented here. The format follows
 
 - VieNeu-TTS as a local bilingual (Vietnamese/English) voice.
 - Open-source project files: MIT licence, contributing guide, code of conduct, security policy,
-  issue and pull request templates.
+  issue and pull request templates, and a Support section with sponsorship links.
 
 ### Changed
 
 - `npm run release` builds, audits, signs and packages locally; it no longer uploads anywhere.
 - Tool lookup (FFmpeg, Chrome, whisper) uses the same chain on every machine: environment
   override → system install → `vendor/` → `PATH`.
+- Build, release and QA scripts, and server log lines that only reach a terminal, are in English.
 
 ### Removed
 

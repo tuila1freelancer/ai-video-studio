@@ -10,7 +10,7 @@
 ![Platforms](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey)
 
 [Quick start](#quick-start) · [Features](#features) · [How it works](#how-it-works) ·
-[Documentation](#documentation) · [Contributing](#contributing)
+[Documentation](#documentation) · [Contributing](#contributing) · [Support](#support-the-project)
 
 </div>
 
@@ -167,6 +167,27 @@ Contributions are welcome. Please read [`CONTRIBUTING.md`](CONTRIBUTING.md) for 
 setup and conventions, and the [Code of Conduct](CODE_OF_CONDUCT.md). Report security issues
 privately as described in [`SECURITY.md`](SECURITY.md). Notable changes are listed in
 [`CHANGELOG.md`](CHANGELOG.md).
+
+## Support the project
+
+AI Video Studio is free and open source. If it saves you time, you can help keep it maintained.
+
+<a href="https://www.buymeacoffee.com/YOUR_BMC_USERNAME"><img src="https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=black" alt="Buy me a coffee"></a>
+
+**Bank transfer (Vietnam, VietQR)** — scan with any Vietnamese banking app:
+
+<p>
+  <img src="https://img.vietqr.io/image/YOUR_BANK_ID-YOUR_ACCOUNT_NUMBER-compact2.png?accountName=YOUR_ACCOUNT_NAME&addInfo=Support%20AI%20Video%20Studio" alt="VietQR bank transfer" width="240">
+</p>
+
+| | |
+|---|---|
+| Bank | YOUR_BANK_NAME |
+| Account number | YOUR_ACCOUNT_NUMBER |
+| Account holder | YOUR_ACCOUNT_NAME |
+| Transfer note | Support AI Video Studio |
+
+Starring the repository and reporting bugs help just as much.
 
 ## License
 
