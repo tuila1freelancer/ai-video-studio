@@ -395,10 +395,7 @@ document is revalidated by ETag. `AVS_PUBLIC_DIR` points the dev server at a bui
 
 Supporting scripts: `fetch-node.mjs` (checksum-verified runtime) · `build-fonts.mjs` (font pipelines
 under a byte budget) · `build-libs.mjs` · `build-whisper-model.mjs` · `build-icon.mjs` ·
-`build-frontend.mjs` · `build-locales.mjs` and four `i18n-extract-*` tools · `journal.mjs`.
-
-> `scripts/journal.mjs` runs on a launchd schedule and ends with `git push origin main`. It commits
-> only `JOURNAL.md`, but the push carries **every** commit on `main`.
+`build-frontend.mjs` · `build-locales.mjs` and four `i18n-extract-*` tools.
 
 ---
 
@@ -412,7 +409,6 @@ under a byte budget) · `build-libs.mjs` · `build-whisper-model.mjs` · `build-
 | Release data dir | `~/Library/Application Support/AI Video Studio` |
 | Per-run journal | the in-app journal panel, and the `journal_events` table |
 | All jobs | the Tasks view — every queued, running and recent job |
-| Daily log | `JOURNAL.md` |
 
 Diagnosis starts in the journal: grouped by stage with measured durations, scene-linked lines,
 retries and errors, searchable and exportable. A red dependency chip means FFmpeg or Chrome is

@@ -31,8 +31,7 @@ npm run token -- create --name claude --scopes read,produce,publish
 npm start
 ```
 
-Keep it running with a LaunchAgent (the journal schedule installer,
-`scripts/install-journal-schedule.sh`, is a working example to copy). Reach it from another machine
+Keep it running with a LaunchAgent (macOS) or a systemd unit (Linux). Reach it from another machine
 over **Tailscale** rather than by opening a port: the API has one credential and no rate limiting,
 and it is not meant to face the open internet.
 

@@ -83,4 +83,4 @@ On a real Windows machine (Windows 10 or 11, x64):
 
 - [ ] Download the published artefact and open it — not the one in `dist/`. It must reach its own
       screen with nothing asked of the person opening it.
-- [ ] Update `JOURNAL.md` and the release notes.
+- [ ] Update the release notes.
