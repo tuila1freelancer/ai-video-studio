@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Mint, list and revoke the API tokens an agent authenticates with.
 //
-//   node scripts/token.mjs create --name "claude-code" --scopes read,produce,publish [--channels ch1,ch2]
+//   node scripts/token.mjs create --name "my-agent" --scopes read,produce,publish [--channels ch1,ch2]
 //   node scripts/token.mjs list [--all]
 //   node scripts/token.mjs revoke <id>
 //

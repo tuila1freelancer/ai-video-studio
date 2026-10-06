@@ -432,7 +432,7 @@ reading `server.url` from its data directory, so nothing pins a port that change
 window to authenticate, and tokens are minted on the machine — the HTTP route refuses outright.
 
 ```bash
-npm run token -- create --name claude --scopes read,produce,publish   # mint one per agent
+npm run token -- create --name my-agent --scopes read,produce,publish   # mint one per agent
 AVS_MODE=server AVS_HOST=127.0.0.1 npm start                          # 0.0.0.0 only behind Tailscale
 claude mcp add avs -- node packages/avs-kit/bin/avs-mcp.mjs --token avs_…
 ```

@@ -33,7 +33,7 @@ network.
 **1. Authenticate, and say which channel.** Every call carries `Authorization: Bearer avs_…`
 whenever the lane is open — in server mode from boot, and on a desktop installation from the moment
 the owner turns on AI Setting → Agent (MCP). Where the token comes from differs: on a server the
-owner mints it on the machine (`npm run token -- create --name claude --scopes
+owner mints it on the machine (`npm run token -- create --name my-agent --scopes
 read,produce,publish`), and in an installed app the owner mints it in that panel, which also prints
 the exact command to add this server to an agent. You never mint your own — the route that mints
 refuses anyone but the app's own window, and refuses outright on a server. Scopes are `read`, `produce`, `publish`, `admin`; `admin` covers

@@ -26,7 +26,7 @@ const post = (base, body, headers = {}) => fetch(`${base}/tokens`, {
 test('the window mints, lists and revokes — and the secret is shown exactly once', async () => {
   const { server, base } = await boot();
   try {
-    const made = await (await post(base, { name: 'claude-code', scopes: ['read', 'produce'] })).json();
+    const made = await (await post(base, { name: 'my-agent', scopes: ['read', 'produce'] })).json();
     assert.match(made.token.token, /^avs_tok[a-z0-9]+_/, 'a token a person made, not a system session');
     assert.deepEqual(made.token.scopes, ['read', 'produce']);
 

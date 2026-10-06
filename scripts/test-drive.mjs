@@ -1,4 +1,4 @@
-// GĐ5 test driver — boot server, run a fully-configured HyperFrame project, report timings.
+// End-to-end test driver — boot the server, run a fully configured HyperFrame project, report timings.
 // Usage: node test-drive.mjs '<topic>' <videoDuration> <aspectRatio> <timeoutMs> [ttsProvider]
 // ttsProvider defaults to 'app': the project carries NO tts override, so the run uses the
 // owner's in-app AI settings exactly (preferred provider, per-language voices, lexicon…).

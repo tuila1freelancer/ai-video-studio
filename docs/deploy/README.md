@@ -27,7 +27,7 @@ else.
 npm run shell:build:dist          # or run from the repo with npm start
 export AVS_MODE=server
 export AVS_HOST=127.0.0.1         # 0.0.0.0 only behind Tailscale or a reverse proxy
-npm run token -- create --name claude --scopes read,produce,publish
+npm run token -- create --name my-agent --scopes read,produce,publish
 npm start
 ```
 
