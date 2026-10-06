@@ -18,7 +18,7 @@ test('a minted token verifies once, and only in its exact form', () => {
 
 test('the secret is never stored, and a revoked token stays auditable', () => {
   const made = createApiToken({ name: 'agent-b', scopes: ['read'] });
-  const secret = made.token.split('_')[2];
+  const secret = made.token.split('_').slice(2).join('_'); // base64url may itself contain '_'
   const stored = JSON.stringify(listApiTokens());
   assert.ok(!stored.includes(secret), 'the database must not carry the secret');
   assert.equal(revokeApiToken(made.id), 1);

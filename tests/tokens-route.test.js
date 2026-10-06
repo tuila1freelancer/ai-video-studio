@@ -33,7 +33,9 @@ test('the window mints, lists and revokes — and the secret is shown exactly on
     const listed = await (await fetch(`${base}/tokens`)).json();
     const row = listed.tokens.find((t) => t.id === made.token.id);
     assert.ok(row, 'it is in the list');
-    assert.ok(!JSON.stringify(row).includes(made.token.token.split('_')[2]), 'but its secret is not, ever again');
+    // The secret is base64url and may itself contain '_', so take everything after the id.
+    const secret = made.token.token.split('_').slice(2).join('_');
+    assert.ok(!JSON.stringify(row).includes(secret), 'but its secret is not, ever again');
     assert.deepEqual(listed.scopes, DB.SCOPES, 'the interface is told what it may ask for');
 
     const gone = await fetch(`${base}/tokens/${made.token.id}`, { method: 'DELETE' });
