@@ -56,3 +56,21 @@ that frame = f(time) holds under out-of-order seeking. These are enforced mechan
 
 ---
 
+## Bundled web assets
+
+`vendor/fonts`, `vendor/libs` and `vendor/gsap` are committed unmodified so every render — and
+every test that hashes a scene page — uses the same bytes. They are distributed under their own
+licences, listed here; regenerate them with `npm run fonts:build` and `npm run libs:build`.
+
+| Asset | Version | Licence | Source |
+|---|---|---|---|
+| GSAP core and plugins (`vendor/gsap/*`, `ScrollTrigger`, `CSSRulePlugin`) | 3.13.0 | GSAP Standard "No Charge" License | <https://gsap.com/standard-license> |
+| three.js | r128 | MIT | <https://github.com/mrdoob/three.js> |
+| p5.js | 1.9.0 | LGPL-2.1 | <https://github.com/processing/p5.js> |
+| CountUp.js | 2.8.0 | MIT | <https://github.com/inorganik/countUp.js> |
+| tsParticles (slim bundle) | 2.12.0 | MIT | <https://github.com/tsparticles/tsparticles> |
+| Be Vietnam Pro, JetBrains Mono, Montserrat, Oswald, Anton, Nunito, Archivo Black, Lexend | Google Fonts | SIL Open Font License 1.1 | <https://fonts.google.com> |
+
+p5.js is shipped as the unmodified upstream build; its complete source is available at the link
+above, as the LGPL requires. The fonts may be used, embedded and redistributed under the OFL; they
+may not be sold on their own.

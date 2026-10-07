@@ -61,8 +61,10 @@ test('fonts: the subtitle burn names a face for every script it can be asked to 
     assert.ok(style.font, `${code}: no burn font`);
     assert.equal(style.lang, code, 'the style carries its language so box.js can break lines');
   }
-  assert.equal(assStyleFrom({ language: 'th', subtitlePreset: 'classic-karaoke' }).font, 'Thonburi');
-  assert.equal(assStyleFrom({ language: 'hi', subtitlePreset: 'classic-karaoke' }).font, 'Kohinoor Devanagari');
+  // The per-language default names a face this platform actually has (Linux images carry Noto).
+  const linux = process.platform === 'linux';
+  assert.equal(assStyleFrom({ language: 'th', subtitlePreset: 'classic-karaoke' }).font, linux ? 'Noto Sans Thai' : 'Thonburi');
+  assert.equal(assStyleFrom({ language: 'hi', subtitlePreset: 'classic-karaoke' }).font, linux ? 'Noto Sans Devanagari' : 'Kohinoor Devanagari');
   // An explicit pick by the user still wins over the per-language default (P30).
   assert.equal(assStyleFrom({ language: 'th', subtitlePreset: 'classic-karaoke', subtitleFont: 'Anton' }).font, 'Anton');
 });

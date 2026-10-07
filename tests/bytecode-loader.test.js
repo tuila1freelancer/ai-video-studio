@@ -7,13 +7,17 @@ import './_env.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const REPO = dirname(dirname(fileURLToPath(import.meta.url)));
-const NODE = join(REPO, 'vendor', 'node', 'bin', 'node');
+// The release compiles with the vendored runtime; a checkout without one (CI, a fresh clone) uses
+// the runtime running the tests — bytecode only has to match the node that loads it.
+const VENDORED = join(REPO, 'vendor', 'node', 'bin', 'node');
+const NODE = existsSync(VENDORED) ? VENDORED : process.execPath;
+const BUILD_ENV = { ...process.env, AVS_BYTECODE_NODE: NODE };
 const { V8_FLAGS } = await import('../scripts/bytecode-flags.mjs');
 
 // One compile, shared by every case below.
@@ -23,7 +27,7 @@ execFileSync(process.execPath, [
   join(REPO, 'scripts', 'build-bytecode.mjs'),
   '--in', join(REPO, 'tests', 'fixtures', 'bytecode-probe.cjs'),
   '--out', dir,
-], { stdio: 'pipe' });
+], { stdio: 'pipe', env: BUILD_ENV });
 
 test.after(() => rmSync(dir, { recursive: true, force: true }));
 
@@ -101,7 +105,7 @@ execFileSync(process.execPath, [
   join(REPO, 'scripts', 'build-bytecode.mjs'),
   '--in', join(REPO, 'tests', 'fixtures', 'bytecode-probe.cjs'),
   '--out', encDir, '--key', KEY,
-], { stdio: 'pipe' });
+], { stdio: 'pipe', env: BUILD_ENV });
 
 test.after(() => rmSync(encDir, { recursive: true, force: true }));
 

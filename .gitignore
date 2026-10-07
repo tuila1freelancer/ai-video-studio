@@ -1,6 +1,12 @@
 node_modules/
 data/
-vendor/
+# Runtimes and binaries are fetched per machine; the small web assets every render needs are
+# committed so a fresh clone renders, and tests hash, exactly the same bytes.
+vendor/*
+!vendor/fonts/
+!vendor/libs/
+!vendor/gsap/
+vendor/fonts/*.bak
 *.log
 .DS_Store
 # Local editor settings
