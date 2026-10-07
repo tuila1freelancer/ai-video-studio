@@ -172,20 +172,24 @@ privately as described in [`SECURITY.md`](SECURITY.md). Notable changes are list
 
 AI Video Studio is free and open source. If it saves you time, you can help keep it maintained.
 
-<a href="https://www.buymeacoffee.com/YOUR_BMC_USERNAME"><img src="https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=black" alt="Buy me a coffee"></a>
+<!-- International sponsorship: uncomment once the accounts exist (and the matching lines in .github/FUNDING.yml).
+<a href="https://github.com/sponsors/tuila1freelancer"><img src="https://img.shields.io/badge/Sponsor%20on%20GitHub-EA4AAA?style=for-the-badge&logo=githubsponsors&logoColor=white" alt="Sponsor on GitHub"></a>
+<a href="https://ko-fi.com/YOUR_KOFI_USERNAME"><img src="https://img.shields.io/badge/Ko--fi-FF5E5B?style=for-the-badge&logo=kofi&logoColor=white" alt="Support on Ko-fi"></a>
+-->
 
-**Bank transfer (Vietnam, VietQR)** — scan with any Vietnamese banking app:
+**Bank transfer from Vietnam (VietQR)** — scan with any Vietnamese banking app; MoMo and ZaloPay
+read VietQR too.
 
 <p>
-  <img src="https://img.vietqr.io/image/YOUR_BANK_ID-YOUR_ACCOUNT_NUMBER-compact2.png?accountName=YOUR_ACCOUNT_NAME&addInfo=Support%20AI%20Video%20Studio" alt="VietQR bank transfer" width="240">
+  <img src="docs/images/donate-vietqr.png" alt="VietQR — Sacombank 060316270371" width="220">
 </p>
 
 | | |
 |---|---|
-| Bank | YOUR_BANK_NAME |
-| Account number | YOUR_ACCOUNT_NUMBER |
-| Account holder | YOUR_ACCOUNT_NAME |
-| Transfer note | Support AI Video Studio |
+| Bank | Sacombank |
+| Account number | `060316270371` |
+| Account holder | NGUYEN VO SONG TOAN |
+| Transfer note | AI Video Studio |
 
 Starring the repository and reporting bugs help just as much.
 

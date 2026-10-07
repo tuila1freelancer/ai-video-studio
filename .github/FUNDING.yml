@@ -1,4 +1,5 @@
-# Shows the "Sponsor" button on the repository page. Uncomment the platforms you use.
-# buy_me_a_coffee: YOUR_BMC_USERNAME
+# The "Sponsor" button on the repository page.
+custom: ["https://github.com/tuila1freelancer/ai-video-studio#support-the-project"]
+# Uncomment once the accounts exist (and the matching badges in README.md):
+# github: [tuila1freelancer]
 # ko_fi: YOUR_KOFI_USERNAME
-# custom: ["https://www.paypal.me/YOUR_PAYPAL_USERNAME"]
