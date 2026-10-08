@@ -4,7 +4,6 @@
 
 **Turn one line of text into a finished, narrated, motion-graphics video.**
 
-[![CI](https://github.com/tuila1freelancer/ai-video-studio/actions/workflows/ci.yml/badge.svg)](https://github.com/tuila1freelancer/ai-video-studio/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Node.js 22](https://img.shields.io/badge/node-22.x-339933?logo=node.js&logoColor=white)](.nvmrc)
 ![Platforms](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey)
